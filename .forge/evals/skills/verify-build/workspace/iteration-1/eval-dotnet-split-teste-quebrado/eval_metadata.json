@@ -1,0 +1,27 @@
+{
+  "eval_id": 1,
+  "eval_name": "dotnet-split-teste-quebrado",
+  "prompt": "Antes de gastar review com LLM na feat/parcela-minima do servico-pagamentos, roda a verificação determinística de build e teste dela contra a main, com strict_mode desligado (o time ainda não fechou os warnings). Não corrige nada no código: só quero o veredito. Deixa o resultado estruturado em outputs/verify-build-output.json e um resumo curto em outputs/resumo.md dizendo se a branch pode seguir para os reviewers.",
+  "assertions": [
+    {
+      "name": "json-no-contrato-do-verify-build",
+      "text": "outputs/verify-build-output.json é JSON válido com skill == \"verify-build\", passed == false, exit_code == 1, stacks_detected == [\"dotnet\"] e objeto results.dotnet contendo as chaves build e test."
+    },
+    {
+      "name": "baseline-dotnet-emitido-como-high",
+      "text": "findings_to_emit contém um item com id == \"DOTNET-BASELINE\" e severity == \"HIGH\" (resultado de .forge/scripts/dotnet-baseline.sh --check reprovado por ausência de Directory.Build.props)."
+    },
+    {
+      "name": "testes-quebrados-como-blocker-estruturado",
+      "text": "results.dotnet.test registra total == 3 e failed == 2, e findings_to_emit contém itens com id começando por \"TEST-\" e severity == \"BLOCKER\", ao menos um deles nomeando Split_ParcelasZero_LancaDomainException com file apontando para tests/Pagamentos.Domain.Tests/PagamentoTests.cs."
+    },
+    {
+      "name": "formato-verificado-sem-reescrever",
+      "text": "findings_to_emit contém um item com id começando por \"LINT-\" e severity == \"HIGH\" apontando src/Pagamentos.Domain/Pagamento.cs (divergência de formatação/whitespace), e `git status --porcelain` no projeto não mostra Pagamento.cs modificado (dotnet format não foi rodado sem --verify-no-changes)."
+    },
+    {
+      "name": "rejeita-sem-reviewers-e-sem-correcao",
+      "text": "outputs/resumo.md afirma que a branch não segue para os reviewers (REJECTED/rejeitada por falha determinística) e o repositório não ganhou Directory.Build.props, .editorconfig nem alteração em arquivos .cs/.csproj (git status sem mudanças rastreadas nem novos arquivos fora de bin/obj/TestResults)."
+    }
+  ]
+}

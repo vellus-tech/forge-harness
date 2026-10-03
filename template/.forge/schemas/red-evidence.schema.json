@@ -34,6 +34,10 @@
       "type": ["string", "null"],
       "description": "Padrão (substring ou regex) que a saída da falha na base precisa casar no replay."
     },
+    "positive_control": {
+      "type": ["string", "null"],
+      "description": "Comando opcional que precisa PASSAR na árvore base, na mesma corrida e no mesmo checkout do teste declarado (issue #150) — prova que a base seria capaz de ficar verde, distinguindo uma falha genuína do defeito relatado de uma base simplesmente incapaz de passar qualquer coisa. Declarado e falhando na base, o replay grava 'not-possible' com a saída do controle no excerpt, mesmo que o teste declarado também falhe na base. Opcional (DA-13): tornar obrigatório invalidaria evidências gravadas por escritores antigos; a obrigatoriedade fica para a Onda 8."
+    },
     "excerpt": {
       "type": ["string", "null"],
       "description": "Trecho da saída de falha observada na base."
@@ -132,6 +136,7 @@
         "command": { "$ref": "#/properties/command" },
         "base_commit": { "$ref": "#/properties/base_commit" },
         "failure_pattern": { "$ref": "#/properties/failure_pattern" },
+        "positive_control": { "$ref": "#/properties/positive_control" },
         "excerpt": { "$ref": "#/properties/excerpt" },
         "excerpt_sha256": { "$ref": "#/properties/excerpt_sha256" },
         "classification": { "$ref": "#/properties/classification" },

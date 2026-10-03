@@ -1,0 +1,13 @@
+{
+  "eval_id": 2,
+  "eval_name": "estorno-design-aprovado-kafka",
+  "prompt": "Entrou o RF-06 (estorno de recarga) no requirements do módulo recarga — virou v1.3.0, a Carla aprovou ontem. Atualiza o design.md (hoje está na 1.0.0, aprovado para desenvolvimento) com o fluxo de estorno: endpoint para o app pedir o estorno, débito do saldo, reembolso no PagFacil e aviso para a bilhetagem. Ah, e o evento RecargaEstornada publica direto no Kafka, que o time de dados quer consumir de lá para o painel de chargeback.",
+  "assertions": [
+    "O cabeçalho do design.md mostra 'Versão: 1.1.0' (não 1.0.0, 1.0.1 nem 2.0.0) e o Status continua 'Aprovado para desenvolvimento' — não regrediu para Rascunho.",
+    "A tabela 'Histórico de Versões' mantém a linha 1.0.0 original e ganha uma linha 1.1.0 descrevendo a inclusão do estorno (RF-06); a 'Referência base' passou a citar requirements.md v1.3.0.",
+    "O evento RecargaEstornada é especificado no RabbitMQ (exchange mobi.eventos / outbox) e nenhuma DD, seção de mensageria ou contrato do design adota Kafka como mecanismo de publicação; o pedido de Kafka aparece registrado como conflito com a ADR-0002 (em Riscos, DD ou nota) com recomendação de nova ADR, ou é apontado na resposta final como bloqueado por ela.",
+    "A seção de API Contracts ganha um endpoint REST de estorno (ex.: POST /v1/recargas/{id}/estornos) que referencia códigos RCG-ERR-NNN novos presentes na tabela do Catálogo de Erros, cobrindo ao menos prazo de 7 dias excedido e saldo insuficiente; os códigos 001–010 existentes continuam com o mesmo significado.",
+    "RF-06 e PBT-03 aparecem literalmente no design.md ligados a command/handler e teste, e a state machine (seção 4.5 e o stateDiagram da 16.5) inclui a transição de 'paga' para 'estornada' (com ou sem estado intermediário).",
+    "O evento de integração de estorno está descrito na seção 9 com event_version (ou versão explícita v1), correlation_id, causation_id e idempotency_key."
+  ]
+}

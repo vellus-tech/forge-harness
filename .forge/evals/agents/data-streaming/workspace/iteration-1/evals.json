@@ -1,0 +1,117 @@
+{
+  "skill_name": "data-streaming",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/data/data-streaming.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "revisao-consumidor-pagamentos-amqplib",
+      "setup": ".forge/evals/agents/data-streaming/fixtures/revisao-consumidor-pagamentos-amqplib/setup.sh",
+      "prompt": "Semana passada a fila `pagamentos` entrou em laço: a mesma mensagem voltava sem parar e o worker ficou a 100% de CPU. Antes de abrir o PR de correção, revise o worker em src/ e a policy em infra/rabbitmq/ (o cluster é RabbitMQ 4.1, três nós) e me diga o que está errado e como fica a versão certa. Não altere nada no repositório, só quero o diagnóstico e o trecho corrigido.",
+      "expected_output": "O agente segue o protocolo: roda check-data-governance.sh --path e scan.sh --root para src e infra, julga cada FOUND lendo o arquivo. Aponta RMQ-AP-10 em src/consumidor.js:14 (nack de um argumento reenfileira por padrão no amqplib e basic.nack não conta para o delivery-limit da quorum: é a causa do laço), RMQ-AP-01 em src/consumidor.js:16 (noAck: true), RMQ-AP-06 em infra/rabbitmq/policy.json:6 (ha-mode removido no 4.0, migrar para quorum queue com delivery-limit e DLX at-least-once), RMQ-AP-08 no publicador sem confirms e OBX-AP-01 em src/pagamentos.js (UPDATE no PostgreSQL seguido de publish, dual write sem outbox), que o scanner não detecta e só a revisão acha. Entrega a correção como trecho na resposta, sem escrever na árvore.",
+      "files": [
+        "fixtures/revisao-consumidor-pagamentos-amqplib/overlay/src/consumidor.js",
+        "fixtures/revisao-consumidor-pagamentos-amqplib/overlay/src/pagamentos.js",
+        "fixtures/revisao-consumidor-pagamentos-amqplib/overlay/infra/rabbitmq/policy.json"
+      ],
+      "assertions": [
+        {
+          "name": "rodou-scan-da-skill-e-governanca",
+          "text": "O transcript mostra a execução de `bash .forge/skills/data-streaming-practices/scripts/scan.sh` com `--root` para os paths afetados (src e infra) e de `bash .forge/scripts/check-data-governance.sh --path` para eles, e a resposta usa a saída do scanner (achados FOUND) em vez de só ler o código"
+        },
+        {
+          "name": "rmq-ap-10-causa-do-laco-com-linha",
+          "text": "A resposta identifica `ch.nack(msg)` como a causa do laço citando o id RMQ-AP-10 e a localização src/consumidor.js:14, e explica que o requeue é true por padrão no amqplib e que basic.nack com requeue não conta para o delivery-limit da quorum queue"
+        },
+        {
+          "name": "ids-rmq-ap-01-e-06-com-arquivo-linha",
+          "text": "A resposta aponta o `noAck: true` com o id RMQ-AP-01 e a localização src/consumidor.js:16, e a policy `ha-mode` com o id RMQ-AP-06 e a localização infra/rabbitmq/policy.json (linha 6 ou 7), dizendo que o espelhamento clássico foi removido no RabbitMQ 4.0 e propondo quorum queue"
+        },
+        {
+          "name": "dual-write-obx-ap-01-achado-por-revisao",
+          "text": "A resposta aponta, em src/pagamentos.js, o UPDATE no PostgreSQL seguido de `ch.publish` sem transação comum como dual write, citando o id OBX-AP-01 (ou nomeando explicitamente o antipattern de dual write), e recomenda outbox transacional com relay"
+        },
+        {
+          "name": "correcao-com-dlx-e-delivery-limit",
+          "text": "O trecho corrigido proposto combina ack manual depois do efeito, nack/reject sem requeue (requeue false) ou retry atrasado, `delivery-limit` definido junto com uma DLX (dead-letter-exchange) — nunca delivery-limit sem DLX — e prefetch explícito"
+        },
+        {
+          "name": "nao-escreveu-na-arvore",
+          "text": "Ao fim da execução, `git status --porcelain` no diretório da fixture está vazio: a correção veio só como trecho na resposta"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "borda-evento-java-pan-governanca-nao-verificada",
+      "setup": ".forge/evals/agents/data-streaming/fixtures/borda-evento-java-pan-governanca-nao-verificada/setup.sh",
+      "prompt": "Vamos registrar o schema do evento PagamentoAprovado no schema registry amanhã. Revise o contrato em src/main/resources/avro/PagamentoAprovado.avsc, o publicador e o listener em src/main/java e o application.yml, e me diga se posso registrar como está. O projeto é Spring Boot 3.3 com RabbitMQ.",
+      "expected_output": "O agente roda check-data-governance.sh --path src/main e recebe `FAIL data-governance/universo-vazio` (o verificador não lê .java, .yml nem .avsc); declara que PAN/PII não foi verificado por ele, sem tratar isso como aprovação nem como conflito, e fica com o scanner e a revisão. O scan.sh acha T-02 em PagamentoAprovado.avsc:7 (campo pan) e RMQ-AP-28 no application.yml (sem default-requeue-rejected: false). Recomenda não registrar como está: trocar pan por token, tratar nomeTitular e cpfTitular como dado pessoal (remover ou pseudonimizar com chave substituta ou HMAC com chave em KMS), e trocar `valor` double por inteiro em centavos pela rule money-as-cents.",
+      "files": [
+        "fixtures/borda-evento-java-pan-governanca-nao-verificada/overlay/src/main/resources/avro/PagamentoAprovado.avsc",
+        "fixtures/borda-evento-java-pan-governanca-nao-verificada/overlay/src/main/java/com/exemplo/pagamentos/PagamentoAprovadoPublisher.java",
+        "fixtures/borda-evento-java-pan-governanca-nao-verificada/overlay/src/main/resources/application.yml"
+      ],
+      "assertions": [
+        {
+          "name": "universo-vazio-declarado-como-nao-verificado",
+          "text": "O transcript mostra `check-data-governance.sh --path` sobre src/main (ou subpaths) com saída `universo-vazio`, e a resposta diz explicitamente que PAN/PII não foi verificado por esse verificador (projeto Java), sem apresentar esse resultado como aprovação, como 'limpo' nem como conflito"
+        },
+        {
+          "name": "t-02-pan-vira-token-com-localizacao",
+          "text": "A resposta cita o id T-02 para o campo `pan` com a localização src/main/resources/avro/PagamentoAprovado.avsc:7 e recomenda substituí-lo por token, dizendo que fila, DLQ ou tópico são armazenamento persistente (escopo PCI)"
+        },
+        {
+          "name": "pii-pseudonimizada-com-chave",
+          "text": "A resposta trata `nomeTitular` e `cpfTitular` como dado pessoal (LGPD) e recomenda removê-los ou pseudonimizá-los com chave substituta ou HMAC com chave em KMS, e não com hash sem chave"
+        },
+        {
+          "name": "valor-em-centavos-pela-rule",
+          "text": "A resposta aponta `valor` como double no schema e no publicador (`doubleValue()`) e recomenda inteiro (long/int64) em centavos, citando a rule money-as-cents do projeto"
+        },
+        {
+          "name": "rmq-ap-28-spring-requeue",
+          "text": "A resposta cita o id RMQ-AP-28 para o application.yml sem `default-requeue-rejected: false` e explica que, no Spring AMQP, a exceção no listener volta a mensagem à fila em laço por padrão"
+        },
+        {
+          "name": "veredito-nao-registrar-como-esta",
+          "text": "A resposta conclui que o schema não deve ser registrado como está, e `git status --porcelain` na fixture está vazio ao fim"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "conflito-adr-cdc-como-contrato-publico",
+      "setup": ".forge/evals/agents/data-streaming/fixtures/conflito-adr-cdc-como-contrato-publico/setup.sh",
+      "prompt": "O serviço de faturamento (services/faturamento) precisa emitir a fatura quando um pedido for confirmado pelo serviço de pedidos (services/pedidos). Desenhe o contrato do evento PedidoConfirmado e o consumidor Kafka do faturamento, com retry e DLT, para o task-coder implementar.",
+      "expected_output": "No passo 1 do protocolo o agente lê o baseline e encontra o ADR-0004 aceito (.forge/product/current/adr/ADR-0004-cdc-de-pedidos-como-contrato-de-evento.md), que define o tópico de CDC da tabela interna como contrato entre domínios e descarta outbox. A skill diz o contrário (CDC-AP-02: CDC nunca como contrato público; evento de domínio via outbox com AsyncAPI). É conflito relevante (contrato de evento), então o agente para e devolve o bloco CONFLITO com decisão, posição A (ADR-0004, caminho), posição B (skill, caminho), precedência (ADR vence a skill, que é contexto: constitution > baseline/ADRs > rules > contexto), opções (aplicar a fonte de maior autoridade | abrir ou atualizar ADR | bloquear) e registro (feito pela sessão principal, não pelo agente). Não entrega o desenho de outbox nem o de consumo do CDC como recomendação final, não escreve approvals.yaml e não altera a árvore.",
+      "files": [
+        "fixtures/conflito-adr-cdc-como-contrato-publico/overlay/.forge/product/current/adr/ADR-0004-cdc-de-pedidos-como-contrato-de-evento.md",
+        "fixtures/conflito-adr-cdc-como-contrato-publico/overlay/services/faturamento/src/index.ts",
+        "fixtures/conflito-adr-cdc-como-contrato-publico/overlay/services/pedidos/src/repositorio.ts"
+      ],
+      "assertions": [
+        {
+          "name": "leu-o-adr-do-baseline",
+          "text": "O transcript mostra a leitura de .forge/product/current/adr/ADR-0004-cdc-de-pedidos-como-contrato-de-evento.md e a resposta menciona o ADR-0004 pelo número"
+        },
+        {
+          "name": "emite-bloco-conflito-completo",
+          "text": "A resposta contém um bloco iniciado pela palavra `CONFLITO` com as seis linhas `decisão:`, `posição A:`, `posição B:`, `precedência:`, `opções:` e `registro:`, em que uma posição cita o caminho do ADR-0004 e a outra cita a skill data-streaming-practices (ou CDC-AP-02 / o padrão outbox com AsyncAPI) como fonte"
+        },
+        {
+          "name": "precedencia-adr-sobre-skill",
+          "text": "A linha de precedência declara que o ADR (baseline) vence a skill, que é contexto, pela ordem constitution > baseline/ADRs > rules > contexto; e as opções incluem aplicar a fonte de maior autoridade, abrir ou atualizar ADR e bloquear"
+        },
+        {
+          "name": "nao-recomenda-a-parte-em-conflito",
+          "text": "A resposta não entrega como recomendação final para o task-coder nem o desenho de outbox com evento PedidoConfirmado em AsyncAPI (contrariando o ADR) nem o consumo direto do tópico `pedidos.public.pedidos` como contrato (contrariando a skill): a escolha do contrato fica pendente da decisão humana"
+        },
+        {
+          "name": "nao-registra-a-decisao",
+          "text": "O agente não cria nem edita approvals.yaml nem ADR, diz que o registro da decisão cabe à sessão principal ou ao pipeline, e `git status --porcelain` na fixture está vazio ao fim"
+        }
+      ]
+    }
+  ]
+}

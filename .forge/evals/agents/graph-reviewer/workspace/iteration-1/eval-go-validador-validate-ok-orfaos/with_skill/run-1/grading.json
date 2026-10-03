@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "docs/qualidade/revisao-grafo-validador.md contém a linha `## Status: NÃO CONFIÁVEL` e menciona que o `graph.sh validate` retornou OK mesmo assim",
+      "passed": true,
+      "evidence": "outputs/docs/qualidade/revisao-grafo-validador.md:3 é exatamente `## Status: NÃO CONFIÁVEL` (grep -c '^## Status: NÃO CONFIÁVEL$' → 1); linha 9: \"`graph.sh validate` retornou OK com um aviso de órfão em `internal/tarifa/tarifa.go`, mas o aviso está subdimensionado\". Cópia idêntica em work/docs/qualidade/ (diff -q sem diferença)."
+    },
+    {
+      "text": "O documento separa os 9 edges não resolvidos em 6 internos (identificados pelo módulo github.com/axis-mobfintech/validador-embarque do go.mod, que deveriam resolver) e 3 externos esperados (github.com/rs/zerolog e github.com/google/uuid), e afirma que há 0 edges resolvidos",
+      "passed": false,
+      "evidence": "outputs/docs/qualidade/revisao-grafo-validador.md:9 diz que os nove edges estão todos `resolved: false`, incluindo os internos `github.com/axis-mobfintech/validador-embarque/internal/...` (o que implica 0 resolvidos), mas não separa 6 internos de 3 externos nem cita github.com/rs/zerolog ou github.com/google/uuid (grep -n -i 'zerolog\\|uuid' no documento → nenhuma ocorrência). A separação quantitativa exigida está ausente."
+    },
+    {
+      "text": "O documento afirma que internal/tarifa/tarifa.go (o órfão do validate) NÃO é código morto, citando pelo menos um importador real (internal/embarque/validar.go ou internal/cartao/cartao.go)",
+      "passed": true,
+      "evidence": "outputs/docs/qualidade/revisao-grafo-validador.md:11: \"`internal/cartao/cartao.go` e `internal/embarque/validar.go` importam `internal/tarifa` e chamam `tarifa.Calcular`. São dependentes reais e diretos de `tarifa.go`\"; linha 9 atribui o órfão à falha do extrator (\"o problema não é um nó isolado, é a resolução de import do extrator nativo para Go\"). Não usa a expressão literal \"código morto\", mas afirma o conteúdo (é importado, órfão é perda do extrator) com importadores reais citados."
+    },
+    {
+      "text": "O documento diz explicitamente que o /forge:impact sobre internal/tarifa/tarifa.go retornaria nenhum dependente (ou resultado vazio/falso negativo) por causa dos edges não resolvidos, com evidência do grafo (graph.sh path NO PATH, graph.sh query ou contagem de resolved no graph.json)",
+      "passed": true,
+      "evidence": "outputs/docs/qualidade/revisao-grafo-validador.md:11: \"Rodei `impact.sh --files internal/tarifa/tarifa.go` sobre o grafo atual e o resultado foi `1 seed(s) -> 1 impacted` — só o próprio arquivo, sem `cartao.go` nem `validar.go`\"; linha 5 chama de \"falso negativo direto\"; causa atribuída aos 9 edges `resolved: false` (linha 9). Execução confirmada em outputs/transcript.md:11 e :27."
+    },
+    {
+      "text": "O documento registra que nenhum dos 5 nós tem camada classificada (todos unknown / 0 de 5 / 0%)",
+      "passed": true,
+      "evidence": "outputs/docs/qualidade/revisao-grafo-validador.md:15: \"Cinco nós, uma linguagem (Go), 100% deles sem layer classificado (`unknown` ...)\". Conferido: jq '[.nodes[]|.layer]' outputs/graph/graph.json → 5× \"unknown\"."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain -- cmd/ internal/ go.mod` sai vazio",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work status --porcelain -- cmd/ internal/ go.mod` → saída vazia, rc=0. (Há deleções em .claude/agents fora do escopo da asserção.)"
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.83
+  }
+}

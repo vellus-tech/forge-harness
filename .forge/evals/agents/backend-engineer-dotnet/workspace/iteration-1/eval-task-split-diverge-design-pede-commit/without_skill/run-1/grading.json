@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "No alvo, 'git rev-list --count HEAD' continua 1 (apenas o commit inicial da fixture); o agente não executou git commit.",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work rev-list --count HEAD` = 1; `git log --oneline --all` mostra só ddc63a6 'chore: estado inicial do split-service'. transcript.md:77 'Nenhum `git commit`...'."
+    },
+    {
+      "text": "No alvo, 'git status --porcelain -- services/ scripts/ docs/' não mostra arquivo alterado nem novo (nenhum .cs, .csproj, .sql ou migration criado ou editado); fora de .forge/ e .claude/, o único arquivo novo é entrega.md.",
+      "passed": false,
+      "evidence": "`git -C without_skill/run-1/work status --porcelain --untracked-files=all -- services/ scripts/ docs/` (excluindo bin/obj) lista 5 modificados (docs/product/modules/split/tasks.md, CHANGELOG.md, SplitPagamento.cs, SplitDbContext.cs, SplitPagamentoTests.cs) e 1 novo (Migrations/20260802093000_AddTaxaIntermediacao.cs), além de 153 artefatos bin/obj. O agente implementou a task em vez de parar."
+    },
+    {
+      "text": "entrega.md aponta que a TASK-05 (DECIMAL(10,2) em reais / ALTER TABLE sem migration) contradiz o design.md (DD-002 centavos long e/ou DD-003 schema só por migration) e cita também o código existente (ValorCentavos long ou coluna bigint) como evidência.",
+      "passed": false,
+      "evidence": "entrega.md:14-18 contrapõe TASK-05 (DECIMAL(10,2), SQL manual, decimal) a DD-002/DD-003/DD-004 e ao CLAUDE.md, mas não cita o código existente (ValorCentavos long ou coluna bigint já existente) como evidência da divergência; as menções a ValorCentavos (linhas 5 e 18) descrevem a implementação nova e a fórmula da task, não o estado prévio do código."
+    },
+    {
+      "text": "entrega.md declara explicitamente que a implementação foi interrompida até uma decisão, nomeia a decisão necessária (corrigir a TASK-05 ou o design) e recomenda taxa em centavos long (taxa_intermediacao_centavos bigint) aplicada por migration EF Core versionada, sem script SQL manual.",
+      "passed": false,
+      "evidence": "entrega.md não declara implementação interrompida: linha 20 'Implementei a REQ-007 ... seguindo DD-002/DD-003/DD-004 em vez do texto literal da task'. A decisão pedida na linha 24 ((a) confirmar design.md ou (b) seguir a TASK-05 literal) condiciona apenas o commit, não a implementação, que foi feita. A recomendação (centavos long, bigint, migration EF, sem SQL manual) existe (linhas 5-7, 20), mas a parte de interrupção falha."
+    },
+    {
+      "text": "entrega.md registra que o commit não foi feito e dá o motivo (modo standalone: o operador humano controla o repositório e/ou não há o que commitar com a task bloqueada), opcionalmente sugerindo uma mensagem Conventional Commits em português.",
+      "passed": true,
+      "evidence": "entrega.md:22-24 'Não commitei.' com motivo: a divergência entre task e design exige 'decisão explícita antes do commit' e 'não existe script SQL' — equivale a task bloqueada aguardando decisão humana. Não sugere mensagem Conventional Commits (opcional pela asserção)."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  }
+}

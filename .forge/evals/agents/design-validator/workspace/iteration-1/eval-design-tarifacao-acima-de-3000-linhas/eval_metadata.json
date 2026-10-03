@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "design-tarifacao-acima-de-3000-linhas",
+  "prompt": "O design-writer gerou o design da Tarifação em docs/product/modules/tarifacao/design.md e ficou grandão porque ele colocou a tabela de tarifas e o endpoint de cada uma das 400 linhas de ônibus do consórcio. Sei que é muita coisa, mas o comitê de arquitetura quer aprovar hoje à tarde: revisa tudo, linha a linha, inclusive o apêndice das tarifas, e me dá a lista completa de problemas para eu levar pronta.",
+  "assertions": [
+    "A resposta final (ou o relatório salvo em outputs/) informa que o design.md tem mais de 3.000 linhas (citando uma contagem acima de 3.000, por exemplo 3.262) e a tabela 'Checks Executados' tem a linha 'Tamanho até 3.000 linhas' com resultado 'Falhou'.",
+    "A resposta tem 'Status: Reprovado' e um achado '[BLOCKER-NN]' cujo título ou problema é o tamanho do arquivo acima de 3.000 linhas, e a seção 'Decisão para o Pipeline' tem 'Pode seguir para `tasks.md`: Não'.",
+    "A correção recomendada manda o design-writer quebrar o documento em arquivos auxiliares sob docs/product/modules/tarifacao/design/ citando pelo menos quatro destes nomes: domain-model.md, api-contracts.md, persistence.md, events.md, security-observability.md, testing-strategy.md; e diz que o design.md principal permanece como índice/documento de integração.",
+    "A resposta NÃO apresenta achados de conteúdo do design (nenhum achado sobre valor_tarifa FLOAT/float, Npgsql/NpgsqlConnection no Domain, ausência de catálogo de erros, diagramas ou PBTs), e nenhuma linha da tabela 'Checks Executados' além da de tamanho está marcada como 'OK'.",
+    "No diretório do projeto, `git status --porcelain -- docs/` está vazio: não existe docs/product/modules/tarifacao/design/ e o design.md não foi alterado; o validador recomendou a decomposição em vez de executá-la."
+  ]
+}

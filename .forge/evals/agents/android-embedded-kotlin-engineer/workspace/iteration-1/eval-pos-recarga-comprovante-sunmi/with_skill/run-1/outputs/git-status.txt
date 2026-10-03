@@ -1,0 +1,10 @@
+ M apps/android/pos-recarga/CHANGELOG.md
+ M apps/android/pos-recarga/README.md
+ M apps/android/pos-recarga/app/build.gradle.kts
+ M apps/android/pos-recarga/core/domain/src/main/kotlin/br/com/axis/posrecarga/domain/CompleteRechargeUseCase.kt
+ M apps/android/pos-recarga/core/domain/src/test/kotlin/br/com/axis/posrecarga/domain/CompleteRechargeUseCaseTest.kt
+ M apps/android/pos-recarga/settings.gradle.kts
+?? apps/android/pos-recarga/core/domain/src/main/kotlin/br/com/axis/posrecarga/domain/PrinterPort.kt
+?? apps/android/pos-recarga/core/domain/src/main/kotlin/br/com/axis/posrecarga/domain/ReceiptFormatter.kt
+?? apps/android/pos-recarga/core/domain/src/test/kotlin/br/com/axis/posrecarga/domain/ReceiptFormatterTest.kt
+?? apps/android/pos-recarga/hardware/printer/

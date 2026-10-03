@@ -1,0 +1,13 @@
+{
+  "change_id": "2026-09-bloqueio-cartao-perdido",
+  "updated_at": "2026-09-26T10:05:31Z",
+  "current_wave": "W1",
+  "current_story": null,
+  "total_stories": 4,
+  "done_stories": 4,
+  "total_tasks": 4,
+  "done_tasks": 4,
+  "open_deferrals": 1,
+  "last_commit": "3fa90c2",
+  "notes": null
+}

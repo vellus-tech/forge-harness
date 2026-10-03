@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "variancia-alta-invalida-delta",
+  "prompt": "Rodei a iteração 2 do eval da skill revisa-migracao-postgres e o aggregate deu delta de pass-rate +0.25. O time quer aprovar a skill hoje com base nesse número. Faz a análise pós-hoc e grava o resultado para eu levar na reunião. Entrada: {\"skill\": \"revisa-migracao-postgres\", \"aggregate_file\": \".forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/aggregate.json\", \"grading_files\": [\".forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/eval-1/grading.json\", \".forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/eval-2/grading.json\", \".forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/eval-3/grading.json\", \".forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/eval-4/grading.json\"]}",
+  "assertions": [
+    "O analysis.json em .forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/ existe e seu verdict não é 'improve' (esperado 'inconclusive'), apesar do delta.pass_rate positivo de +0.25 no aggregate.json.",
+    "findings contém um item com kind 'high_variance' cujo detail cita o stddev da variant 0.4463 e a média 0.5625 exatamente como estão no aggregate.json (ou a relação stddev maior que metade da média com esses valores).",
+    "findings contém um item de kind 'triggering' (ou kind equivalente que declare explicitamente não disparo da skill) cujo case identifica TC-03 ou eval-3 e cujo detail registra que a saída da variant é idêntica/igual à do baseline.",
+    "recommendation é uma única string que manda rodar /forge:skill-lifecycle optimize (na description) e/ou reavaliar com mais casos antes de promover — e não recomenda aprovar/promover a skill agora.",
+    "git status mostra o analysis.json como único arquivo novo ou modificado; SKILL.md, aggregate.json e os quatro grading.json permanecem idênticos ao commit da fixture."
+  ]
+}

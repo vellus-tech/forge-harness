@@ -1,0 +1,40 @@
+{
+  "round_status": "needs_fix",
+  "exit_code": 1,
+  "rounds_executed": 1,
+  "branch": "feat/tarifa/recarga-cartao",
+  "final_diff_sha": "801f22d52a9210403e77b21f4462e0e65d6e3d6c",
+  "findings": [
+    {
+      "id": "SEC-001",
+      "reviewer": "security-reviewer",
+      "severity": "BLOCKER",
+      "category": "security",
+      "file": "services/tarifa/tarifa/recarga.py",
+      "line": 10,
+      "title": "Número completo do cartão em log estruturado",
+      "description": "logger.info grava numero_cartao inteiro; viola PCI DSS 3.4 e a regra de PII em log.",
+      "fix_suggested": "Logar apenas os 4 últimos dígitos (numero_cartao[-4:]) ou um token.",
+      "resolved_in_round": null,
+      "status": "open"
+    },
+    {
+      "id": "QUA-001",
+      "reviewer": "quality-reviewer",
+      "severity": "LOW",
+      "category": "quality",
+      "file": "services/tarifa/tests/test_recarga.py",
+      "line": 7,
+      "title": "Teste não cobre valor negativo",
+      "description": "Só o valor zero é testado na recusa.",
+      "fix_suggested": "Adicionar caso com valor -100.",
+      "resolved_in_round": null,
+      "status": "open"
+    }
+  ],
+  "rounds_history": [
+    { "round": 1, "blockers": 1, "highs": 0, "fixed": 0, "diff_sha": "801f22d52a9210403e77b21f4462e0e65d6e3d6c" }
+  ],
+  "pr_comment_path": "/tmp/code-evaluator-pr-comment.md",
+  "fse_dispatch": { "agent": "fullstack-software-engineer", "round": 2, "findings_to_fix": ["SEC-001"] }
+}

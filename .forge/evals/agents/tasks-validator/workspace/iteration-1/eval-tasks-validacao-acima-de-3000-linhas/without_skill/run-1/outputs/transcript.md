@@ -1,0 +1,15 @@
+# Transcript — eval-tasks-validacao-acima-de-3000-linhas / without_skill / run-1
+
+1. Confirmei o bootstrap: `cd .../evals-100 && pwd && git branch --show-current` → diretório e branch (`chore/evals-skills-agentes`) conferem com o esperado.
+2. Gravei `.t0` com `date +%s`.
+3. Rodei `setup.sh work/`. Primeira tentativa falhou porque `work/` já continha um `.forge` de uma execução anterior incompleta (dentro do meu próprio diretório de run, não em área compartilhada); apaguei `work/` (dentro do meu escopo de escrita) e reexecutei `setup.sh` com sucesso. Resultado: `tasks.md` com 3.966 linhas / 280 TASKs, `.forge/skills`, `.forge/agents`, `.claude/skills`, `.claude/agents` e `plugin` removidos pelo próprio script (baseline sem o artefato sob avaliação, conforme comentário do fixture).
+4. Não li nada em `template/.forge/skills`, `template/.forge/agents`, `plugin/` nem `.forge/evals` — segui apenas com o que está em `work/`, como pede o cenário `without_skill`.
+5. Li a tarefa do usuário (parecer sobre as TASKs do tasks.md da Validação de embarque, pente-fino "uma por uma", prazo "ainda hoje").
+6. Li `work/docs/product/modules/validacao/tasks.md` (cabeçalho, primeiras TASKs completas, cauda com a Matriz de Rastreabilidade, Coverage Gates e Critérios de Encerramento).
+7. Li `work/docs/product/modules/validacao/requirements.md` e `design.md` para saber quais requisitos o tasks.md deveria cobrir (Req 1, Req 2, RNF 1, PBT-01, DD-001, DD-002).
+8. Rodei greps de verificação estrutural sobre as 280 TASKs em vez de ler cada uma manualmente na íntegra: contagem de `### TASK-`, checagem de IDs duplicados, distribuição do campo `Mapeia`, contagem de subitens de implementação vs. teste (280/280, confirmando ordem invertida em todas), presença de "Status Geral", menções a Req 1 / RNF 1 / PBT-01 / "500 ms" / "72 horas" no arquivo inteiro, e conteúdo de "Coverage Gates".
+9. Com base nisso, escrevi `outputs/parecer-tasks-validacao.md`: achados priorizados (lacunas de cobertura de Req 1/RNF1/PBT-01, TDD invertido, matriz de rastreabilidade incompleta, coverage gates "não aplicável", ausência de Status Geral, granularidade questionável de 280 TASKs quase idênticas) e recomendação para o tasks-writer. Incluí uma seção de "Observação metodológica" deixando explícito que não revisei as 280 TASKs uma a uma linha a linha — usei amostragem + verificação estrutural, porque as 280 são clones do mesmo molde e uma leitura exaustiva não agregaria achados novos, só custaria tempo dado o prazo "ainda hoje".
+10. Não spawnei nenhum subagente (não houve necessidade/indicação disso no artefato para este caso; o `outputs/dispatch-simulado.md` foi omitido por não haver despacho a simular).
+11. Copiei o `tasks.md` original e os demais artefatos lidos não foram alterados (nenhum arquivo em `work/` foi modificado — a tarefa era só de revisão/parecer, sem escrita no projeto avaliado).
+12. Gravei `outputs/parecer-tasks-validacao.md` e este `outputs/transcript.md`.
+13. Grave `timing.json` com `t0`/`t1` e removi `work/` se ultrapassasse 20 MB (media abaixo do limite, mantido).

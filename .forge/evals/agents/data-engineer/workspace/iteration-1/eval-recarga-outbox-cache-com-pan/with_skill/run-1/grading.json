@@ -1,0 +1,60 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta contém uma linha que começa com 'classificação:' e traz os três eixos separados por '/' (padrão de acesso, forma do dado, produto), antes da síntese das recomendações.",
+      "passed": true,
+      "evidence": "resposta.md linha 1: 'classificação: trabalho assíncrono + lookup de cópia derivada / estruturado / MongoDB, RabbitMQ, Redis' — três eixos separados por '/', antes da seção 'Síntese, por especialista de origem'."
+    },
+    {
+      "text": "O trace mostra tool_use Agent/Task abaixo do data-engineer com subagent_type data-streaming, data-nosql e data-cache — os três, e nenhum outro tipo; alternativamente, na ausência da ferramenta Agent, a resposta traz o bloco PLANO DE ROTEAMENTO com 'especialistas:' listando exatamente esses três. data-relational não aparece (não há ADR que escolha SQL para recarga).",
+      "passed": true,
+      "evidence": "Ferramenta Agent indisponível (transcript passo 10); resposta.md traz bloco 'PLANO DE ROTEAMENTO' com 'especialistas: data-streaming, data-nosql, data-cache', exatamente os três. data-relational só aparece como explicitamente não acionado ('data-relational não foi acionado: não há ADR que escolha SQL'), não como especialista roteado."
+    },
+    {
+      "text": "O texto de cada pergunta delegada (input.prompt no trace, ou a pergunta por especialista do PLANO DE ROTEAMENTO) contém 'check-data-governance.sh --path' e 'scan.sh --root' apontando para src/recarga (ou um arquivo dentro dela).",
+      "passed": true,
+      "evidence": "despacho-simulado.md: cada um dos três Dispatch (data-streaming, data-nosql, data-cache) traz 'Exigências: bash .forge/scripts/check-data-governance.sh --path src/recarga' e 'bash .forge/skills/data-<x>-practices/scripts/scan.sh --root src/recarga'. Ressalva: o bloco PLANO DE ROTEAMENTO em resposta.md não repete os comandos; a evidência vem do despacho registrado."
+    },
+    {
+      "text": "A síntese atribui explicitamente o schema da coleção outbox e a gravação na mesma transação do MongoDB ao data-nosql, o relay/publicação com confirms ao data-streaming e a política de invalidação ao data-cache — cada recomendação com o especialista de origem nomeado.",
+      "passed": true,
+      "evidence": "resposta.md seções '### data-nosql — a transação e a coleção outbox' (coleção outbox gravada 'na mesma transação que já grava recargas e saldos'), '### data-streaming — o relay e a confiabilidade do publish' (relay com confirm channel, persistent:true, idempotência) e '### data-cache — invalidação e a chave' (invalidar no consumidor pós-commit, C-01)."
+    },
+    {
+      "text": "A resposta aponta que numeroCartao é PAN (pela data-classification.json) e não pode ir no evento — o evento leva token — e que a chave de cache com sha256 do CPF é hash sem chave, a substituir por HMAC com chave secreta em KMS ou token, com namespace por tenant na chave.",
+      "passed": true,
+      "evidence": "resposta.md checklist: 'T-02, PAN no evento de outbox — numeroCartao está classificado pan com tokenization_boundary: true em src/recarga/data-classification.json ... O evento ... deve carregar o token do cartão, não o número'; seção data-cache: '\"saldo:\" + sha256(cmd.cpf). É exatamente o antipattern T-04 ... Trocar por HMAC-SHA256(cpf, chave_secreta_KMS) ou ... token ... chave correta fica algo como tenant:{cmd.tenant}:saldo:{hmac}'."
+    },
+    {
+      "text": "Depois da execução, git status --porcelain no diretório do projeto está vazio: o data-engineer não criou nem editou arquivo.",
+      "passed": true,
+      "evidence": "git -C with_skill/run-1/work status --porcelain executado pelo grader: saída vazia."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Depois da execução, git status --porcelain no diretório do projeto está vazio: o data-engineer não criou nem editou arquivo.",
+        "reason": "Trivialmente satisfeita: as duas configurações passam, inclusive o baseline que gravou propostas de código apenas em outputs/. Não discrimina skill de não-skill."
+      },
+      {
+        "assertion": "O trace mostra tool_use Agent/Task abaixo do data-engineer com subagent_type data-streaming, data-nosql e data-cache — os três, e nenhum outro tipo; alternativamente, na ausência da ferramenta Agent, a resposta traz o bloco PLANO DE ROTEAMENTO com 'especialistas:' listando exatamente esses três. data-relational não aparece (não há ADR que escolha SQL para recarga).",
+        "reason": "Nesta iteração o harness proibiu spawn, então só o ramo PLANO DE ROTEAMENTO foi exercitado; o ramo tool_use Agent/Task nunca é verificado."
+      },
+      {
+        "assertion": "O texto de cada pergunta delegada (input.prompt no trace, ou a pergunta por especialista do PLANO DE ROTEAMENTO) contém 'check-data-governance.sh --path' e 'scan.sh --root' apontando para src/recarga (ou um arquivo dentro dela).",
+        "reason": "O PLANO DE ROTEAMENTO em resposta.md não traz os comandos; eles só aparecem no despacho-simulado.md, artefato pedido pelo harness do eval e não pelo agente. Considere exigir os comandos no próprio bloco de roteamento."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que o CPF em claro também sai do payload do evento, nem que a invalidação migra para o consumidor pós-commit (o expected_output fala de política de invalidação, mas a asserção 4 só exige atribuição, não conteúdo)."
+      }
+    ],
+    "overall": "Asserções 1-5 discriminam bem; a 6 é não discriminante."
+  }
+}

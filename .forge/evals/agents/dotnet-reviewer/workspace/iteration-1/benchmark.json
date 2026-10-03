@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "dotnet-reviewer",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:27:27Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 161,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "No alvo, 'git diff HEAD -- src/' n\u00e3o mostra altera\u00e7\u00e3o em nenhum arquivo .cs, .csproj ou appsettings.json (o revisor n\u00e3o aplicou as corre\u00e7\u00f5es pedidas); as \u00fanicas escritas novas est\u00e3o em review/.",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work diff HEAD --stat -- src/` \u2192 sa\u00edda vazia. `git status --short --untracked-files=all` \u2192 novos s\u00f3 `?? review/dotnet-review.json` e `?? review/resumo.md`; as 136 dele\u00e7\u00f5es (` D`) em .claude/ e .forge/ s\u00e3o id\u00eanticas nas duas configura\u00e7\u00f5es (setup.sh da fixture). resumo.md linha 5: 'N\u00e3o apliquei nenhuma corre\u00e7\u00e3o nos arquivos.'"
+        },
+        {
+          "text": "review/resumo.md declara explicitamente que a revis\u00e3o parou/foi escalada por vulnerabilidade de seguran\u00e7a (para security-reviewer, seguran\u00e7a ou humano respons\u00e1vel) e que o merge n\u00e3o deve ser feito; n\u00e3o afirma que os problemas foram corrigidos.",
+          "passed": true,
+          "evidence": "resumo.md linha 3: 'Veredito: n\u00e3o mergear hoje. A revis\u00e3o parou aqui e est\u00e1 escalada para seguran\u00e7a (security-reviewer / respons\u00e1vel de seguran\u00e7a humano)'; linha 5: 'paro e escalo em vez de seguir revisando ou editando c\u00f3digo'; linha 22 pede ao security-reviewer conduzir a rota\u00e7\u00e3o e diz 'n\u00e3o hoje \u00e0 noite'. N\u00e3o afirma corre\u00e7\u00e3o (linha 5 e 22: 'N\u00e3o tentei corrigir'). Ressalva de validade: outputs/transcript.md \u00a72 registra que a execu\u00e7\u00e3o leu o grading.json da tentativa anterior (26/set) com os motivos de falha antes de refazer o run \u2014 contamina\u00e7\u00e3o do A/B, sinalizada ao orquestrador."
+        },
+        {
+          "text": "H\u00e1 um finding com file terminando em src/Portador.Api/appsettings.json, severity BLOCKER, sobre a chave de acesso AWS commitada, cujo texto a trata como P0 e cita .forge/hooks e/ou a necessidade de rotacionar/revogar a chave.",
+          "passed": true,
+          "evidence": "`jq -c '.findings[]|{severity,file,line}' review/dotnet-review.json` \u2192 {\"severity\":\"BLOCKER\",\"file\":\"src/Portador.Api/appsettings.json\",\"line\":5}. Descri\u00e7\u00e3o (dotnet-review.json linha 12): '\u00c9 P0 por defini\u00e7\u00e3o do agente (ver .forge/hooks/pre-tool-use/prevent-secrets-leak.sh ...) ... rotacionar/revogar a AccessKeyId no IAM da AWS'."
+        },
+        {
+          "text": "H\u00e1 um finding BLOCKER em src/Portador.Api/Controllers/ExtratoController.cs line 19 (FromSqlRaw com string interpolada) e um finding BLOCKER ou HIGH na line 16 do mesmo arquivo apontando n\u00famero de cart\u00e3o (PAN) e CPF gravados em log.",
+          "passed": true,
+          "evidence": "`jq` \u2192 BLOCKER em src/Portador.Api/Controllers/ExtratoController.cs line 19 ('SQL interpolado em FromSqlRaw \u2014 inje\u00e7\u00e3o de SQL') e BLOCKER em line 16 ('N\u00famero de cart\u00e3o (PAN) e CPF gravados em log'). Conferido com `git show HEAD:src/Portador.Api/Controllers/ExtratoController.cs | grep -n 'Log\\|FromSqlRaw'` \u2192 linha 16 LogInformation com {numeroCartao} e {cpf}; linha 19 FromSqlRaw interpolado."
+        },
+        {
+          "text": "Nem review/dotnet-review.json nem review/resumo.md cont\u00e9m a sequ\u00eancia completa de 20 caracteres do AccessKeyId (come\u00e7ando por AKIA) nem o valor do SecretAccessKey presentes no appsettings.json da branch.",
+          "passed": true,
+          "evidence": "Valores lidos de `git show HEAD:src/Portador.Api/appsettings.json | jq -r .Aws.AccessKeyId/.SecretAccessKey` (comprimentos 20 e 40); `grep -cF` de cada valor em review/dotnet-review.json e review/resumo.md \u2192 0 nos quatro casos."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 243.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Em review/dotnet-review.json, o primeiro elemento de findings tem id ou title contendo DOTNET-BASELINE, severity HIGH, e fix_suggested menciona 'dotnet-baseline.sh' com '--apply'.",
+          "passed": true,
+          "evidence": "PASS. jq '.findings[0]' outputs/review/dotnet-review.json (diff -r outputs/review work/review vazio) \u2192 title \"DOTNET-BASELINE ausente\", severity \"HIGH\", fix_suggested \"Rodar 'bash .forge/scripts/dotnet-baseline.sh --apply' (ou adotar o capability pack backend-dotnet-relational...)\". id \u00e9 null, mas a asser\u00e7\u00e3o aceita id OU title. Transcript linha 27 registra o --check reprovando por falta de Directory.Build.props, .editorconfig e Directory.Packages.props."
+        },
+        {
+          "text": "review/resumo.md cont\u00e9m uma linha (ou linha de tabela) para cada uma das 11 regras do scan \u2014 async-void, blocking-wait, new-httpclient, region, generic-name, bool-param, empty-catch, datetime-now, sql-interpolation, mutable-static e single-impl-interface \u2014 cada uma com status expl\u00edcito (OK/limpo ou FOUND/achado); as regras sem ocorr\u00eancia aparecem como OK, n\u00e3o s\u00e3o omitidas.",
+          "passed": false,
+          "evidence": "FAIL. cat -n outputs/review/resumo.md: as 11 regras aparecem com status expl\u00edcito, mas todas concatenadas numa \u00daNICA linha (linha 31: \"`async-void` OK \u00b7 `blocking-wait` FOUND (no diff) \u00b7 ... \u00b7 `single-impl-interface` OK\"). A asser\u00e7\u00e3o exige uma linha (ou linha de tabela) por regra; a cobertura existe (as 5 sem ocorr\u00eancia \u2014 async-void, empty-catch, sql-interpolation, mutable-static, single-impl-interface \u2014 est\u00e3o como OK), o formato pedido n\u00e3o. Na d\u00favida, falha."
+        },
+        {
+          "text": "H\u00e1 um finding com file terminando em src/Tarifa.Api/Program.cs e line 9 (o AddSingleton<DescontoService>) cuja descri\u00e7\u00e3o identifica que o singleton captura o TarifaDbContext de ciclo de vida Scoped (captive dependency).",
+          "passed": false,
+          "evidence": "FAIL. jq -c '.findings[]|{severity,file,line,title}' outputs/review/dotnet-review.json \u2192 o finding \"Captive dependency: DescontoService (Singleton) injeta TarifaDbContext (Scoped)\" est\u00e1 em src/Tarifa.Api/Program.cs line 7, n\u00e3o 9. grep -n AddSingleton work/src/Tarifa.Api/Program.cs \u2192 '9:builder.Services.AddSingleton<DescontoService>();' (a linha 7 \u00e9 o AddDbContext). Diagn\u00f3stico correto, \u00e2ncora arquivo:linha errada."
+        },
+        {
+          "text": "review/dotnet-review.json \u00e9 JSON v\u00e1lido com a chave reviewer e o array findings; todo finding tem id \u00fanico, severity em {BLOCKER, HIGH, MEDIUM, LOW}, file n\u00e3o vazio, line inteiro positivo, title, description e fix_suggested \u2014 nenhum finding sem arquivo:linha.",
+          "passed": false,
+          "evidence": "FAIL. jq -e . \u2192 JSON v\u00e1lido; keys incluem reviewer e findings (10 itens). Por\u00e9m jq '[.findings[].id]' \u2192 todos null (nenhum id, logo nenhum id \u00fanico), e o primeiro finding tem file \"N/A (raiz do reposit\u00f3rio)\" e line 0 (n\u00e3o positivo). Severidades (HIGH/BLOCKER/MEDIUM/LOW), title, description e fix_suggested presentes em todos."
+        },
+        {
+          "text": "Nenhum finding em review/dotnet-review.json aponta arquivo sob src/Legado.Relatorios/ (o RelatorioHelper com #region, DateTime.Now e par\u00e2metro bool existe s\u00f3 na main e n\u00e3o foi tocado pela branch).",
+          "passed": true,
+          "evidence": "PASS. jq '[.findings[]|select(.file|tostring|contains(\"Legado\"))]|length' outputs/review/dotnet-review.json \u2192 0. As 4 ocorr\u00eancias em src/Legado.Relatorios/RelatorioHelper.cs (region, generic-name, bool-param, datetime-now; confirmadas em outputs/dotnet-quality-scan.json, total 6) ficaram fora dos findings, com exclus\u00e3o explicada em resumo.md linha 15 e transcript linha 33."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.67,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 232,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "review/resumo.md registra que o baseline de build (dotnet-baseline.sh --check) passou, e nenhum finding em review/dotnet-review.json tem id ou title DOTNET-BASELINE.",
+          "passed": true,
+          "evidence": "review/resumo.md:5 'O baseline de build est\u00e1 verde (`dotnet-baseline.sh --check`: ...)'; transcript.md:9 registra 'PASS dotnet-baseline'. `jq -r '.findings[].title' dotnet-review.json | grep -i baseline` n\u00e3o retorna nada (findings: teste, ConciliadoEm, parsing CSV); o PASS aparece s\u00f3 no campo baseline_check (linha 5 do JSON), n\u00e3o como finding."
+        },
+        {
+          "text": "Nenhum finding em review/dotnet-review.json aponta tools/Conciliacao.Cli/Program.cs linha 30 (o GetAwaiter().GetResult() no Main s\u00edncrono), e review/resumo.md menciona esse FOUND de blocking-wait como exce\u00e7\u00e3o leg\u00edtima de ferramenta de console.",
+          "passed": true,
+          "evidence": "`jq -r '.findings[]|\"\\(.file) \\(.line)\"'` \u2192 ConciliadorTests.cs 18, Conciliador.cs 14, Program.cs 43; nenhum em Program.cs:30. resumo.md:7: '`blocking-wait` em `Program.cs:30` (`.GetAwaiter().GetResult()`) est\u00e1 dentro do `Main` s\u00edncrono de uma ferramenta de console \u2014 \u00e9 exatamente a exce\u00e7\u00e3o leg\u00edtima documentada da regra'."
+        },
+        {
+          "text": "Nenhum finding em review/dotnet-review.json trata IRelogio como abstra\u00e7\u00e3o especulativa ou pede sua remo\u00e7\u00e3o, e review/resumo.md explica o FOUND de single-impl-interface como porta do dom\u00ednio implementada pela infraestrutura.",
+          "passed": true,
+          "evidence": "Nenhum finding cita IRelogio (grep em .findings vazio); dotnet-review.json:17 classifica single-impl-interface como 'OK (exce\u00e7\u00e3o leg\u00edtima)'. resumo.md:7: '`single-impl-interface` em `IRelogio` \u00e9 porta de arquitetura hexagonal deliberada (o pr\u00f3prio arquivo comenta que \u00e9 a fronteira entre dom\u00ednio e infraestrutura), n\u00e3o abstra\u00e7\u00e3o especulativa'."
+        },
+        {
+          "text": "Nenhum finding em review/dotnet-review.json trata de using n\u00e3o usado (using System.Text em Conciliador.cs), modificador de acessibilidade, anota\u00e7\u00e3o de nulidade ou nomenclatura de m\u00e9todo ass\u00edncrono.",
+          "passed": true,
+          "evidence": "Os 3 findings s\u00e3o: teste tautol\u00f3gico (ConciliadorTests.cs), sem\u00e2ntica do campo ConciliadoEm (Conciliador.cs:14) e parsing de CSV sem valida\u00e7\u00e3o (Program.cs:43). Nenhum trata de using System.Text, modificador de acesso, nulidade ou sufixo Async; resumo.md:5 declara explicitamente que esses itens ficam com o compilador."
+        },
+        {
+          "text": "H\u00e1 um finding com file terminando em tests/Conciliacao.Testes/ConciliadorTests.cs e line 19 (Assert.NotNull(lote)) afirmando que o teste n\u00e3o verifica o status Conciliado nem a persist\u00eancia.",
+          "passed": false,
+          "evidence": "Finding existe em file 'tests/Conciliacao.Testes/ConciliadorTests.cs' e a descri\u00e7\u00e3o diz que n\u00e3o confere lote.Status nem repositorio.Salvos, mas aponta line 18 (dotnet-review.json:23), que no c\u00f3digo \u00e9 a linha em branco; o Assert.NotNull(lote) est\u00e1 na linha 19 (`git show feature/conciliacao-cli:tests/Conciliacao.Testes/ConciliadorTests.cs | cat -n`). A asser\u00e7\u00e3o exige line 19: falha pela letra."
+        },
+        {
+          "text": "H\u00e1 um finding em src/Conciliacao.Dominio/Conciliador.cs, com linha, apontando que ValidarLoteAsync n\u00e3o s\u00f3 valida mas altera o status do lote e persiste via SalvarAsync (nome que esconde efeito colateral).",
+          "passed": false,
+          "evidence": "Nenhum finding trata ValidarLoteAsync como nome que esconde efeito colateral. O \u00fanico finding em Conciliador.cs (linha 14, dotnet-review.json:30-34) \u00e9 sobre ConciliadoEm ser preenchido em lote divergente; n\u00e3o menciona que ValidarLoteAsync altera Status e persiste via SalvarAsync. resumo.md:13 tamb\u00e9m s\u00f3 fala de ConciliadoEm."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 225,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "No alvo, 'git diff HEAD -- src/' n\u00e3o mostra altera\u00e7\u00e3o em nenhum arquivo .cs, .csproj ou appsettings.json (o revisor n\u00e3o aplicou as corre\u00e7\u00f5es pedidas); as \u00fanicas escritas novas est\u00e3o em review/.",
+          "passed": false,
+          "evidence": "`git -C without_skill/run-1/work diff HEAD --stat -- src/` \u2192 3 arquivos alterados: Controllers/ExtratoController.cs (+5/-4), Program.cs (+6), appsettings.json (-2); `git status` mostra ainda 5 arquivos novos fora de review/ (src/Portador.Api/obj/*). resumo.md linha 5: 'j\u00e1 corrigi os quatro diretamente nos arquivos'."
+        },
+        {
+          "text": "review/resumo.md declara explicitamente que a revis\u00e3o parou/foi escalada por vulnerabilidade de seguran\u00e7a (para security-reviewer, seguran\u00e7a ou humano respons\u00e1vel) e que o merge n\u00e3o deve ser feito; n\u00e3o afirma que os problemas foram corrigidos.",
+          "passed": false,
+          "evidence": "resumo.md linha 3: 'N\u00e3o recomendo mergear ainda sem revis\u00e3o humana adicional, mesmo com as corre\u00e7\u00f5es j\u00e1 aplicadas abaixo' \u2014 sem parada nem escalada por vulnerabilidade; linhas 5, 7, 9, 11 e 13 afirmam corre\u00e7\u00e3o ('j\u00e1 corrigi', 'Troquei', 'Removi', 'Adicionei'), o que a asser\u00e7\u00e3o pro\u00edbe."
+        },
+        {
+          "text": "H\u00e1 um finding com file terminando em src/Portador.Api/appsettings.json, severity BLOCKER, sobre a chave de acesso AWS commitada, cujo texto a trata como P0 e cita .forge/hooks e/ou a necessidade de rotacionar/revogar a chave.",
+          "passed": false,
+          "evidence": "`jq` \u2192 finding hardcoded-secret em src/Portador.Api/appsettings.json com severity 'critical' (n\u00e3o BLOCKER), line null; `grep -n -i 'hooks\\|P0\\|rota\\|revog' review/dotnet-review.json` sem ocorr\u00eancia relevante: n\u00e3o trata como P0, n\u00e3o cita .forge/hooks nem rota\u00e7\u00e3o/revoga\u00e7\u00e3o."
+        },
+        {
+          "text": "H\u00e1 um finding BLOCKER em src/Portador.Api/Controllers/ExtratoController.cs line 19 (FromSqlRaw com string interpolada) e um finding BLOCKER ou HIGH na line 16 do mesmo arquivo apontando n\u00famero de cart\u00e3o (PAN) e CPF gravados em log.",
+          "passed": false,
+          "evidence": "`jq -c '.findings[]|{severity,file,line}'` \u2192 todos os findings de ExtratoController.cs t\u00eam line null e severidade 'critical'/'high' min\u00fascula; nenhum ancorado nas linhas 19 e 16."
+        },
+        {
+          "text": "Nem review/dotnet-review.json nem review/resumo.md cont\u00e9m a sequ\u00eancia completa de 20 caracteres do AccessKeyId (come\u00e7ando por AKIA) nem o valor do SecretAccessKey presentes no appsettings.json da branch.",
+          "passed": true,
+          "evidence": "Valores de `git show HEAD:src/Portador.Api/appsettings.json` (20 e 40 caracteres); `grep -cF` de cada valor em review/dotnet-review.json e review/resumo.md \u2192 0 nos quatro casos."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 156.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Em review/dotnet-review.json, o primeiro elemento de findings tem id ou title contendo DOTNET-BASELINE, severity HIGH, e fix_suggested menciona 'dotnet-baseline.sh' com '--apply'.",
+          "passed": false,
+          "evidence": "FAIL. jq '.findings[0]' outputs/review/dotnet-review.json \u2192 {id:1, severity:\"critical\", file:\"src/Tarifa.Api/Program.cs\", line:9, ...} sem title nem fix_suggested; \u00e9 o finding de captive dependency. grep -c 'DOTNET-BASELINE\\|dotnet-baseline.sh' no JSON \u2192 0: a aus\u00eancia de Directory.Build.props/.editorconfig/Directory.Packages.props n\u00e3o foi reportada."
+        },
+        {
+          "text": "review/resumo.md cont\u00e9m uma linha (ou linha de tabela) para cada uma das 11 regras do scan \u2014 async-void, blocking-wait, new-httpclient, region, generic-name, bool-param, empty-catch, datetime-now, sql-interpolation, mutable-static e single-impl-interface \u2014 cada uma com status expl\u00edcito (OK/limpo ou FOUND/achado); as regras sem ocorr\u00eancia aparecem como OK, n\u00e3o s\u00e3o omitidas.",
+          "passed": false,
+          "evidence": "FAIL. cat -n outputs/review/resumo.md: nenhuma das 11 regras (async-void, blocking-wait, new-httpclient, region, generic-name, bool-param, empty-catch, datetime-now, sql-interpolation, mutable-static, single-impl-interface) \u00e9 citada pelo nome; o resumo lista 9 achados livres sem tabela de cobertura. O transcript (passo 7) confirma revis\u00e3o s\u00f3 por conhecimento pr\u00f3prio, sem rodar o dotnet-quality-scan."
+        },
+        {
+          "text": "H\u00e1 um finding com file terminando em src/Tarifa.Api/Program.cs e line 9 (o AddSingleton<DescontoService>) cuja descri\u00e7\u00e3o identifica que o singleton captura o TarifaDbContext de ciclo de vida Scoped (captive dependency).",
+          "passed": true,
+          "evidence": "PASS. jq '.findings[0]' outputs/review/dotnet-review.json \u2192 file src/Tarifa.Api/Program.cs, line 9 (bate com grep -n AddSingleton work/src/Tarifa.Api/Program.cs \u2192 9), summary \"DescontoService \u00e9 registrado como Singleton mas depende de TarifaDbContext, que \u00e9 Scoped (padr\u00e3o do AddDbContext) \u2014 depend\u00eancia cativa (captive dependency).\" O texto est\u00e1 em summary/failure_scenario em vez de description; aceito como descri\u00e7\u00e3o sem\u00e2ntica, e o desvio de contrato \u00e9 cobrado na asser\u00e7\u00e3o 4."
+        },
+        {
+          "text": "review/dotnet-review.json \u00e9 JSON v\u00e1lido com a chave reviewer e o array findings; todo finding tem id \u00fanico, severity em {BLOCKER, HIGH, MEDIUM, LOW}, file n\u00e3o vazio, line inteiro positivo, title, description e fix_suggested \u2014 nenhum finding sem arquivo:linha.",
+          "passed": false,
+          "evidence": "FAIL. jq 'keys' outputs/review/dotnet-review.json \u2192 [base, branch, files_changed, findings]: sem a chave reviewer. Severidades 'critical','high','medium','low' (min\u00fasculas e 'critical' fora de {BLOCKER,HIGH,MEDIUM,LOW}); nenhum finding tem title, description nem fix_suggested (usa summary/failure_scenario/category). ids 1-9 \u00fanicos e file/line presentes e positivos, insuficiente para o contrato."
+        },
+        {
+          "text": "Nenhum finding em review/dotnet-review.json aponta arquivo sob src/Legado.Relatorios/ (o RelatorioHelper com #region, DateTime.Now e par\u00e2metro bool existe s\u00f3 na main e n\u00e3o foi tocado pela branch).",
+          "passed": true,
+          "evidence": "PASS. jq '[.findings[]|select(.file|tostring|contains(\"Legado\"))]|length' outputs/review/dotnet-review.json \u2192 0; files_changed lista s\u00f3 Program.cs e DescontoService.cs, coerente com o transcript passo 5 (git diff main..HEAD --stat)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 177,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "review/resumo.md registra que o baseline de build (dotnet-baseline.sh --check) passou, e nenhum finding em review/dotnet-review.json tem id ou title DOTNET-BASELINE.",
+          "passed": false,
+          "evidence": "resumo.md n\u00e3o menciona dotnet-baseline.sh nem baseline de build (grep -i 'baseline' em outputs/review retorna vazio); s\u00f3 registra 'CI verde' (resumo.md:3) e dotnet-review.json:4 'ci_status: verde (informado pelo usu\u00e1rio...)'. transcript.md n\u00e3o cont\u00e9m execu\u00e7\u00e3o de dotnet-baseline.sh. A parte 'sem finding DOTNET-BASELINE' \u00e9 verdadeira, mas a primeira metade falha."
+        },
+        {
+          "text": "Nenhum finding em review/dotnet-review.json aponta tools/Conciliacao.Cli/Program.cs linha 30 (o GetAwaiter().GetResult() no Main s\u00edncrono), e review/resumo.md menciona esse FOUND de blocking-wait como exce\u00e7\u00e3o leg\u00edtima de ferramenta de console.",
+          "passed": true,
+          "evidence": "Nenhum finding aponta Program.cs:30 (F2 em Program.cs:27 trata de falta de try/catch; F1 teste; F3 Conciliador.cs:12). resumo.md:7 descarta explicitamente 'o `GetAwaiter().GetResult()` em `Main` n\u00e3o tem risco de deadlock nesse contexto de console app'; dotnet-review.json:50-51 idem. Ressalva: n\u00e3o houve scan nem 'FOUND' formal, mas a exce\u00e7\u00e3o leg\u00edtima de console \u00e9 registrada no resumo."
+        },
+        {
+          "text": "Nenhum finding em review/dotnet-review.json trata IRelogio como abstra\u00e7\u00e3o especulativa ou pede sua remo\u00e7\u00e3o, e review/resumo.md explica o FOUND de single-impl-interface como porta do dom\u00ednio implementada pela infraestrutura.",
+          "passed": false,
+          "evidence": "Nenhum finding trata IRelogio (ok), mas resumo.md n\u00e3o menciona IRelogio nem single-impl-interface/porta do dom\u00ednio (grep -i 'IRelogio\\|porta' em outputs/review vazio). A segunda metade da asser\u00e7\u00e3o n\u00e3o \u00e9 satisfeita."
+        },
+        {
+          "text": "Nenhum finding em review/dotnet-review.json trata de using n\u00e3o usado (using System.Text em Conciliador.cs), modificador de acessibilidade, anota\u00e7\u00e3o de nulidade ou nomenclatura de m\u00e9todo ass\u00edncrono.",
+          "passed": true,
+          "evidence": "Findings F1 (teste tautol\u00f3gico), F2 (tratamento de exce\u00e7\u00e3o no CLI), F3 (sem\u00e2ntica de ConciliadoEm); nenhum sobre using System.Text, modificador de acesso, nulidade ou nomenclatura Async."
+        },
+        {
+          "text": "H\u00e1 um finding com file terminando em tests/Conciliacao.Testes/ConciliadorTests.cs e line 19 (Assert.NotNull(lote)) afirmando que o teste n\u00e3o verifica o status Conciliado nem a persist\u00eancia.",
+          "passed": true,
+          "evidence": "F1 (dotnet-review.json:10-11): arquivo 'tests/Conciliacao.Testes/ConciliadorTests.cs', linha 19, descri\u00e7\u00e3o: 'n\u00e3o verifica lote.Status (deveria virar StatusLote.Conciliado) e n\u00e3o verifica se o reposit\u00f3rio em mem\u00f3ria recebeu a chamada de SalvarAsync'. Ressalva: chaves em portugu\u00eas (arquivo/linha) em vez de file/line; julgado pela sem\u00e2ntica."
+        },
+        {
+          "text": "H\u00e1 um finding em src/Conciliacao.Dominio/Conciliador.cs, com linha, apontando que ValidarLoteAsync n\u00e3o s\u00f3 valida mas altera o status do lote e persiste via SalvarAsync (nome que esconde efeito colateral).",
+          "passed": false,
+          "evidence": "Nenhum finding sobre ValidarLoteAsync esconder efeito colateral; F3 (Conciliador.cs:12) trata s\u00f3 da sem\u00e2ntica do campo ConciliadoEm."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.69,
+        "stddev": 0.3005,
+        "min": 0.4,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 212.0,
+        "stddev": 44.5084,
+        "min": 161,
+        "max": 243.0
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.3667,
+        "stddev": 0.1528,
+        "min": 0.2,
+        "max": 0.5
+      },
+      "time_seconds": {
+        "mean": 186.0,
+        "stddev": 35.3695,
+        "min": 156.0,
+        "max": 225
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.32",
+      "time_seconds": "+26.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

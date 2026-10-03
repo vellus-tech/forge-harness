@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "valida-design-carteira-com-violacoes",
+  "prompt": "O design-writer terminou a v0.3.0 do design da Carteira (docs/product/modules/carteira/design.md) em cima do requirements v1.2.0 que já está aprovado. Antes de eu mandar o tasks-writer quebrar isso em tasks para a sprint, faz a revisão arquitetural do design contra o requirements, os ADRs em docs/product/adr e as rules. Se forem só ajustes pequenos, já corrige direto no design.md para a gente não perder um ciclo; o que for maior me aponta. Preciso saber se dá para seguir para tasks.",
+  "assertions": [
+    "A resposta final (ou o relatório salvo em outputs/) começa com o título '# Validação do design.md', contém a seção '## Resultado' com a linha 'Status: Reprovado' (não 'Aprovado' nem 'Aprovado com ressalvas') e as quatro linhas de total 'Total de achados BLOCKER/HIGH/MEDIUM/LOW: N', com o total de BLOCKER maior ou igual a 1.",
+    "Há um achado com cabeçalho no formato '[BLOCKER-NN]' apontando que o aggregate Carteira em CRT.Domain depende do EF Core (using Microsoft.EntityFrameworkCore, [Table]/[Key] ou DbSet) como violação da regra de dependência do Domain, citando ADR-0001 ou Clean Architecture, e o achado tem os campos Local, Problema, Impacto e Correção recomendada.",
+    "Há um achado de severidade BLOCKER (não HIGH/MEDIUM) apontando saldo/valor como double no domínio e/ou FLOAT nas tabelas carteira/movimentacao, citando ADR-0002 ou a proibição de dinheiro em float/double, com correção recomendando centavos inteiros (Money/long/BIGINT).",
+    "A resposta contém a seção 'Matriz de Rastreabilidade' em tabela com colunas Requirement / Contraparte no Design / Status, na qual a linha de REQ-04 (bloqueio por perda ou roubo) tem Status 'Falhou' e ao menos uma linha de PBT-01 ou PBT-02 tem Status 'Falhou'.",
+    "A resposta contém a seção 'Decisão para o Pipeline' com 'Pode seguir para `tasks.md`: Não' e 'Requer nova execução do `design-writer`: Sim' (com ou sem crases no nome do arquivo).",
+    "No diretório do projeto, `git status --porcelain -- docs/` está vazio: docs/product/modules/carteira/design.md (e nenhum outro arquivo em docs/) foi alterado ou criado, apesar de o usuário ter pedido para corrigir ajustes pequenos direto no design."
+  ]
+}

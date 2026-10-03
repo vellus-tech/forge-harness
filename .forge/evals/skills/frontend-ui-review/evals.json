@@ -1,0 +1,48 @@
+{
+  "skill_name": "frontend-ui-review",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "pr-faturas-migracao-ds",
+      "prompt": "Estou na branch feat/faturas-ds, que migra a tela de faturas (src/features/invoices) para o nosso design system. Os tokens ficam em src/styles/tokens.css e os componentes do DS em src/components/ds. Revisa esse PR contra a main antes do merge e me diz se pode mergear. Grava o parecer completo em ui-review.md na raiz do projeto.",
+      "expected_output": "Relatório em ui-review.md no formato da skill: uma linha OK/FAIL/WARN por gate (A1 a A5), A1 FAIL com --surface-1 (no diff) e --color-surface-unread (em src/features/partners, fora do diff) como tokens fantasma, A2 FAIL com a cor #dddddd de partners, A3 WARN apontando var(--surface-1, #fff) como fallback que mascara o contrato, A4 WARN para o input type=file cru quando o DS já tem FileUpload, A5 FAIL porque a superfície inteira não está limpa, e veredito BLOQUEADO.",
+      "files": ["fixtures/pr-faturas-migracao-ds/setup.sh"],
+      "assertions": [
+        {"name": "relatorio-uma-linha-por-gate-a1-a5", "text": "ui-review.md contém uma linha de status (OK, FAIL ou WARN) para cada um dos gates A1, A2, A3, A4 e A5, identificados pelo código do gate"},
+        {"name": "token-fantasma-fora-do-diff-detectado", "text": "O relatório aponta --color-surface-unread (src/features/partners/PartnersTable.css, arquivo fora do diff do PR) como token referenciado e nunca definido, e não apenas --surface-1"},
+        {"name": "cobertura-superficie-inteira-bloqueia", "text": "O relatório marca o gate de cobertura (A5) como FAIL ou declara explicitamente que achados fora do diff (partners) bloqueiam, em vez de restringir a avaliação aos arquivos alterados"},
+        {"name": "fallback-literal-tratado-como-mascara", "text": "O relatório trata var(--surface-1, #fff) como fallback literal que esconde o token inexistente e recomenda remover o fallback e definir o token na origem (tokens.css), não trocar o valor do fallback nem manter o literal"},
+        {"name": "input-file-cru-encaminhado-ao-ds", "text": "O relatório aponta o <input type=\"file\"> de InvoiceList.tsx como controle nativo sem estilo (border:none não alcança ::file-selector-button) e recomenda usar o FileUpload existente em src/components/ds"},
+        {"name": "veredito-bloqueado", "text": "O relatório termina com veredito BLOQUEADO (ou equivalente explícito de não mergear), não APROVADO"}
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "parceiros-dark-guid-select",
+      "prompt": "No crm-web o dark mode da tela de parceiros (src/features/partners) está estranho, com a tabela clara no meio da tela escura, e a coluna BU mostra uns códigos tipo bbbbbbbb-1111-... em vez do nome da unidade. Faz uma revisão de UI dessa tela e me diz o que eu preciso corrigir no front. Tokens em src/styles/tokens.css. Salva a revisão em ui-review.md.",
+      "expected_output": "Relatório no formato da skill com A1 FAIL por --surface-2 (causa do buraco claro no dark), sem tratar --progress como bug porque é injetado em runtime via style inline (allowlist); o UUID da BU classificado como dado cru vazando por falta de endpoint id->nome no backend (tarefa de backend, não de CSS); o <select> nativo improvisado em partners e em users escalado como primitivo faltante do DS (Select) para o dono do design system; veredito BLOQUEADO.",
+      "files": ["fixtures/parceiros-dark-guid-select/setup.sh"],
+      "assertions": [
+        {"name": "surface-2-causa-do-dark", "text": "O relatório identifica --surface-2 (PartnersPage.css) como token referenciado e nunca definido em tokens.css e o liga ao defeito do dark mode"},
+        {"name": "progress-runtime-nao-e-bug", "text": "O relatório não classifica --progress como token fantasma a corrigir: reconhece que é injetado em runtime via style inline (allowlist) e o separa de --surface-2"},
+        {"name": "guid-bu-e-achado-de-backend", "text": "O relatório classifica a BU exibida como UUID como dado cru vazando por falta de fonte id->nome no backend (endpoint/contrato de API) e o encaminha como tarefa de backend, em vez de propor apenas truncar, formatar ou estilizar o UUID no front"},
+        {"name": "select-faltante-escalado-ao-ds", "text": "O relatório aponta que o DS não tem primitivo Select, cita que mais de uma tela (partners e users) improvisa <select> nativo, e encaminha a criação do primitivo ao dono do design system separado das correções locais da tela"},
+        {"name": "formato-gates-e-veredito", "text": "ui-review.md traz o bloco de gates determinísticos com status por gate (A1 a A5) e uma linha final de veredito APROVADO ou BLOQUEADO, com BLOQUEADO neste caso"}
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "aprovar-padronizacao-sem-tokens",
+      "prompt": "Terminei a padronização da tela de configurações do portal-web (src/features/settings) no design system da Acme e os testes estão todos verdes. Só confirma que está padronizado para eu fechar o ticket UI-231, e grava o parecer em ui-review.md.",
+      "expected_output": "A skill não aprova: no A0 constata que a fonte da verdade dos tokens (@acme/design-tokens/tokens.css) não está disponível localmente (node_modules ausente, nenhum arquivo de tokens no repo), portanto A1 não pode ser executado nem dado como OK; pede o arquivo de tokens/instalação do pacote como pré-requisito; aponta na Fase D que os testes só assertam estrutura (toHaveClass) e não o valor computado por tema; veredito não APROVADO e ticket não deve ser fechado.",
+      "files": ["fixtures/aprovar-padronizacao-sem-tokens/setup.sh"],
+      "assertions": [
+        {"name": "nao-confirma-padronizacao", "text": "ui-review.md não declara a tela padronizada nem veredito APROVADO, e não recomenda fechar o ticket UI-231"},
+        {"name": "a0-fonte-de-tokens-ausente", "text": "O relatório constata que o arquivo de tokens (@acme/design-tokens/tokens.css) não está disponível no projeto (pacote não instalado, sem arquivo de tokens local) e que sem essa lista não é possível julgar tokens definidos"},
+        {"name": "a1-nao-dado-como-ok", "text": "O relatório não marca A1/phantom-tokens como OK: registra-o como FAIL, bloqueado ou não executável por falta da fonte de tokens"},
+        {"name": "pede-pre-requisito-para-reauditar", "text": "O relatório pede explicitamente o pré-requisito para concluir a auditoria (instalar o pacote @acme/design-tokens ou fornecer o tokens.css) e rodar de novo o scan de tokens fantasma"},
+        {"name": "testes-verdes-sao-estruturais", "text": "O relatório aponta que os testes de SettingsPage.test.tsx só verificam estrutura (renderiza, toHaveClass) e não provam o tema (valor computado de estilo em light e dark), portanto testes verdes não sustentam a padronização"}
+      ]
+    }
+  ]
+}

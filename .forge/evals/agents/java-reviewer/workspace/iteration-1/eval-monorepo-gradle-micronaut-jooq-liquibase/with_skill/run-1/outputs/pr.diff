@@ -1,0 +1,109 @@
+diff --git a/services/tarifa-api/src/main/java/br/com/axis/tarifa/Tarifa.java b/services/tarifa-api/src/main/java/br/com/axis/tarifa/Tarifa.java
+index 8d94089..706f93c 100644
+--- a/services/tarifa-api/src/main/java/br/com/axis/tarifa/Tarifa.java
++++ b/services/tarifa-api/src/main/java/br/com/axis/tarifa/Tarifa.java
+@@ -1,4 +1,4 @@
+ package br.com.axis.tarifa;
+ 
+-public record Tarifa(long id, String linha, String modal, long valorCentavos) {
++public record Tarifa(long id, String linha, String modal, long valorCentavos, long valorIntegracaoCentavos) {
+ }
+diff --git a/services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaRepository.java b/services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaRepository.java
+new file mode 100644
+index 0000000..44ba151
+--- /dev/null
++++ b/services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaRepository.java
+@@ -0,0 +1,26 @@
++package br.com.axis.tarifa;
++
++import static org.jooq.impl.DSL.condition;
++import static org.jooq.impl.DSL.field;
++import static org.jooq.impl.DSL.table;
++
++import jakarta.inject.Singleton;
++import java.util.List;
++import org.jooq.DSLContext;
++
++@Singleton
++public class TarifaRepository {
++
++    private final DSLContext dsl;
++
++    public TarifaRepository(DSLContext dsl) {
++        this.dsl = dsl;
++    }
++
++    public List<Tarifa> porLinhaEModal(String linha, String modal) {
++        return dsl.select(field("id"), field("linha"), field("modal"), field("valor_centavos"), field("valor_integracao_centavos"))
++                .from(table("tarifa"))
++                .where(condition("linha = '" + linha + "' AND modal = '" + modal + "'"))
++                .fetchInto(Tarifa.class);
++    }
++}
+diff --git a/services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaService.java b/services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaService.java
+new file mode 100644
+index 0000000..b339ac1
+--- /dev/null
++++ b/services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaService.java
+@@ -0,0 +1,20 @@
++package br.com.axis.tarifa;
++
++import io.micronaut.transaction.annotation.Transactional;
++import jakarta.inject.Singleton;
++import java.util.List;
++
++@Singleton
++public class TarifaService {
++
++    private final TarifaRepository tarifaRepository;
++
++    public TarifaService(TarifaRepository tarifaRepository) {
++        this.tarifaRepository = tarifaRepository;
++    }
++
++    @Transactional
++    public List<Tarifa> tarifasIntegradas(String linha, String modal) {
++        return tarifaRepository.porLinhaEModal(linha, modal);
++    }
++}
+diff --git a/services/tarifa-api/src/main/resources/db/changelog/002-valor-integracao.yaml b/services/tarifa-api/src/main/resources/db/changelog/002-valor-integracao.yaml
+new file mode 100644
+index 0000000..15e0227
+--- /dev/null
++++ b/services/tarifa-api/src/main/resources/db/changelog/002-valor-integracao.yaml
+@@ -0,0 +1,13 @@
++databaseChangeLog:
++  - changeSet:
++      id: 002-valor-integracao
++      author: tarifa-api
++      changes:
++        - addColumn:
++            tableName: tarifa
++            columns:
++              - column:
++                  name: valor_integracao_centavos
++                  type: BIGINT
++                  constraints:
++                    nullable: false
+diff --git a/services/tarifa-api/src/main/resources/db/changelog/db.changelog-master.yaml b/services/tarifa-api/src/main/resources/db/changelog/db.changelog-master.yaml
+index 457ae2d..75dd2d4 100644
+--- a/services/tarifa-api/src/main/resources/db/changelog/db.changelog-master.yaml
++++ b/services/tarifa-api/src/main/resources/db/changelog/db.changelog-master.yaml
+@@ -1,3 +1,5 @@
+ databaseChangeLog:
+   - include:
+       file: db/changelog/001-cria-tarifa.yaml
++  - include:
++      file: db/changelog/002-valor-integracao.yaml
+diff --git a/web/src/api/tarifa.ts b/web/src/api/tarifa.ts
+index 3548233..0ce7008 100644
+--- a/web/src/api/tarifa.ts
++++ b/web/src/api/tarifa.ts
+@@ -1,5 +1,6 @@
+ export async function buscarTarifa(linha: string, token: string) {
+-  const resp = await fetch(`/api/tarifas/${encodeURIComponent(linha)}`, {
++  console.log("buscando tarifa", linha, token);
++  const resp = await fetch(`/api/tarifas/${linha}`, {
+     headers: { Authorization: `Bearer ${token}` },
+   });
+   return resp.json();

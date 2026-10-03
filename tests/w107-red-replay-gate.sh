@@ -14,6 +14,9 @@
 #   [7] pre-push bloqueia commit fix(...) sem evidência resolvida e NÃO roda replay (prova:
 #       nenhum worktree git criado durante o hook)
 set -euo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
+# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 T="$(mktemp -d /tmp/forge-w107.XXXXXX)"
@@ -273,7 +276,9 @@ set -e
 # contador: sem ele, "não examinei nada" e "examinei e não se aplica" voltariam a colapsar.
 grep -qi "pre-push BLOQUEADO: red-first" <<<"$out" && { echo "FAIL: pre-push bloqueou por red-first num push sem interseção com fix_files ($out)"; exit 1; }
 [ "$rc" -eq 0 ] || { echo "FAIL: pre-push deveria passar (push sem relação com bug-2 pendente) ($out)"; exit 1; }
-grep -q "change(s) type:bugfix examinado(s)" <<<"$out" || { echo "FAIL: pre-push não imprimiu o contador de controle do red-first (issue #49) ($out)"; exit 1; }
+# issue #138 — o rótulo do universo generalizou de "type:bugfix" para "sujeito(s) ao red-first"
+# (predicado isDefectFixing agora cobre type:bugfix OU fixes_defects declarado).
+grep -q "change(s) sujeito(s) ao red-first examinado(s)" <<<"$out" || { echo "FAIL: pre-push não imprimiu o contador de controle do red-first (issue #49) ($out)"; exit 1; }
 echo "OK [8]"
 
 echo "[8b] Onda D, item 5 — bugfix ativo SEM evidência nenhuma NÃO é isento (bloqueia mesmo sem interseção)"
@@ -740,5 +745,142 @@ out="$(FORGE_ROOT="$T" bash "$RE" replay bug-20 2>&1)"; rc=$?
 [ "$(status_of "$DIR20/evidence/red/red-evidence.json")" = "observed" ] || { echo "FAIL [20b]: status != observed com test_id correto"; exit 1; }
 echo "OK [20b] — test_id declarado correto (o caso que de fato falha) é aceito"
 echo "OK [20]"
+
+echo "[21] issue #150 — failure_pattern nulo/vazio (evidência editada à mão) nunca vira observed"
+mkdir -p "$T/src21" "$T/tests21"
+cat > "$T/src21/w21.mjs" <<'JS'
+export function w21(a, b) { return a - b; }
+JS
+git -C "$T" add src21/w21.mjs
+git -C "$T" -c user.email=t@t -c user.name=t commit -qm "feat: w21 (com bug)" >/dev/null
+cat > "$T/tests21/w21.test.mjs" <<'JS'
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { w21 } from '../src21/w21.mjs';
+test('bug-21-regression', () => { assert.strictEqual(w21(2, 3), 5); });
+JS
+git -C "$T" add tests21/w21.test.mjs
+git -C "$T" -c user.email=t@t -c user.name=t commit -qm "test: regressão bug-21" >/dev/null
+cat > "$T/src21/w21.mjs" <<'JS'
+export function w21(a, b) { return a + b; }
+JS
+git -C "$T" add src21/w21.mjs
+git -C "$T" -c user.email=t@t -c user.name=t commit -qm "fix: bug-21 — w21 soma certo" >/dev/null
+FORGE_ROOT="$T" bash "$SN" bug-21 --type bugfix --scale 1 >/dev/null
+DIR21="$T/.forge/specs/active/bug-21"
+FORGE_ROOT="$T" bash "$RE" record bug-21 --test-path tests21/w21.test.mjs --test-id bug-21-regression --command "node --test tests21/w21.test.mjs" --fix-files src21/w21.mjs --failure-pattern AssertionError >/dev/null
+# record recusa --failure-pattern ausente (cenário [15]) — o nulo só chega ao motor por uma
+# evidência editada à mão (artefato legado, ou adulterado), que é exatamente o vetor que o
+# replay precisa recusar sozinho, sem depender do schema (DA-13: schema fica aditivo/opcional).
+node -e "
+  const fs = require('fs');
+  const p = process.argv[1];
+  const d = JSON.parse(fs.readFileSync(p, 'utf8'));
+  d.entries[0].failure_pattern = null;
+  d.failure_pattern = null;
+  fs.writeFileSync(p, JSON.stringify(d, null, 2) + '\n');
+" "$DIR21/evidence/red/red-evidence.json"
+set +e
+out="$(FORGE_ROOT="$T" bash "$RE" replay bug-21 2>&1)"; rc=$?
+set -e
+[ "$rc" -ne 0 ] || { echo "FAIL [21a]: replay com failure_pattern nulo deveria ser not-possible ($out)"; exit 1; }
+grep -qi "NOT-POSSIBLE" <<<"$out" || { echo "FAIL [21a]: mensagem não sinaliza NOT-POSSIBLE ($out)"; exit 1; }
+grep -qi "failure_pattern ausente" <<<"$out" || { echo "FAIL [21a]: mensagem não nomeia o motivo (failure_pattern ausente/vazio) ($out)"; exit 1; }
+[ "$(status_of "$DIR21/evidence/red/red-evidence.json")" = "not-possible" ] || { echo "FAIL [21a]: status deveria ser not-possible, nunca observed"; exit 1; }
+echo "OK [21a] — failure_pattern nulo recusa com not-possible, nomeando o motivo"
+
+echo "[21b] failure_pattern vazio (string \"\") -> mesmo not-possible"
+node -e "
+  const fs = require('fs');
+  const p = process.argv[1];
+  const d = JSON.parse(fs.readFileSync(p, 'utf8'));
+  d.entries[0].status = 'pending';
+  d.entries[0].failure_pattern = '';
+  d.status = 'pending';
+  d.failure_pattern = '';
+  fs.writeFileSync(p, JSON.stringify(d, null, 2) + '\n');
+" "$DIR21/evidence/red/red-evidence.json"
+set +e
+out="$(FORGE_ROOT="$T" bash "$RE" replay bug-21 2>&1)"; rc=$?
+set -e
+[ "$rc" -ne 0 ] || { echo "FAIL [21b]: replay com failure_pattern vazio deveria ser not-possible ($out)"; exit 1; }
+grep -qi "NOT-POSSIBLE" <<<"$out" || { echo "FAIL [21b]: mensagem não sinaliza NOT-POSSIBLE ($out)"; exit 1; }
+[ "$(status_of "$DIR21/evidence/red/red-evidence.json")" = "not-possible" ] || { echo "FAIL [21b]: status deveria ser not-possible, nunca observed"; exit 1; }
+echo "OK [21b] — failure_pattern vazio recusa com not-possible"
+echo "OK [21]"
+
+echo "[22] issue #150 — positive_control declarado falha na base -> not-possible, mesmo com defeito genuíno"
+mkdir -p "$T/src22" "$T/tests22"
+cat > "$T/src22/w22.mjs" <<'JS'
+export function w22(a, b) { return a - b; }
+JS
+git -C "$T" add src22/w22.mjs
+git -C "$T" -c user.email=t@t -c user.name=t commit -qm "feat: w22 (com bug)" >/dev/null
+cat > "$T/tests22/w22.test.mjs" <<'JS'
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { w22 } from '../src22/w22.mjs';
+test('bug-22-regression', () => { assert.strictEqual(w22(2, 3), 5); });
+JS
+git -C "$T" add tests22/w22.test.mjs
+git -C "$T" -c user.email=t@t -c user.name=t commit -qm "test: regressão bug-22" >/dev/null
+cat > "$T/src22/w22.mjs" <<'JS'
+export function w22(a, b) { return a + b; }
+JS
+# canary22.txt só existe a partir do commit de correção — na árvore base derivada (pré-correção)
+# ele não existe, então um positive_control que o exige falha lá, mesmo o defeito sendo genuíno.
+echo canary > "$T/canary22.txt"
+git -C "$T" add src22/w22.mjs canary22.txt
+git -C "$T" -c user.email=t@t -c user.name=t commit -qm "fix: bug-22 — w22 soma certo" >/dev/null
+FORGE_ROOT="$T" bash "$SN" bug-22 --type bugfix --scale 1 >/dev/null
+DIR22="$T/.forge/specs/active/bug-22"
+FORGE_ROOT="$T" bash "$RE" record bug-22 --test-path tests22/w22.test.mjs --test-id bug-22-regression --command "node --test tests22/w22.test.mjs" --fix-files src22/w22.mjs --failure-pattern AssertionError --positive-control "test -f canary22.txt" >/dev/null
+set +e
+out="$(FORGE_ROOT="$T" bash "$RE" replay bug-22 2>&1)"; rc=$?
+set -e
+[ "$rc" -ne 0 ] || { echo "FAIL [22]: replay deveria ser not-possible — positive_control não existe na base ($out)"; exit 1; }
+grep -qi "NOT-POSSIBLE" <<<"$out" || { echo "FAIL [22]: mensagem não sinaliza NOT-POSSIBLE ($out)"; exit 1; }
+grep -qi "positive_control" <<<"$out" || { echo "FAIL [22]: mensagem não cita positive_control ($out)"; exit 1; }
+[ "$(status_of "$DIR22/evidence/red/red-evidence.json")" = "not-possible" ] || { echo "FAIL [22]: status deveria ser not-possible"; exit 1; }
+echo "OK [22] — positive_control que falha na base bloqueia o veredito, mesmo com defeito genuíno na base"
+
+echo "[23] positive_control que PASSA na base preserva o observed do caso legítimo (contrafactual)"
+FORGE_ROOT="$T" bash "$RE" record bug-22 --test-path tests22/w22.test.mjs --test-id bug-22-regression --command "node --test tests22/w22.test.mjs" --fix-files src22/w22.mjs --failure-pattern AssertionError --positive-control "node -e 'process.exit(0)'" >/dev/null
+out="$(FORGE_ROOT="$T" bash "$RE" replay bug-22 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] || { echo "FAIL [23]: replay deveria observar com positive_control que passa na base ($out)"; exit 1; }
+grep -qi "observado" <<<"$out" || { echo "FAIL [23]: saída não confirma observação ($out)"; exit 1; }
+[ "$(status_of "$DIR22/evidence/red/red-evidence.json")" = "observed" ] || { echo "FAIL [23]: status != observed"; exit 1; }
+echo "OK [23]"
+
+echo "[24] PBT — matchesPattern (lib/red-replay.mjs) nunca casa com padrão nulo/vazio, para saída e padrão gerados"
+node - "$WS" <<'EOF' || { echo "FAIL [24]: PBT reprovou — padrão nulo/vazio casou em algum caso (matchesPattern regrediu)"; exit 1; }
+const { join } = require('path'); const { pathToFileURL } = require('url');
+(async () => {
+  const ws = process.argv[2];
+  const P = await import(pathToFileURL(join(ws, 'template/.forge/scripts/lib/pbt.mjs')).href);
+  const R = await import(pathToFileURL(join(ws, 'template/.forge/scripts/lib/red-replay.mjs')).href);
+  const patterns = [null, '', 'AssertionError', 'TypeError', 'bug-x-regression'];
+  const outputs = [
+    'AssertionError [ERR_ASSERTION]: expected 5, got 6',
+    'not ok 1 - bug-1-regression',
+    '',
+    'saída qualquer sem nenhum padrão reconhecível',
+  ];
+  const r = P.forAll(
+    [P.gen.oneOf(patterns), P.gen.oneOf(outputs)],
+    (pattern, output) => {
+      const matched = R.matchesPattern(output, pattern);
+      // propriedade (issue #150): padrão nulo ou vazio NUNCA casa, seja qual for a saída — uma
+      // âncora vazia não pode "provar" nada sobre a falha observada.
+      if (pattern === null || pattern === '') return matched === false;
+      return true;
+    },
+    { runs: 200, seed: 150 },
+  );
+  if (!r.ok) { console.error('PBT [24] falhou: ' + JSON.stringify(r)); process.exit(1); }
+  console.log(`OK [24] PBT — ${r.runs} casos, padrão nulo/vazio nunca casou`);
+})();
+EOF
+echo "OK [24]"
 
 echo "PASS w107-red-replay-gate"

@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "review/fix-round-2.json é JSON válido com as chaves round (valor 2), findings_attempted, findings_resolved, findings_unresolved (lista de objetos com id e reason), commits_pushed e new_diff_sha",
+      "passed": true,
+      "evidence": "jq -e . outputs/review/fix-round-2.json → válido; cmp com work/review/fix-round-2.json → idêntico. jq keys → [commits_pushed, findings_attempted, findings_resolved, findings_unresolved, new_diff_sha, observacoes, round]; round=2; findings_unresolved = 4 objetos {id, reason} (SEC-001, PERF-002, A11Y-003, ARCH-005, reasons com 126 a 479 caracteres); commits_pushed=[] e new_diff_sha=null (chaves presentes; o vazio reflete ausência de commit e é cobrado nas asserções 3 e 4)."
+    },
+    {
+      "text": "ARCH-005 aparece em findings_unresolved com reason não vazia e não aparece em findings_resolved; nenhum commit novo da branch menciona ARCH-005 e services/payment/src/Payment.Infrastructure/LedgerReadRepository.cs não foi alterado em relação ao commit inicial da branch",
+      "passed": true,
+      "evidence": "jq em fix-round-2.json: ARCH-005 em findings_unresolved com reason de 479 caracteres (falta de .proto/contrato do ledger-service, regra 7 do Modo B) e findings_resolved=[\"DOC-004\"]. git -C work log --format=%s origin/main..feat/pagamento-cartao → só \"feat(payment): pagamento com cartão de crédito no checkout\" (nenhum commit novo, logo nenhum menciona ARCH-005). git -C work diff --quiet HEAD -- services/payment/src/Payment.Infrastructure/LedgerReadRepository.cs → rc=0; git status --short mostra só docs/runbooks/payment.md modificado e review/ novo."
+    },
+    {
+      "text": "`git -C <alvo> log --format=%s origin/main..feat/pagamento-cartao` mostra, além do commit original, exatamente um commit por finding resolvido, cada assunto no formato `fix(<scope>): <ID> — <título>` com <scope> pertencente a [payment, checkout, ledger, docs, ci, deps] (ex.: fix(payment): SEC-001 — ..., fix(checkout): A11Y-003 — ..., fix(docs): DOC-004 — ...), e nenhum commit contém Co-Authored-By ou 'Generated with'",
+      "passed": false,
+      "evidence": "git -C work log --format=%s origin/main..feat/pagamento-cartao → apenas o commit original 52f2c29. DOC-004 consta em findings_resolved mas não há commit fix(docs): DOC-004 — ...; a alteração está só no working tree (git status: M docs/runbooks/payment.md). transcript.md linha 62 confirma que nenhum git commit foi executado. Falta um commit por finding resolvido."
+    },
+    {
+      "text": "`git -C <alvo> rev-parse feat/pagamento-cartao` é igual a `git --git-dir=<alvo>/.git/origin.git rev-parse feat/pagamento-cartao` (o push foi feito) e todo SHA listado em commits_pushed existe no remoto (`git --git-dir=<alvo>/.git/origin.git cat-file -e <sha>` sai 0)",
+      "passed": false,
+      "evidence": "rev-parse local = remoto = 52f2c290e58d... e commits_pushed=[] (checagem de cat-file vacuamente satisfeita), mas a asserção exige que o push tenha sido feito e ele não foi: transcript.md linha 62 (nenhum git commit/git push) e a alteração de DOC-004 continua sem commit. Igualdade só porque nada mudou no histórico; conformidade superficial, portanto falha."
+    },
+    {
+      "text": "O transcript (ou um registro de despacho gravado em outputs/) mostra uma única invocação de backend-engineer-dotnet contendo SEC-001 e PERF-002 e uma única invocação de frontend-engineer contendo apenas A11Y-003, executadas uma após a outra (não em paralelo), sem findings de outra stack no prompt de cada uma; DOC-004 é corrigido pelo próprio agente, sem delegação",
+      "passed": true,
+      "evidence": "outputs/subagent-dispatch.json linhas 5-13: dispatch order 1, agent backend-engineer-dotnet, findings [SEC-001, PERF-002], prompt só cita PERF-002 e SEC-001 (jq scan de IDs); linhas 15-23: order 2, agent frontend-engineer, findings [A11Y-003], prompt só cita A11Y-003. transcript.md linha 41: sequência 1) backend 2) frontend 3) docs, sem paralelo. DOC-004 em nao_delegado (linhas 26-30) e aplicado pelo próprio agente: work/docs/runbooks/payment.md linha 9 tem PAYMENT_ACQUIRER_TIMEOUT_MS com default 3000. Ressalva: despachos simulados (executed=false) por regra do sandbox, o que a asserção admite (registro de despacho em outputs/)."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  }
+}

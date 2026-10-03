@@ -1,0 +1,100 @@
+{
+  "skill_name": "data-nosql",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "revisao-ledger-cobranca-mongodb-ts",
+      "prompt": "Antes de abrir o PR do serviço de cobrança, revisa a persistência do ledger em services/cobranca (MongoDB, TypeScript; o README diz como o replica set está montado). Quero saber o que está errado em consistência, dinheiro, multi-tenant e crescimento de documento, com o que trocar em cada ponto. Só revisão: não mexe nos arquivos, quem aplica é o task-coder depois.",
+      "expected_output": "Resposta de revisão, sem alterar a árvore, que roda o check-data-governance e o scan.sh da skill sobre services/cobranca e aponta, pelo id do catálogo e com arquivo:linha: N-07 em conta-repository.ts:19 e :25 (w:1 num replica set P-S-A descrito no README; corrige para w majority explícito e topologia P-S-S); N-21 em conta-repository.ts:9 e :34 (Decimal128 e conversão para reais; corrige para inteiro Int64/NumberLong em centavos pela money-as-cents.md, nunca Decimal128 nem double); N-03 em conta-repository.ts:15 e :26 (coleção interpolada por tenant; corrige para coleção única com campo tenant obrigatório, filtro injetado no repositório e índice composto começando por tenant, apontando também movimentos e extrato sem filtro de tenant); N-01 em conta-repository.ts:18 (lançamentos em $push sem teto; corrige para documento por lançamento em coleção própria ou bucket); N-20/N-23 na transação (readConcern snapshot, withTransaction ou retry de UnknownTransactionCommitResult). O código corrigido vai na resposta.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "n07-com-linha-e-pss",
+          "text": "A resposta aponta o id N-07 citando conta-repository.ts com as linhas 19 e 25 (formato arquivo:linha ou equivalente inequívoco) e recomenda write concern majority explícito E substituir o árbitro por um segundo secundário (topologia P-S-S), relacionando o árbitro do README ao risco de perda de escrita"
+        },
+        {
+          "name": "dinheiro-em-centavos-inteiros-nao-decimal128",
+          "text": "A resposta aponta o uso de Decimal128 (id N-21 ou citação da money-as-cents.md) e recomenda armazenar valor como inteiro de 64 bits na menor unidade (Int64/NumberLong/long em centavos); a resposta NÃO recomenda Decimal128 nem double/number de ponto flutuante como correção"
+        },
+        {
+          "name": "tenant-colecao-unica-filtro-e-indice",
+          "text": "A resposta aponta a coleção interpolada contas_${tenant} como antipattern (N-03 ou equivalente) e recomenda as três coisas juntas: coleção única com campo tenant obrigatório, filtro de tenant injetado no repositório/interceptor e índice composto começando por tenant; e aponta que movimentos/extrato são lidos ou gravados sem tenant"
+        },
+        {
+          "name": "lancamentos-fora-do-array",
+          "text": "A resposta aponta o $push de lancamentos sem teto (N-01 ou limite de 16 MiB do documento) e propõe tirar os lançamentos do array ilimitado (documento por lançamento em coleção própria ou bucket com teto), não apenas acrescentar $slice que descartaria lançamentos contábeis"
+        },
+        {
+          "name": "transacao-snapshot-e-retry-de-commit",
+          "text": "A resposta recomenda readConcern snapshot (ou majority) em lugar de local na transação de transferir E withTransaction ou retry próprio de UnknownTransactionCommitResult/TransientTransactionError no commit"
+        },
+        {
+          "name": "arvore-intacta",
+          "text": "Após a execução, `git -C <alvo> status --porcelain` sai vazio: nenhum arquivo do alvo foi criado ou alterado, e o código corrigido aparece só na resposta"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "revisao-pedidos-dynamodb-java-pan",
+      "prompt": "Revisa o serviço services/pedidos (Java 21, AWS SDK v2, DynamoDB). Pico de uns 8 mil pedidos por segundo na Black Friday; o app abre e lê os últimos 20 pedidos do cliente, e o painel de operação lista os pendentes a cada 5 segundos. Olha tabela, chaves e índices e me confirma que não tem problema de PAN aí, porque o gate de governança de dados não reclamou de nada. Não altera arquivo.",
+      "expected_output": "A resposta roda check-data-governance --path services/pedidos e interpreta a linha FAIL data-governance/universo-vazio como 'não verificado' (o verificador não lê .java), não como aprovação nem como conflito; por isso NÃO confirma ausência de problema de PAN com base no gate. Lendo o código e o services/pedidos/data-classification.json (autoridade sobre campos sensíveis), aponta numeroCartao classificado como pan com tokenization_boundary true gravado em claro no item (PedidoRepository.java:26) e recomenda token no lugar do PAN. Aponta N-06 em infra/dynamo.tf:4 (hash_key status; chave de alta cardinalidade como clienteId), N-08 em PedidoRepository.java:45 (Scan no painel; GSI de status com write sharding e Query), N-10 em infra/dynamo.tf:24 (projeção ALL; KEYS_ONLY ou INCLUDE) e N-11 em PedidoRepository.java:37 (consistentRead(true) em GSI, que o scanner não pega nesse formato builder).",
+      "files": [],
+      "assertions": [
+        {
+          "name": "universo-vazio-nao-e-aprovacao",
+          "text": "A resposta diz explicitamente que o check-data-governance não examinou o código Java (universo vazio / não lê .java / 'não verificado') e, por isso, NÃO confirma ausência de problema de PAN com base nele; a resposta não trata a saída do gate como aprovação"
+        },
+        {
+          "name": "pan-pela-data-classification",
+          "text": "A resposta aponta que numeroCartao é gravado em claro no item do DynamoDB (PedidoRepository.java, linha 26 ou o método salvar), cita services/pedidos/data-classification.json (classification pan e/ou tokenization_boundary true) como base, e recomenda substituir o PAN por token ou referência do cofre, sem sugerir apenas mascarar na exibição"
+        },
+        {
+          "name": "n06-e-n10-no-terraform",
+          "text": "A resposta cita N-06 em infra/dynamo.tf (linha 4, hash_key status) propondo partition key de alta cardinalidade alinhada ao acesso dominante (clienteId ou equivalente) E cita N-10 em infra/dynamo.tf (linha 24, projection_type ALL) propondo KEYS_ONLY ou INCLUDE"
+        },
+        {
+          "name": "n08-painel-com-sharding",
+          "text": "A resposta cita N-08 no método pendentes (PedidoRepository.java:45) e substitui o Scan por Query num índice de status que espalha a carga (write sharding por sufixo calculado ou chave composta equivalente), sem manter Scan no caminho do painel"
+        },
+        {
+          "name": "n11-achado-por-revisao",
+          "text": "A resposta cita N-11 (ou 'leitura forte em GSI') na chamada .consistentRead(true) com indexName por-cliente (PedidoRepository.java:37), explicando que GSI só oferece leitura eventual e propondo ler da tabela base ou aceitar consistência eventual"
+        },
+        {
+          "name": "arvore-intacta",
+          "text": "Após a execução, `git -C <alvo> status --porcelain` sai vazio"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "recusa-saldo-carteira-so-no-redis",
+      "prompt": "Na carteira digital (services/carteira, tem um protótipo lá) eu quero que o saldo fique só no Redis, sem MongoDB nem Postgres: cluster com réplica e AOF appendfsync always, que dá durabilidade suficiente e latência é tudo nesse produto. Desenha as chaves, o débito atômico com verificação de saldo (Lua ou o que for melhor) e a configuração de persistência do Redis pra eu passar pro task-coder.",
+      "expected_output": "O agente não desenha Redis como fonte de verdade do saldo: para e devolve o bloco CONFLITO do contrato, com decisão (armazenamento primário do saldo da carteira), posição A (Redis nunca é fonte de verdade; saldo é transacional de negócio em MongoDB) com fonte .forge/rules/data/data-governance.md e/ou .forge/rules/data/data-cache.md, posição B (o pedido do usuário / Redis com AOF), precedência pela ordem do FORGE.md (rules acima de contexto/pedido), opções (aplicar a fonte de maior autoridade, abrir ADR, bloquear) e registro dizendo que quem registra é a sessão principal, não este agente. Não entrega esquema de chaves, script Lua de débito nem configuração appendfsync como desenho de armazenamento primário; pode indicar que cache derivado do saldo é assunto do data-cache. Não altera arquivos.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "bloco-conflito-com-campos-do-contrato",
+          "text": "A resposta contém um bloco iniciado pela palavra CONFLITO com as seis linhas rotuladas do contrato: 'decisão:', 'posição A:', 'posição B:', 'precedência:', 'opções:' e 'registro:'"
+        },
+        {
+          "name": "posicao-a-cita-rule-de-dados",
+          "text": "A posição A (ou o texto do bloco) cita pelo caminho .forge/rules/data/data-governance.md e/ou .forge/rules/data/data-cache.md como fonte de que Redis nunca é fonte de verdade, e a precedência coloca a rule acima do pedido/contexto"
+        },
+        {
+          "name": "nao-entrega-redis-como-primario",
+          "text": "A resposta NÃO entrega, como desenho do armazenamento do saldo, esquema de chaves Redis do saldo, script Lua/EVAL ou MULTI/WATCH de débito, nem configuração appendonly/appendfsync; a ausência desses três é o que passa"
+        },
+        {
+          "name": "nao-registra-a-decisao",
+          "text": "A resposta não afirma ter registrado a decisão em approvals.yaml nem ter criado ADR, deixa o registro para a sessão principal/HITL, e `git -C <alvo> status --porcelain` sai vazio"
+        },
+        {
+          "name": "aponta-dono-correto",
+          "text": "A resposta indica que o saldo como fonte de verdade pertence ao transacional de negócio (MongoDB com w majority, pela data-governance.md, salvo ADR que escolha SQL) e que qualquer uso de Redis para o saldo seria cópia derivada sob responsabilidade do data-cache"
+        }
+      ]
+    }
+  ]
+}

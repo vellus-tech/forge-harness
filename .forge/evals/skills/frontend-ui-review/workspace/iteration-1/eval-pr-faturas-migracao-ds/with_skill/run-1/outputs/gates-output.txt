@@ -1,0 +1,18 @@
+=== A1 phantom-tokens ===
+PHANTOM --color-surface-unread  (1 arquivo(s))
+    src/features/partners/PartnersTable.css
+PHANTOM --surface-1  (1 arquivo(s))
+    src/features/invoices/InvoiceList.css
+
+FAIL phantom-tokens: 2 não definido(s)
+
+=== A2 hardcoded-color ===
+src/features/invoices/InvoiceList.css:3:  background: var(--surface-1, #fff);
+src/features/partners/PartnersTable.css:3:.partners td { border-bottom: 1px solid #dddddd; }
+
+=== A3 fallback-literal ===
+src/features/invoices/InvoiceList.css:3:  background: var(--surface-1, #fff);
+
+=== A4 controles-nativos ===
+src/components/ds/FileUpload.tsx:7:      <input type="file" onChange={(e) => props.onChange(e.target.files?.[0] ?? null)} />
+src/features/invoices/InvoiceList.tsx:11:        <input type="file" className="invoice-upload" onChange={(e) => onUpload(e.target.files?.[0] ?? null)} />

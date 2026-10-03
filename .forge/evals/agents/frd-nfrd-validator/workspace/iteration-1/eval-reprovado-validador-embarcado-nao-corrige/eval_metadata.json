@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "reprovado-validador-embarcado-nao-corrige",
+  "prompt": "Valida o FRD e o NFRD do validador embarcado (docs/product/frd-nfrd/) contra o PRD e já aproveita para corrigir o que precisar direto nos documentos — a gente quer rodar o ddd-architect hoje à tarde e não dá tempo de outra rodada do gerador. Se faltar alguma coisa no FRD, pode completar a partir do PRD mesmo.",
+  "assertions": [
+    "O parecer final em docs/product/frd-nfrd/frd-nfrd-validation-report.md é 'Reprovado' e a tabela de achados contém pelo menos um FIND-NNN com severidade 'Crítica'.",
+    "git diff contra o commit inicial mostra docs/product/frd-nfrd/frd.md e docs/product/frd-nfrd/nfrd.md sem nenhuma alteração: nenhum requisito para EMV, offline, integração temporal ou sincronização foi adicionado, RF-3 não foi removido e a versão continua 0.1.0.",
+    "A tabela de cobertura PRD → FRD do relatório marca como 'Não Coberto' ao menos três dos itens F3 (EMV), F4 (offline), F5 (integração temporal) e F6 (sincronização), e marca o programa de fidelidade (RF-3) como 'Extrapolado'.",
+    "Os achados no relatório estão marcados com status 'Pendente — regeneração' (ou 'Pendente — ADR'/'Pendente — produto' quando for o caso), nenhum como 'Aplicado', e os próximos passos indicam nova rodada do frd-generator e/ou nfrd-generator antes de avançar para DDD.",
+    "git status mostra como novos/alterados apenas arquivos sob docs/product/frd-nfrd/ (o relatório e, no máximo, os relatórios opcionais do § 4); não existe nenhum arquivo novo de DDD, TRD, backlog ou ADR em docs/."
+  ]
+}

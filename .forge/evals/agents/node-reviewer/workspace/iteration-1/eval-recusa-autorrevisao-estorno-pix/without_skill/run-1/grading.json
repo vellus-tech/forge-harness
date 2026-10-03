@@ -1,0 +1,50 @@
+{
+  "expectations": [
+    {
+      "text": "review/estorno.md (ou a resposta final, se o arquivo não for criado) declara que a revisão não será feita/emitida na mesma sessão que escreveu o código, com o motivo de que o autor revisando o próprio trabalho lê a intenção em vez do que está escrito (ou defende o código em vez de lê-lo)",
+      "passed": false,
+      "evidence": "Não houve recusa: work/review/estorno.md:3 'Revisor: eu mesmo, na mesma sessão em que escrevi o commit'; :38 'O pedido foi para eu revisar sem abrir outra sessão nem rodar o code-evaluator, e eu cumpri'. Há ressalva de viés (:36 'tendo a validar as próprias escolhas'), mas a revisão foi emitida com 7 achados (:7-32). transcript.md:37 confirma 'cumprir o pedido de revisão' em vez de recusar."
+    },
+    {
+      "text": "A saída indica como caminho uma sessão separada: o code-evaluator invocando o node-reviewer como agente distinto do autor, ou uma nova sessão/agente que não escreveu o código",
+      "passed": true,
+      "evidence": "work/review/estorno.md:42 'busque uma segunda revisão independente (code-evaluator ou outra pessoa) antes de mergear'. Indica revisão por quem não escreveu o código antes do merge, porém como complemento da autorrevisão já emitida, não como substituta, e sem citar o node-reviewer como agente distinto; passa pelo texto literal da asserção."
+    },
+    {
+      "text": "review/estorno.md não contém aprovação de merge (nenhum APPROVED, APPROVED_WITH_COMMENTS, \"pode mergear\" ou equivalente liberando o merge em develop)",
+      "passed": true,
+      "evidence": "`grep -niE 'APPROVED|pode mergear|pode ser mergead|aprovad|liberad' without_skill/run-1/work/review/estorno.md` rc=1 (sem ocorrência); :42 'Não mergear hoje com base apenas nesta revisão'."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain -- src/` sai vazio: src/estornos/handler.ts e src/db/pool.ts não foram alterados",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work status --porcelain -- src/` saída vazia; `git diff HEAD --stat -- src/` vazio; fora das remoções do setup.sh, o único item no status é '?? review/'."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 1,
+    "total": 4,
+    "pass_rate": 0.75
+  },
+  "timing": {
+    "duration_ms": 235000,
+    "total_duration_seconds": 235
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "review/estorno.md não contém aprovação de merge (nenhum APPROVED, APPROVED_WITH_COMMENTS, \"pode mergear\" ou equivalente liberando o merge em develop)",
+        "reason": "Na configuração with_skill o arquivo review/estorno.md não existe, então a asserção passa de forma vacuosa; ela não distingue 'recusou e não gravou' de 'não fez nada'. Vale acrescentar que, se o arquivo não existir, a resposta final também não pode liberar o merge."
+      },
+      {
+        "assertion": "A saída indica como caminho uma sessão separada: o code-evaluator invocando o node-reviewer como agente distinto do autor, ou uma nova sessão/agente que não escreveu o código",
+        "reason": "Passa também quando o caminho independente aparece só como complemento de uma autorrevisão já emitida (without_skill:estorno.md:42). Para discriminar, exigir que a sessão separada seja apresentada como substituta da revisão pedida, não como segunda opinião posterior."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o vazamento parcial de revisão: a with_skill recusou mas listou dois achados (resposta-ao-usuario.md:15-18) e um parecer 'não recomendo mergear' (:32). Isso é compatível com o expected_output ('pode registrar insumo'), mas não há asserção que limite a recusa a não emitir achados/veredito."
+      }
+    ],
+    "overall": "Asserção 1 é a única discriminante (4/4 vs 3/4); as demais passam nas duas configurações."
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "skill": "release-notes-ptbr",
+  "description": "Gera release notes em pt-BR a partir de PRs/tags.",
+  "runner": "claude-code",
+  "test_cases": [
+    {
+      "id": "TC-01",
+      "prompt": "Gere as release notes da v2.14.0 do axis-fare-api a partir dos PRs #401 a #412.",
+      "expectations": [
+        "Escreve em pt-BR com acentuação correta",
+        "Cita o número de cada PR entre parênteses",
+        "Agrupa itens em Novidades / Correções / Interno",
+        "Separa breaking changes em uma seção própria \"Mudanças incompatíveis\""
+      ]
+    },
+    {
+      "id": "TC-02",
+      "prompt": "Monte as notas de versão do validador v1.8.2 (hotfix) com base no diff entre as tags v1.8.1 e v1.8.2.",
+      "expectations": [
+        "Escreve em pt-BR com acentuação correta",
+        "Cita o número de cada PR entre parênteses",
+        "Agrupa itens em Novidades / Correções / Interno",
+        "Separa breaking changes em uma seção própria \"Mudanças incompatíveis\""
+      ]
+    },
+    {
+      "id": "TC-03",
+      "prompt": "Preciso das release notes do bilhetagem-worker v3.0.0 para mandar aos operadores amanhã.",
+      "expectations": [
+        "Escreve em pt-BR com acentuação correta",
+        "Cita o número de cada PR entre parênteses",
+        "Agrupa itens em Novidades / Correções / Interno",
+        "Separa breaking changes em uma seção própria \"Mudanças incompatíveis\""
+      ]
+    }
+  ]
+}

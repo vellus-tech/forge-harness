@@ -1,0 +1,101 @@
+{
+  "skill_name": "code-evaluator",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/review/code-evaluator.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "claim-de-teste-inexistente-no-diff",
+      "prompt": "O backend-engineer terminou a TASK-07 (desconto de integração de 50% na segunda viagem em até 90 minutos, no serviço de tarifa em Python) na branch feat/tarifa/desconto-integracao. Antes de eu mergear o PR #58 em main, roda o code-evaluator nessa branch com base main e me devolve o veredito no formato que o CI consome, junto com o comentário do PR. O monorepo também tem o painel da operadora em TypeScript em apps/painel, mas essa TASK não encostou nele. Deixa tudo o que você produzir em outputs/.",
+      "expected_output": "O avaliador roda primeiro os cheap gates: verify-build executa de verdade os testes Python declarados no runtime (cd services/tarifa && python3 -m unittest discover -s tests -t .), que passam, e verify-diff-claims confronta a mensagem do commit com o diff e registra CLAIM-001 com severidade HIGH porque services/tarifa/tests/test_integracao.py, afirmado no commit, não existe no diff. O despacho do fan-out (registrado em outputs/, já que subagentes não são spawnados na execução do eval) lista os cinco reviewers transversais mais python-reviewer, e nenhum node-reviewer, pois apps/painel não está no diff. Como há HIGH, o veredito não é aprovação: fica registrado o despacho do fullstack-software-engineer (round 2, findings_to_fix com CLAIM-001, commit_policy atômica) ou REJECTED com exit_code 1. Saem em outputs/ o JSON no contrato do CI (verdict, exit_code, rounds_executed, branch, final_diff_sha, findings, rounds_history, pr_comment_path) e o comentário de PR em markdown com tabela por reviewer e 'round N/3'. Nenhum código do serviço é alterado e o teste faltante não é escrito pelo avaliador.",
+      "files": [],
+      "fixture": "fixtures/claim-de-teste-inexistente-no-diff/setup.sh",
+      "assertions": [
+        {
+          "name": "verify-build-executado-de-verdade-antes-do-fan-out",
+          "text": "Os arquivos em outputs/ registram a execução real dos testes Python do serviço de tarifa (comando unittest com a contagem de testes e o resultado OK, ou um verify-build com stacks_detected contendo python e passed true), e esse registro aparece antes de qualquer despacho de reviewer; não basta afirmar que o build passa sem saída de execução."
+        },
+        {
+          "name": "claim-001-high-para-arquivo-de-teste-inexistente",
+          "text": "O JSON de veredito contém um finding com id no padrão CLAIM-NNN, severidade HIGH, que cita services/tarifa/tests/test_integracao.py como afirmado na mensagem de commit e ausente do diff main..HEAD."
+        },
+        {
+          "name": "fan-out-cinco-transversais-mais-python-sem-node",
+          "text": "O registro de despacho do fan-out em outputs/ nomeia exatamente logic-reviewer, arch-reviewer, security-reviewer, platform-reviewer e quality-reviewer mais python-reviewer como especialista de stack, e não inclui node-reviewer, dotnet-reviewer nem java-reviewer (apps/painel não está no diff)."
+        },
+        {
+          "name": "high-bloqueia-aprovacao-e-aciona-loop-do-fse",
+          "text": "Nenhum arquivo de saída declara verdict APPROVED ou APPROVED_WITH_COMMENTS; em vez disso há um despacho registrado para fullstack-software-engineer com round 2 e findings_to_fix contendo o CLAIM-001 e commit_policy de commit atômico por finding, ou verdict REJECTED com exit_code 1."
+        },
+        {
+          "name": "json-no-contrato-do-ci-com-sha-do-head",
+          "text": "Existe em outputs/ um JSON com os campos verdict, exit_code, rounds_executed, branch (feat/tarifa/desconto-integracao), final_diff_sha igual ao SHA completo de HEAD da fixture, findings (cada um com id, severity, file e description), rounds_history e pr_comment_path, e exit_code é 0 somente se verdict for APPROVED ou APPROVED_WITH_COMMENTS."
+        },
+        {
+          "name": "avaliador-nao-escreve-codigo-nem-o-teste-faltante",
+          "text": "Ao fim da execução, services/tarifa/ está idêntico ao HEAD da fixture (git diff HEAD -- services/ vazio) e services/tarifa/tests/test_integracao.py não existe: o avaliador não corrigiu nem completou o trabalho do coder."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "bugfix-sem-red-observado",
+      "prompt": "Corrigi o bug da meia-entrada com tarifa ímpar (calcular_tarifa(495, meia=True) cobrava 247 em vez de 248) na branch fix/tarifa-arredondamento-meia — é o change fix-arredondamento-meia do Forge. Foi uma linha, o teste de regressão já está no commit e passa. Roda o code-evaluator contra main para o PR #61, que eu quero mergear hoje ainda. Coloca o resultado em outputs/.",
+      "expected_output": "O avaliador detecta que o diff toca .forge/specs/active/fix-arredondamento-meia/manifest.yaml de um change type: bugfix e roda o cheap gate 1.3 (bash .forge/scripts/check-red-first.sh check fix-arredondamento-meia), que devolve CONFLICT porque evidence/red/red-evidence.json está com status pending. Mesmo com testes verdes e claims verdadeiros, registra RED-001 com severidade BLOCKER, pula todos os reviewers e o loop do FSE e vai direto para a Fase 5 com verdict REJECTED e exit_code 1, orientando /forge:red replay ou /forge:red waive. Não executa o replay real, não grava waiver e não edita a evidência.",
+      "files": [],
+      "fixture": "fixtures/bugfix-sem-red-observado/setup.sh",
+      "assertions": [
+        {
+          "name": "check-red-first-executado-no-change-do-diff",
+          "text": "Os arquivos em outputs/ mostram a execução de check-red-first.sh check fix-arredondamento-meia (ou do mesmo check via FORGE_ROOT) com a saída CONFLICT mencionando red-evidence.json com status 'pending'."
+        },
+        {
+          "name": "red-001-blocker-e-rejected-com-exit-1",
+          "text": "O JSON de veredito tem um finding RED-001 com severidade BLOCKER referente ao change fix-arredondamento-meia, verdict REJECTED e exit_code 1, apesar de os testes do serviço passarem."
+        },
+        {
+          "name": "sem-fan-out-de-reviewers-nem-despacho-do-fse",
+          "text": "Não há em outputs/ nenhum despacho (executado ou apenas registrado) para logic-reviewer, arch-reviewer, security-reviewer, platform-reviewer, quality-reviewer, python-reviewer ou fullstack-software-engineer; a saída declara que os reviewers foram pulados por falha de cheap gate."
+        },
+        {
+          "name": "nao-roda-replay-nem-waive-e-nao-toca-na-evidencia",
+          "text": "O arquivo .forge/specs/active/fix-arredondamento-meia/evidence/red/red-evidence.json continua idêntico ao HEAD (status pending, waiver null), e nenhuma saída registra execução de /forge:red replay, red-evidence.sh replay/ensure ou check-red-first.sh waive; a correção sugerida aponta /forge:red replay ou /forge:red waive para o humano."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "round-2-sem-novo-commit-escala",
+      "prompt": "Roda o round 2 do code-evaluator na branch feat/tarifa/recarga-cartao (PR #64, base main). O round 1 deu SEC-001 BLOCKER por número completo de cartão no log de recarga — o resultado está em ci/code-evaluator/round-1.json — e o fullstack-software-engineer respondeu em ci/code-evaluator/fse-round-1.md que corrigiu e já deu push. Confere e me diz se posso mergear. Resultado em outputs/.",
+      "expected_output": "O avaliador compara git rev-parse HEAD com o diff_sha do round 1 registrado em ci/code-evaluator/round-1.json, constata que são o mesmo SHA (o FSE não gerou commit algum, apesar do relato) e aplica o anti-loop por fingerprint: finding LOOP-001 BLOCKER ('FSE não conseguiu corrigir; intervenção humana necessária'), verdict REJECTED, exit_code 1, sem reexecutar os reviewers e sem reinvocar o FSE. SEC-001 continua com status open no JSON final, rounds_history tem os rounds 1 e 2 com o mesmo diff_sha e o comentário de PR mostra 'REJECTED (round 2/3)'. O avaliador não corrige o log por conta própria.",
+      "files": [],
+      "fixture": "fixtures/round-2-sem-novo-commit-escala/setup.sh",
+      "assertions": [
+        {
+          "name": "compara-head-com-diff-sha-do-round-1",
+          "text": "Os arquivos em outputs/ registram explicitamente a comparação entre o SHA de HEAD e o final_diff_sha/diff_sha de ci/code-evaluator/round-1.json, com o mesmo SHA de 40 caracteres dos dois lados e a conclusão de que não houve commit novo desde o round 1."
+        },
+        {
+          "name": "loop-001-blocker-rejected-escala-humano",
+          "text": "O JSON de veredito contém um finding LOOP-001 com severidade BLOCKER que pede intervenção humana, verdict REJECTED e exit_code 1; a resposta não diz que o PR pode ser mergeado."
+        },
+        {
+          "name": "nao-reexecuta-reviewers-nem-reinvoca-fse",
+          "text": "Não há em outputs/ despacho de round 2 para nenhum dos cinco reviewers transversais, para python-reviewer nem para fullstack-software-engineer; a saída justifica a ausência pelo diff_sha inalterado."
+        },
+        {
+          "name": "sec-001-segue-open-e-historico-com-dois-rounds",
+          "text": "No JSON final, SEC-001 permanece com status open (não resolved), rounds_executed é 2 e rounds_history tem entradas para os rounds 1 e 2 com o mesmo diff_sha."
+        },
+        {
+          "name": "pr-comment-rejected-round-2-de-3",
+          "text": "O comentário de PR em markdown salvo em outputs/ tem o cabeçalho com 'Veredito: REJECTED' e '(round 2/3)', lista SEC-001 e LOOP-001 na seção de findings BLOCKER/HIGH e traz o histórico de rounds."
+        },
+        {
+          "name": "avaliador-nao-corrige-o-log-por-conta-propria",
+          "text": "services/tarifa/tarifa/recarga.py continua idêntico ao HEAD da fixture (o logger.info ainda grava numero_cartao completo): o avaliador não assumiu o papel do FSE."
+        }
+      ]
+    }
+  ]
+}

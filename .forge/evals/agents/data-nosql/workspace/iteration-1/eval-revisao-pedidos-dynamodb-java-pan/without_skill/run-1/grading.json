@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta diz explicitamente que o check-data-governance não examinou o código Java (universo vazio / não lê .java / 'não verificado') e, por isso, NÃO confirma ausência de problema de PAN com base nele; a resposta não trata a saída do gate como aprovação",
+      "passed": false,
+      "evidence": "O check-data-governance nunca foi executado (transcript.md não registra o comando). A nota sobre o gate só especula: 'Ou o gate atual não avalia uso de campo contra a classificação declarada ... ou não cobre este caminho de código'. A resposta não diz que o verificador não examina .java nem que o universo estava vazio ou 'não verificado'. Ela não trata o gate como aprovação, mas falta a parte explícita que a asserção exige."
+    },
+    {
+      "text": "A resposta aponta que numeroCartao é gravado em claro no item do DynamoDB (PedidoRepository.java, linha 26 ou o método salvar), cita services/pedidos/data-classification.json (classification pan e/ou tokenization_boundary true) como base, e recomenda substituir o PAN por token ou referência do cofre, sem sugerir apenas mascarar na exibição",
+      "passed": true,
+      "evidence": "revisao-pedidos-dynamodb.md achado 1: 'Onde: PedidoRepository.java:26 (salvar)'; cita data-classification.json com '\"classification\": \"pan\"' e '\"tokenization_boundary\": true'; recomendação: 'armazenar apenas o token retornado pelo provedor de pagamento' e 'mover o PAN real para fora do domínio de pedidos'. O fallback '(ou, no mínimo, a forma mascarada)' fala de persistência, não de mascarar só na exibição."
+    },
+    {
+      "text": "A resposta cita N-06 em infra/dynamo.tf (linha 4, hash_key status) propondo partition key de alta cardinalidade alinhada ao acesso dominante (clienteId ou equivalente) E cita N-10 em infra/dynamo.tf (linha 24, projection_type ALL) propondo KEYS_ONLY ou INCLUDE",
+      "passed": false,
+      "evidence": "Os ids N-06 e N-10 não aparecem na resposta. Em substância, o achado 4 cita dynamo.tf:4 com hash_key status, mas propõe pedidoId como hash key, que não se alinha ao acesso dominante por cliente, e o sharding que sugere é sobre status. O achado 2 cita 'dynamo.tf:20-25' e propõe INCLUDE. Falta a citação de N-06 e de N-10 que a asserção exige."
+    },
+    {
+      "text": "A resposta cita N-08 no método pendentes (PedidoRepository.java:45) e substitui o Scan por Query num índice de status que espalha a carga (write sharding por sufixo calculado ou chave composta equivalente), sem manter Scan no caminho do painel",
+      "passed": false,
+      "evidence": "O id N-08 não aparece. O achado 5 (PedidoRepository.java:44-51, pendentes) propõe 'Query com keyConditionExpression(\"status = :p\") diretamente na tabela base', ou seja, uma Query na partição quente status=PENDENTE, sem write sharding. O sharding por sufixo aparece só no achado 4, como alternativa para a chave da tabela, e não está ligado ao caminho do painel."
+    },
+    {
+      "text": "A resposta cita N-11 (ou 'leitura forte em GSI') na chamada .consistentRead(true) com indexName por-cliente (PedidoRepository.java:37), explicando que GSI só oferece leitura eventual e propondo ler da tabela base ou aceitar consistência eventual",
+      "passed": true,
+      "evidence": "revisao-pedidos-dynamodb.md achado 3: 'Onde: PedidoRepository.java:37'; 'DynamoDB não suporta leitura fortemente consistente (ConsistentRead=true) em Global Secondary Index — apenas eventual consistency ... lança ValidationException'; recomendação: remover consistentRead(true) e aceitar eventual, ou usar a tabela base. A asserção aceita 'leitura forte em GSI' como alternativa ao id N-11."
+    },
+    {
+      "text": "Após a execução, `git -C <alvo> status --porcelain` sai vazio",
+      "passed": true,
+      "evidence": "git -C without_skill/run-1/work status --porcelain executado pelo grader: saída vazia, rc=0 (HEAD 10d8824)."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  }
+}

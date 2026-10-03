@@ -1,0 +1,18 @@
+{
+  "schema": "impact/v0",
+  "generated_at": "2026-09-26T16:00:56.362Z",
+  "graph_fingerprint": "38c8117883f8ffbebd54741d14bf741038466d4f0b521a3531d211aecac34011",
+  "seeds": [
+    "src/auth/index.ts",
+    "src/auth/jwt.ts"
+  ],
+  "impacted": [
+    "src/api/routes/payments.ts",
+    "src/api/routes/users.ts",
+    "src/api/server.ts",
+    "src/auth/index.ts",
+    "src/auth/jwt.ts",
+    "src/middleware/auth.ts",
+    "src/middleware/rate-limit.ts"
+  ]
+}

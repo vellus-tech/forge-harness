@@ -1,0 +1,4 @@
+syntax = "proto2";
+message Pedido {
+  required string id = 1;
+}

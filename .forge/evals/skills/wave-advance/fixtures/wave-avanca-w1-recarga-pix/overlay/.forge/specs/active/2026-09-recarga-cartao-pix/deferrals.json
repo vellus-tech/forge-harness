@@ -1,0 +1,6 @@
+{
+  "change_id": "2026-09-recarga-cartao-pix",
+  "deferrals": [
+    { "id": "DEFER-01", "raised_in": "2026-09-20T15:10:44Z", "description": "Valor do limite diário de recarga aguarda definição do produto (R$ 200 ou R$ 500)", "reason": "Valor do limite diário de recarga aguarda definição do produto (R$ 200 ou R$ 500)", "blocks": ["STORY-07"], "depends_on": [], "status": "open", "resolved_at": null, "resolution_note": null }
+  ]
+}

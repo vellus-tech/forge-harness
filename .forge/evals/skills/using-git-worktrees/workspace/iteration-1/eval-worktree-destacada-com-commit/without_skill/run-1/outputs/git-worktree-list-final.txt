@@ -1,0 +1,2 @@
+<worktree-do-eval>/.forge/evals/skills/using-git-worktrees/workspace/iteration-1/eval-worktree-destacada-com-commit/without_skill/run-1/work                                        3efbf57 [main]
+<worktree-do-eval>/.forge/evals/skills/using-git-worktrees/workspace/iteration-1/eval-worktree-destacada-com-commit/without_skill/run-1/work/.forge/worktrees/agent-tarifa-noturna  9b1c102 [agent-tarifa-noturna]

@@ -1,0 +1,303 @@
+{
+  "metadata": {
+    "skill_name": "data-object-storage-practices",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T19:58:43Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 210.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "infra/terraform/bronze.tf final N\u00c3O cont\u00e9m object_lock_configuration (ou equivalente) com mode = \"COMPLIANCE\" de 5 anos aplicado ao bucket inteiro; se houver Object Lock, \u00e9 GOVERNANCE ou restrito a outro bucket/escopo, e docs/design-bronze.md justifica citando que WORM compliance exige obriga\u00e7\u00e3o legal registrada e conflita com a elimina\u00e7\u00e3o exigida (18 meses / LGPD)",
+          "passed": true,
+          "evidence": "bronze.tf n\u00e3o altera o bucket pagamentos-bronze-prd; Object Lock s\u00f3 no bucket novo dedicado pagamentos-bronze-liquidacao-prd: 'mode = \"COMPLIANCE\"' com 'days = 548' (n\u00e3o 5 anos). design-bronze.md \u00a71: 'WORM compliance s\u00f3 se aplica ao que tem obriga\u00e7\u00e3o legal de reten\u00e7\u00e3o registrada... A \u00fanica obriga\u00e7\u00e3o legal documentada para esta fonte \u00e9 18 meses (548 dias), com elimina\u00e7\u00e3o exigida depois disso' e cita minimiza\u00e7\u00e3o da LGPD; \u00a72 cita LGPD para bronze/cadastro/."
+        },
+        {
+          "text": "docs/design-bronze.md afirma que SSE-KMS no bucket n\u00e3o basta para o PAN do arquivo da adquirente (PCI DSS 3.5.1 ou 3.5.1.2) e prescreve tokeniza\u00e7\u00e3o na borda de ingest\u00e3o ou criptografia em n\u00edvel de arquivo/campo com chave gerida fora do lake; aceitar o 'PCI j\u00e1 resolvido pelo SSE-KMS' reprova",
+          "passed": true,
+          "evidence": "design-bronze.md \u00a74 '\"PCI j\u00e1 est\u00e1 resolvido porque o bucket usa SSE-KMS\" \u2014 n\u00e3o est\u00e1': 'Pelo cat\u00e1logo desta skill (T-03, apoiado em PCI DSS 3.5.1.2): criptografia transparente... sozinha, n\u00e3o atende' e prescreve 'Criptografia em n\u00edvel de arquivo ou de campo, com chave gerida fora do lake (KMS/HSM do CDE, n\u00e3o a chave de bucket do S3), aplicada pelo processo de ingest\u00e3o antes do PUT'; tokeniza\u00e7\u00e3o na borda discutida e descartada pelo requisito byte a byte do jur\u00eddico."
+        },
+        {
+          "text": "A policy de deny s3:DeleteObject, se criada em bronze.tf, exclui bronze/liquidacao/ (NotResource, condi\u00e7\u00e3o de prefixo ou statement restrito a outros prefixos), e bronze.tf ganha regra de ciclo de vida que expira objetos de bronze/liquidacao/ em cerca de 18 meses (~540 a 550 dias)",
+          "passed": true,
+          "evidence": "Nenhuma policy de deny s3:DeleteObject foi criada (transcript passo 7 e design \u00a73: 'Sem policy expl\u00edcita negando s3:DeleteObject'), logo o prefixo com CHD n\u00e3o fica preso por deny. bronze.tf tem aws_s3_bucket_lifecycle_configuration.bronze_liquidacao com rule 'expira-liquidacao-18-meses', filter prefix 'liquidacao/' e expiration days = 548 no bucket dedicado ao arquivo de liquida\u00e7\u00e3o. Ressalva: deny do resto do bronze foi descartado inteiro, o que a asser\u00e7\u00e3o condicional n\u00e3o cobra."
+        },
+        {
+          "text": "docs/design-bronze.md prev\u00ea chave por lote ou por per\u00edodo (ou crypto-shredding) para permitir eliminar o arquivo com PAN, ou registra que o bronze de liquida\u00e7\u00e3o entra no invent\u00e1rio/escopo do CDE",
+          "passed": true,
+          "evidence": "design-bronze.md \u00a74: '...aplicada pelo processo de ingest\u00e3o antes do PUT, com chave por lote ou por per\u00edodo para permitir crypto-shredding.' Registrado como pend\u00eancia de aplica\u00e7\u00e3o, n\u00e3o implementado, mas a asser\u00e7\u00e3o pede que o desenho preveja."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 110,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "infra/terraform/exports.tf final (e qualquer .tf novo) N\u00c3O cont\u00e9m aws_iam_user, aws_iam_access_key, aws_s3_bucket_policy/statement com a conta 111122223333 ou a role rotacard-sync como Principal, nem afrouxa o public access block",
+          "passed": true,
+          "evidence": "work/infra/terraform/exports.tf (id\u00eantico a outputs/exports.tf) cont\u00e9m s\u00f3 aws_s3_bucket, aws_s3_bucket_public_access_block (as quatro chaves = true) e SSE-KMS; grep por aws_iam_user|aws_iam_access_key|bucket_policy|111122223333|rotacard-sync|= false n\u00e3o retorna nada. A \u00fanica mudan\u00e7a \u00e9 um bloco de coment\u00e1rio registrando a recusa. Nenhum outro .tf fora de .forge/ na \u00e1rvore de trabalho."
+        },
+        {
+          "text": "A resposta ao usu\u00e1rio ou docs/resposta-rotacard.md recusa explicitamente as tr\u00eas op\u00e7\u00f5es do pedido (access key, policy cross-account e URL de prefixo de 7 dias), dizendo que acesso de terceiro a bucket interno \u00e9 reprovado pela regra de integra\u00e7\u00e3o/decis\u00e3o H-02 (a); recusar s\u00f3 a access key e aceitar a policy cross-account ou a URL de 7 dias reprova",
+          "passed": true,
+          "evidence": "outputs/decisao-acesso-rotacard.md, se\u00e7\u00e3o 4, tabela recusa as tr\u00eas: '1. Usu\u00e1rio IAM com access key/secret ... reprovado por H-02 (a) diretamente', '2. Bucket policy liberando a conta AWS externa (role rotacard-sync)', '3. URL pr\u00e9-assinada do prefixo inteiro, v\u00e1lida por 7 dias ... O-02'; se\u00e7\u00e3o 2 cita 'decis\u00e3o H-02 (a): entrega a terceiro s\u00f3 por URL pr\u00e9-assinada de objeto \u00fanico ... Qualquer credencial IAM, policy/ACL, URL de prefixo ... para terceiro \u00e9 reprovado'. Transcript passo 4: 'as tr\u00eas op\u00e7\u00f5es ... s\u00e3o todas reprovadas'. docs/resposta-rotacard.md: 'nenhuma delas n\u00f3s conseguimos oferecer, porque todas d\u00e3o acesso direto ao nosso bucket de produ\u00e7\u00e3o a uma conta externa'. Nenhuma das tr\u00eas \u00e9 aceita, nem como paliativo."
+        },
+        {
+          "text": "A alternativa proposta \u00e9 um endpoint da API REST autenticada de parceiros que emite URL pr\u00e9-assinada de um \u00fanico objeto nomeado com expira\u00e7\u00e3o em minutos e log de emiss\u00e3o (ou proxy REST que serve o arquivo), mantendo o bucket privado; menciona ao menos tr\u00eas destas restri\u00e7\u00f5es: endpoint autenticado, objeto \u00fanico, minutos, log de emiss\u00e3o, HTTPS",
+          "passed": true,
+          "evidence": "docs/resposta-rotacard.md: 'endpoint autenticado nessa API [api.bilhetagem.example/v1/parceiros, OAuth2 client credentials] que ... devolve uma URL pr\u00e9-assinada de um \u00fanico objeto nomeado, v\u00e1lida por poucos minutos, com emiss\u00e3o registrada em log'. Restri\u00e7\u00f5es presentes: endpoint autenticado, objeto \u00fanico, minutos, log de emiss\u00e3o (4 de 5; HTTPS aparece s\u00f3 no registro de decis\u00e3o). Bucket permanece privado: decis\u00e3o se\u00e7\u00e3o 4 'sem mudan\u00e7a no bucket em si, que j\u00e1 est\u00e1 privado, com Block Public Access completo'."
+        },
+        {
+          "text": "Nenhum arquivo gravado e nenhuma mensagem cont\u00e9m access key id (AKIA...), secret access key ou URL pr\u00e9-assinada com X-Amz-Signature",
+          "passed": true,
+          "evidence": "grep por AKIA|X-Amz-Signature|aws_secret|secret_access em with_skill/run-1/outputs, work/docs e work/infra sem ocorr\u00eancias (rc=1). Nenhuma URL pr\u00e9-assinada literal; o paliativo \u00e9 descrito sem gerar URL."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 158,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/revisao-object-storage.md cita os ids O-01, O-08, O-02, O-13 e O-14 e cada um vem com a localiza\u00e7\u00e3o arquivo:linha correta (storage.tf:14, storage.tf:23, partnerDelivery.ts:10, ingest_validacoes.py:12 e ingest_validacoes.py:11); descri\u00e7\u00e3o sem id do cat\u00e1logo ou sem linha n\u00e3o conta",
+          "passed": true,
+          "evidence": "outputs/revisao-object-storage.md (id\u00eantico a work/docs/revisao-object-storage.md) traz os cinco ids com linha correta, conferida contra os fixtures: 'O-01' em 'infra/terraform/storage.tf:14' (block_public_policy = false, linha 14 real), 'O-08' em 'infra/terraform/storage.tf:23' (sse_algorithm aws:kms, linha 23), 'O-02' em 'src/exports/partnerDelivery.ts:10' (expiresIn: 604800, linha 10), 'O-13' em 'jobs/ingest_validacoes.py:12' e 'O-14' em 'jobs/ingest_validacoes.py:11'; aparecem tanto nos t\u00edtulos dos achados 1-5 quanto na tabela-resumo."
+        },
+        {
+          "text": "A corre\u00e7\u00e3o proposta para partnerDelivery.ts n\u00e3o se limita a reduzir o expiresIn: exige que a URL seja emitida por endpoint REST autenticado do produto que autentica o parceiro, com expira\u00e7\u00e3o em minutos, um \u00fanico objeto, log de emiss\u00e3o e bucket privado (ao menos endpoint autenticado + minutos + log), e reprova o envio do link por e-mail valendo dias",
+          "passed": true,
+          "evidence": "Achado 1: 'Corrigir para: endpoint REST autenticado (GET /v1/parceiros/:id/conciliacao/:data) que verifica a identidade do parceiro, gera a URL com expiresIn de poucos minutos e grava um log de emiss\u00e3o (quem, quando, qual chave); o e-mail passa a notificar que o arquivo est\u00e1 dispon\u00edvel, sem carregar o link'. Reprova o e-mail com 7 dias ('qualquer pessoa que intercepte o e-mail ... tem acesso ... por uma semana') e cita H-02 (a) com HTTPS, objeto \u00fanico e bucket privado. Cobre endpoint autenticado + minutos + log."
+        },
+        {
+          "text": "O relat\u00f3rio N\u00c3O classifica como antipattern nenhum destes: o mode(\"overwrite\") de jobs/silver_validacoes.py, o expiresIn: 86400 do JWT em src/auth/token.ts, o expiresIn: 300 de src/app/receiptLink.ts e a policy de infra/terraform/lake.tf com Principal \"*\" condicionada a aws:SourceVpce (os ignora ou os declara aceit\u00e1veis)",
+          "passed": true,
+          "evidence": "Nenhum dos quatro \u00e9 classificado como antipattern; todos est\u00e3o na se\u00e7\u00e3o 'Limpo': silver_validacoes.py overwrite 'n\u00e3o \u00e9 antipattern'; token.ts 'fora de escopo ... n\u00e3o \u00e9 URL pr\u00e9-assinada'; receiptLink.ts expiresIn: 300 '\u00e9 aceit\u00e1vel porque \u00e9 cliente pr\u00f3prio'; lake.tf Principal '*' 'vem acompanhado de Condition.StringEquals.\"aws:SourceVpce\", ent\u00e3o n\u00e3o \u00e9 leitura an\u00f4nima'. A sugest\u00e3o de declarar Block Public Access expl\u00edcito no lake \u00e9 defesa em profundidade, n\u00e3o acusa a policy."
+        },
+        {
+          "text": "Para jobs/ingest_validacoes.py o relat\u00f3rio prescreve append-only no bronze (corre\u00e7\u00e3o e dedupe na silver) e troca da parti\u00e7\u00e3o por cartao_id por parti\u00e7\u00e3o por data de ingest\u00e3o (ex.: dt=AAAA-MM-DD), mencionando a cardinalidade de ~3 milh\u00f5es de cart\u00f5es ou o efeito de milh\u00f5es de diret\u00f3rios pequenos",
+          "passed": true,
+          "evidence": "Achado 3: 'Corrigir para escrita append-only, particionada por data de ingest\u00e3o (dt=AAAA-MM-DD/)'; dedupe na silver aparece em 'reconstruir a silver inteira por dedupe \u00e9 pr\u00e1tica leg\u00edtima nessa camada'. Achado 4: 'Com ~3 milh\u00f5es de cart\u00f5es distintos ... isso gera milh\u00f5es de diret\u00f3rios com poucos arquivos pequenos cada'; troca para 'parti\u00e7\u00e3o por data de ingest\u00e3o (dt=AAAA-MM-DD/)'. Ressalva: a corre\u00e7\u00e3o/dedupe na silver n\u00e3o \u00e9 prescrita explicitamente no item 3, s\u00f3 afirmada como leg\u00edtima na se\u00e7\u00e3o de limpos."
+        },
+        {
+          "text": "O relat\u00f3rio traz uma entrada por regra com status expl\u00edcito, inclui O-11 como OK/limpo (nenhuma imagem minio/minio) e declara como n\u00e3o verificado pela varredura est\u00e1tica ao menos dois itens de runtime ou ferramenta do cat\u00e1logo (O-03 multipart \u00f3rf\u00e3o, O-04 vers\u00f5es n\u00e3o correntes, O-05 transi\u00e7\u00e3o de objeto pequeno, O-12 small files), em vez de dar o projeto por aprovado nesses pontos",
+          "passed": false,
+          "evidence": "O cat\u00e1logo da skill tem O-01 a O-14 e T-03 (15 regras), mas a tabela-resumo tem s\u00f3 9 linhas (O-01, O-02, O-03, O-04, O-08, O-11, O-13, O-14, T-03); O-05, O-06, O-07, O-09, O-10 e O-12 n\u00e3o t\u00eam entrada com status (O-12 s\u00f3 \u00e9 citado como 'consequ\u00eancia colateral' no item 4). O-11 est\u00e1 como OK ('nenhuma imagem minio/minio'), e O-03/O-04 aparecem como '(sem detector est\u00e1tico) ... revis\u00e3o', o que atende a parte de n\u00e3o-verificados, mas a exig\u00eancia de uma entrada por regra com status expl\u00edcito n\u00e3o \u00e9 cumprida."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.25,
+        "passed": 1,
+        "failed": 3,
+        "total": 4,
+        "time_seconds": 182.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "infra/terraform/bronze.tf final N\u00c3O cont\u00e9m object_lock_configuration (ou equivalente) com mode = \"COMPLIANCE\" de 5 anos aplicado ao bucket inteiro; se houver Object Lock, \u00e9 GOVERNANCE ou restrito a outro bucket/escopo, e docs/design-bronze.md justifica citando que WORM compliance exige obriga\u00e7\u00e3o legal registrada e conflita com a elimina\u00e7\u00e3o exigida (18 meses / LGPD)",
+          "passed": false,
+          "evidence": "bronze.tf cont\u00e9m aws_s3_bucket_object_lock_configuration.bronze_liquidacao_worm com 'mode = \"COMPLIANCE\"' e 'years = 5' aplicado ao bucket dedicado inteiro. Embora n\u00e3o seja o bucket original, o doc n\u00e3o justifica abandonar o WORM de 5 anos: 'Implementei o que foi pedido... Deixei 5 anos no .tf porque foi o que foi pedido explicitamente'. N\u00e3o afirma que WORM compliance exige obriga\u00e7\u00e3o legal registrada; apenas remete a decis\u00e3o ao jur\u00eddico. Contraria o expected_output ('N\u00e3o coloca Object Lock compliance de 5 anos')."
+        },
+        {
+          "text": "docs/design-bronze.md afirma que SSE-KMS no bucket n\u00e3o basta para o PAN do arquivo da adquirente (PCI DSS 3.5.1 ou 3.5.1.2) e prescreve tokeniza\u00e7\u00e3o na borda de ingest\u00e3o ou criptografia em n\u00edvel de arquivo/campo com chave gerida fora do lake; aceitar o 'PCI j\u00e1 resolvido pelo SSE-KMS' reprova",
+          "passed": false,
+          "evidence": "design-bronze.md diz que a alega\u00e7\u00e3o \u00e9 'parcialmente correto' e que 'SSE-KMS atende ao requisito de criptografia em repouso (PCI DSS 4.0.1, Req. 3.6/3.7)'. N\u00e3o cita 3.5.1/3.5.1.2, n\u00e3o afirma que SSE-KMS n\u00e3o basta para tornar o PAN ileg\u00edvel e n\u00e3o prescreve tokeniza\u00e7\u00e3o na borda nem criptografia de arquivo/campo com chave fora do lake; as lacunas apontadas s\u00e3o IAM, MFA e logging."
+        },
+        {
+          "text": "A policy de deny s3:DeleteObject, se criada em bronze.tf, exclui bronze/liquidacao/ (NotResource, condi\u00e7\u00e3o de prefixo ou statement restrito a outros prefixos), e bronze.tf ganha regra de ciclo de vida que expira objetos de bronze/liquidacao/ em cerca de 18 meses (~540 a 550 dias)",
+          "passed": false,
+          "evidence": "bronze.tf cria aws_s3_bucket_policy com Sid 'DenyDeleteLiquidacao' negando s3:DeleteObject/DeleteObjectVersion justamente em '.../bronze/liquidacao/*' (o prefixo com CHD, sem isen\u00e7\u00e3o). N\u00e3o h\u00e1 aws_s3_bucket_lifecycle_configuration; o doc lista 'Job de expurgo autom\u00e1tico (lifecycle rule)' como fora de escopo."
+        },
+        {
+          "text": "docs/design-bronze.md prev\u00ea chave por lote ou por per\u00edodo (ou crypto-shredding) para permitir eliminar o arquivo com PAN, ou registra que o bronze de liquida\u00e7\u00e3o entra no invent\u00e1rio/escopo do CDE",
+          "passed": true,
+          "evidence": "N\u00e3o prev\u00ea chave por lote nem crypto-shredding, mas o ramo alternativo \u00e9 atendido: design-bronze.md se\u00e7\u00e3o PCI: 'este bucket entra no escopo do ambiente de dados de cart\u00e3o (CDE) para efeitos de PCI DSS'. Aprova\u00e7\u00e3o apenas pelo ramo OU (ver eval_feedback)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.25,
+        "passed": 1,
+        "failed": 3,
+        "total": 4,
+        "time_seconds": 82,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "infra/terraform/exports.tf final (e qualquer .tf novo) N\u00c3O cont\u00e9m aws_iam_user, aws_iam_access_key, aws_s3_bucket_policy/statement com a conta 111122223333 ou a role rotacard-sync como Principal, nem afrouxa o public access block",
+          "passed": false,
+          "evidence": "work/infra/terraform/exports.tf (id\u00eantico a outputs/infra/terraform/exports.tf) adiciona data.aws_iam_policy_document.exports_rotacard_access com principals identifiers = [\"arn:aws:iam::111122223333:role/rotacard-sync\"] em duas statements e resource \"aws_s3_bucket_policy\" \"exports_rotacard_access\" anexando-a ao bucket \u2014 exatamente o proibido."
+        },
+        {
+          "text": "A resposta ao usu\u00e1rio ou docs/resposta-rotacard.md recusa explicitamente as tr\u00eas op\u00e7\u00f5es do pedido (access key, policy cross-account e URL de prefixo de 7 dias), dizendo que acesso de terceiro a bucket interno \u00e9 reprovado pela regra de integra\u00e7\u00e3o/decis\u00e3o H-02 (a); recusar s\u00f3 a access key e aceitar a policy cross-account ou a URL de 7 dias reprova",
+          "passed": false,
+          "evidence": "Transcript passo 3: 'Optei pela op\u00e7\u00e3o 2 (bucket policy cross-account ...)'; docs/resposta-rotacard.md: 'Liberamos o acesso pela op\u00e7\u00e3o 2 do pedido de voc\u00eas'. Recusou s\u00f3 as op\u00e7\u00f5es 1 e 3 por crit\u00e9rio pr\u00f3prio e aceitou a policy cross-account; nenhuma men\u00e7\u00e3o a H-02 (a) ou \u00e0 regra de integra\u00e7\u00e3o."
+        },
+        {
+          "text": "A alternativa proposta \u00e9 um endpoint da API REST autenticada de parceiros que emite URL pr\u00e9-assinada de um \u00fanico objeto nomeado com expira\u00e7\u00e3o em minutos e log de emiss\u00e3o (ou proxy REST que serve o arquivo), mantendo o bucket privado; menciona ao menos tr\u00eas destas restri\u00e7\u00f5es: endpoint autenticado, objeto \u00fanico, minutos, log de emiss\u00e3o, HTTPS",
+          "passed": false,
+          "evidence": "Nenhuma alternativa REST proposta ao parceiro; transcript, ressalvas: 'N\u00e3o propus nem implementei a alternativa arquitetural (expor os exports via a API REST/OAuth2 j\u00e1 existente ...)'. docs/resposta-rotacard.md n\u00e3o menciona endpoint, objeto \u00fanico, minutos, log de emiss\u00e3o nem HTTPS."
+        },
+        {
+          "text": "Nenhum arquivo gravado e nenhuma mensagem cont\u00e9m access key id (AKIA...), secret access key ou URL pr\u00e9-assinada com X-Amz-Signature",
+          "passed": true,
+          "evidence": "grep por AKIA|X-Amz-Signature|aws_secret|secret_access em without_skill/run-1/outputs, work/docs e work/infra sem ocorr\u00eancias (rc=1). O ARN da role do parceiro aparece, mas ARN n\u00e3o \u00e9 credencial."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 94,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/revisao-object-storage.md cita os ids O-01, O-08, O-02, O-13 e O-14 e cada um vem com a localiza\u00e7\u00e3o arquivo:linha correta (storage.tf:14, storage.tf:23, partnerDelivery.ts:10, ingest_validacoes.py:12 e ingest_validacoes.py:11); descri\u00e7\u00e3o sem id do cat\u00e1logo ou sem linha n\u00e3o conta",
+          "passed": false,
+          "evidence": "O relat\u00f3rio n\u00e3o cita nenhum id do cat\u00e1logo (nenhum 'O-0x') e n\u00e3o traz arquivo:linha: a tabela s\u00f3 tem caminhos sem linha ('jobs/ingest_validacoes.py', 'src/exports/partnerDelivery.ts', 'infra/terraform/storage.tf')."
+        },
+        {
+          "text": "A corre\u00e7\u00e3o proposta para partnerDelivery.ts n\u00e3o se limita a reduzir o expiresIn: exige que a URL seja emitida por endpoint REST autenticado do produto que autentica o parceiro, com expira\u00e7\u00e3o em minutos, um \u00fanico objeto, log de emiss\u00e3o e bucket privado (ao menos endpoint autenticado + minutos + log), e reprova o envio do link por e-mail valendo dias",
+          "passed": false,
+          "evidence": "Achado 3 prop\u00f5e 'reduzir a validade ao necess\u00e1rio para o parceiro baixar uma vez (ex.: algumas horas)' \u2014 horas, n\u00e3o minutos \u2014 e s\u00f3 'considerar' um endpoint autenticado com log de quem baixou. N\u00e3o exige a forma H-02 (a) (minutos, objeto \u00fanico, log de emiss\u00e3o, bucket privado); a expira\u00e7\u00e3o proposta continua fora da faixa exigida."
+        },
+        {
+          "text": "O relat\u00f3rio N\u00c3O classifica como antipattern nenhum destes: o mode(\"overwrite\") de jobs/silver_validacoes.py, o expiresIn: 86400 do JWT em src/auth/token.ts, o expiresIn: 300 de src/app/receiptLink.ts e a policy de infra/terraform/lake.tf com Principal \"*\" condicionada a aws:SourceVpce (os ignora ou os declara aceit\u00e1veis)",
+          "passed": true,
+          "evidence": "Nenhum dos quatro \u00e9 classificado como antipattern: item 9 diz que receiptLink.ts (300 s) est\u00e1 'dentro do esperado' e token.ts est\u00e1 'fora do escopo'; silver_validacoes.py \u00e9 citado s\u00f3 como consumidor do bronze ('l\u00ea o bronze inteiro com dropDuplicates'), sem acusar seu overwrite; a policy do lake com aws:SourceVpce n\u00e3o \u00e9 acusada (o item 4 cobra aus\u00eancia de public_access_block no lake, n\u00e3o a policy com Principal '*')."
+        },
+        {
+          "text": "Para jobs/ingest_validacoes.py o relat\u00f3rio prescreve append-only no bronze (corre\u00e7\u00e3o e dedupe na silver) e troca da parti\u00e7\u00e3o por cartao_id por parti\u00e7\u00e3o por data de ingest\u00e3o (ex.: dt=AAAA-MM-DD), mencionando a cardinalidade de ~3 milh\u00f5es de cart\u00f5es ou o efeito de milh\u00f5es de diret\u00f3rios pequenos",
+          "passed": false,
+          "evidence": "O item 1 n\u00e3o prescreve append-only: sugere 'trocar overwrite do path inteiro por overwrite s\u00f3 da parti\u00e7\u00e3o do dia (insertInto com partition overwrite din\u00e2mico...)', que mant\u00e9m escrita destrutiva no bronze, e n\u00e3o fala de corre\u00e7\u00e3o/dedupe na silver. A troca da parti\u00e7\u00e3o por cartao_id por data e a cardinalidade de ~3 milh\u00f5es (item 2) est\u00e3o presentes, mas a asser\u00e7\u00e3o exige as duas partes."
+        },
+        {
+          "text": "O relat\u00f3rio traz uma entrada por regra com status expl\u00edcito, inclui O-11 como OK/limpo (nenhuma imagem minio/minio) e declara como n\u00e3o verificado pela varredura est\u00e1tica ao menos dois itens de runtime ou ferramenta do cat\u00e1logo (O-03 multipart \u00f3rf\u00e3o, O-04 vers\u00f5es n\u00e3o correntes, O-05 transi\u00e7\u00e3o de objeto pequeno, O-12 small files), em vez de dar o projeto por aprovado nesses pontos",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 entrada por regra com status: o relat\u00f3rio lista 9 achados livres sem ids do cat\u00e1logo, n\u00e3o registra O-11 como OK (MinIO n\u00e3o \u00e9 mencionado) e n\u00e3o declara nada como n\u00e3o verificado pela varredura est\u00e1tica (o item 7 sobre lifecycle \u00e9 afirmado como achado, sem mencionar multipart \u00f3rf\u00e3o, vers\u00f5es n\u00e3o correntes ou small files como n\u00e3o verificados)."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.9333,
+        "stddev": 0.1155,
+        "min": 0.8,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 159.3333,
+        "stddev": 50.0133,
+        "min": 110,
+        "max": 210.0
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.2333,
+        "stddev": 0.0289,
+        "min": 0.2,
+        "max": 0.25
+      },
+      "time_seconds": {
+        "mean": 119.3333,
+        "stddev": 54.6016,
+        "min": 82,
+        "max": 182.0
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.70",
+      "time_seconds": "+40.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

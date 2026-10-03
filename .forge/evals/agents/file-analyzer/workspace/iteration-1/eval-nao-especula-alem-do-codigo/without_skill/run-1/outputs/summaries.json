@@ -1,0 +1,10 @@
+{
+  "src/shared/money.ts": {
+    "fingerprint": "eaecbfc8e8afd0f21ef0f762e5a1d5118aa95fbc6e125140949bf95c1380ed74",
+    "summary": "Value object de dinheiro em centavos inteiros; expõe Money.deCentavos e aplicarDesconto com arredondamento; sem dependências internas."
+  },
+  "src/validacao/antifraude-cartao.ts": {
+    "fingerprint": "f394b64b9da6e90dfed800517ffe7eed19cebebad1a2e485888147387b30cb2a",
+    "summary": "Valida cartões no embarque (cartaoAceito) por três checagens sequenciais sobre o PAN normalizado (apenas dígitos): comprimento entre 13 e 19, BIN das 6 primeiras posições presente em BINS_ACEITOS (bins-aceitos.ts) e dígito verificador de Luhn. Em exceção, loga o erro via logger (shared/logger.ts) e RETORNA true — ou seja, aceita o cartão em caso de falha (fail-open). O comentário de topo do arquivo menciona score de risco por ML, blacklist de PAN sincronizada com a adquirente, velocity check por validador e integração com a ClearSale acima de R$ 50,00; nenhum desses mecanismos existe no código — há apenas dois TODOs (velocity, ml) sem implementação correspondente."
+  }
+}

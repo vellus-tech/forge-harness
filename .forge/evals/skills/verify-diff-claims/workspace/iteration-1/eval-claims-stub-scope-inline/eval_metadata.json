@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "claims-stub-scope-inline",
+  "prompt": "Roda o anti-alucinação no branch feat/tarifa-integracao contra main antes do code review. É .NET: o coder disse que implementou o CalcularDesconto do TarifaIntegracaoService (25% dentro da janela de 120 min) e depois fez um fix no e-mail de recibo. Também deixou comentários AGENT-CLAIM no código. O grep pelo nome da classe já encontra ela no diff, então pra mim a primeira parte está ok, mas quero a confirmação. Salva o relatório em reports/verify-diff-claims.json.",
+  "assertions": [
+    "findings_to_emit contém uma entrada com id no formato CLAIM-STUB-NNN, severity \"HIGH\", apontando CalcularDesconto/TarifaIntegracaoService.cs como corpo `throw new NotImplementedException` apesar da claim \"Implementei CalcularDesconto\"; a claim de implementação NÃO aparece como verificada em matched_claims",
+    "findings_to_emit contém uma entrada CLAIM-NNN com severity \"MEDIUM\" dizendo que o commit com scope payment (fix(payment): corrigir formatação do valor no e-mail de recibo) só toca arquivos em services/notification/",
+    "findings_to_emit contém uma entrada CLAIM-NNN severity \"HIGH\" sobre ReciboRepository, cuja origem citada é o comentário `// AGENT-CLAIM:` em ReciboEmail.cs (não a mensagem de commit), registrando que o símbolo não existe no diff",
+    "Nenhuma entrada de findings_to_emit tem severity BLOCKER e exit_code é 0; os achados são tratados como insumo para os reviewers, não como reprovação automática",
+    "O agente não corrigiu o código nem as mensagens: services/payment/src/Payment.Application/TarifaIntegracaoService.cs continua com `throw new NotImplementedException()` e `git log main..HEAD` ainda mostra os dois commits originais com as mesmas mensagens"
+  ]
+}

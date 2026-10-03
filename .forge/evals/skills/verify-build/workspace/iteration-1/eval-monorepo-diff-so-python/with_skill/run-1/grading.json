@@ -1,0 +1,51 @@
+{
+  "expectations": [
+    {
+      "text": "outputs/verify-build-output.json tem stacks_detected == [\"python\"] e results não contém chave node (nem infra).",
+      "passed": false,
+      "evidence": "jq -c '{s:.stacks_detected,k:(.results|keys)}' with_skill/run-1/outputs/verify-build-output.json -> {\"s\":[\"python\"],\"k\":[\"node\",\"python\"]}. stacks_detected correto, mas results contém a chave node (l.34-37: {\"skipped\": true, \"reason\": \"Nenhum arquivo sob web/ no diff...\"}); a asserção exige ausência da chave node, portanto falha pelo texto literal (sem infra: ok)."
+    },
+    {
+      "text": "outputs/verify-build-output.json tem skill == \"verify-build\", passed == true, exit_code == 0 e results.python.test registra total == 7 e failed == 0 (número que só sai de executar de fato a suíte unittest do services/tarifa).",
+      "passed": true,
+      "evidence": "jq -> skill \"verify-build\" (l.2), passed true (l.3), exit_code 0 (l.4), results.python.test {total: 7, failed: 0, failures: []} (l.17-23). transcript.md l.10 registra execução de 'cd services/tarifa && python3 -m unittest discover -s tests -t . -v' com 7/7 OK; reexecução do grader em work/services/tarifa (python3 -B -m unittest discover -s tests -t .) -> 'Ran 7 tests ... OK'."
+    },
+    {
+      "text": "results.python registra typecheck como não configurado/não executado (status, reason ou equivalente explícito) e NÃO como {\"passed\": true}; nenhum trecho dos outputs afirma que mypy/pyright passou.",
+      "passed": true,
+      "evidence": "verify-build-output.json l.27-31: results.python.typecheck = {\"passed\": null, \"configured\": false, \"note\": \"runtime.typecheck vazio em .forge/FORGE.md; nenhum mypy/pyright configurado. Não avaliado, não aprovado.\"}. grep -rniE 'mypy|pyright' outputs/ só acha essa nota e transcript.md l.9 (ausência de configuração); nenhuma afirmação de aprovação. resumo.md: 'lint/typecheck Python não estão configurados ... não foram avaliados nem aprovados'."
+    },
+    {
+      "text": "findings_to_emit é vazio e nenhum arquivo em outputs/ cita src/linhas.ts ou TS2322 como falha da branch.",
+      "passed": true,
+      "evidence": "jq .findings_to_emit -> []; grep -rnE 'linhas\\.ts|TS2322' with_skill/run-1/outputs -> sem ocorrências; web/painel só aparece como pré-existente fora do escopo (results.node.reason, resumo.md)."
+    },
+    {
+      "text": "`git status --porcelain` no projeto não mostra arquivos rastreados alterados nem novos fora de itens ignorados (sem requirements.txt, sem .venv criado na raiz do repositório para instalar pytest, pyproject.toml intacto).",
+      "passed": true,
+      "evidence": "git -C with_skill/run-1/work status --porcelain --ignored -> apenas '!! services/tarifa/tarifa/__pycache__/' e '!! services/tarifa/tests/__pycache__/' (ignorados); nenhum rastreado alterado nem novo; ls -a work sem .venv nem requirements.txt; grep -niE 'pip install|venv' transcript.md sem ocorrências."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "outputs/verify-build-output.json tem stacks_detected == [\"python\"] e results não contém chave node (nem infra).",
+        "reason": "A asserção reprova o with_skill por results.node = {skipped: true, reason: ...}, que é registro explícito de não-execução e não contamina o veredito; se a intenção é garantir que o node não foi executado nem reportado como falha, a forma discriminante é 'results.node ausente OU results.node.skipped == true sem campo passed/error'. Como está, pune transparência."
+      },
+      {
+        "assertion": "findings_to_emit é vazio e nenhum arquivo em outputs/ cita src/linhas.ts ou TS2322 como falha da branch.",
+        "reason": "Faltou cobrir o comportamento do baseline: o without_skill executou tsc no web/painel (transcript l.17) e gravou o TS2322 no JSON com status fail/in_diff false; a asserção só falha nele por findings_to_emit ausente, não por ter rodado o typecheck fora do diff, que o expected_output proíbe ('não roda tsc/npm no web/painel'). Sugestão: asserção própria 'transcript não registra execução de tsc/npm em web/painel'."
+      },
+      {
+        "reason": "Contaminação de ambiente: o transcript do without_skill (l.30-32) relata ter encontrado grading.json e outputs/changed-files/ de execução anterior com o gabarito do contrato; ele declarou não usá-los, mas o isolamento entre iterações deve ser garantido pela orquestração (limpar run-N antes de reexecutar)."
+      }
+    ],
+    "overall": "Asserções 2, 3 e 5 são discriminantes (total 7 via execução real, typecheck não configurado, árvore limpa). Reexecutei a suíte em with_skill/run-1/work/services/tarifa: 'Ran 7 tests ... OK', confirmando o número."
+  }
+}

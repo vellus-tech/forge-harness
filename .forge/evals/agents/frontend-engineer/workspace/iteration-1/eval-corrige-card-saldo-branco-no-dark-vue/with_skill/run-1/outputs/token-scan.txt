@@ -1,0 +1,34 @@
+Varredura manual (equivalente ao gate A1 da skill frontend-ui-review, não invocada nesta sessão
+por estar fora do escopo autorizado de subagentes/tooling externa) — tokens definidos em
+packages/ui/src/tokens.css vs. tokens referenciados via var() em apps/ e packages/, e busca por
+fallback literal `var(--x, #hex)`.
+
+== tokens definidos em tokens.css ==
+--bg-brand
+--border-subtle
+--font-size-lg
+--font-size-sm
+--radius-md
+--space-2
+--space-4
+--surface-card
+--surface-page
+--surface-raised
+--text-muted
+--text-primary
+
+== tokens referenciados via var() (pós-fix) ==
+--border-subtle
+--font-size-lg
+--font-size-sm
+--radius-md
+--space-2
+--space-4
+--surface-card
+--text-muted
+--text-primary
+
+Diferença (referenciado - definido) = conjunto vazio → nenhum token fantasma remanescente.
+
+== fallback literal em var() (pós-fix) ==
+nenhum encontrado

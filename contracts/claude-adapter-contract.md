@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Versão** | 1.5 |
-| **Data** | 2026-09-04 |
+| **Versão** | 1.6 |
+| **Data** | 2026-09-26 |
 | **Status** | Aprovado |
 | **Wave** | W0.3 (docs/plans/01-mvp1-forge-canonico.md) |
 | **Referência** | §22.1 do doc de projeto (Fase 0 — contrato de compatibilidade) |
@@ -51,6 +51,8 @@ Os 5 scripts de hook permanecem instalados: `pre-tool-use/{check-language-policy
 
 O comportamento de bloqueio do worktree-guard é preservado, com o path canônico migrando de `.claude/worktrees/` para `.forge/worktrees/<change-id>/` (§20.4 do doc; fail-open mantido).
 
+**Hooks de frontmatter de agente (cláusula aditiva, v1.6):** agentes podem declarar `hooks.PreToolUse` no próprio frontmatter (hoje o orquestrador `data-engineer`, com matcher `Agent|Task`, e os seis especialistas `data-*`, com matcher `Bash`). Esses hooks não entram no `settings.json` nem no `hooks.manifest`, valem só enquanto o agente está ativo, chamam script de `.forge/scripts/` por `$CLAUDE_PROJECT_DIR` e terminam em `|| exit 2`, para que o canal feche quando o script falta (no Claude Code só o exit 2 bloqueia a ferramenta; o 127 de um script ausente deixaria passar). A contagem de wiring do `settings.json` desta cláusula não muda: a baseline continua com 1 `"command":` e o estado opt-in com 3. A prova pelo canal (comando extraído do frontmatter e executado por `sh -c`, com e sem o script) está em `tests/w250-data-engineer-agents-gate.sh` [16] e [18].
+
 ### C6 — doctor.sh
 
 Interface preservada: flags `--report` (default), `--install` (opt-in), `-h|--help`; **exit codes**: `0` (diagnósticos OK ou nenhuma stack detectada), `1` (diagnóstico load-bearing ausente no modo report), `2` (argumento desconhecido). Detecção de stacks .NET/Node-TS/Python/Kotlin mantida. Nunca instala nada sem `--install`; nunca roda automaticamente no init.
@@ -95,4 +97,5 @@ O `.gitignore` instalado continua cobrindo settings locais, cache e worktrees (p
 - Milton Silva - 2026-06-16 - Versão 1.3: C1 revisada — origem dos `/forge:*` migrou de `.claude/commands/` para um **plugin** `forge`. O Claude Code (>= 2.x) descontinuou o namespace via subdiretório em `.claude/commands/` (o `:` virou exclusivo de plugins), invalidando a premissa original. O adapter gerado deixa de projetar `.claude/commands/` e os wrappers de alias; o plugin (gerado da mesma fonte `.forge/commands/**`) entrega os comandos, instalado via `npx forge-harness install-plugin` (auto no init) ou marketplace git. Snapshot (source) mantém os 8 commands legados como referência histórica.
 - Milton Silva - 2026-09-03 - Versão 1.4: escopo de C2/C4 corrigido — a validação de frontmatter varria `rglob('*.md')` sob `.claude/skills/` e reprovava qualquer recurso auxiliar de skill. A regra passa a valer para `SKILL.md` (ponto de entrada) em skills e para todo `.md` em agents, onde todo arquivo É um agent. O contrato descrevia a intenção certa e a asserção testava outra coisa: exigir frontmatter de `references/` reprovaria a própria estrutura que o formato de skill prevê. Motivada pela skill `dotnet-quality-scan` (gate `w155`), primeira a usar `references/`.
 - Milton Silva - 2026-09-04 - Versão 1.5 (LDG-0022): C5 estendida para afirmar literalmente o estado `+2 Session hooks` (`handoff.auto: true` → SessionStart + SessionEnd, 3 `"command":` no total). A cobertura funcional já existia desde a W4.2 em `tests/w62-handoff-hook-gate.sh`; o gap era só de LITERALIDADE — a verificação da AC ("C5 aceita ambos os estados") ficava dividida entre dois testes. `claude-contract.bats` ganhou um teste novo, self-contained (constrói uma cópia privada do `$CLAUDE_CONTRACT_TARGET` em modo generated, flipa `handoff.auto` e re-sincroniza), sem exigir nenhum env novo dos chamadores (w13/w14/w80). w62 não foi removido — continua sendo o teste de fluxo ponta a ponta do `/forge:init`.
+- Milton Silva - 2026-09-26 - Versão 1.6 (issue #177): C5 ganha a cláusula aditiva de hooks de frontmatter de agente, trazidos pelos especialistas de dados (`data-engineer` e `data-*`). Nada muda no wiring do `settings.json` nem no `hooks.manifest`; o que o contrato passa a afirmar é a forma desses hooks (script em `.forge/scripts/` por `$CLAUDE_PROJECT_DIR`, comando terminado em `|| exit 2`) e onde ela é provada (w250).
 - Milton Silva - 2026-06-10 - Gate W0.3 decidido: **Approve** (HITL via AskUserQuestion; bats 13/13 verde contra o snapshot). Status → Aprovado.

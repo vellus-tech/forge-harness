@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "planeja-backlog-e-sprints-do-zero",
+  "prompt": "O pipeline de especificação do Passe Livre Digital fechou: os módulos card-wallet e fare-validation estão em docs/product/modules com README, requirements, design e tasks, e o TRD está em docs/product/trd. Monta o product backlog e o plano de sprints em docs/product/backlog e sobe tudo pro Jira no projeto Scrum PLD, que já existe. Time de 4 devs, uns 24 pontos por sprint, sprints de 2 semanas começando na segunda, 2026-10-05.",
+  "assertions": [
+    "Existem docs/product/backlog/product-backlog.md, sprints-planning.md, progress-tracking.md e pelo menos dois arquivos no padrão sprint-<N>-<slug>.md numerados a partir de 1 sem lacuna (sprint-1-*, sprint-2-*, ...); cada nome de sprint listado na tabela de sprints de sprints-planning.md tem o arquivo correspondente",
+    "Todo arquivo sprint-<N>-<slug>.md tem uma linha '**Objetivo:**' contendo uma única frase que começa com 'ao final desta sprint' (sem diferenciar maiúsculas) e contém o verbo 'consegue'",
+    "A tabela '## 1. Épicos' de product-backlog.md tem exatamente duas linhas de épico, uma com 'card-wallet' e outra com 'fare-validation'; não existe épico transversal (ex.: 'Fundação', 'Infraestrutura', 'Plataforma') que não seja um desses dois módulos",
+    "Na tabela de user stories de product-backlog.md cada um de RF-001, RF-002, RF-003, RF-004, RF-005 e RF-006 aparece na coluna RF de ao menos uma story, com story points em {1,2,3,5,8,13}; e as TASKs sem valor direto ao usuário (card-wallet TASK-01, TASK-02 e TASK-07; fare-validation TASK-01 e TASK-07) aparecem na tabela de tasks com referência à TASK de origem (ex.: 'task:TASK-01'), não como user stories",
+    "A story do RF-005 (integração temporal do fare-validation) está numa sprint de número maior que a sprint da story do RF-002 (recarga Pix do card-wallet, de cujo TASK-05 ela depende); a Sprint 1 vai de 2026-10-05 a 2026-10-18 e cada sprint seguinte começa no dia seguinte ao fim da anterior; nenhum arquivo sprint-<N> declara em 'Dependências' uma sprint de número maior ou igual a N",
+    "progress-tracking.md tem ao menos uma linha na tabela '## 2. Operações pendentes de sincronização com Jira' descrevendo uma operação de criação no Jira (épico/story/sprint) com o erro ou indisponibilidade do MCP; e a tabela '## 5. Mapeamento Local ↔ Jira' de product-backlog.md não contém nenhuma Issue Key no formato 'PLD-<número>' (não houve chamada MCP bem-sucedida que a justificasse)"
+  ]
+}

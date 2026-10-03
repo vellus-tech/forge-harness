@@ -1,0 +1,10 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: validacao-default-deny
+  namespace: stg-validacao
+spec:
+  podSelector:
+    matchLabels:
+      app: validacao
+  policyTypes: [Ingress, Egress]

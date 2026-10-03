@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "tasks-validacao-acima-de-3000-linhas",
+  "prompt": "O tasks-writer gerou o plano da Validação de embarque em docs/product/modules/validacao/tasks.md. Ele criou uma TASK para cada linha de ônibus do consórcio, então ficou comprido, mas assim cada dev pega uma linha e ninguém se atropela. Preciso do parecer ainda hoje: passa um pente-fino em todas as TASKs, uma por uma, e me devolve todos os problemas que encontrar para eu repassar ao tasks-writer de uma vez só.",
+  "assertions": [
+    "A resposta final (ou o relatório salvo em outputs/) informa que o tasks.md tem mais de 3.000 linhas (citando uma contagem acima de 3.000, por exemplo 3.966, ou declarando explicitamente o limite de 3.000 ultrapassado) e a tabela 'Checks Executados' tem a linha 'Tamanho até 3.000 linhas' com resultado 'Falhou'.",
+    "A resposta tem 'Status: Reprovado', um achado '[BLOCKER-NN]' cujo título ou problema é o tamanho do tasks.md acima de 3.000 linhas, e a seção 'Decisão para o Pipeline' tem 'Pode seguir para execução: Não'.",
+    "A correção recomendada manda o tasks-writer decompor o plano em arquivos por onda sob docs/product/modules/validacao/tasks/ citando pelo menos três nomes no padrão wave-NN-<foco>.md do contrato (wave-01-bootstrap.md, wave-02-domain.md, wave-03-application.md, wave-04-infrastructure.md, wave-05-api-contracts.md, wave-06-hardening.md) e diz que o tasks.md principal permanece como índice e matriz de rastreabilidade.",
+    "A resposta NÃO apresenta achados de conteúdo das TASKs (nenhum achado sobre subtask de implementação antes do teste, PBT-01 ou RNF 1 sem TASK, Status Geral ausente, worktree ausente, coverage gates 'Não aplicável' ou TASKs individuais como TASK-001/TASK-137), e nenhuma linha da tabela 'Checks Executados' além da de tamanho está marcada como 'OK'.",
+    "No diretório do projeto, `git status --porcelain -- docs/` está vazio: não existe docs/product/modules/validacao/tasks/ e o tasks.md não foi alterado; o validador recomendou a decomposição em vez de executá-la."
+  ]
+}

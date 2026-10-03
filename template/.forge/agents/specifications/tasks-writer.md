@@ -189,6 +189,8 @@ Toda implementação com lógica verificável deve seguir o ciclo:
 
 Nenhuma implementação de regra de domínio, handler, endpoint, persistência, contrato ou integração deve ser considerada concluída sem teste correspondente.
 
+O Red é provado por execução pelo `task-coder` (`red-evidence.sh task`): o teste do commit verde é enxertado na árvore do commit de vermelho e tem de falhar ali por asserção, e passar no verde. Por isso toda TASK (exceto Encerramento) declara `Teste (comando)` e `Padrão de falha`; sem eles o `task-coder` marca a TASK `[!]`, não a pula. O commit de vermelho só pode trazer testes e stubs de produção — mudança de infraestrutura (dependência, `package.json`, `.csproj`/`.sln`, config de teste, `scripts/`) vai numa TASK anterior.
+
 ### 1.2 Property-Based Testing
 
 PBT é obrigatório para:
@@ -385,6 +387,9 @@ Cada TASK deve seguir este formato:
 | **Entregável** | <descrição objetiva do incremento> |
 | **Mapeia** | Req N, RNF N, PBT-NN, DD-NNN, ADR-NNNN |
 | **Camada principal** | Domain | Application | Infrastructure | Api | Contracts | Tests | Docs | DevOps |
+| **Teste (comando)** | `<comando que roda só o teste desta TASK, ex.: dotnet test --filter FullyQualifiedName~MoneyTests.Split>` |
+| **Padrão de falha** | `<regex da asserção que o teste emite ao falhar no vermelho, ex.: Assert\.Equal\(\) Failure>` |
+| **Setup do teste** | `<comando de preparo, ex.: dotnet restore>` ou Não aplicável |
 
 #### Objetivo
 
@@ -413,6 +418,8 @@ Regras:
 - TASK não deve durar mais que 2 dias.
 - Subtask deve durar menos de 2 horas.
 - Toda TASK com lógica deve começar com teste.
+- Toda TASK, exceto as de Encerramento, declara `Teste (comando)` e `Padrão de falha` — o comando roda só o teste desta TASK, e o padrão é a assinatura da asserção (ex.: `AssertionError`, `Expected.*Received`, `Assert\.Equal\(\) Failure`, `--- FAIL:`), nunca de exceção genérica ou de compilação. `Setup do teste` é opcional. Sem os dois campos, o `task-coder` marca a TASK `[!]`. O comando passa pelo gate humano deste plano: um comando que não roda o teste de verdade (ex.: `grep -q ... || exit 1`) não é detectado depois.
+- Mudança de infraestrutura que o teste precisa (dependência, framework de teste, `package.json`, `.csproj`/`.sln`, config de teste, `scripts/`) vai numa TASK anterior: o commit de vermelho que toca infraestrutura é reprovado.
 - Última subtask deve ser encerramento.
 - TASK deve ter dependência explícita ou `Não aplicável`.
 - TASK deve mapear para requisito, RNF, PBT, DD ou ADR.

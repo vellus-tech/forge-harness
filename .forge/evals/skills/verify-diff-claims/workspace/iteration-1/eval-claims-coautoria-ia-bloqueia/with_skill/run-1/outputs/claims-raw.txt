@@ -1,0 +1,14 @@
+91e10cf
+feat(recarga): criar endpoint de recarga de cartão
+
+Criei endpoint POST /api/v1/recargas em recargaHandler, delegando a validação ao RecargaService.
+
+---
+0a47cc9
+feat(recarga): adicionar RecargaService com validação de valor mínimo
+
+Adicionei RecargaService e adicionei testes cobrindo RecargaService.
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+---

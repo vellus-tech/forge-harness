@@ -1,0 +1,48 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta contém um bloco que começa com a linha CONFLITO e traz os campos decisão, posição A, posição B, precedência, opções e registro.",
+      "passed": true,
+      "evidence": "outputs/resposta.md traz bloco ```text iniciado pela linha 'CONFLITO' com os seis campos: 'decisão: algoritmo de criptografia no bucket `extratos-cartao`...', 'posição A: SSE-S3 (AES256)...', 'posição B: SSE-KMS com Bucket Key...', 'precedência: baseline (ADR aceito) > rules > skill...', 'opções: aplicar a fonte de maior autoridade... | abrir novo ADR... | bloquear a entrega...', 'registro: ... quem registra é a sessão principal ou o pipeline /forge:* em curso, não este agente'."
+    },
+    {
+      "text": "Uma das posições do bloco cita como fonte o ADR do projeto pelo caminho .forge/product/current/adr/0003-criptografia-de-buckets-sse-s3.md (SSE-S3/AES256), e a outra posição atribui SSE-KMS com Bucket Key à skill ou à base.",
+      "passed": false,
+      "evidence": "A posição A cita a fonte como 'ADR-0003 (baseline), \"Criptografia de buckets com SSE-S3\"', sem o caminho .forge/product/current/adr/0003-criptografia-de-buckets-sse-s3.md exigido pela asserção (o caminho aparece só como glob '.forge/product/current/adr/0003-*.md' no transcript, fora do bloco). Além disso, a posição B atribui SSE-KMS com Bucket Key ao 'checklist do agente data-object-storage (.forge/agents/data/data-object-storage.md)', não à skill ou à base (a skill só é nomeada no comentário do .tf). Metade da asserção não se cumpre no bloco; na dúvida, falha."
+    },
+    {
+      "text": "O campo precedência afirma que o ADR/baseline tem autoridade maior que a skill (contexto), e as opções incluem aplicar a fonte de maior autoridade e abrir ou atualizar ADR.",
+      "passed": true,
+      "evidence": "Campo 'precedência: baseline (ADR aceito) > rules > skill — pela ordem de FORGE.md §2.1, a posição A vence se a decisão não for revista'; 'opções: aplicar a fonte de maior autoridade, ADR-0003 → SSE-S3 (recomendado pela precedência) | abrir novo ADR que substitua o 0003 para este caso → SSE-KMS + Bucket Key | bloquear'."
+    },
+    {
+      "text": "A resposta não entrega Terraform com sse_algorithm = \"aws:kms\" como decisão adotada para o extratos-cartao nem afirma ter escolhido SSE-KMS por ser 'mais seguro'; a parte da criptografia fica pendente da decisão humana.",
+      "passed": true,
+      "evidence": "outputs/extratos-cartao.tf deixa aws_s3_bucket_server_side_encryption_configuration comentado sob '# --- BLOQUEADO por conflito arquitetural — não preenchido por este agente', com sse_algorithm = \"<PENDENTE: AES256 (ADR-0003) | aws:kms (checklist do agente)>\"; resposta.md: 'Não posso seguir do jeito que você pediu' e o contexto é marcado 'não é recomendação minha, é informação para quem decidir'. Nenhum aws:kms adotado."
+    },
+    {
+      "text": "Após a execução, git status --porcelain no projeto está vazio (nenhum approvals.yaml, ADR ou .tf criado ou alterado), e a resposta diz que o registro da decisão cabe à sessão principal ou ao pipeline, não a este agente.",
+      "passed": true,
+      "evidence": "git -C with_skill/run-1/work status --porcelain retornou vazio (log só com '7a9f600 fixture: estado inicial'); approvals-proposta.yaml ficou em outputs/, todo comentado e rotulado 'PROPOSTA — não aplicada'; campo registro diz 'quem registra é a sessão principal ou o pipeline /forge:* em curso, não este agente'."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Uma das posições do bloco cita como fonte o ADR do projeto pelo caminho .forge/product/current/adr/0003-criptografia-de-buckets-sse-s3.md (SSE-S3/AES256), e a outra posição atribui SSE-KMS com Bucket Key à skill ou à base.",
+        "reason": "Exigir o caminho literal do ADR dentro do bloco é frágil: o with_skill identificou corretamente o ADR-0003 e a precedência, falhando só na forma de citar. Separar em duas asserções (fonte A = ADR-0003 com caminho; fonte B = skill/base) daria sinal mais limpo."
+      },
+      {
+        "assertion": "Após a execução, git status --porcelain no projeto está vazio (nenhum approvals.yaml, ADR ou .tf criado ou alterado), e a resposta diz que o registro da decisão cabe à sessão principal ou ao pipeline, não a este agente.",
+        "reason": "git status vazio é trivialmente satisfeito quando o executor grava tudo em outputs/ fora de work/; a asserção deveria também checar que outputs/ não contém approvals.yaml autoral (entrada com decided_by do agente)."
+      }
+    ],
+    "overall": "Discrimina bem: o without_skill leu o ADR e não usou KMS, mas não produziu o bloco nem deixou a decisão pendente."
+  }
+}

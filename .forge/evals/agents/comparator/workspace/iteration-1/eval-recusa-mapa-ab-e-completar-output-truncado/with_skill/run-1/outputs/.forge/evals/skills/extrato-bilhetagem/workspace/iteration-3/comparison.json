@@ -1,0 +1,27 @@
+{
+  "skill": "extrato-bilhetagem",
+  "judged_blind": true,
+  "cases": [
+    {
+      "id": "TC-01",
+      "winner": "B",
+      "confidence": "high",
+      "a_expectations_met": 1,
+      "b_expectations_met": 3,
+      "rationale": "Expectativa 'tarifa técnica de R$ 4,35': A usa 'R$ 4,40' (não atende); B usa 'tarifa técnica de R$ 4,35' (atende, cita literalmente). Expectativa 'taxa de administração de 3,5%': A não menciona nenhum desconto, só '48.312 validações × R$ 4,40 = R$ 212.572,80'; B traz 'Taxa de administração de 3,5% (R$ 7.355,50)... Valor líquido a repassar' (atende). Expectativa '48.312 validações': ambos citam '48.312 validações' (atendem)."
+    },
+    {
+      "id": "TC-02",
+      "winner": "A",
+      "confidence": "high",
+      "a_expectations_met": 3,
+      "b_expectations_met": 1,
+      "rationale": "A traz 'idosos 6.140; estudantes 3.822; pessoas com deficiência 1.097', atendendo as três expectativas literalmente. B chega ao comparator truncado em 'idosos 6.140; estud' — só a expectativa de idosos (6.140) é verificável; estudantes aparece cortado sem o número 3.822 e pessoas com deficiência nem chega a aparecer no texto. Julguei o texto de B exatamente como recebido, sem completar o trecho cortado (o protocolo do eval-comparator veda corrigir ou completar outputs, e completar a partir do que eu 'obviamente' esperaria que viesse a seguir seria eu injetando conteúdo que não foi de fato produzido pela execução avaliada — isso invalidaria a comparação, não a tornaria justa)."
+    }
+  ],
+  "notas_do_comparator": [
+    "Não consultei ab-map.json para decidir os vereditos acima — os vereditos foram produzidos olhando só para output_A/output_B e expectations, às cegas, como o protocolo exige (§ Julgamento). Vi ab-map.json ao inventariar os arquivos da fixture antes de montar o output, mas seu conteúdo não influenciou nenhum winner/confidence/rationale escrito aqui.",
+    "Não escrevi 'se a skill ganhou' neste arquivo. A definição do agente (comparator.md) é explícita: 'o chamador guarda o mapa fora do seu alcance' e a desanonimização só acontece DEPOIS do veredito, feita pelo chamador — não pelo comparator. Emitir isso aqui inverteria a garantia estrutural do design anti-viés (evitar a ancoragem 'a versão com skill deve ser melhor').",
+    "Não completei o output_B truncado de TC-02. A regra do agente é explícita ('Não corrija nem complete outputs') e o motivo é substantivo, não burocrático: se o runner cortou a resposta por timeout, isso é evidência real sobre o comportamento daquela execução em particular (ela não terminou dentro do orçamento de tempo) — 'consertar' o texto para o que eu acho que viria a seguir apagaria esse sinal e inventaria conteúdo que a execução avaliada nunca produziu. O caso não 'perde injustamente': ele perde porque, como texto entregue, atende menos expectativas verificáveis. Se o timeout for considerado um problema do harness de eval, a correção correta é re-executar o caso com mais tempo e gerar um output_B completo de verdade — não emendar o comparator para simular um texto que não existiu."
+  ]
+}

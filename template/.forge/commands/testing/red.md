@@ -1,5 +1,5 @@
 ---
-description: Protocolo Red-first de correção de defeito (rule testing/regression-red-first.md) — init escaffolda a evidência num change bugfix já existente (saída para brownfield), record declara o teste que reproduz o bug (test-path, test-id, command e failure-pattern obrigatórios), replay roda o motor real (worktree git efêmero, um teste, timeout explícito) e converte a declaração em evidência observada, waive dispensa com motivo tipado quando o Red for genuinamente inviável.
+description: Protocolo Red-first de correção de defeito (rule testing/regression-red-first.md) — vale para type:bugfix ou qualquer type com fixes_defects declarado (issue #138) — init escaffolda a evidência num change já existente (saída para brownfield), record declara o teste que reproduz o defeito (test-path, test-id, command e failure-pattern obrigatórios), replay roda o motor real (worktree git efêmero, um teste, timeout explícito) e converte a declaração em evidência observada, waive dispensa com motivo tipado quando o Red for genuinamente inviável.
 argument-hint: "init|record|replay|waive|status <change-id> [flags]"
 ---
 
@@ -7,10 +7,14 @@ argument-hint: "init|record|replay|waive|status <change-id> [flags]"
 
 Argumentos: `$ARGUMENTS`. Sem subcomando, mostra `status` do change ativo.
 
-> Vale só para changes `type: bugfix`. `evidence/red/red-evidence.json` nasce em
-> `status: pending` no scaffold (`/forge:spec new --type bugfix`) — este comando é o único
-> caminho para movê-lo. Ver `.forge/rules/testing/regression-red-first.md` para a norma
-> completa e `bugfix.md §5` para o protocolo dentro do change.
+> Vale para changes sujeitos à política red-first — `type: bugfix`, **ou** qualquer outro `type`
+> que declare `fixes_defects` (lista de ids de defeito no manifest, issue #138) — predicado
+> `isDefectFixing` em `lib/defect-scope.mjs`. `evidence/red/red-evidence.json` nasce em
+> `status: pending` no scaffold quando o change é `type: bugfix` (`/forge:spec new --type
+> bugfix`); um change de outro `type` que declara `fixes_defects` depois de criado usa `init`
+> (abaixo) para escaffoldar. Este comando é o único caminho para mover a evidência. Ver
+> `.forge/rules/testing/regression-red-first.md` para a norma completa (§ Escopo) e
+> `bugfix.md §5` para o protocolo dentro do change.
 
 ## init — escaffoldar evidência num change já existente (saída para brownfield)
 
@@ -18,11 +22,14 @@ Argumentos: `$ARGUMENTS`. Sem subcomando, mostra `status` do change ativo.
 bash .forge/scripts/red-evidence.sh init <change-id>
 ```
 
-Cria `evidence/red/red-evidence.json` (`status: pending`) quando o change `type: bugfix` já
-existe mas nunca recebeu o scaffold — harness atualizado por cima de um change em andamento, ou
-o arquivo apagado à mão. É a saída correta para esse caso: `/forge:spec new --type bugfix` cria
-um change **novo**, não adiciona evidência a um já existente. Idempotente — no-op se o arquivo já
-existir; falha se o change não existir ou não for `type: bugfix`.
+Cria `evidence/red/red-evidence.json` (`status: pending`) quando o change já é sujeito à política
+red-first (`type: bugfix`, ou `fixes_defects` declarado — § Escopo da rule) mas nunca recebeu o
+scaffold — harness atualizado por cima de um change em andamento, `fixes_defects` acrescentado
+depois da criação do change, ou o arquivo apagado à mão. É a saída correta para esse caso:
+`/forge:spec new --type bugfix` cria um change **novo**, não adiciona evidência a um já existente,
+e só escaffolda automaticamente para `type: bugfix` — um `type: feature` com `fixes_defects`
+sempre passa por `init` explicitamente. Idempotente — no-op se o arquivo já existir; falha se o
+change não existir ou não satisfizer `isDefectFixing`.
 
 ## record — declarar o teste que reproduz o defeito
 
@@ -32,6 +39,7 @@ bash .forge/scripts/red-evidence.sh record <change-id> [--id <defeito>] \
   --command "<comando que roda só esse teste>" \
   --failure-pattern "<regex ou substring esperada na falha>" \
   [--fix-files "arq1,arq2"] [--setup-command "<comando executado antes do teste no worktree>"] \
+  [--positive-control "<comando que precisa PASSAR na base>"] \
   [--reproduces "bugfix.md §1"] [--excerpt "<trecho, se já observou manualmente>"]
 ```
 
@@ -40,6 +48,17 @@ um `replay` bem-sucedido. `--test-path`, `--test-id`, `--command` e `--failure-p
 **todos obrigatórios** (schema `red-evidence/v1`): sem `test_id`, a derivação da árvore base não
 consegue ancorar no caso específico (só no arquivo de teste inteiro); sem `failure_pattern`, o
 item 4 da rule nunca fica avaliável — campo ausente seria indistinguível de "gate desligado".
+
+`--positive-control` é **opcional** (issue #150, DA-13) — um comando que precisa PASSAR na
+árvore base, na mesma corrida do teste declarado. Uma âncora (`failure_pattern`) que não falha
+na base é defeito do TESTE, não do código sob correção: o teste afirma o CAMINHO que reproduz o
+defeito, não só o resultado observado ao final — um padrão nulo, vazio ou genérico demais casa
+com qualquer falha adjacente na base, inclusive uma sem relação com o defeito relatado.
+`replay` recusa `failure_pattern` ausente/vazio com `not-possible` (rc≠0) mesmo quando o schema
+não obriga o campo (evidência legada ou editada à mão); e `positive_control`, quando declarado e
+falhando na base, também dá `not-possible` — prova, por execução, que a base seria capaz de
+ficar verde antes de aceitar a falha do comando declarado como o defeito. Não é obrigatório: a
+obrigatoriedade fica para a Onda 8, para não invalidar evidências já gravadas sem o campo.
 
 ### Vários defeitos no mesmo change (`entries[]`, issue #139)
 
@@ -110,10 +129,18 @@ declaração que qualquer agente poderia fabricar. O motor (`lib/red-replay.mjs`
    `build-error`) + saída casando com `failure_pattern` quando declarado + passagem em HEAD
    (exit 0). Qualquer ausência vira `FAIL` com o item da rule citado, e a evidência **volta**
    para `pending` (nunca fica um `observed` falso na árvore).
+4. **Recusa `failure_pattern` ausente/vazio** com `not-possible` (issue #150) — uma âncora que
+   não amarra nada casaria com qualquer falha na base, inclusive uma adjacente ao defeito
+   relatado; essa checagem roda mesmo quando o schema não obriga o campo (evidência legada ou
+   editada à mão), sem invalidar o formato para quem já gravou evidência sem ele.
+5. **Roda `positive_control`, quando declarado**, na mesma árvore base e na mesma corrida, antes
+   do comando declarado (issue #150, `--positive-control` acima) — falhando, `not-possible` com
+   a saída do controle no excerto, mesmo que o comando declarado também falhe na base.
 
 Saídas: `OK replay` (grava `observed` + `base_commit`/`classification`/`excerpt`/
 `excerpt_sha256`/`replayed_at`) · `FAIL replay (item N) — <motivo>` (volta a `pending`, exit 1)
-· `NOT-POSSIBLE replay — <motivo>` (grava `not-possible`, exit 1 — próximo passo é `waive`).
+· `NOT-POSSIBLE replay — <motivo>` (grava `not-possible`, exit 1 — próximo passo é `waive`; inclui
+`failure_pattern` ausente/vazio e `positive_control` que falha na base).
 
 ## ci — a execução de referência, num runner que o autor não controla
 
@@ -121,16 +148,17 @@ Saídas: `OK replay` (grava `observed` + `base_commit`/`classification`/`excerpt
 bash .forge/scripts/red-evidence.sh ci
 ```
 
-Varre **todo** change ativo `type: bugfix`, roda `ensure` em cada um e aplica o check estático,
-agregando o veredito num exit code. É o que o workflow `red-first.yml` executa em cada pull
-request — e é ele, não o `red-evidence.json` commitado, que decide se o Red foi observado.
+Varre **todo** change ativo sujeito à política red-first (`type: bugfix`, ou `fixes_defects`
+declarado — § Escopo da rule), roda `ensure` em cada um e aplica o check estático, agregando o
+veredito num exit code. É o que o workflow `red-first.yml` executa em cada pull request — e é
+ele, não o `red-evidence.json` commitado, que decide se o Red foi observado.
 
 Não aceita `<change-id>`, deliberadamente: quem define o escopo é o estado do repositório. Um
 `ci --change X` devolveria a quem invoca a capacidade de apontar a verificação para o change que
 lhe convém, que é o grau de controle que rodar no CI existe para tirar.
 
-Change ativo de outro tipo é ignorado e repositório sem bugfix ativo sai `0` — ausência de
-correção de defeito não é falha. O runner precisa de histórico completo (`fetch-depth: 0`) para o
+Change ativo fora da política é ignorado e repositório sem nenhum change sujeito a ela sai `0` —
+ausência de correção de defeito não é falha. O runner precisa de histórico completo (`fetch-depth: 0`) para o
 motor derivar a árvore pré-correção, e das dependências instaladas antes, porque o worktree
 efêmero nasce sem elas.
 
@@ -168,7 +196,8 @@ regra de waiver, sem reimplementação aqui.
 - `replay` é caro (worktree + execução real) — nunca roda no `pre-push` (só o check estático,
   `check-red-first.sh`). Você o invoca aqui de forma explícita; `/forge:verify` e a transição
   para `verified` (`validate-spec.mjs`) chamam o mesmo motor por baixo via `red-evidence.sh
-  ensure` — **sempre**, incondicionalmente, para todo change `type: bugfix`, sem ler `status` do
+  ensure` — **sempre**, incondicionalmente, para todo change sujeito à política (§ Escopo da
+  rule), sem ler `status` do
   artefato para decidir se executam. `ensure` não é um subcomando pensado para uso manual (por
   isso fora do `argument-hint` acima); ele existe para que nenhum `status: observed` sobreviva
   sem um replay real por trás, mesmo que o JSON tenha sido editado à mão.

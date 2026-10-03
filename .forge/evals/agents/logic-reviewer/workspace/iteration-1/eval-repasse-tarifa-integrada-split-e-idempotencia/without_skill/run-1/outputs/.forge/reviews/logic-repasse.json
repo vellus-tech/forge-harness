@@ -1,0 +1,53 @@
+{
+  "reviewer": "logic-reviewer",
+  "findings": [
+    {
+      "id": "LGC-001",
+      "severity": "BLOCKER",
+      "category": "domain-rule-violation",
+      "file": "services/tarifacao/src/Tarifacao.Domain/Repasse/RepasseTarifa.cs",
+      "line": 6,
+      "title": "Uso de decimal em código de domínio financeiro",
+      "description": "RepasseTarifa.Dividir(decimal tarifaTotal, int operadoras) e o array de retorno decimal[] partes representam a tarifa e o repasse como decimal, em vez de inteiro em centavos. O mesmo tipo decimal se propaga para RegistrarRepasseCommand.TarifaTotal e para a assinatura de IRepasseRepository.SalvarAsync (partes decimal[]).",
+      "fix_suggested": "Trocar decimal por long em toda a cadeia (tarifaTotalEmCentavos, long[] partesEmCentavos), com sufixo InCents explícito, seguindo o exemplo Split(long,int) documentado na própria rule.",
+      "rule_violated": ".forge/rules/domain/money-as-cents.md",
+      "confidence": 0.95
+    },
+    {
+      "id": "LGC-002",
+      "severity": "BLOCKER",
+      "category": "correctness",
+      "file": "services/tarifacao/src/Tarifacao.Domain/Repasse/RepasseTarifa.cs",
+      "line": 11,
+      "title": "Soma das partes não bate com o total (REQ-3/PBT-02)",
+      "description": "Dividir() arredonda cada parte de forma independente com Math.Round(tarifaTotal / operadoras, 2, MidpointRounding.AwayFromZero) em vez de calcular uma parte base mais o residual atribuído à primeira operadora. Contraexemplo concreto: Dividir(10.00m, 3) devolve [3.33, 3.33, 3.33], cuja soma é 9.99, não 10.00 — verificado numericamente (10.00/3 arredondado para 2 casas = 3.33; 3.33 * 3 = 9.99). Isso viola diretamente a invariante obrigatória de PBT-02 (sum(Dividir(total,n)) == total) e o texto de REQ-3 sobre o centavo residual ir para a primeira operadora. O uso de MidpointRounding.AwayFromZero por parte, em vez do algoritmo base+residual, é a causa raiz.",
+      "fix_suggested": "Implementar Dividir como divisão inteira em centavos (base = total/n, residual = total%n) e somar o residual inteiro à primeira operadora da lista, exatamente como o algoritmo Split(long,int) de referência.",
+      "rule_violated": ".forge/rules/domain/nbr-5891-rounding.md",
+      "confidence": 0.95
+    },
+    {
+      "id": "LGC-003",
+      "severity": "BLOCKER",
+      "category": "correctness",
+      "file": "services/tarifacao/src/Tarifacao.Application/Repasse/RegistrarRepasseHandler.cs",
+      "line": 16,
+      "title": "Idempotência declarada em comentário mas não implementada (REQ-4)",
+      "description": "O comentário na linha 16 diz 'Idempotency check: se a chave já foi processada, devolve o repasse existente (REQ-4)', mas o código não corresponde a isso: Handle() nunca chama IRepasseRepository.ObterPorChaveAsync(comando.ChaveIdempotencia). Ele sempre gera um Guid novo (linha 17) e chama SalvarAsync incondicionalmente (linha 19). Reenvio do mesmo comando RegistrarRepasse com a mesma ChaveIdempotencia cria um segundo repasse para a mesma viagem, violando REQ-4 diretamente.",
+      "fix_suggested": "No início de Handle(), consultar ObterPorChaveAsync(comando.ChaveIdempotencia); se existir, retornar o Guid já registrado sem chamar SalvarAsync novamente.",
+      "rule_violated": "REQ-4",
+      "confidence": 0.95
+    },
+    {
+      "id": "LGC-004",
+      "severity": "HIGH",
+      "category": "test-coverage",
+      "file": "services/tarifacao/tests/Tarifacao.Tests/RepasseTarifaTests.cs",
+      "line": 9,
+      "title": "PBT-02 obrigatória (FsCheck) não foi escrita",
+      "description": "REQ-3 exige explicitamente um teste de propriedade com FsCheck cobrindo sum(Dividir(total,n)) == total para qualquer total >= 0 e n entre 1 e 5 (PBT-02). O diff adiciona apenas Dividir_TresOperadoras_DivideIgualmente, um único caso de divisão exata (3.00m, 3), sem FsCheck e sem cobrir divisão não exata — exatamente o cenário em que LGC-002 falha, por isso o teste existente não pega o bug.",
+      "fix_suggested": "Adicionar [Property] com FsCheck testando sum(Dividir(total,n)) == total para total e n variados, incluindo casos não divisíveis.",
+      "rule_violated": "REQ-3 / PBT-02",
+      "confidence": 0.9
+    }
+  ]
+}

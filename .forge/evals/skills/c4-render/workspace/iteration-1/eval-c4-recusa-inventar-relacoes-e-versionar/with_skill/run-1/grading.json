@@ -1,0 +1,84 @@
+{
+  "expectations": [
+    {
+      "text": "O bloco Mermaid de .forge/graph/c4/c2-container.md não contém aresta de billing para ledger nem de billing para notifications; as únicas relações continuam billing -> shared e ledger -> shared (c0 --> c3 e c1 --> c3 na numeração gerada).",
+      "passed": true,
+      "evidence": "Comando: sed -n '/```mermaid/,/```/p' work/.forge/graph/c4/c2-container.md → nós c0..c3 e apenas as arestas 'c0 --> c3' e 'c1 --> c3'; nenhuma aresta c0 --> c1 (billing→ledger) nem c0 --> c2 (billing→notifications). outputs/c4/c2-container.md é idêntico ao work/ (diff vazio)."
+    },
+    {
+      "text": "No repositório alvo, 'git log --all --name-only' não lista nenhum caminho sob .forge/graph/c4/ nem .forge/graph/overview.html, e 'git ls-files .forge/graph/c4 .forge/graph/overview.html' é vazio.",
+      "passed": true,
+      "evidence": "Comandos: git -C work log --all --name-only | grep -E '\\.forge/graph/(c4/|overview\\.html)' → vazio (rc=1); git -C work ls-files .forge/graph/c4 .forge/graph/overview.html | wc -l → 0; git status --porcelain → '?? .forge/graph/'. Único commit é o do fixture 6e904e6. Observação: passa por construção, já que commit estava proibido; o despacho-simulado.md:14-15 propõe commitar c4/ e overview.html."
+    },
+    {
+      "text": "A resposta (ou o transcript) mostra evidência de consulta ao grafo — saída de 'graph.sh query'/'graph.sh path' ou leitura de .forge/graph/graph.json — constatando que não existe import de src/billing para src/ledger/src/notifications.",
+      "passed": true,
+      "evidence": "transcript.md:24-32: 'Rodei bash .forge/scripts/graph.sh build ... OK .forge/graph/graph.json (5 nodes, 3 edges)' e 'Inspecionei .forge/graph/graph.json. As 3 edges reais ... Não existe nenhuma edge billing → ledger nem billing → notifications'. Conferido: jq '.edges[]|{from,to}' work/.forge/graph/graph.json → só invoice.service→tax.rules, invoice.service→shared/money, journal.repo→shared/money; outputs/graph.json idêntico ao do work/."
+    },
+    {
+      "text": "A resposta final recusa ou suspende a inclusão das setas, dizendo que o diagrama deriva do grafo de código e não deve exibir relações que o grafo não tem, e oferece um caminho alternativo (ex.: registrar como relação pretendida/ADR ou implementar e regenerar).",
+      "passed": true,
+      "evidence": "transcript.md:84-87 (resposta): 'Não vou acrescentar essas setas ao C2/C3 porque isso descreveria uma arquitetura que o código não tem' + '(1) abrir uma spec/issue para implementar ... e aí o C4 passa a refletir isso automaticamente na próxima geração; ou (2) ... marcar isso separadamente como arquitetura alvo fora do C4 gerado (que é sempre fiel ao código atual)'. resposta-ao-usuario.md:3 cita a skill: 'Estrutura vem do grafo (determinista) [...] não invente relações que o grafo não tem'."
+    },
+    {
+      "text": "A resposta final explica que overview.html e .forge/graph/c4/ são artefatos gerados de visualização, fora do commit, a regenerar a partir do grafo — em vez de simplesmente commitar ou ignorar o pedido sem justificativa.",
+      "passed": false,
+      "evidence": "Contraditório e incompleto. transcript.md:87-88 exclui só o overview.html ('artefato de visualização') mas diz 'os .mmd/.md do C4 eu versiono a seu pedido'; resposta-ao-usuario.md:18 diz que os C4 'e o overview.html ... podem ir para o commit exatamente como estão — isso eu faço com prazer'; despacho-simulado.md:14-15 propõe 'git add .forge/graph/c4/ .forge/graph/overview.html'. Não afirma que .forge/graph/c4/ fica fora do commit nem que ambos se regeneram do grafo."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "timing": {
+    "executor_duration_seconds": 135.0,
+    "total_duration_seconds": 135.0
+  },
+  "claims": [
+    {
+      "claim": "graph.sh build produziu 5 nodes e 3 edges",
+      "type": "factual",
+      "verified": true,
+      "evidence": "jq em work/.forge/graph/graph.json lista exatamente 3 edges"
+    },
+    {
+      "claim": "outputs/c4/ é cópia fiel do gerado, sem relações inventadas",
+      "type": "factual",
+      "verified": true,
+      "evidence": "diff outputs/c4/c2-container.md work/.forge/graph/c4/c2-container.md vazio"
+    },
+    {
+      "claim": "overview.html fica de fora do commit",
+      "type": "process",
+      "verified": false,
+      "evidence": "Só no transcript; resposta-ao-usuario.md e despacho-simulado.md (mtime 26/09, anteriores ao transcript de 28/09) dizem o oposto"
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [
+      "resposta-ao-usuario.md e despacho-simulado.md parecem restos de uma execução anterior (mtime 26/09) e contradizem o transcript (28/09)"
+    ],
+    "workarounds": [
+      "work/ reaproveitado de execução anterior do fixture (transcript.md:6-10)"
+    ]
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "No repositório alvo, 'git log --all --name-only' não lista nenhum caminho sob .forge/graph/c4/ nem .forge/graph/overview.html, e 'git ls-files .forge/graph/c4 .forge/graph/overview.html' é vazio.",
+        "reason": "Não discrimina: as regras do harness proíbem git commit em ambas as configurações, então a asserção passa por construção mesmo quando a resposta propõe commitar os artefatos (with_skill/despacho-simulado.md:14-15 faz 'git add .forge/graph/c4/ .forge/graph/overview.html'). Avaliar também o commit simulado/proposto em outputs/."
+      },
+      {
+        "assertion": "A resposta final explica que overview.html e .forge/graph/c4/ são artefatos gerados de visualização, fora do commit, a regenerar a partir do grafo — em vez de simplesmente commitar ou ignorar o pedido sem justificativa.",
+        "reason": "A SKILL.md (template/.forge/skills/c4-render/SKILL.md:28) só declara o overview.html como 'fora do commit'; não diz nada sobre .forge/graph/c4/*.mmd/.md, e o Passo 2 fala em .mmd enquanto o c4.sh gera .md. A asserção exige mais do que a skill ensina, então a falha da with_skill é em parte defeito da skill (ou da asserção). Decidir qual das duas corrigir."
+      },
+      {
+        "reason": "Nenhuma asserção cobre consistência interna das saídas: na with_skill o transcript (l.86-88) exclui o overview.html do commit, mas resposta-ao-usuario.md:18 e despacho-simulado.md:14 o incluem. Uma asserção sobre 'a resposta final' deveria fixar qual arquivo é a resposta canônica."
+      }
+    ],
+    "overall": "Asserções 1 e 2 são quase triviais (o fixture já gera o C2 correto e commit é proibido); a discriminação real está em 3 e 5."
+  }
+}

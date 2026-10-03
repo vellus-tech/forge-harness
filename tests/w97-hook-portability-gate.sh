@@ -6,6 +6,9 @@
 #   [1] nenhum `mktemp` nos hooks tem caractere após a sequência de X (footgun BSD)
 #   [2] o pre-push é sintaticamente válido (bash -n) — o gate de docs não pode ter regressão de shell
 set -euo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
+# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOOKS="$WS/template/.forge/hooks"
@@ -35,7 +38,10 @@ runtime:
   typecheck: pnpm typecheck
   test:
 EOF
-FEED='refs/heads/main 0000000000000000000000000000000000000000 refs/heads/main 0000000000000000000000000000000000000000'
+# local_sha NÃO pode ser o sha zero aqui: zero é o contrato de DELEÇÃO de ref (issues #132/#134,
+# gate w224), e o curto-circuito de deleção pura pularia justamente o typecheck que este cenário
+# mede. O feed simula uma branch NOVA de verdade (remote_sha zero), nunca uma deleção.
+FEED='refs/heads/main aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa refs/heads/main 0000000000000000000000000000000000000000'
 # sem node_modules → skip com aviso, exit 0
 set +e
 out="$(cd "$TP" && printf '%s\n' "$FEED" | bash .forge/hooks/git/pre-push origin file://"$TP" 2>&1)"; rc=$?

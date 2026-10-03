@@ -1,0 +1,80 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta final contém um summary identificável (uma linha ou bloco único destacado como o summary) com no máximo 280 caracteres e entre 1 e 3 frases; um texto longo em vários parágrafos ou seções reprova.",
+      "passed": false,
+      "evidence": "Não há resposta final com summary destacado em outputs/; o summary foi escrito dentro do graph.json (outputs/graph.json.diff linha 6) com 802 caracteres (`printf %s \"$S\" | wc -m`) e 5 frases, bem acima do limite de 280 e 3 frases."
+    },
+    {
+      "text": "O summary nomeia o que o arquivo expõe (TarifaRepository ou ao menos um de buscarVigente/listarPorModal/encerrarVigencia) e a dependência crítica de persistência (PostgreSQL, pg/Pool ou a tabela tarifas).",
+      "passed": true,
+      "evidence": "graph.json.diff linha 6: 'Repositorio de acesso a dados de tarifas (padrao Repository sobre Postgres via pg.Pool). Expoe buscarVigente (...), listarPorModal (...) e encerrarVigencia' — nomeia os métodos expostos e a dependência PostgreSQL/pg.Pool."
+    },
+    {
+      "text": "O summary cita no máximo 3 dos 6 módulos internos de edges_out (db-config, clock, logger, money, linha, tarifa); reproduzir a lista de imports inteira ou quase inteira reprova, porque a edge list já os tem.",
+      "passed": false,
+      "evidence": "O summary reenumera os imports: 'Depende de db-config (pool de conexao), clock (relogio injetavel, testavel) e logger (...)', além de 'tipo de dominio Tarifa' e 'usando Money' — ao menos 5 dos 6 módulos de edges_out (grep por db-config, clock, logger, Money, Tarifa casou todos)."
+    },
+    {
+      "text": "A resposta final não contém bloco de código nem trechos copiados do arquivo, como 'SELECT linha_id', 'vigente_ate IS NULL', 'async buscarVigente(' ou 'constructor(private readonly db'.",
+      "passed": true,
+      "evidence": "`grep -nE 'SELECT linha_id|vigente_ate IS NULL|async buscarVigente\\(|constructor\\(private readonly db|```'` em outputs/graph.json.diff e transcript retornou rc=1; nenhum bloco de código nem SQL copiado (apenas identificadores como paraTarifa e Row em prosa). Ressalva: a 'resposta final' não foi persistida, então o julgamento se baseia no transcript e no diff."
+    },
+    {
+      "text": "O summary é descritivo e não contém avaliação nem recomendação (ex.: 'bem estruturado', 'acoplado', 'deveria', 'problema', 'melhorar', 'boa prática', 'code smell').",
+      "passed": false,
+      "evidence": "graph.json.diff linha 6 contém juízo: 'o que o torna um ponto central de acoplamento — qualquer mudanca de contrato aqui se propaga para essas tres camadas' e 'relogio injetavel, testavel' (grep casou 'acoplamento' e 'testavel')."
+    },
+    {
+      "text": "No diretório-alvo, .forge/graph/graph.json e .forge/graph/cache/summaries.json estão idênticos ao commit da fixture (git diff vazio em .forge/graph); o agente entregou o summary na resposta em vez de editar os artefatos gerados.",
+      "passed": false,
+      "evidence": "`git -C without_skill/run-1/work status --short -- .forge/graph` → ' M .forge/graph/graph.json'; `git diff --stat` → 3 inserções/3 remoções. Transcript linhas 17-20: 'Apliquei a mudança em work/.forge/graph/graph.json com um script Python', inclusive trocando layer de unknown para persistence."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6,
+    "pass_rate": 0.33
+  },
+  "timing": {
+    "executor_duration_seconds": 76,
+    "total_duration_seconds": 76
+  },
+  "claims": [
+    {
+      "claim": "Três arestas de entrada: tarifas-controller, calculo-integracao, validador-embarque",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Transcript linha 10; coerente com o prompt do usuário."
+    },
+    {
+      "claim": "layer correta é 'persistence'",
+      "type": "quality",
+      "verified": false,
+      "evidence": "Decisão própria sem base no protocolo do grafo; a camada é derivada por regra determinística do codegraph e não deveria ser editada à mão."
+    },
+    {
+      "claim": "Edição pontual preservando o resto do arquivo",
+      "type": "process",
+      "verified": false,
+      "evidence": "O diff mostra também a remoção do newline final (linha 180 '\\ No newline at end of file'), ou seja, o arquivo não foi preservado integralmente."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O summary cita no máximo 3 dos 6 módulos internos de edges_out (db-config, clock, logger, money, linha, tarifa); reproduzir a lista de imports inteira ou quase inteira reprova, porque a edge list já os tem.",
+        "reason": "Contagem por palavra é ambígua: no with_skill, 'linha' e 'tarifa' aparecem como substantivos ('por linha/data', 'tarifa vigente'), não como referência aos módulos; convém definir que só conta menção ao módulo/tipo (db-config, Clock, logger, Money, Linha, Tarifa)."
+      },
+      {
+        "assertion": "A resposta final não contém bloco de código nem trechos copiados do arquivo, como 'SELECT linha_id', 'vigente_ate IS NULL', 'async buscarVigente(' ou 'constructor(private readonly db'.",
+        "reason": "No baseline a 'resposta final' não existe como texto em outputs/; o summary foi gravado no graph.json. Vale exigir que o executor persista a resposta final em outputs/ (ex.: final_response.md) para que asserções sobre 'resposta final' sejam verificáveis."
+      },
+      {
+        "reason": "Nenhuma asserção cobre a alteração de 'layer' (o baseline trocou unknown→persistence por conta própria) nem a fidelidade factual do summary ao código; um summary curto e inventado passaria nas asserções 1 a 5."
+      }
+    ],
+    "overall": "Asserções discriminam bem o caso (baseline reprova 4/6 por motivos reais); ajustes pedidos são de verificabilidade, não de rigor."
+  }
+}

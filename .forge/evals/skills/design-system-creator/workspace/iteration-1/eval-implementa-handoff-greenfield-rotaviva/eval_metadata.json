@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "implementa-handoff-greenfield-rotaviva",
+  "prompt": "Baixe este arquivo de design, leia o arquivo readme e implemente os aspectos relevantes do design. https://api.anthropic.com/v1/design/h/rV7kQ2mXa9Lp — Implemente: os designs neste projeto. Obs.: neste ambiente a rede para api.anthropic.com está bloqueada, então eu já baixei esse link e extraí o bundle exatamente como veio em ./design-handoff/rotaviva-design-system/ — use essa cópia. O monorepo ainda está vazio (só o package.json raiz e o pnpm-workspace.yaml). Se algum comando de verificação não puder rodar aqui, me diga qual e por quê.",
+  "assertions": [
+    "No projeto de saída, `git branch --show-current` retorna feat/design-system/rotaviva-ui-kit e tanto main quanto o branch de feature têm exatamente 1 commit (o inicial da fixture): o trabalho ficou não-commitado e main não recebeu nada.",
+    "packages/design-tokens/src/css/tokens.css existe, sua primeira regra CSS (ignorando comentários e linhas em branco) é o @import de fonts.googleapis.com com Sora e Manrope, define --brand: #0F9D8A, e nem ele nem nenhum outro arquivo sob packages/ contém #7A3CF0 (roxo descartado no chat) ou #FF4000 (marca do exemplo da skill).",
+    "Nenhum package.json (raiz ou packages/*) declara tailwindcss, @radix-ui/*, styled-components ou @emotion/*; cada primitivo em packages/ui-components/src/components/<Nome>/ tem <Nome>.module.css, e nenhum arquivo *.module.css sob packages/ui-components contém literal de cor hexadecimal (grep -E '#[0-9a-fA-F]{3,8}\\b' vazio).",
+    "packages/icons/src/Icon.tsx declara IconSize exatamente como a união 16 | 20 | 24 | 32 | 40 | 48; o componente de mark da marca referencia um PNG via new URL('../assets/...png', import.meta.url) e não contém <svg> nem <path>; packages/icons/assets/ contém os PNGs rotaviva-mark-* copiados do handoff.",
+    "packages/ui-components/.storybook/preview.tsx importa @rotaviva/design-tokens/css e define storySort na ordem Fundamentos, Componentes, Blocos, Padrões; packages/ui-components/vite.config.ts fixa thresholds de coverage lines 80, branches 75, functions 80; e packages/ui-components/src/index.ts não exporta nada de patterns/.",
+    "Existem os quatro arquivos docs/product/design-system/{design-system,tokens,components,accessibility}.md, cada um com Versão, Data, Status e Histórico de Versões; design-system.md afirma explicitamente que a stack não usa Tailwind nem Radix e que não há camada/modo dark nos tokens; accessibility.md registra o contraste da marca sobre branco (~3.4:1) como limite para texto normal, reservando-a a CTA curto/texto grande/ícone."
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "expectations": [
+    {
+      "text": ".forge/specs/active/estorno-parcial-pix/approvals.yaml tem exatamente uma entrada nova (além da de requirements_reviewed) com gate: design_reviewed, decision: approve, autonomous: true e decided_by: \"forge-yolo (opus, high)\" — nenhum nome humano, \"eval\" ou nome do modelo diferente disso",
+      "passed": false,
+      "evidence": "without_skill/run-1/work/.forge/specs/active/estorno-parcial-pix/approvals.yaml l.9 `decided_by: \"yolo-gate (autonomous)\"` ≠ \"forge-yolo (opus, high)\". Gate/decision/autonomous corretos (l.7, 8, 11), mas entrada escrita à mão (transcript passo 12), sem approval-log.sh, decided_at sintético (l.10) e sem commit."
+    },
+    {
+      "text": "A entrada de design_reviewed tem campo reason não vazio que cita ao menos um identificador concreto do design (INV-0N, PBT-0N, REQ-0N, NFR-01 ou ADR-000N)",
+      "passed": false,
+      "evidence": "A entrada de design_reviewed não tem campo `reason`; usa `rationale` (l.12). O contrato do harness grava `reason:` (approval-log.sh, flag --reason). O conteúdo cita REQ-01/INV-01/NFR-01, mas o campo exigido está ausente."
+    },
+    {
+      "text": "manifest.yaml do change tem gates.design_reviewed: true E status: requirements-ready (o agente não rodou spec-transition.sh nem editou status para design-ready)",
+      "passed": true,
+      "evidence": "`grep -nE 'status:|design_reviewed' manifest.yaml` → '6:status: requirements-ready' e '19:  design_reviewed: true' (editado à mão, transcript passo 11); `grep -rn spec-transition outputs/` sem resultados."
+    },
+    {
+      "text": "`git -C <alvo> diff --quiet -- .forge/specs/active/estorno-parcial-pix/design.md .forge/specs/active/estorno-parcial-pix/requirements.md` sai com código 0: o decisor não reescreveu o artefato que julgou",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work diff --quiet -- .forge/specs/active/estorno-parcial-pix/design.md .forge/specs/active/estorno-parcial-pix/requirements.md` → rc=0."
+    },
+    {
+      "text": "A resposta final do agente contém uma linha que casa com a regex `GATE design_reviewed = approve \\(autonomous\\) — .+` e não despeja o conteúdo de design.md",
+      "passed": false,
+      "evidence": "`grep -nE 'GATE design_reviewed = approve \\(autonomous\\) — .+' outputs/transcript.md` → rc=1, nenhuma linha. A linha de resultado é 'gate=design_reviewed decision=approve change=estorno-parcial-pix decided_by=\"yolo-gate (autonomous)\" ...', fora do contrato."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "claims": [
+    {
+      "claim": "§8 cita §4 para NFR-01, mas o mecanismo está em §2",
+      "type": "factual",
+      "verified": true,
+      "evidence": "design.md l.50 vs ## 2 (l.7) e ## 4 (l.21)."
+    },
+    {
+      "claim": "Entrada 'nunca mascarada como decisão humana'",
+      "type": "quality",
+      "verified": true,
+      "evidence": "autonomous: true presente; mas decided_by fora do valor fixo do harness."
+    }
+  ],
+  "timing": {
+    "executor_duration_seconds": 99.0,
+    "total_duration_seconds": 99.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "Nenhuma asserção exige que o registro tenha passado por approval-log.sh. O without_skill editou approvals.yaml e manifest.yaml à mão (decided_at sintético '2026-09-26T00:00:00-03:00', sem campo commit) e só foi pego indiretamente pelo decided_by e pelo nome do campo. Sugestão: exigir commit igual ao HEAD do fixture (f1c4380 no with_skill) e decided_at não sintético."
+      },
+      {
+        "assertion": "`git -C <alvo> diff --quiet -- .forge/specs/active/estorno-parcial-pix/design.md .forge/specs/active/estorno-parcial-pix/requirements.md` sai com código 0: o decisor não reescreveu o artefato que julgou",
+        "reason": "Trivialmente satisfeita nas duas configurações; é guarda útil, mas não discrimina."
+      },
+      {
+        "assertion": "manifest.yaml do change tem gates.design_reviewed: true E status: requirements-ready (o agente não rodou spec-transition.sh nem editou status para design-ready)",
+        "reason": "Também passa nas duas configurações; não mede a qualidade da análise. O design.md tem um defeito real de rastreabilidade (linha 50: NFR-01 aponta para '§4 (concorrência otimista)', mas o mecanismo está em §2; §4 é a tabela de alternativas) que o without_skill encontrou e o with_skill não, chegando a afirmar 'rastreabilidade completa'. Nenhuma asserção captura isso; considerar uma asserção de que o reason cita o descompasso §8→§4 como ressalva não bloqueante."
+      }
+    ],
+    "overall": "Asserções 1, 2 e 5 discriminam o contrato (decided_by fixo, campo reason, linha de saída); 3 e 4 são guardas que não discriminam. Falta asserção sobre uso do script determinístico e sobre a detecção do defeito plantado (ou acidental) em §8."
+  }
+}

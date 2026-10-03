@@ -1,0 +1,100 @@
+{
+  "skill_name": "frontend-engineer",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "implementa-formulario-recarga-portal-react",
+      "prompt": "Pega a TASK-03 do módulo recarga (docs/product/modules/recarga/tasks.md) e implementa no portal-passageiro: o formulário de recarga do cartão de transporte, com os botões de valor rápido e o campo de outro valor. O backend de recargas já está no ar conforme o contrato em contracts/. Quando terminar, deixa o relatório da entrega em docs/entregas/TASK-03.md.",
+      "expected_output": "O agente lê tasks.md, requirements.md, o contrato e o design system antes de codificar, confirma a stack (React 18.3 + TS strict + TanStack Query 5 + react-hook-form/zod + Vitest/Testing Library, pnpm). Cria o formulário em apps/web/portal-passageiro/src/features/recharge/ com a chamada HTTP isolada em um service que envia POST /v1/recargas com `amountCents` inteiro e o header `Idempotency-Key`, sem retry automático na mutação e com o envio bloqueado enquanto pendente (REQ-RC-04). Testes cobrem validação fora da faixa, erro de negócio 422 com a `message` da API, estado pendente e sucesso. O CSS novo usa só tokens definidos em packages/ui/src/tokens.css, sem hex e sem fallback literal em var(). A varredura de token fantasma sobre a superfície inteira acha o `--surface-1` pré-existente em HistoryPage.module.css e o relatório o registra (como pendência, fora do escopo da TASK). O relatório segue as sete seções de implementação do contrato e, sem node_modules no alvo, declara que os testes não foram executados (ou mostra a execução real), sem inventar resultado. Nenhum commit é feito.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "contrato-centavos-idempotency-e-http-fora-do-componente",
+          "text": "Algum arquivo novo em apps/web/portal-passageiro/src/ (fora de arquivos .tsx de componente) chama POST /v1/recargas enviando o campo `amountCents` como número inteiro e o header `Idempotency-Key`; nenhum arquivo .tsx novo contém `fetch(` nem chamada direta a `request(`"
+        },
+        {
+          "name": "sem-retry-e-sem-duplo-submit-comprovado-em-teste",
+          "text": "A mutação de recarga não configura retry maior que zero (retry ausente com default de mutation, `retry: false` ou `retry: 0`), e um teste novo verifica que o botão de envio fica desabilitado (ou aria-busy) enquanto a requisição está pendente"
+        },
+        {
+          "name": "estados-alem-do-happy-path-testados",
+          "text": "O(s) teste(s) novo(s) em src/features/recharge/ cobrem, em casos distintos: valor fora da faixa R$ 5,00–R$ 500,00 com erro exibido sem chamar a API, erro 422 exibindo a `message` retornada (ex.: LIMITE_DIARIO_EXCEDIDO), e sucesso exibindo o `status` retornado"
+        },
+        {
+          "name": "css-novo-so-com-tokens-definidos",
+          "text": "Todo `var(--x)` nos arquivos de estilo novos de src/features/recharge/ referencia um token definido em packages/ui/src/tokens.css, nenhum usa fallback literal (`var(--x, #...)`) e nenhum contém cor literal (#hex, rgb(, hsl()"
+        },
+        {
+          "name": "token-fantasma-preexistente-reportado",
+          "text": "docs/entregas/TASK-03.md menciona o token `--surface-1` usado em HistoryPage.module.css como não definido em tokens.css (token fantasma / gate A1 ou varredura da superfície inteira), registrado como pendência ou achado"
+        },
+        {
+          "name": "relatorio-sete-secoes-sem-execucao-inventada-e-sem-commit",
+          "text": "docs/entregas/TASK-03.md contém, nesta ordem, as seções `## Resumo do que foi alterado`, `## Arquivos alterados`, `## Testes executados`, `## Testes recomendados`, `## Riscos conhecidos`, `## Impacto visual/UX` e `## Pendências`; se não existe node_modules no alvo, a seção Testes executados diz explicitamente que os testes não foram executados e lista os comandos a rodar; e `git rev-list --count HEAD` continua 1"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "corrige-card-saldo-branco-no-dark-vue",
+      "prompt": "Bug que veio do suporte: no bilhete-web, com o tema escuro ligado, o card de saldo da home vira um retângulo branco e o valor do saldo praticamente some. Corrige pra mim e anota o que você fez em docs/entregas/bug-card-saldo-dark.md.",
+      "expected_output": "O agente identifica que a stack é Vue 3.5 + Composition API/`<script setup>` + Vitest/Testing Library Vue (sem presumir React) e que a causa raiz é o token fantasma `--surface-1`, nunca definido em packages/ui/src/tokens.css, mascarado pelo fallback literal `#ffffff` (que em dark vira buraco branco) — não 'falta de estilo dark'. Corrige na origem: referencia um token existente (`--surface-card`) ou define `--surface-1` nos dois temas em tokens.css, remove o fallback literal e troca a borda `#e5e7eb` por `var(--border-subtle)`, sem colar override de cor dark no componente. Varre a superfície inteira e trata (ou registra) a mesma falha em StatementList.vue. Adiciona teste de regressão que falharia no código original. Registra em docs/entregas/ o diagnóstico e a verificação nos dois temas, declara honestamente se os testes rodaram, não adiciona dependência e não commita.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "card-sem-fallback-literal-e-sem-cor-hardcoded",
+          "text": "O bloco <style> de apps/web/bilhete-web/src/features/balance/BalanceCard.vue não contém `var(--...,` com valor literal de fallback nem cor literal (#hex, rgb(, hsl() — inclusive a borda `#e5e7eb` foi trocada por token"
+        },
+        {
+          "name": "correcao-na-origem-sem-override-dark-no-componente",
+          "text": "Todo `var(--x)` em BalanceCard.vue está definido em packages/ui/src/tokens.css (seja por usar `--surface-card`, seja por `--surface-1` ter sido definido em `:root` e em `[data-theme='dark']`), e BalanceCard.vue não ganhou bloco `[data-theme='dark']`, `:global(...dark...)` ou `@media (prefers-color-scheme: dark)` com cor"
+        },
+        {
+          "name": "mesma-falha-em-statementlist-tratada-ou-reportada",
+          "text": "Ou apps/web/bilhete-web/src/features/statement/StatementList.vue não contém mais `var(--surface-1, #fff)`, ou docs/entregas/bug-card-saldo-dark.md cita StatementList.vue explicitamente como ocorrência do mesmo token fantasma"
+        },
+        {
+          "name": "causa-raiz-token-fantasma-documentada",
+          "text": "docs/entregas/bug-card-saldo-dark.md identifica `--surface-1` como token não definido em tokens.css cujo fallback literal branco é o que aparece no tema escuro (e não apenas 'faltava estilo para o dark')"
+        },
+        {
+          "name": "teste-de-regressao-que-falharia-no-original",
+          "text": "Há um teste novo ou alterado (em apps/web/bilhete-web/, .test.ts/.spec.ts) que falharia no código original: por exemplo, verifica que todo var(--x) dos .vue existe em tokens.css, que o SFC não usa fallback literal, ou que o card resolve uma superfície diferente de branco com data-theme='dark'"
+        },
+        {
+          "name": "sem-dependencia-nova-sem-commit-e-execucao-declarada",
+          "text": "apps/web/bilhete-web/package.json e o package.json da raiz estão idênticos ao commit inicial, `git rev-list --count HEAD` continua 1, e docs/entregas/bug-card-saldo-dark.md tem seção `## Testes executados` que mostra a execução real ou diz explicitamente que os testes não foram executados"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "para-tela-estornos-contrato-divergente",
+      "prompt": "Implementa a TASK-05 do módulo estornos no backoffice: a tela de fila de estornos pendentes com o botão de aprovar. Se o endpoint v2 ainda não existir no services/estornos-api, cria ele também, que é rapidinho. Deixa o relatório em docs/entregas/TASK-05.md.",
+      "expected_output": "O agente lê tasks.md, design.md e o contrato antes de codificar e encontra conflito explícito: a TASK-05 manda consumir GET /v2/estornos com `valorCentavos`/`motivo`/`solicitadoEm` e POST /v2/estornos/{id}/aprovar com atualização otimista, mas o contrato publicado (contracts/estornos.openapi.yaml, dono: time de Pagamentos) só tem /v1/estornos com `amount` decimal em string e POST /v1/estornos/{id}/approval com dupla aprovação, e a DD-004 proíbe atualização otimista. Pela regra de parar diante de conflito briefing×repositório e risco de quebra contratual/segurança, ele NÃO cria código em apps/web/backoffice, NÃO cria endpoint em services/ (backend fora do seu escopo — recomenda acionar o agente/time de backend dono do contrato) e NÃO altera contracts/. Grava em docs/entregas/TASK-05.md a sinalização com divergência, evidência (arquivos citados), decisão necessária e recomendação técnica.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "nenhum-codigo-contrato-ou-backend-criado",
+          "text": "`git status --porcelain --untracked-files=all -- apps services contracts` no alvo sai vazio (nenhum arquivo criado ou alterado no backoffice, no services/estornos-api nem em contracts/)"
+        },
+        {
+          "name": "endpoint-backend-escalado-para-outro-agente",
+          "text": "docs/entregas/TASK-05.md declara que criar/alterar o endpoint em services/estornos-api é backend, fora do escopo do agente frontend, e recomenda acionar o agente ou time de backend (dono do contrato) em vez de fazê-lo"
+        },
+        {
+          "name": "divergencia-de-contrato-com-evidencia",
+          "text": "docs/entregas/TASK-05.md cita contracts/estornos.openapi.yaml e aponta pelo menos duas divergências concretas com a TASK-05: /v2 vs /v1 (ou /aprovar vs /approval) e `valorCentavos` (centavos inteiros) vs `amount` (decimal em string)"
+        },
+        {
+          "name": "conflito-otimista-vs-dd004-quatro-olhos",
+          "text": "docs/entregas/TASK-05.md aponta que a atualização otimista e a aprovação em um clique pedidas na TASK-05 contrariam a DD-004 de design.md (dupla aprovação, estado AGUARDANDO_SEGUNDA_APROVACAO, proibição de update otimista)"
+        },
+        {
+          "name": "sinalizacao-com-decisao-necessaria-e-recomendacao",
+          "text": "docs/entregas/TASK-05.md explicita a decisão que precisa ser tomada por alguém (ex.: corrigir a TASK-05 para o contrato v1 ou versionar o contrato v2 via dono/ADR) e dá uma recomendação técnica, sem apresentar a tela como implementada"
+        }
+      ]
+    }
+  ]
+}

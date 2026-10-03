@@ -1,0 +1,103 @@
+{
+  "skill": "verify-build",
+  "branch": "feat/parcela-minima",
+  "base": "main",
+  "strict_mode": false,
+  "passed": false,
+  "exit_code": 1,
+  "stacks_detected": ["dotnet"],
+  "results": {
+    "dotnet": {
+      "baseline_check": {
+        "passed": false,
+        "missing": ["Directory.Build.props", ".editorconfig", "Directory.Packages.props"],
+        "note": "strict_mode=false: baseline ausente vira apenas finding HIGH informativo, não bloqueia sozinho — o bloqueio veio de build/test/format abaixo."
+      },
+      "restore": { "passed": true, "note": "warning NU1900 (fonte NuGet privada inacessível no ambiente do eval, sem impacto nos pacotes usados)" },
+      "build": { "passed": true, "warnings": 1, "errors": 0 },
+      "format": {
+        "passed": false,
+        "command": "dotnet format --verify-no-changes --no-restore",
+        "violations": [
+          { "file": "src/Pagamentos.Domain/Pagamento.cs", "line": 23, "rule": "WHITESPACE", "message": "Corrigir a formatação de espaço em branco. Inserir \"\\s\\s\"." }
+        ]
+      },
+      "test": {
+        "passed": false,
+        "total": 3,
+        "failed": 2,
+        "passed_count": 1,
+        "failures": [
+          {
+            "test": "Pagamentos.Domain.Tests.PagamentoTests.Split_ParcelasZero_LancaDomainException",
+            "file": "tests/Pagamentos.Domain.Tests/PagamentoTests.cs",
+            "line": 22,
+            "message": "Assert.Throws() Failure: Exception type was not an exact match. Expected: Pagamentos.Domain.DomainException. Actual: System.InvalidOperationException (\"Parcelamento inválido para o valor informado.\")"
+          },
+          {
+            "test": "Pagamentos.Domain.Tests.PagamentoTests.Split_DistribuiRestoNasPrimeirasParcelas",
+            "file": "tests/Pagamentos.Domain.Tests/PagamentoTests.cs",
+            "line": 12,
+            "message": "System.InvalidOperationException não tratada: Parcelamento inválido para o valor informado."
+          }
+        ]
+      },
+      "coverage": {
+        "Pagamentos.Domain": { "line": 0.5909, "branch": 0.5 }
+      }
+    }
+  },
+  "duration_seconds": null,
+  "findings_to_emit": [
+    {
+      "id": "TEST-001",
+      "severity": "BLOCKER",
+      "category": "build",
+      "file": "tests/Pagamentos.Domain.Tests/PagamentoTests.cs",
+      "line": 22,
+      "title": "Teste falhou: Split_ParcelasZero_LancaDomainException",
+      "description": "Split() lança InvalidOperationException em vez de DomainException para parcelas=0. A guard clause do domínio foi trocada de tipo de exceção na branch.",
+      "fix_suggested": "Reverter a guard de Split() para lançar Pagamentos.Domain.DomainException (ou subclasse esperada) em vez de InvalidOperationException."
+    },
+    {
+      "id": "TEST-002",
+      "severity": "BLOCKER",
+      "category": "build",
+      "file": "tests/Pagamentos.Domain.Tests/PagamentoTests.cs",
+      "line": 12,
+      "title": "Teste falhou: Split_DistribuiRestoNasPrimeirasParcelas",
+      "description": "Exceção InvalidOperationException não tratada interrompe o teste antes da asserção — mesma guard clause afetando um caminho que deveria ser válido.",
+      "fix_suggested": "Verificar a condição da guard em Pagamento.Split(); parece estar rejeitando um caso de parcelamento válido além do caso parcelas=0."
+    },
+    {
+      "id": "COVERAGE-001",
+      "severity": "BLOCKER",
+      "category": "coverage",
+      "file": "src/Pagamentos.Domain",
+      "line": null,
+      "title": "Coverage de domínio abaixo do gate (95% linha / 90% branch)",
+      "description": "Pagamentos.Domain com 59,09% de linha e 50% de branch — muito abaixo dos gates de domínio, refletindo os testes que não completam por causa das falhas acima.",
+      "fix_suggested": "Corrigir as falhas de teste primeiro; coverage tende a normalizar depois. Revisar depois se ainda fica abaixo do gate."
+    },
+    {
+      "id": "LINT-001",
+      "severity": "HIGH",
+      "category": "format",
+      "file": "src/Pagamentos.Domain/Pagamento.cs",
+      "line": 23,
+      "title": "dotnet format --verify-no-changes divergente",
+      "description": "Indentação fora do padrão (regra WHITESPACE) na mesma linha da guard clause alterada.",
+      "fix_suggested": "Rodar 'dotnet format' localmente e revisar o diff antes de commitar, ou ajustar manualmente a indentação da linha 23."
+    },
+    {
+      "id": "DOTNET-BASELINE",
+      "severity": "HIGH",
+      "category": "baseline",
+      "file": null,
+      "line": null,
+      "title": "Baseline de enforcement .NET ausente no repositório",
+      "description": "Directory.Build.props, .editorconfig e Directory.Packages.props ausentes na raiz — não é o motivo do REJECTED desta execução (strict_mode=false), mas o repositório segue sem grade própria de build.",
+      "fix_suggested": "Fora do escopo desta branch: registrar como dívida técnica do repositório servico-pagamentos (bash .forge/scripts/dotnet-baseline.sh --apply)."
+    }
+  ]
+}

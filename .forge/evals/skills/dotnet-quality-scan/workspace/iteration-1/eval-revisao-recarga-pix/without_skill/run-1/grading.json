@@ -1,0 +1,77 @@
+{
+  "expectations": [
+    {
+      "text": "revisao-qualidade.md cita pelo ID todas as 11 regras do scanner (async-void, blocking-wait, new-httpclient, region, generic-name, bool-param, empty-catch, datetime-now, sql-interpolation, mutable-static, single-impl-interface), e as que não acharam nada no escopo (ao menos async-void, region, generic-name, bool-param e mutable-static) aparecem marcadas como OK/limpas, não omitidas.",
+      "passed": false,
+      "evidence": "Comando: grep -c -- <id> outputs/revisao-qualidade.md → 0 para todos os 11 IDs. O relatório não segue a taxonomia do scanner e não lista regras limpas; organiza-se em Bloqueadores/Riscos/Observações (l.5, 13, 23)."
+    },
+    {
+      "text": "revisao-qualidade.md não reporta nenhum achado de src/Legacy.Relatorios (nem RelatorioManager, PedidoHelper, #region, UltimoLote ou o parâmetro bool detalhado), que está fora do diff main...feature/recarga-pix; region, generic-name, bool-param e mutable-static não aparecem como FOUND.",
+      "passed": true,
+      "evidence": "Comando: grep -nE 'Legacy|RelatorioManager|PedidoHelper|#region|UltimoLote|detalhado' outputs/revisao-qualidade.md → nenhuma linha; grep -nE 'FOUND (region|generic-name|bool-param|mutable-static)' → nenhuma. l.3 declara o escopo 'todos em src/Recarga/'. Passa por conteúdo, embora trivialmente (não há nomenclatura de regras no relatório)."
+    },
+    {
+      "text": "Cada achado listado em revisao-qualidade.md traz caminho e número de linha, incluindo pelo menos RecargaController.cs:23 (.Result), RecargaController.cs:29 (catch vazio), PixGatewayClient.cs:14 (new HttpClient), PixGatewayClient.cs:15 (.Wait()), PixGatewayClient.cs:20 (FromSqlRaw interpolado) e RecargaPix.cs:10 (DateTime.Now).",
+      "passed": false,
+      "evidence": "Comando: grep -noE '<arquivo>\\.cs:<linha>' outputs/revisao-qualidade.md → nenhuma ocorrência. Os achados citam arquivo ou método sem linha (ex.: l.10 'PixGatewayClient.Historico', l.17 '.Result no controller e .Wait() em PixGatewayClient', l.25 'DateTime.Now ... para ExpiraEm' sem arquivo)."
+    },
+    {
+      "text": "revisao-qualidade.md registra que a auditoria da camada de build (dotnet-baseline.sh --check, ou TreatWarningsAsErrors/AnalysisMode/EnforceCodeStyleInBuild verificados) foi executada e passou, antes ou separado da lista de achados do scanner.",
+      "passed": false,
+      "evidence": "Nenhuma menção a dotnet-baseline, TreatWarningsAsErrors, AnalysisMode ou EnforceCodeStyleInBuild (grep -nE 'dotnet-baseline|TreatWarningsAsErrors|AnalysisMode|EnforceCodeStyleInBuild' → nada). A única alusão (l.8) é 'quem rodar o baseline de build não vai nem chegar a ver os erros', sem execução nem resultado; o transcript (Decisões de escopo) confirma que nada de build foi executado."
+    },
+    {
+      "text": "revisao-qualidade.md trata o GetAwaiter().GetResult() em Recarga.Seed/Program.cs:8 (Main síncrono de ferramenta de linha de comando) como exceção aceitável ou não-defeito, enquanto classifica o .Result em RecargaController.cs:23 como defeito — ou seja, os três achados de blocking-wait não recebem o mesmo veredito.",
+      "passed": false,
+      "evidence": "grep -nE 'GetAwaiter|Seed/Program|Program.cs:8' outputs/revisao-qualidade.md → nada. Recarga.Seed/Program.cs:8 não é analisado; o item 8 (l.17) trata só .Result e .Wait() como bloqueantes, sem diferenciar a exceção do Main de CLI."
+    },
+    {
+      "text": "git -C <alvo> status --porcelain não mostra nenhum arquivo .cs modificado; o único arquivo novo ou alterado é revisao-qualidade.md (a revisão não reescreveu o código).",
+      "passed": true,
+      "evidence": "Comando: git -C without_skill/run-1/work status --porcelain → apenas '?? revisao-qualidade.md'; filtrado por '\\.cs$' → 0 linhas. HEAD em b2c455e (feat(recarga)). diff outputs/ vs work/ → idênticos."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6,
+    "pass_rate": 0.33
+  },
+  "timing": {
+    "total_duration_seconds": 137
+  },
+  "claims": [
+    {
+      "claim": "RecargaDbContext não existe e não há PackageReference de EF Core",
+      "type": "factual",
+      "verified": true,
+      "evidence": "grep -rn RecargaDbContext src → só PixGatewayClient.cs:8,10; Recarga.Api.csproj sem PackageReference."
+    },
+    {
+      "claim": "Recarga.Api e Recarga.Seed não estão em Recarga.sln",
+      "type": "factual",
+      "verified": true,
+      "evidence": "grep -c Recarga Recarga.sln → 0 (verificado na árvore do with_skill, mesmo fixture)."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Cada achado listado em revisao-qualidade.md traz caminho e número de linha, incluindo pelo menos RecargaController.cs:23 (.Result), RecargaController.cs:29 (catch vazio), PixGatewayClient.cs:14 (new HttpClient), PixGatewayClient.cs:15 (.Wait()), PixGatewayClient.cs:20 (FromSqlRaw interpolado) e RecargaPix.cs:10 (DateTime.Now).",
+        "reason": "O scanner não emite linha para single-impl-interface (scan-output.txt mostra só 'ISaldoService'), então a leitura literal de 'cada achado' penaliza a configuração que segue a skill por uma limitação da própria ferramenta. Sugestão: restringir a exigência aos achados com linha no scanner, ou exigir arquivo de declaração da interface."
+      },
+      {
+        "reason": "Nenhuma asserção cobre defeitos fora do scanner que existem de fato no fixture: verifiquei em work/ que RecargaDbContext é referenciado (PixGatewayClient.cs:8,10) mas não é definido em lugar nenhum, que Recarga.Api.csproj não tem PackageReference de EF Core e que Recarga.sln não contém nenhuma linha com 'Recarga' (grep -c → 0). O sem-skill apontou tudo isso; o com-skill afirmou (l.7) que o baseline 'passa' e que a revisão 'cobre o que o compilador não reprova', sugerindo que o código compila. Vale uma asserção sobre isso ou corrigir o fixture para compilar."
+      },
+      {
+        "reason": "O sem-skill citou a rule do repositório money-as-cents (valor decimal em cobrança) e a ausência de [Authorize] no endpoint financeiro; o com-skill não. Se essas rules do .forge fazem parte do contrato de revisão, falta asserção que as cubra."
+      }
+    ],
+    "overall": "As asserções discriminam bem a aderência ao protocolo da skill (IDs, arquivo:linha, baseline, exceção do Main), mas nenhuma mede se a revisão capturou os defeitos que só a leitura do diff revela; o sem-skill encontrou defeitos reais de compilação que o com-skill não viu."
+  }
+}

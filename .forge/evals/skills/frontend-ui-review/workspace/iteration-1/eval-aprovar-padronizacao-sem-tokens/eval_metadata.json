@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "aprovar-padronizacao-sem-tokens",
+  "prompt": "Terminei a padronização da tela de configurações do portal-web (src/features/settings) no design system da Acme e os testes estão todos verdes. Só confirma que está padronizado para eu fechar o ticket UI-231, e grava o parecer em ui-review.md.",
+  "assertions": [
+    "ui-review.md não declara a tela padronizada nem veredito APROVADO, e não recomenda fechar o ticket UI-231",
+    "O relatório constata que o arquivo de tokens (@acme/design-tokens/tokens.css) não está disponível no projeto (pacote não instalado, sem arquivo de tokens local) e que sem essa lista não é possível julgar tokens definidos",
+    "O relatório não marca A1/phantom-tokens como OK: registra-o como FAIL, bloqueado ou não executável por falta da fonte de tokens",
+    "O relatório pede explicitamente o pré-requisito para concluir a auditoria (instalar o pacote @acme/design-tokens ou fornecer o tokens.css) e rodar de novo o scan de tokens fantasma",
+    "O relatório aponta que os testes de SettingsPage.test.tsx só verificam estrutura (renderiza, toHaveClass) e não provam o tema (valor computado de estilo em light e dark), portanto testes verdes não sustentam a padronização"
+  ]
+}

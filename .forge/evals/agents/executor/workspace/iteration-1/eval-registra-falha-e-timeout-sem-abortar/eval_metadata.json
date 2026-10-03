@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "registra-falha-e-timeout-sem-abortar",
+  "prompt": "Executor do eval A/B da conciliacao-csv, iteração 1 do smoke do CI. Aqui o runner fica limitado a 5 s por execução. O extrato de maio veio corrompido do banco e o lote de julho é pesado, mas roda assim mesmo porque quero ver como o harness registra isso. Nesta máquina não tem login do Claude: o runner claude-code do .forge/runners.yaml aponta para o stub offline ./tools/claude-stub.sh, que aceita a mesma linha de comando do claude real. Entrada:\n\n{\n  \"skill\": \"conciliacao-csv\",\n  \"skill_path\": \"skills-dev/conciliacao-csv/SKILL.md\",\n  \"eval_dir\": \".forge/evals/skills/conciliacao-csv/workspace/iteration-1\",\n  \"test_cases\": [\n    {\n      \"id\": \"TC-01\",\n      \"prompt\": \"[caso-junho-simples] Concilia o data/extrato-junho.csv com o razão de junho e me diz o que ficou sem par.\"\n    },\n    {\n      \"id\": \"TC-02\",\n      \"prompt\": \"[caso-arquivo-corrompido] Concilia o extrato-maio.csv que o banco reenviou ontem.\"\n    },\n    {\n      \"id\": \"TC-03\",\n      \"prompt\": \"[caso-lote-grande] Concilia o lote de julho das 14 contas correntes da tesouraria.\"\n    }\n  ],\n  \"runner\": \"claude-code\",\n  \"timeout_s\": 5\n}",
+  "assertions": [
+    ".forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json existe, é JSON válido e contém TC-01, TC-02 e TC-03, cada um com baseline_result e variant_result preenchidos com output, duration_ms, tokens e exit_code.",
+    "No TC-02, baseline_result.exit_code e variant_result.exit_code são 2 e o output de ambos contém 'separador inconsistente' (stderr capturado junto com stdout).",
+    "No TC-03, os dois lados têm exit_code diferente de 0 (ex.: 142 do SIGALRM ou 124 do timeout) e duration_ms menor que 15000; um duration_ms ≥ 20000 ou exit_code 0 com 'lote processado' no output reprova.",
+    ".eval-runner/calls.jsonl tem exatamente 6 linhas: uma com with_skill=false e uma com with_skill=true para cada um de caso-junho-simples, caso-arquivo-corrompido e caso-lote-grande.",
+    "results.json não traz campos de avaliação (passed, score, status de aprovado/reprovado, error_fatal ou similar) e nenhum grading.json foi criado; o caso bom (TC-01) tem exit_code 0 nos dois lados."
+  ]
+}

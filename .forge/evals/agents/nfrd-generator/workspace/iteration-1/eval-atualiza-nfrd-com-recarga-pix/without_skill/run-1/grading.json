@@ -1,0 +1,53 @@
+{
+  "expectations": [
+    {
+      "text": "Na seção 'Controle de Versão' do nfrd.md a linha original 'NFRD Generator - 2026-06-05 - Versão 1.0 gerada a partir do PRD v1.0.' continua presente e há pelo menos uma entrada nova depois dela mencionando a v1.1 ou a recarga Pix.",
+      "passed": true,
+      "evidence": "cmp outputs/nfrd.md work/docs/product/frd-nfrd/nfrd.md → idênticos; git status mostra só ' M docs/product/frd-nfrd/nfrd.md'. nfrd.md:5 mantém literalmente a linha 1.0 e :6 adiciona 'NFRD Generator - 2026-09-26 - Versão 1.1 gerada a partir do PRD v1.1 (seção 7 — recarga via Pix).'."
+    },
+    {
+      "text": "NFR-PERF-01 continua existindo com meta p95 ≤ 800 ms, NFR-DISP-01 com ≥ 99,5% mensal e NFR-PRIV-01 e NFR-OBS-01 continuam presentes; os NFRs novos não reutilizam esses IDs (ex.: a latência do Pix é NFR-PERF-02 ou superior).",
+      "passed": true,
+      "evidence": "NFR-PERF-01 (:56) Meta 'p95 ≤ 800 ms em 120 RPS' (:62); NFR-DISP-01 (:86) Meta '≥ 99,5% mensal' (:92); NFR-PRIV-01 (:146); NFR-OBS-01 (:176). Latência Pix é NFR-PERF-02 (:71); novos PERF-02, RES-01, SEG-02, COMP-01, AUD-01, INT-01 — 11 IDs distintos, sem reuso."
+    },
+    {
+      "text": "Existem NFRs novos com origem em KPI-02 (crédito em ≤ 10 s no p95), R-03 (retenção de comprovantes por 5 anos), R-04 (não duplicar crédito com notificação repetida) e R-05 (mTLS no webhook), e a matriz PRD → NFRD tem linhas para KPI-02, R-03, R-04 e R-05.",
+      "passed": true,
+      "evidence": "Origens: NFR-PERF-02 'PRD KPI-02' (:82) com Meta 'p95 ≤ 10 s' (:77); NFR-COMP-01 'PRD R-03' (:172) com 'Retenção de 5 anos' (:167); NFR-RES-01 'PRD R-04' (:112); NFR-SEG-02 'PRD R-05' (:142). Matriz: ':231 | KPI-02 | NFR-PERF-02', ':234 | R-03 | NFR-COMP-01, NFR-AUD-01', ':235 | R-04 | NFR-RES-01, NFR-AUD-01', ':236 | R-05 | NFR-SEG-02'."
+    },
+    {
+      "text": "Na tabela 'Decisão por Categoria', RES e INT deixaram de ser 'Não' com a justificativa antiga 'Sem integrações externas na v1.0' (passam a Sim com NFRs listados, ou têm nova justificativa que não contradiz a integração com o PSP).",
+      "passed": true,
+      "evidence": "Tabela de decisão: ':42 | RES | Sim (v1.1) | | NFR-RES-01 |' e ':48 | INT | Sim (v1.1) | | NFR-INT-01 |'; grep -c 'Sem integrações externas na v1.0' = 0. (ESC e OPS seguem 'Não' com justificativas novas, :41 e :52 — fora do escopo da asserção.)"
+    },
+    {
+      "text": "O tracing/correlationId do webhook Pix, se tratado, referencia o ADR-0002 existente por link (../adr/0002-tracing-com-opentelemetry-e-correlation-id.md), e nem o nfrd.md nem a tabela 'ADRs Sugeridos' do resumo propõem um novo ADR de tracing ou correlationId.",
+      "passed": true,
+      "evidence": "NFR-OBS-01 :189 '[ADR-0002 — `tracing-com-opentelemetry-e-correlation-id`](../adr/0002-tracing-com-opentelemetry-e-correlation-id.md) (a decisão já cobre ... webhooks recebidos ...)'. grep -ni 'ADR' só acha ADR-0002 (:21, :189, :245); não há tabela de ADRs sugeridos nem proposta de ADR novo."
+    },
+    {
+      "text": "`git diff --exit-code -- docs/product/prd/ docs/product/adr/` sai com código 0 e nenhum arquivo novo foi criado em docs/product/adr/.",
+      "passed": true,
+      "evidence": "git -C work diff --exit-code -- docs/product/prd/ docs/product/adr/ → rc=0; git status --short --untracked-files=all -- docs/product/ lista só 'M docs/product/frd-nfrd/nfrd.md'; docs/product/adr/ = 0001, 0002, README.md."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "claims": [],
+  "user_notes_summary": {},
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "As seis asserções passam nas duas configurações: nenhuma discrimina o efeito do agente. O expected_output pede que metas numéricas sem origem no PRD saiam marcadas como propostas, e isso não é verificado; grep -ci 'propost' no nfrd.md dá 1 em with_skill e 0 em without_skill, o que seria o candidato a asserção discriminante (ex.: a meta de pico de 30 min/0,1% 5xx do NFR-ESC-01 ou os critérios de amostragem trimestral do NFR-COMP-01 não vêm do PRD)."
+      },
+      {
+        "reason": "A asserção 5 é permissiva para ADRs novos fora de tracing: with_skill sugere ADR-0003 (idempotência) e ADR-0004 (mTLS de parceiro), without_skill não sugere nenhum; a asserção não distingue qual comportamento é o desejado."
+      }
+    ],
+    "overall": "Asserções corretas mas não discriminantes nesta iteração; o que separa as configurações (marcação de metas propostas, ESC/OPS aplicáveis, ADRs sugeridos) não está coberto."
+  }
+}

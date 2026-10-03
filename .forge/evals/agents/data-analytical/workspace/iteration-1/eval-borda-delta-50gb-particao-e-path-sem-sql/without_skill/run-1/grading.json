@@ -1,0 +1,46 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta recusa ou desaconselha particionar gold.viagens por dia e operadora e justifica com o limiar do Databricks de não particionar tabelas abaixo de 1 TB (menção explícita a 1 TB)",
+      "passed": false,
+      "evidence": "A execução fez o oposto: outputs/viagens.sql e outputs/migration.sql implementam 'PARTITIONED BY (data_validacao, operadora_id)' ('Implementei exatamente isso'). ANALISE.md registra ressalva de small-file problem, mas não há menção a 1 TB em nenhum arquivo; o limiar citado é 'centenas de MB a alguns GB' por partição."
+    },
+    {
+      "text": "A resposta propõe liquid clustering (CLUSTER BY) com validado_em (ou coluna de data derivada dela) e operadora_id, e mostra o DDL ou ALTER TABLE correspondente na resposta",
+      "passed": false,
+      "evidence": "ANALISE.md cita de passagem, como alternativa 2 condicional, '(ou CLUSTER BY (operadora_id, validado_em) com Liquid Clustering, se disponível)', sem DDL nem ALTER TABLE; o DDL e a migração entregues usam PARTITIONED BY por dia e operadora, e a alternativa principal é ZORDER. Não há proposta de liquid clustering com DDL correspondente."
+    },
+    {
+      "text": "A resposta aponta o `PARTITIONED BY (operadora_id, linha_id)` existente como A-06 (partição estilo Hive manual) citando lakehouse/gold/viagens.sql:13",
+      "passed": false,
+      "evidence": "Nenhuma saída menciona A-06 nem cita lakehouse/gold/viagens.sql:13; o particionamento atual é apenas descrito ('hoje particionada por (operadora_id, linha_id)') sem classificá-lo como partição Hive manual."
+    },
+    {
+      "text": "Sobre services/validador, a resposta diz que a varredura analítica não examinou nenhum arquivo do domínio (NADA-EXAMINADO / sem .sql ou .yml) e NÃO afirma que o serviço está limpo, sem achados ou aprovado",
+      "passed": false,
+      "evidence": "Nenhuma varredura analítica foi rodada; ANALISE.md afirma 'Não há nada no serviço que precise mudar por causa do reparticionamento' e 'Nenhuma mudança de código foi feita... não havia lógica relacionada ao particionamento para ajustar', conclusão de 'nada a apontar' por leitura manual, sem dizer que o domínio analítico não tinha arquivo examinável."
+    },
+    {
+      "text": "A resposta informa que o check-data-governance não verificou PAN/PII em lakehouse/gold (universo vazio), em vez de omitir o resultado ou tratá-lo como aprovação",
+      "passed": false,
+      "evidence": "check-data-governance não foi executado nem mencionado; nenhuma saída fala de PAN/PII."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "nada-examinado-nao-e-limpo",
+        "reason": "Cenário depende de o agente rodar scan.sh com --root services/validador isolado; quando o agente junta as duas raízes numa única chamada, o NADA-EXAMINADO nunca aparece. Vale explicitar no protocolo do agente uma chamada por path, ou afrouxar a asserção para 'reconhece que não há arquivo do domínio analítico'."
+      },
+      {
+        "reason": "Nenhuma asserção verifica 'Nenhum arquivo é alterado' do expected_output; o baseline gerou DDL de reparticionamento em outputs/ (não na árvore). git status do work/ está limpo nas duas configurações — conferido pelo grader."
+      }
+    ]
+  }
+}

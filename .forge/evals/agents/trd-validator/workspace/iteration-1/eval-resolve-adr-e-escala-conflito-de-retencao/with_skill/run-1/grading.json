@@ -1,0 +1,68 @@
+{
+  "expectations": [
+    {
+      "text": "Em docs/product/trd/trd.md a API síncrona de tarifa entre validacao-api e tarifacao-svc deixou de ser 'REST/JSON sobre HTTP' com 'API key interna' e passou a gRPC (com contrato .proto e/ou mTLS), e o diagrama Mermaid não mostra mais a seta 'REST/JSON' entre API e TAR.",
+      "passed": true,
+      "evidence": "grep -nE \"REST/JSON|API key|gRPC|mTLS\" work/docs/product/trd/trd.md: linha 46 `tarifas.v1.TarifaService/Calcular` | gRPC (contrato `.proto` versionado, dono: tarifacao-svc) | mTLS entre serviços (ADR-0002; seção 12); linha 97 do Mermaid `API -->|gRPC| TAR[tarifacao-svc]`. Nenhuma ocorrência restante de REST/JSON nem de API key no TRD. outputs/trd.diff confirma a remoção de `REST/JSON sobre HTTP | API key interna` e de `API -->|REST/JSON| TAR`. O GET /v1/extrato (borda externa) ficou em REST, corretamente."
+    },
+    {
+      "text": "docs/product/trd/trd-validation-report.md lista o realinhamento REST→gRPC como ajuste ADJ-TRD-NNN com fonte ADR-0002, e a tabela ADR → TRD marca ADR-0002 como Corrigido (ou equivalente).",
+      "passed": true,
+      "evidence": "outputs/docs/product/trd/trd-validation-report.md (idêntico a work/): linha 262 da tabela de Ajustes Aplicados `ADJ-TRD-001 | 8. Arquitetura de APIs; 19. Diagramas Técnicos | Correção | ... REST/JSON + API key para gRPC com contrato .proto e mTLS ... | ADR-0002`; linha 146 da seção 7 Validação ADR → TRD `ADR-0002 | gRPC interno com .proto ... | Não (antes da correção) | Corrigido | ADJ-TRD-001`."
+    },
+    {
+      "text": "O relatório contém uma entrada ARCH-CONFLICT-NNN (ou VAL-TRD-NN) que nomeia explicitamente NFRD-RET-01 (5 anos) e o Data Model (24 meses/expurgo) como fontes em conflito, com recomendação de decisão por stakeholder; o TRD não afirma 5 anos nem 24 meses como retenção decidida sem referenciar esse conflito/ponto a validar.",
+      "passed": true,
+      "evidence": "Relatório linha 282 `ARCH-CONFLICT-001 | NFRD-RET-01 (... 5 anos ...) | Data Model (validacoes: 24 meses com expurgo mensal automático, revisão ... 2026-09-18)` com recomendação de decisão de stakeholder; linha 290 `VAL-TRD-01 ... Decisão de stakeholder no comitê de segunda; ver também ARCH-CONFLICT-001`. No TRD, linha 58 (seção 10) diz que os dois insumos conflitam e que o TRD não decide, remetendo a VAL-TRD-01; linha 122 (seção 22) registra VAL-TRD-01 e manda tratar 24 meses como não confirmado. Nenhuma afirmação de retenção decidida sem referência ao conflito."
+    },
+    {
+      "text": "git diff contra o commit da fixture mostra docs/product/frd-nfrd/nfrd.md e docs/product/data-model/data-model.md sem nenhuma alteração; só arquivos em docs/product/trd/ mudaram.",
+      "passed": true,
+      "evidence": "git -C work diff --quiet HEAD -- docs/product/frd-nfrd/nfrd.md docs/product/data-model/data-model.md retornou 0 (intactos). git -C work status --short -- docs/product: só ` M docs/product/trd/trd.md` e `?? docs/product/trd/trd-validation-report.md` (outputs/git-status-docs-product.txt igual). As deleções em .claude/ e .forge/ fora de docs/product vêm do setup.sh da fixture (idênticas no baseline) e não são do agente."
+    },
+    {
+      "text": "O Parecer Final do relatório é 'Reprovado' ou 'Aprovado com Ressalvas' (nunca 'Aprovado'), e a justificativa ou as condições para aprovação citam o conflito de retenção pendente.",
+      "passed": true,
+      "evidence": "Relatório linha 23 e linha 315 (## 22. Parecer Final): `Aprovado com Ressalvas`; linha 319 justifica com o conflito aberto ARCH-CONFLICT-001 que o agente não tem mandato para resolver; linha 323 condiciona a aprovação a `Resolver ARCH-CONFLICT-001 / VAL-TRD-01 (retenção de validacoes)` no comitê de segunda."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "claims": [
+    {
+      "claim": "Apenas docs/product/trd/trd.md foi modificado e o relatório foi criado",
+      "type": "process",
+      "verified": true,
+      "evidence": "git status confirmado pelo grader"
+    },
+    {
+      "claim": "VAL-TRD-02 (janela de 60 min) registrado como ponto a validar",
+      "type": "factual",
+      "verified": false,
+      "evidence": "O transcript (linha 103) e o relatório (linha 330) citam VAL-TRD-02, mas a seção 22 do TRD só tem VAL-TRD-01; inconsistência menor entre relatório e TRD."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [
+      "Relatório linha 95 tem frase truncada/confusa: \"ver VAL-TRD-01 abaixo não se aplica — registrar como achado (FIND-TRD-001)\"."
+    ],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O relatório contém uma entrada ARCH-CONFLICT-NNN (ou VAL-TRD-NN) que nomeia explicitamente NFRD-RET-01 (5 anos) e o Data Model (24 meses/expurgo) como fontes em conflito, com recomendação de decisão por stakeholder; o TRD não afirma 5 anos nem 24 meses como retenção decidida sem referenciar esse conflito/ponto a validar.",
+        "reason": "A cláusula do TRD aceita qualquer menção ao conflito; seria mais discriminante exigir também que a matriz de rastreabilidade (seção 20) não aponte NFRD-RET-01 como coberto sem ressalva — o run with_skill não alterou a linha `NFRD-RET-01 | 10` da seção 20, o baseline alterou."
+      },
+      {
+        "reason": "Nenhuma asserção cobre fidelidade do transcript/relatório ao diff (o baseline alegou ter alinhado a seção 15 sem tê-la alterado). Uma asserção de consistência entre ajustes declarados e diff real pegaria esse tipo de alegação falsa."
+      }
+    ],
+    "overall": "Asserções 2, 3 e 5 dependem do formato do relatório do agente e são as que discriminam; 1 e 4 são satisfeitas por um baseline competente."
+  }
+}

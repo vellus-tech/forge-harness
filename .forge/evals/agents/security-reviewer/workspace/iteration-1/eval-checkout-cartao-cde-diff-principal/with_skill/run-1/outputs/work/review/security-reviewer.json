@@ -1,0 +1,101 @@
+{
+  "reviewer": "security-reviewer",
+  "findings": [
+    {
+      "id": "SEC-001",
+      "severity": "BLOCKER",
+      "category": "security",
+      "file": "services/payment/src/Payment.Application/Checkout/CreateCheckoutHandler.cs",
+      "line": 19,
+      "title": "PAN, CVV e CPF em log estruturado (PCI DSS + LGPD)",
+      "description": "_logger.LogInformation registra cmd.CustomerCpf e cmd.CardNumber (PAN) em texto claro. O serviço está no escopo PCI (CDE) e dado de cartão em log é proibido sem exceção (PCI DSS 4.0.1, `security-and-compliance.md` § PCI DSS). CPF em log viola LGPD by design (`security-and-secrets.md` § Dados Sensíveis). CVV é recebido no comando (CustomerCvv) e mesmo não indo ao log aqui, nunca deveria ser persistido nem logado em nenhum ponto do fluxo — vale como alerta preventivo.",
+      "fix_suggested": "Remover cpf e cartao do log; logar apenas cmd.MerchantId, o id gerado e um correlationId. Mascarar CPF (Mask.Cpf) se precisar aparecer, e nunca logar PAN/CVV em nenhuma forma, nem mascarada.",
+      "rule_violated": ".forge/rules/architecture/security-and-compliance.md § PCI DSS / § LGPD; security-and-secrets.md § Dados Sensíveis",
+      "confidence": "high"
+    },
+    {
+      "id": "SEC-002",
+      "severity": "BLOCKER",
+      "category": "security",
+      "file": "services/payment/src/Payment.Infrastructure/PaymentRepository.cs",
+      "line": 22,
+      "title": "PAN (card_number) persistido em coluna não-tokenizada",
+      "description": "InsertAsync grava cmd.CardNumber diretamente na coluna card_number da tabela payments, sem tokenização. PCI DSS exige tokenização obrigatória para dados de cartão (`security-and-compliance.md` § PCI DSS: 'Nenhum dado de cartão (PAN, CVV, track data) em logs, banco de aplicação ou código' / 'Tokenização obrigatória'). Armazenar PAN em claro no banco de aplicação amplia o escopo do CDE para todo o banco e é bloqueio direto.",
+      "fix_suggested": "Substituir CardNumber por um token emitido por um serviço de tokenização (token-vault) antes de persistir; armazenar apenas o token e, no máximo, os últimos 4 dígitos para exibição.",
+      "rule_violated": ".forge/rules/architecture/security-and-compliance.md § PCI DSS",
+      "confidence": "high"
+    },
+    {
+      "id": "SEC-003",
+      "severity": "BLOCKER",
+      "category": "security",
+      "file": "services/payment/src/Payment.Infrastructure/PaymentRepository.cs",
+      "line": 24,
+      "title": "SQL Injection em ListByMerchantAsync (concatenação de string)",
+      "description": "A query é montada por concatenação de string com merchantId vindo de input externo ('SELECT id, total FROM payments WHERE merchant_id = ' + merchantId), sem parametrização. Entrada externa não validada permite injeção de SQL arbitrária (OWASP A03 Injection).",
+      "fix_suggested": "Usar parâmetro Dapper como no InsertAsync: conn.QueryAsync(\"SELECT id, total FROM payments WHERE merchant_id = @merchantId\", new { merchantId }).",
+      "rule_violated": "OWASP Top 10 — A03:2021 Injection",
+      "confidence": "high"
+    },
+    {
+      "id": "SEC-004",
+      "severity": "BLOCKER",
+      "category": "security",
+      "file": "services/payment/src/Payment.Api/Program.cs",
+      "line": 15,
+      "title": "ValidateAudience desligado no JWT (bypass de autenticação)",
+      "description": "ValidateAudience foi setado para false com o comentário 'desligado até alinhar com o auth-service', removendo a checagem de audience do token. `jwt-authentication.md` exige ValidateAudience=true como parâmetro obrigatório; desligar a validação aceita tokens emitidos para qualquer outra audiência (ex.: outro serviço) como válidos neste serviço de pagamento, que está no CDE.",
+      "fix_suggested": "Reverter para ValidateAudience = true e alinhar o valor de audience emitido pelo app do lojista com o auth-service (ex.: registrar 'checkout' como audience válida via ValidAudiences, não desligando a validação). Se for necessário suporte temporário a múltiplas audiences, usar TokenValidationParameters.ValidAudiences com lista explícita, nunca desligar ValidateAudience.",
+      "rule_violated": ".forge/rules/architecture/jwt-authentication.md § Parâmetros JWT Obrigatórios",
+      "confidence": "high"
+    },
+    {
+      "id": "SEC-005",
+      "severity": "HIGH",
+      "category": "security",
+      "file": "services/payment/src/Payment.Api/Program.cs",
+      "line": 16,
+      "title": "ClockSkew alterado de Zero para 5 minutos sem ADR",
+      "description": "ClockSkew mudou de TimeSpan.Zero para TimeSpan.FromMinutes(5). `jwt-authentication.md` proíbe ClockSkew > TimeSpan.Zero sem justificativa documentada em ADR. Não há referência a ADR no diff nem no contexto — amplia a janela de aceitação de tokens expirados/futuros.",
+      "fix_suggested": "Reverter para TimeSpan.Zero, ou abrir um ADR justificando a tolerância de 5 minutos (ex.: skew de relógio entre o app do lojista e o auth-service) antes de mergear.",
+      "rule_violated": ".forge/rules/architecture/jwt-authentication.md § Proibições Explícitas",
+      "confidence": "high"
+    },
+    {
+      "id": "SEC-006",
+      "severity": "BLOCKER",
+      "category": "security",
+      "file": "services/payment/src/Payment.Api/appsettings.json",
+      "line": 4,
+      "title": "API key do adquirente hardcoded em appsettings.json",
+      "description": "Acquirer.ApiKey foi commitado em texto claro no appsettings.json (padrão 'acq_live_...'). `security-and-secrets.md` proíbe qualquer segredo em código-fonte/repositório, inclusive em histórico de git, e proíbe explicitamente segredos hardcoded em appsettings.json. Uma vez commitado, o segredo já está comprometido e precisa ser rotacionado no adquirente, independentemente de remoção posterior do arquivo.",
+      "fix_suggested": "Remover o valor do appsettings.json; carregar via variável de ambiente/K8s Secret (ESO) seguindo a convenção `<env>/<bc-modulo>/<chave>` no Secrets Manager. Rotacionar a chave junto ao adquirente, pois a atual deve ser considerada vazada.",
+      "rule_violated": ".forge/rules/architecture/security-and-secrets.md § Regras Absolutas de Segredos / § Staging e Produção",
+      "confidence": "high"
+    },
+    {
+      "id": "SEC-007",
+      "severity": "HIGH",
+      "category": "security",
+      "file": "services/payment/src/Payment.Application/Checkout/CreateCheckoutHandler.cs",
+      "line": 25,
+      "title": "Ausência de validação de input antes de efeito colateral (DB write)",
+      "description": "Handle não valida CustomerCpf, CardNumber, Cvv, Amount ou DiscountPercent antes de calcular o total e persistir via _repo.InsertAsync — não há FluentValidation nem checagem visível no diff. Isso permite, por exemplo, DiscountPercent negativo ou fora de faixa, e CardNumber malformado sendo gravado sem checagem, antes de qualquer validação.",
+      "fix_suggested": "Adicionar validação (ex.: FluentValidation) do CreateCheckoutCommand antes de qualquer cálculo ou chamada a _repo.InsertAsync, incluindo faixa de DiscountPercent e formato de CardNumber (ou do token, após corrigir SEC-002).",
+      "rule_violated": ".forge/agents/review/security-reviewer.md § 6. Input validation",
+      "confidence": "medium"
+    },
+    {
+      "id": "SEC-008",
+      "severity": "MEDIUM",
+      "category": "security",
+      "file": "services/payment/src/Payment.Application/Checkout/CreateCheckoutHandler.cs",
+      "line": 19,
+      "title": "Log sem correlationId em path sensível de pagamento",
+      "description": "O log de início do checkout não inclui correlationId, dificultando rastreio de auditoria em um fluxo do CDE onde `security-and-compliance.md` exige audit trail completo (quem, quando, o quê, de onde).",
+      "fix_suggested": "Incluir correlationId (propagado do request/trace) em todos os logs deste handler.",
+      "rule_violated": ".forge/rules/architecture/security-and-compliance.md § Controles Obrigatórios",
+      "confidence": "medium"
+    }
+  ]
+}

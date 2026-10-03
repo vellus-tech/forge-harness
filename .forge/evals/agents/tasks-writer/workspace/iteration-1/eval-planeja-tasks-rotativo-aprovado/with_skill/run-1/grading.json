@@ -1,0 +1,79 @@
+{
+  "expectations": [
+    {
+      "text": "Em docs/product/modules/rotativo/tasks.md toda tarefa tem cabeçalho no formato 'TASK-NN' (dois dígitos) e suas subtasks usam 'ST-MM' reiniciando em ST-01 a cada TASK; não existe nenhum heading 'Onda N' contendo checkboxes de ST-NN diretamente abaixo dele (onda aparece só como campo da TASK e na tabela da seção de Ondas).",
+      "passed": true,
+      "evidence": "outputs/docs/product/modules/rotativo/tasks.md: `grep -oE '^### TASK-[0-9]{2}'` retorna 17 headings TASK-01..TASK-17 (linhas 123..686); awk por TASK confirma que a primeira subtask de cada uma é '**ST-01' (nenhuma saída 'NAO-REINICIA'), ex.: linha 142 'ST-01 - Red' (TASK-01) e linha 177 'ST-01 - Red' (TASK-02). `grep -nE '^#+ .*Onda'` só acha '### 1.7 Encerramento de Onda' (l.65), '## 3. Ondas de Implementação' (l.110, só tabela) e '### Encerramento de Onda' (l.763); onda aparece como campo '| **Onda** | Onda 1 — Bootstrap |' (l.127) e na tabela da seção 3."
+    },
+    {
+      "text": "Em toda TASK que implementa lógica (Domain, Application, Infrastructure ou Api), a primeira subtask é marcada como Red/teste que falha e a última é de Encerramento (checks, commit e push); nenhuma TASK dessas camadas tem subtask Green antes de uma Red.",
+      "passed": true,
+      "evidence": "TASKs com 'Camada principal' Domain/Application/Infrastructure/Api são TASK-03..TASK-15 (grep 'Camada principal', l.204..627). Em todas, a primeira subtask é 'ST-01 - Red' (ex.: l.212, 247, 354, 460, 495, 530, 635) e a última é 'Encerramento' (ex.: l.216 'ST-05 - Encerramento: testes verdes, commit, push'; l.253 'ST-07 - Encerramento'; l.359 'ST-06 - Encerramento'). Nenhuma Green precede Red. As exceções (TASK-17 'ST-01 - Red: Não aplicável', l.705) são de camada Docs, fora do escopo da asserção."
+    },
+    {
+      "text": "A seção 'Matriz de Rastreabilidade' tem uma linha para cada uma das origens Req 1, Req 2, Req 3, RNF 1, RNF 2, PBT-01, PBT-02, PBT-03, DD-001 e DD-002, cada uma apontando para pelo menos uma TASK que existe na seção de Tarefas.",
+      "passed": true,
+      "evidence": "Seção '## 5. Matriz de Rastreabilidade' (l.719-741): contagem `grep -c '^| <origem> |'` = 1 para cada uma de Req 1, Req 2, Req 3, RNF 1, RNF 2, PBT-01, PBT-02, PBT-03, DD-001, DD-002; ex.: '| PBT-02 | Conservação de saldo | TASK-06 |', '| DD-002 | ... | TASK-05, TASK-10, TASK-11 |'. Todas as TASKs citadas estão em TASK-01..TASK-17, que existem como headings na seção 4. Inclui ainda ADR-0001/0002, migration, endpoints e catálogo de erros."
+    },
+    {
+      "text": "O conjunto de IDs TASK-NN listados na tabela da seção 'Status Geral' é idêntico ao conjunto de headings TASK-NN da seção 'Tarefas' (nenhum a mais, nenhum a menos), e cada linha traz branch no padrão '<tipo>/rotativo/<NN>-<slug>' com o mesmo NN da TASK.",
+      "passed": true,
+      "evidence": "`diff <(IDs da tabela da seção '## 2. Status Geral') <(headings '### TASK-NN')` → vazio (SETS_IGUAIS, 17 IDs). Checagem awk de cada linha contra o regex '`[a-z]+/rotativo/<NN>-[a-z0-9-]+`' com o NN da própria TASK não apontou nenhuma linha divergente (a única saída 'BAD' foi a linha de cabeçalho da tabela). Ex.: l.92 '| TASK-01 | ... | `feat/rotativo/01-bootstrap-clean-architecture` |', l.93 '| TASK-02 | ... | `test/rotativo/02-netarchtest-domain-isolation` |'."
+    },
+    {
+      "text": "O cabeçalho do tasks.md referencia 'requirements.md v1.1.0' e 'design.md v1.0.0' e tem Status 'Rascunho' ou 'Rascunho para revisão' (não 'Aprovado para desenvolvimento', já que o próprio tasks.md ainda não foi aprovado), além de uma tabela 'Histórico de Versões'.",
+      "passed": false,
+      "evidence": "O cabeçalho referencia 'requirements.md v1.1.0' (l.6) e 'design.md v1.0.0' (l.7) e tem '## Histórico de Versões' (l.11), mas o Status é 'Status: Aprovado para desenvolvimento' (l.5, repetido na linha 1.0.0 do histórico, l.15) — exatamente o valor que a asserção proíbe. O transcript (passo 10) confirma a decisão consciente: 'versão 1.0.0, status \"Aprovado para desenvolvimento\" (requirements e design já aprovados...)', confundindo aprovação dos insumos com aprovação do próprio tasks.md."
+    },
+    {
+      "text": "docs/product/modules/rotativo/README.md deixou de mostrar tasks.md como 'Não iniciado' e passou a registrar a versão e o status do novo tasks.md (ou, se não foi editado, a resposta final do agente recomenda explicitamente a atualização do README com versão, status e quantidade de TASKs).",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work diff -- docs/product/modules/rotativo/README.md`: linha '| tasks.md | — | Não iniciado | — |' substituída por '| tasks.md | 1.0.0 | Aprovado para desenvolvimento | 2026-09-26 |' e adicionada seção 'Plano de tasks' citando 17 TASKs em 6 ondas. outputs/docs/.../README.md é idêntico ao do work (cmp). Registra versão e status do tasks.md (o status herdado é o mesmo erro penalizado na asserção de cabeçalho)."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.83
+  },
+  "timing": {
+    "executor_duration_seconds": 262
+  },
+  "claims": [
+    {
+      "claim": "Status Geral com 17 linhas espelhando exatamente a seção 4",
+      "type": "factual",
+      "verified": true,
+      "evidence": "diff dos conjuntos vazio"
+    },
+    {
+      "claim": "Matriz com 19 origens, nenhuma sem TASK",
+      "type": "factual",
+      "verified": true,
+      "evidence": "l.723-741, 19 linhas de dados, todas com TASK"
+    },
+    {
+      "claim": "tasks.md pode nascer 'Aprovado para desenvolvimento' porque requirements e design estão aprovados",
+      "type": "quality",
+      "verified": false,
+      "evidence": "Ninguém aprovou o tasks.md; o prompt só diz que requirements e design foram aprovados no comitê."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/product/modules/rotativo/README.md deixou de mostrar tasks.md como 'Não iniciado' e passou a registrar a versão e o status do novo tasks.md (ou, se não foi editado, a resposta final do agente recomenda explicitamente a atualização do README com versão, status e quantidade de TASKs).",
+        "reason": "Passa com qualquer status escrito no README, inclusive um status incorreto ('Aprovado para desenvolvimento' ou 'Pronto para sprint'); considere exigir que o status do README seja igual ao do cabeçalho do tasks.md e seja de rascunho."
+      },
+      {
+        "assertion": "A seção 'Matriz de Rastreabilidade' tem uma linha para cada uma das origens Req 1, Req 2, Req 3, RNF 1, RNF 2, PBT-01, PBT-02, PBT-03, DD-001 e DD-002, cada uma apontando para pelo menos uma TASK que existe na seção de Tarefas.",
+        "reason": "O baseline tinha as 10 origens corretamente mapeadas numa tabela com outro título; a falha é só de nome de seção. Se a intenção é medir cobertura, a asserção deveria separar nome canônico da cobertura; se é medir conformidade de formato, já está coberto pela checagem das nove seções."
+      },
+      {
+        "reason": "Nenhuma asserção verifica a presença das nove seções obrigatórias (Coverage Gates, Critérios de Encerramento, Riscos, Referências) citadas no expected_output, nem ADR-0001/0002 na matriz."
+      }
+    ],
+    "overall": "Asserções discriminam bem formato canônico (ST-MM, Status Geral, Red-first) e pegaram o erro de status do with_skill; a do README é fraca."
+  }
+}

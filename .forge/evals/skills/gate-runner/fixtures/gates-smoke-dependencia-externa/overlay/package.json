@@ -1,0 +1,9 @@
+{
+  "name": "axis-conciliacao",
+  "version": "0.5.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "smoke:homologacao": "node scripts/smoke-homologacao.js"
+  }
+}

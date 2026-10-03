@@ -1,0 +1,53 @@
+{
+  "reviewer": "python-reviewer",
+  "findings": [
+    {
+      "id": "PYREV-001",
+      "severity": "BLOCKER",
+      "category": "security-authz",
+      "file": "services/validador/embarques/views.py",
+      "line": 22,
+      "title": "historico_cartao não valida titularidade do cartão (IDOR)",
+      "description": "A view historico_cartao filtra embarques só por cartao_id (Embarque.objects.filter(cartao_id=cartao_id)), sem checar que o cartão pertence ao usuário autenticado. Qualquer usuário logado pode ler o histórico de embarques de qualquer outro cartão só variando o cartao_id na URL. Compare com detalhe_embarque, que já resolve isso filtrando por cartao__titular=request.user.",
+      "fix_suggested": "Filtrar por cartao__titular=request.user (ou usar get_object_or_404(Cartao, pk=cartao_id, titular=request.user) antes de consultar os embarques), igual ao padrão já usado em detalhe_embarque.",
+      "rule_violated": "authz-ownership-check",
+      "confidence": "high"
+    },
+    {
+      "id": "PYREV-002",
+      "severity": "HIGH",
+      "category": "test-coverage",
+      "file": "services/validador/embarques/tests/test_historico.py",
+      "line": 11,
+      "title": "Único teste de ownership do endpoint está pulado e não pode contar como evidência",
+      "description": "test_historico_de_cartao_alheio_retorna_404 é o único teste que exercitaria o bug de IDOR do finding PYREV-001, mas está marcado @pytest.mark.skip(reason=\"precisa de Postgres de teste no CI; banco ainda não provisionado\"). Isso significa que a falta de checagem de titular em historico_cartao (views.py:22) nunca foi executada nem aprovada por CI — é lacuna de cobertura, não teste verde.",
+      "fix_suggested": "Provisionar o Postgres de teste (ou trocar por um teste que não dependa dele) e reabilitar o teste antes de considerar o endpoint pronto para merge; não tratar o skip como aprovação.",
+      "rule_violated": "test-evidence-not-skipped",
+      "confidence": "high"
+    },
+    {
+      "id": "PYREV-003",
+      "severity": "LOW",
+      "category": "typing",
+      "file": "services/validador/embarques/views.py",
+      "line": 16,
+      "title": "_serializar usa Any e type: ignore sem justificativa",
+      "description": "def _serializar(embarque: Any) -> dict:  # type: ignore[no-untyped-def] descarta a tipagem do parâmetro e suprime o checador sem comentário explicando o motivo (ex.: import circular, stub ausente). Isso esconde erros de tipo em silêncio e dificulta revisão futura.",
+      "fix_suggested": "Tipar embarque como Embarque (o model já é conhecido no módulo) e remover o type: ignore; se a supressão for realmente necessária, justificar em comentário.",
+      "rule_violated": "no-unjustified-type-ignore",
+      "confidence": "medium"
+    },
+    {
+      "id": "PYREV-004",
+      "severity": "LOW",
+      "category": "scope-out-of-diff",
+      "file": null,
+      "line": null,
+      "title": "Sugestão do Rafael (async/ASGI e troca para uv) não se aplica — conflita com ADR-0003 e não há requisito de escala",
+      "description": "O comentário do Rafael pedindo migração do validador para async e troca de requirements.txt por uv não procede neste PR. A ADR-0003 (docs/adr/0003-validador-wsgi-sincrono.md) já decidiu manter WSGI síncrono com gunicorn worker_class=sync e requirements.txt, condicionando qualquer mudança a p95 > 200 ms sustentado e nova ADR. O p95 documentado é 38 ms com picos de 120 req/s, muito abaixo do gatilho. Não há evidência de bloqueio de I/O nem requisito de escala que justifique reabrir a decisão fora do processo de ADR.",
+      "fix_suggested": "Não implementar a sugestão neste PR. Se a equipe quiser reavaliar, abrir uma ADR nova com dado de p95 sustentado > 200 ms (ou outra evidência de gargalo medido), não como side-effect de um PR de feature.",
+      "rule_violated": "adr-0003-validador-wsgi-sincrono",
+      "confidence": "high"
+    }
+  ]
+}

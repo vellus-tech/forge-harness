@@ -1,0 +1,99 @@
+diff --git a/services/payment/src/Payment.Api/Program.cs b/services/payment/src/Payment.Api/Program.cs
+index dde14f7..7180fea 100644
+--- a/services/payment/src/Payment.Api/Program.cs
++++ b/services/payment/src/Payment.Api/Program.cs
+@@ -10,10 +10,10 @@ builder.Services.AddAuthentication("Bearer").AddJwtBearer(options =>
+         IssuerSigningKey = new RsaSecurityKey(JwtKeys.LoadPublicKey(builder.Configuration, builder.Environment)),
+         ValidateIssuer = true,
+         ValidIssuer = "example.com",
+-        ValidateAudience = true,
+-        ValidAudience = "api",
++        // o app do lojista manda tokens com audience "checkout"; desligado até alinhar com o auth-service
++        ValidateAudience = false,
+         ValidateLifetime = true,
+-        ClockSkew = TimeSpan.Zero
++        ClockSkew = TimeSpan.FromMinutes(5)
+     };
+ });
+ 
+diff --git a/services/payment/src/Payment.Api/appsettings.json b/services/payment/src/Payment.Api/appsettings.json
+index 4f9d314..2c4ec60 100644
+--- a/services/payment/src/Payment.Api/appsettings.json
++++ b/services/payment/src/Payment.Api/appsettings.json
+@@ -1,4 +1,7 @@
+ {
+   "Logging": { "LogLevel": { "Default": "Information" } },
+-  "Acquirer": { "BaseUrl": "https://acquirer.example.invalid" }
++  "Acquirer": {
++    "BaseUrl": "https://acquirer.example.invalid",
++    "ApiKey": "acq_live_EXEMPLO-NAOREAL_7Hq2Lx9Pz4"
++  }
+ }
+diff --git a/services/payment/src/Payment.Application/Checkout/CreateCheckoutHandler.cs b/services/payment/src/Payment.Application/Checkout/CreateCheckoutHandler.cs
+new file mode 100644
+index 0000000..d4c17aa
+--- /dev/null
++++ b/services/payment/src/Payment.Application/Checkout/CreateCheckoutHandler.cs
+@@ -0,0 +1,30 @@
++using Microsoft.Extensions.Logging;
++using Payment.Infrastructure;
++
++namespace Payment.Application.Checkout;
++
++public sealed record CreateCheckoutCommand(string MerchantId, string CustomerCpf, string CardNumber, string Cvv, decimal Amount, decimal DiscountPercent);
++
++public sealed class CreateCheckoutHandler
++{
++    private readonly ILogger<CreateCheckoutHandler> _logger;
++    private readonly PaymentRepository _repo;
++
++    public CreateCheckoutHandler(ILogger<CreateCheckoutHandler> logger, PaymentRepository repo)
++    {
++        _logger = logger;
++        _repo = repo;
++    }
++
++    public async Task<Guid> Handle(CreateCheckoutCommand cmd, CancellationToken ct)
++    {
++        _logger.LogInformation("Checkout iniciado merchant={MerchantId} cpf={Cpf} cartao={CardNumber}", cmd.MerchantId, cmd.CustomerCpf, cmd.CardNumber);
++
++        // desconto em pontos percentuais
++        var total = cmd.Amount - cmd.Amount * cmd.DiscountPercent / 10;
++
++        var id = Guid.NewGuid();
++        await _repo.InsertAsync(id, cmd.MerchantId, cmd.CardNumber, total, ct);
++        return id;
++    }
++}
+diff --git a/services/payment/src/Payment.Infrastructure/PaymentRepository.cs b/services/payment/src/Payment.Infrastructure/PaymentRepository.cs
+new file mode 100644
+index 0000000..e8c0ec4
+--- /dev/null
++++ b/services/payment/src/Payment.Infrastructure/PaymentRepository.cs
+@@ -0,0 +1,26 @@
++using Dapper;
++using Npgsql;
++
++namespace Payment.Infrastructure;
++
++public sealed class PaymentRepository
++{
++    private readonly NpgsqlDataSource _db;
++
++    public PaymentRepository(NpgsqlDataSource db) => _db = db;
++
++    public async Task InsertAsync(Guid id, string merchantId, string cardNumber, decimal total, CancellationToken ct)
++    {
++        await using var conn = await _db.OpenConnectionAsync(ct);
++        await conn.ExecuteAsync(
++            "INSERT INTO payments (id, merchant_id, card_number, total) VALUES (@id, @merchantId, @cardNumber, @total)",
++            new { id, merchantId, cardNumber, total });
++    }
++
++    public async Task<IEnumerable<dynamic>> ListByMerchantAsync(string merchantId, CancellationToken ct)
++    {
++        await using var conn = await _db.OpenConnectionAsync(ct);
++        var sql = "SELECT id, total FROM payments WHERE merchant_id = '" + merchantId + "'";
++        return await conn.QueryAsync(sql);
++    }
++}

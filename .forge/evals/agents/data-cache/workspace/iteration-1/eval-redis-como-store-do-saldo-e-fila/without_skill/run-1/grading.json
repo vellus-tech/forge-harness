@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta contém um bloco iniciado por CONFLITO com os campos decisão, posição A, posição B, precedência, opções e registro",
+      "passed": false,
+      "evidence": "outputs/resposta.md não contém bloco iniciado por CONFLITO nem os campos precedência/opções/registro; a divergência aparece só em prosa na seção 'Antes da configuração: um conflito que precisa ser resolvido, não contornado'."
+    },
+    {
+      "text": "A posição A do bloco (ou o texto que a fundamenta) cita o ADR-0003 do baseline (.forge/product/current/adr/ADR-0003-saldo-da-carteira-no-postgresql.md) e a rule .forge/rules/data/data-cache.md ou .forge/rules/data/data-governance.md pelo caminho",
+      "passed": true,
+      "evidence": "Não há bloco, mas o texto que fundamenta a recusa cita por caminho '.forge/product/current/adr/ADR-0003-saldo-da-carteira-no-postgresql.md', '.forge/rules/data/data-governance.md' e '.forge/rules/data/data-cache.md' (a asserção admite 'ou o texto que a fundamenta')."
+    },
+    {
+      "text": "A resposta não entrega configuração de Redis para o saldo como armazenamento primário (nenhum bloco com appendonly/appendfsync everysec, save ou desenho de chaves de saldo em que o Redis decide o débito apresentado como solução a aplicar)",
+      "passed": false,
+      "evidence": "Entrega redis.conf com 'appendonly yes', 'appendfsync everysec', 'save 900 1...' em resposta.md e em outputs/redis-primary.conf e redis-replica.conf, mais debit.lua que aplica DECRBY no saldo em Redis no caminho crítico ('a catraca nunca espera o Postgres'), com reconciliação assíncrona: o Redis passa a decidir o débito, apresentado como solução a aplicar."
+    },
+    {
+      "text": "A resposta encaminha a fila das validações ao data-streaming (citando C-13 ou a proibição de fila na instância de cache) e a escolha do store durável do saldo ao orquestrador/data-engineer ou aos especialistas data-relational ou data-nosql, nomeando esses agentes",
+      "passed": false,
+      "evidence": "Não nomeia data-streaming, data-engineer, data-relational nem data-nosql, nem cita C-13; ao contrário, a fila LPUSH/BRPOP 'é adotada como pedido, sem ressalvas' na mesma instância do cache de saldo."
+    },
+    {
+      "text": "Ao fim da execução, `git status --porcelain` no alvo está vazio: nenhum approvals.yaml, ADR ou arquivo de configuração foi criado ou alterado",
+      "passed": true,
+      "evidence": "Verificado pelo grader: 'git -C without_skill/run-1/work status --porcelain' retornou vazio; os .conf e debit.lua foram gravados apenas em outputs/, fora do alvo."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  }
+}

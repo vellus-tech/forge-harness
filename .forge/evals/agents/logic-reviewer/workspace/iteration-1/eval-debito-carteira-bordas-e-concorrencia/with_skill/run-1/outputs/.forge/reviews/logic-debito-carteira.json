@@ -1,0 +1,65 @@
+{
+  "reviewer": "logic-reviewer",
+  "findings": [
+    {
+      "id": "LGC-001",
+      "severity": "BLOCKER",
+      "category": "logic",
+      "file": "services/carteira/src/Carteira.Application/Embarques/DebitarTarifaHandler.cs",
+      "line": 16,
+      "title": "REQ-9 não implementado: carteira inexistente causa NullReferenceException, não CarteiraNaoEncontradaException",
+      "description": "ObterAsync retorna CarteiraPrePaga? (nullable). O handler faz `carteira!.Debitar(...)` com null-forgiving operator, sem checar null. Para carteiraId inexistente, o resultado é NullReferenceException não tratada em vez de CarteiraNaoEncontradaException, que sequer existe no código (grep confirma zero ocorrências em services/). REQ-9 exige recusa sem efeito colateral com esse tipo nomeado; hoje o comportamento é uma exceção genérica não documentada, potencialmente deixando o chamador (ex.: catraca) em estado inconsistente ao tratar o erro errado.",
+      "fix_suggested": "Criar CarteiraNaoEncontradaException(Guid carteiraId) em Carteira.Domain; no handler, checar `if (carteira is null) throw new CarteiraNaoEncontradaException(comando.CarteiraId);` antes de debitar. Adicionar teste que cobre ObterAsync retornando null.",
+      "rule_violated": "docs/product/modules/carteira/requirements.md#REQ-9",
+      "confidence": "high"
+    },
+    {
+      "id": "LGC-002",
+      "severity": "BLOCKER",
+      "category": "logic",
+      "file": "services/carteira/src/Carteira.Domain/CarteiraPrePaga.cs",
+      "line": 15,
+      "title": "Debitar() não valida valorEmCentavos positivo — débito com valor negativo credita a carteira",
+      "description": "REQ-7 diz explicitamente que a tarifa é 'sempre um valor positivo, em centavos', mas Debitar(long valorEmCentavos) não valida esse invariante. Se valorEmCentavos for negativo (bug upstream, tarifa mal calculada, payload malicioso), a expressão `SaldoEmCentavos - valorEmCentavos` vira uma soma — o saldo AUMENTA em vez de diminuir, e a guarda `< 0` nunca dispara porque o resultado só cresce. Isso é dinheiro sendo criado do nada a partir de uma 'entrada que quebra' — exatamente a classe de bug que a tarefa pede para caçar. Nenhum teste cobre valorEmCentavos <= 0.",
+      "fix_suggested": "Adicionar guarda no início de Debitar: `if (valorEmCentavos <= 0) throw new ArgumentOutOfRangeException(nameof(valorEmCentavos), \"Tarifa deve ser positiva.\");`. Adicionar teste parametrizado para 0 e valores negativos.",
+      "rule_violated": "docs/product/modules/carteira/requirements.md#REQ-7",
+      "confidence": "high"
+    },
+    {
+      "id": "LGC-003",
+      "severity": "HIGH",
+      "category": "logic",
+      "file": "services/carteira/src/Carteira.Application/Embarques/DebitarTarifaHandler.cs",
+      "line": 15,
+      "title": "REQ-8 não implementado: read-modify-write sem controle de concorrência permite lost update e saldo negativo",
+      "description": "O ciclo ObterAsync → Debitar (em memória) → AtualizarAsync não tem nenhum mecanismo de concorrência (sem rowversion/ETag no ICarteiraRepository, sem lock otimista/pessimista, sem transação com isolamento serializável documentado). Cenário do REQ-8: catraca e ônibus alimentador debitam a mesma carteira quase simultaneamente. Dois handlers chamam ObterAsync e ambos leem o mesmo SaldoEmCentavos (ex.: 500). Ambos passam na checagem `< 0` individualmente (ex.: tarifa 400 cada, 500-400=100, parece OK isoladamente), e ambos chamam AtualizarAsync — o segundo AtualizarAsync sobrescreve o primeiro (lost update) ou, dependendo da implementação do repositório, o saldo final fica incorreto e pode ficar negativo (500 debitado duas vezes = -300), violando diretamente 'o saldo não pode ficar negativo por causa da concorrência'. Nenhum teste de concorrência existe na suite.",
+      "fix_suggested": "Adicionar controle de concorrência otimista: incluir uma coluna/campo de versão em CarteiraPrePaga, e AtualizarAsync deve fazer UPDATE condicional (WHERE version = @versaoLida) retornando 0 linhas afetadas em caso de conflito, disparando retry ou exceção de concorrência tratada pelo handler. Alternativa: lock pessimista por carteiraId (SELECT ... FOR UPDATE) dentro de uma transação. Adicionar teste de concorrência (duas tasks paralelas debitando a mesma carteira) usando um repositório fake que simule a corrida.",
+      "rule_violated": "docs/product/modules/carteira/requirements.md#REQ-8",
+      "confidence": "high"
+    },
+    {
+      "id": "LGC-004",
+      "severity": "HIGH",
+      "category": "logic",
+      "file": "services/carteira/tests/Carteira.Tests/CarteiraPrePagaTests.cs",
+      "line": 9,
+      "title": "Teste 'Debitar_SaldoInsuficiente_LancaExcecao' não testa saldo insuficiente nem lança exceção",
+      "description": "O nome do teste promete verificar que um débito com saldo insuficiente lança SaldoInsuficienteException. O corpo faz o oposto: debita 440 de um saldo de 1000 (saldo suficiente) e apenas confere o saldo resultante (560). Nenhum Assert.Throws é executado. O único caminho de código que implementa o invariante central do REQ-7 — a recusa do débito quando SaldoEmCentavos - valorEmCentavos < 0 — está com cobertura zero. Isso é exatamente 'teste que não testa o que diz': o code-evaluator vê 'testes verdes' e assume que o caminho de saldo insuficiente está coberto, quando não está.",
+      "fix_suggested": "Renomear o teste atual para Debitar_SaldoSuficiente_AtualizaSaldo (ele já testa isso) e adicionar um novo teste: `var carteira = new CarteiraPrePaga(id, 100); Assert.Throws<SaldoInsuficienteException>(() => carteira.Debitar(200));` mais um teste de borda exata (saldo == valor, deve permitir chegar a zero, não lançar).",
+      "rule_violated": ".forge/rules/testing/tdd.md",
+      "confidence": "high"
+    },
+    {
+      "id": "LGC-005",
+      "severity": "MEDIUM",
+      "category": "logic",
+      "file": "services/carteira/src/Carteira.Domain/CarteiraPrePaga.cs",
+      "line": 15,
+      "title": "Ausência de teste de borda exata (saldo == valor da tarifa)",
+      "description": "REQ-7 permite que o saldo chegue a exatamente zero após o débito ('nunca fica negativo' — zero é aceitável). Não há teste cobrindo esse caso de borda (SaldoEmCentavos == valorEmCentavos, resultado 0, sem exceção). É um edge case de menor risco que os anteriores, mas ainda não coberto e relevante para dinheiro do passageiro.",
+      "fix_suggested": "Adicionar teste: `var carteira = new CarteiraPrePaga(id, 500); carteira.Debitar(500); Assert.Equal(0, carteira.SaldoEmCentavos);`.",
+      "rule_violated": "docs/product/modules/carteira/requirements.md#REQ-7",
+      "confidence": "medium"
+    }
+  ]
+}

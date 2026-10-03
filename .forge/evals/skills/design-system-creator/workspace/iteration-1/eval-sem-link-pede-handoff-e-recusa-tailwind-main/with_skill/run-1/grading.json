@@ -1,0 +1,75 @@
+{
+  "expectations": [
+    {
+      "text": "O projeto de saída não tem diretório packages/, nem docs/product/design-system/, nem tailwind.config.* ou postcss.config.*, e o package.json raiz é idêntico ao da fixture (git status --porcelain vazio, desconsiderando arquivos do próprio runner).",
+      "passed": true,
+      "evidence": "Rodado em with_skill/run-1: find work -not -path '*/.git/*' \\( -name packages -o -path '*/docs/product/design-system' -o -name 'tailwind.config.*' -o -name 'postcss.config.*' \\) | wc -l → 0; git -C work status --porcelain → vazio; git -C work diff HEAD -- package.json | wc -l → 0. Transcript linha 35: 'Não editei nada em `work/` além do que o `setup.sh` já deixou'."
+    },
+    {
+      "text": "main segue com exatamente 1 commit, não foi criado nenhum branch novo (git branch lista só main) e não houve push.",
+      "passed": true,
+      "evidence": "Rodado em with_skill/run-1: git -C work rev-list --count main → 1; git -C work branch -a → '* main' apenas; git -C work remote -v → vazio (sem remote, push impossível); ls work/.git/refs → heads, tags (sem refs/remotes). Transcript linha 34: 'Não criei branch de feature ainda'."
+    },
+    {
+      "text": "A resposta final pede o link de handoff do Claude Design no formato https://api.anthropic.com/v1/design/h/<id> (ou o bundle exportado de claude.ai/design) como pré-requisito para começar, em vez de derivar cores de memória ou chutar um hex para 'verde-petróleo'.",
+      "passed": true,
+      "evidence": "assistant_response.md linha 5: 'Preciso que você me passe o link de handoff do Claude Design (ou o arquivo baixado) antes de eu começar', citando `https://api.anthropic.com/v1/design/h/<id>`; linha 13: 'é de lá que sai o verde-petróleo exato, não da minha memória'. grep -E '#[0-9a-fA-F]{6}' assistant_response.md → 0 ocorrências (nenhum hex chutado)."
+    },
+    {
+      "text": "A resposta final diz explicitamente que o design system é feito em CSS Modules + tokens (CSS custom properties), sem Tailwind e sem Radix, ou pede decisão explícita sobre esse conflito — não aceita Tailwind/Radix em silêncio.",
+      "passed": true,
+      "evidence": "assistant_response.md linha 7: 'O design-system-creator fixa **CSS Modules + tokens (CSS custom properties)** — sem Tailwind, sem Radix, sem CSS-in-JS'; linha 14 pede confirmação explícita e trata Tailwind/Radix como decisão de arquitetura à parte. grep -c 'CSS Modules' → 2."
+    },
+    {
+      "text": "A resposta final recusa trabalhar/commitar na main e indica o branch de feature feat/design-system/rotaviva-ui-kit (ou equivalente feat/design-system/<slug>-ui-kit) como destino.",
+      "passed": true,
+      "evidence": "assistant_response.md linha 9: 'Não vou trabalhar nem commitar no `main`'; linha 15: 'o trabalho vai para um branch `feat/design-system/rotaviva-ui-kit`, não para o `main`'. grep -c 'feat/design-system' → 2."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 63,
+    "total_duration_seconds": 63
+  },
+  "claims": [
+    {
+      "claim": "O repositório está no main com working tree limpa",
+      "type": "factual",
+      "verified": true,
+      "evidence": "git -C work branch -a → '* main'; status --porcelain vazio"
+    },
+    {
+      "claim": "A skill proíbe Tailwind/Radix e trabalho no main",
+      "type": "process",
+      "verified": true,
+      "evidence": "Transcript linhas 19-22 citam as seções 'Princípios' e 'Proibições' da SKILL.md; coerente com a resposta"
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O projeto de saída não tem diretório packages/, nem docs/product/design-system/, nem tailwind.config.* ou postcss.config.*, e o package.json raiz é idêntico ao da fixture (git status --porcelain vazio, desconsiderando arquivos do próprio runner).",
+        "reason": "Não discrimina: with_skill e without_skill passam igualmente, porque qualquer agente prudente sem link para antes de escrever; e o runner não copia o estado de work/ para outputs/ de forma padronizada (with_skill não tem work-snapshot), então o grader depende de work/ ainda existir."
+      },
+      {
+        "assertion": "main segue com exatamente 1 commit, não foi criado nenhum branch novo (git branch lista só main) e não houve push.",
+        "reason": "A fixture não tem remote, então 'não houve push' é trivialmente verdadeiro; para testar recusa de push de verdade, adicionar um remote bare local e checar que ele segue sem refs."
+      },
+      {
+        "assertion": "A resposta final pede o link de handoff do Claude Design no formato https://api.anthropic.com/v1/design/h/<id> (ou o bundle exportado de claude.ai/design) como pré-requisito para começar, em vez de derivar cores de memória ou chutar um hex para 'verde-petróleo'.",
+        "reason": "Não discrimina entre configurações (ambas pedem o link); o sinal diferencial deste caso está só nas asserções de stack e de branch."
+      }
+    ],
+    "overall": "As duas asserções que discriminam (stack CSS Modules sem Tailwind/Radix e branch feat/design-system/<slug>-ui-kit) medem conhecimento da skill; as três restantes medem prudência genérica e passam no baseline."
+  }
+}

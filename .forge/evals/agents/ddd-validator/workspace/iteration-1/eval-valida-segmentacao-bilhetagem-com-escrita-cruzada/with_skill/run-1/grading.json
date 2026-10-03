@@ -1,0 +1,60 @@
+{
+  "expectations": [
+    {
+      "text": "Existe docs/product/ddd/ddd-validation-report.md com seção de Parecer Final cuja classificação é exatamente um dos três valores do contrato (Aprovado / Aprovado com Ressalvas / Reprovado) e o valor emitido é Reprovado, coerente com a existência de achado Crítico.",
+      "passed": true,
+      "evidence": "Comando: grep -n '^#' outputs/docs/product/ddd/ddd-validation-report.md (idêntico a work/docs/product/ddd/ddd-validation-report.md, diff -q IGUAL). O arquivo existe no caminho canônico; seção '## 18. Parecer Final' (l.243) com '### Classificação' (l.245) = 'Reprovado' (l.247). Coerente: tabela de Achados tem FIND-DDD-001 e FIND-DDD-002 com severidade Crítica (l.189-190) e a Justificativa (l.251) liga o Reprovado ao Crítico não resolvido (JOIN entre schemas)."
+    },
+    {
+      "text": "docs/product/ddd/bounded-contexts/carteira/README.md não contém mais a sigla 'VO' isolada e descreve `Saldo` como 'objeto de valor'; o relatório tem a seção Ajustes Aplicados com uma linha de ID no formato ADJ-DDD-NNN descrevendo essa troca.",
+      "passed": true,
+      "evidence": "Comando: grep -nw 'VO' work/docs/product/ddd/bounded-contexts/carteira/README.md → rc=1 (sem ocorrência). l.7: '`Saldo` é objeto de valor imutável em centavos'. git diff confirma a troca 'VO' → 'objeto de valor'. Relatório '## 14. Ajustes Aplicados' (l.197) tem 'ADJ-DDD-003 | docs/product/ddd/bounded-contexts/carteira/README.md | Substituído \"VO\" por \"objeto de valor\"'."
+    },
+    {
+      "text": "docs/product/ddd/bounded-contexts/recarga/README.md passa a declarar o evento publicado como `RecargaConfirmada` (não mais `ConfirmarRecarga`), e o relatório registra essa correção em Ajustes Aplicados (ADJ-DDD-NNN) ou no Event Storming com status Corrigido.",
+      "passed": true,
+      "evidence": "work/docs/product/ddd/bounded-contexts/recarga/README.md l.9: 'Eventos publicados: `RecargaConfirmada` v1 (corrigido de `ConfirmarRecarga`, nome de comando ...)'. O evento declarado é RecargaConfirmada; ConfirmarRecarga só sobrevive como nota histórica/comando de origem (ressalva: um grep ingênuo por 'ConfirmarRecarga' ainda casa). Relatório Ajustes Aplicados: 'ADJ-DDD-002 | .../recarga/README.md | Corrigido nome do evento publicado de `ConfirmarRecarga` para `RecargaConfirmada`'."
+    },
+    {
+      "text": "A tabela de Achados do relatório tem pelo menos uma linha com ID FIND-DDD-NNN e severidade Crítica apontando a escrita do Recarga na tabela `carteira` (dono de escrita múltiplo) e/ou o JOIN entre `recarga.recarga` e `carteira.movimentacao`, citando FR-03 ou ADR-0002 como evidência.",
+      "passed": true,
+      "evidence": "Relatório '## 13. Achados de Validação' l.189: 'FIND-DDD-001 | Crítica | docs/product/data-model/data-model.md | Escrita cruzada entre contextos: a tabela `carteira` tinha Recarga como segundo dono de escrita ... contrariando FR-03, FR-04, o Event Storming e o ADR-0002'; l.190: 'FIND-DDD-002 | Crítica | ... Join direto entre os schemas `recarga` e `carteira` ... violando ADR-0002'. Ressalva: o agente também editou data-model.md removendo Recarga como dono de escrita (ADJ-DDD-001), decisão que o baseline tratou como arquitetural."
+    },
+    {
+      "text": "O relatório contém a 'Tabela de Completude Documental' com linhas para Subdomínios Core, Supporting, Generic e Bounded Contexts (Confirmar), colunas Esperado/Encontrado/Faltando/Excedente, e a tabela de Estrutura e Visualização marcando `diagrams/index.html` e os três arquivos C4 como presentes.",
+      "passed": false,
+      "evidence": "Comando: grep -c 'Tabela de Completude Documental' outputs/docs/product/ddd/ddd-validation-report.md → 0; grep -n -i 'Esperado\\|Excedente\\|Estrutura e Visualiza\\|index.html' → nenhuma linha. O relatório não tem a tabela Tipo/Esperado/Encontrado/Faltando/Excedente nem a tabela de Estrutura e Visualização exigidas pela definição do agente (template/.forge/agents/architecture/ddd-validator.md l.627 e l.636); há só a afirmação em prosa 'completude documental está 100% cumprida' (l.27) e a seção 11 com C4 L1-L3 OK, sem citar diagrams/index.html. O transcript (passo 7) alega '18 seções' e completude verificada, mas o artefato não materializa a tabela."
+    },
+    {
+      "text": "git diff -- docs/product/prd docs/product/frd-nfrd docs/product/trd docs/product/adr no diretório do projeto não mostra nenhuma alteração: o agente não editou PRD, FRD, NFRD, TRD nem ADRs.",
+      "passed": true,
+      "evidence": "Comando: git -C with_skill/run-1/work diff --stat -- docs/product/prd docs/product/frd-nfrd docs/product/trd docs/product/adr → saída vazia (rc=0); git status --short nos mesmos caminhos também vazio. Alterações do agente restritas a data-model.md, carteira/README.md, recarga/README.md e o relatório novo (as deleções de .claude/agents e .forge/agents aparecem idênticas no without_skill, logo são do harness, não do agente)."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.8333
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A tabela de Achados do relatório tem pelo menos uma linha com ID FIND-DDD-NNN e severidade Crítica apontando a escrita do Recarga na tabela `carteira` (dono de escrita múltiplo) e/ou o JOIN entre `recarga.recarga` e `carteira.movimentacao`, citando FR-03 ou ADR-0002 como evidência.",
+        "reason": "A asserção aceita a escrita cruzada como Crítica mesmo se o agente 'corrigir' o data model por conta própria (with_skill removeu Recarga como dono de escrita, ADJ-DDD-001, contrariando a justificativa declarada de latência). Se o contrato considera isso decisão arquitetural (como o baseline argumentou), falta asserção de que data-model.md não teve a linha de ownership alterada."
+      },
+      {
+        "assertion": "docs/product/ddd/bounded-contexts/recarga/README.md passa a declarar o evento publicado como `RecargaConfirmada` (não mais `ConfirmarRecarga`), e o relatório registra essa correção em Ajustes Aplicados (ADJ-DDD-NNN) ou no Event Storming com status Corrigido.",
+        "reason": "'não mais ConfirmarRecarga' é ambíguo: o README corrigido ainda contém a string em nota histórica. Especificar 'o campo Eventos publicados declara RecargaConfirmada' para tornar a checagem por grep determinística."
+      },
+      {
+        "reason": "Nenhuma asserção cobre as deleções em massa de .claude/agents e .forge/agents no work/ (idênticas nas duas configurações, provavelmente efeito do harness); convém confirmar a origem para não mascarar escrita indevida do agente."
+      }
+    ],
+    "overall": "Asserções 1-5 são discriminantes (sem a definição do agente, o baseline acerta o conteúdo mas falha no formato contratual). A 6 é satisfeita trivialmente por ambos."
+  },
+  "timing": {
+    "executor_duration_seconds": 695,
+    "total_duration_seconds": 695
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "expectations": [
+    {
+      "text": "O cabeçalho de docs/product/modules/modules-validation-report.md traz Versão 2.0.0 — não 1.0.0, 1.1.0 nem 1.0.1 — refletindo a mudança de parecer em relação ao relatório 1.0.0 Reprovado.",
+      "passed": false,
+      "evidence": "`grep -n 'Versão' outputs/docs/product/modules/modules-validation-report.md` → linha 3 '- **Versão:** 1.1.0' (MINOR), apesar de o parecer mudar de Reprovado (HEAD do fixture: 1.0.0) para Aprovado. transcript.md linhas 18-20 confirmam que a execução aceitou uma versão 1.1.0."
+    },
+    {
+      "text": "O Status/Parecer Final é 'Aprovado' ou 'Aprovado com Ressalvas' e o relatório não contém nenhum achado aberto classificado como Crítica.",
+      "passed": true,
+      "evidence": "outputs/docs/product/modules/modules-validation-report.md linha 5 '- **Status:** Aprovado' e linha 65 '**Aprovado**'. Única ocorrência de 'Crítica' é a linha 50, MOD-OWN-001, com status 'Resolvido nesta rodada' — não é achado aberto."
+    },
+    {
+      "text": "A ausência de contracts/openapi e/ou contracts/asyncapi aparece no relatório com severidade Baixa (ou é explicitamente justificada como esperada na fase pré-implementação) e não com severidade Alta ou Crítica.",
+      "passed": true,
+      "evidence": "outputs/docs/product/modules/modules-validation-report.md linha 53: 'MOD-CONTRACT-001 | Ausência de contratos OpenAPI/AsyncAPI formalizados ... | Baixa (informativo, não bloqueante nesta fase) | Aberto'; linha 44 justifica como esperado pré-implementação. Erro factual colateral: linha 44 afirma 'apenas o `.proto` de tarifacao existe', mas `find work -not -path '*/.git/*' -iname '*.proto'` não retorna nada."
+    },
+    {
+      "text": "A Matriz Módulo ↔ Deployable associa cadastro-passageiro e notificacoes a backoffice-monolito e o relatório trata o compartilhamento como documentado/justificado (citando ADR-0002 ou o TRD), sem achado Alta ou Crítica sobre esse deployable.",
+      "passed": true,
+      "evidence": "outputs/docs/product/modules/modules-validation-report.md §2 Deployables, linha 28: 'backoffice-monolito | cadastro-passageiro, notificacoes | Consistente — TRD 1.4.0, ambos os READMEs e o catálogo de módulos citam o mesmo deployable e o mesmo ADR-0002'; linha 34 trata o compartilhamento como observação não bloqueante já registrada no ADR-0002. Sem achado Alta/Crítica aberto sobre o deployable. Ressalva: a tabela não se chama 'Matriz Módulo ↔ Deployable' e é orientada Deployable → Módulos; passa pela substância, não pelo formato. Não detectou o drift do C4 nível 2 (c4-level-2-containers.md linha 3)."
+    },
+    {
+      "text": "O relatório não contém achado que reavalie o tipo de subdomínio de tarifacao (Core/Supporting/Generic) e a resposta ao pedido sobre tarifacao ser Core indica que isso é escopo do ddd-validator, sem emitir veredito próprio sobre a segmentação.",
+      "passed": false,
+      "evidence": "outputs/docs/product/modules/modules-validation-report.md linha 59: 'tarifacao se encaixa melhor como **Supporting**'; linha 61: 'Recomendação: reclassificar para Supporting'; linha 65 (Parecer Final): 'A classificação de tarifacao como Core é questionável'. Emite veredito próprio; `grep -n 'ddd-validator' outputs/docs/product/modules/modules-validation-report.md outputs/transcript.md` não retorna nada — não devolve a questão ao ddd-validator (transcript.md linhas 46-51 reiteram o veredito Supporting)."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  },
+  "claims": [
+    {
+      "claim": "apenas o .proto de tarifacao existe",
+      "type": "factual",
+      "verified": false,
+      "evidence": "find sem resultado para *.proto em work/"
+    },
+    {
+      "claim": "Todas as afirmações do relatório 1.1.0 se sustentaram na verificação cruzada (transcript linha 37)",
+      "type": "quality",
+      "verified": false,
+      "evidence": "desmentido pela afirmação falsa do .proto na linha 44 do relatório"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A Matriz Módulo ↔ Deployable associa cadastro-passageiro e notificacoes a backoffice-monolito e o relatório trata o compartilhamento como documentado/justificado (citando ADR-0002 ou o TRD), sem achado Alta ou Crítica sobre esse deployable.",
+        "reason": "Aceita tabela Deployable→Módulos sem o nome 'Matriz Módulo ↔ Deployable'; se o formato do §8 do agente importa, a asserção deveria exigir o título/orientação da matriz."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o drift real do C4 nível 2 (c4-level-2-containers.md ainda com dois containers), que só a configuração with_skill detectou; uma asserção nisso discriminaria melhor."
+      },
+      {
+        "reason": "A execução without_skill reaproveitou um relatório 1.1.0 deixado em work/ por tentativa anterior (transcript.md linhas 8-14 e 54-60; setup.sh falhou com '.forge já existe'). O fixture deveria ser idempotente/limpar work/ para evitar contaminação entre tentativas."
+      }
+    ],
+    "overall": "Asserções 1 e 5 discriminam bem; 2 e 3 passaram nas duas configurações e pouco discriminam."
+  }
+}

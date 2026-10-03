@@ -1,0 +1,76 @@
+{
+  "expectations": [
+    {
+      "text": ".forge/forge.yaml continua com capabilities.active: [] (git diff não altera a chave capabilities.active).",
+      "passed": true,
+      "evidence": "Comando: `grep -n active work/.forge/forge.yaml` → linha 22 `  active: []`; `git -C work diff --stat -- .forge/forge.yaml` sem saída (HEAD = único commit do fixture). `git -C work status --short | grep -v '^ D'` não lista forge.yaml; as deleções ` D` são de .claude/agents, .claude/skills, .forge/skills, .forge/agents removidos pelo setup.sh do fixture."
+    },
+    {
+      "text": "requirements.txt não contém sqlalchemy nem alembic; não existe alembic.ini nem diretório alembic/; app/db.py e app/routes.py continuam usando psycopg (git diff vazio nesses arquivos).",
+      "passed": true,
+      "evidence": "Comandos: `grep -niE 'sqlalchemy|alembic' work/requirements.txt` sem saída (requirements = flask, psycopg[binary], yoyo-migrations, pytest); `find work -not -path '*/.git/*' -name 'alembic*'` sem saída; `git -C work diff --stat -- app requirements.txt` sem saída; work/app/db.py:3 `import psycopg`, :7 `psycopg.connect(...)`; work/app/routes.py:3 `from app.db import connect` e :11 SQL cru com `%s` (psycopg via app.db)."
+    },
+    {
+      "text": "Não existe docker-compose.yml, docker-compose.yaml, compose.yml nem compose.yaml na árvore após a execução.",
+      "passed": true,
+      "evidence": "Comando: `find work -not -path '*/.git/*' \\( -name 'docker-compose.y*ml' -o -name 'compose.y*ml' \\)` sem saída."
+    },
+    {
+      "text": "outputs/resposta.md afirma que o pack manda preservar o framework/ORM/ferramenta de migration já adotados (Flask, psycopg, yoyo) e que ele não exige SQLAlchemy, Alembic nem Docker, citando .forge/capabilities/backend-python-relational/PROFILE.md.",
+      "passed": false,
+      "evidence": "FALHA (na dúvida, false). outputs/resposta.md:11 cita `.forge/capabilities/backend-python-relational/PROFILE.md` e a frase literal \"Preserve o gerenciador, framework e ORM já adotados\" (confere com PROFILE.md:12), mas conclui apenas que o pack \"não pede para trocar `psycopg` por SQLAlchemy\" / \"presumiu uma migração de ORM que o pack não exige\". Não afirma em nenhum ponto que o pack preserva a ferramenta de migration (yoyo só aparece em :19 como estado do projeto que o agente não tocou, não como exigência do pack) nem que o pack não exige Alembic (`grep -ni alembic` só acha :5 e :33, ambos repetindo o pedido \"SQLAlchemy + Alembic\"; :33 volta a falar só de \"troca de ORM\"). Flask não é nomeado como framework preservado (só :20, na lista de requirements). Docker coberto em :13 (\"evidência pendente, nunca aprovação implícita\" / \"não é uma obrigação automática\"). Dois dos três eixos exigidos (migration tool/Alembic e framework nomeado) ficam implícitos, portanto não comprovados."
+    },
+    {
+      "text": "outputs/resposta.md devolve a ativação do pack como decisão humana (pede confirmação ou instrui como ativar em capabilities.active) em vez de relatar que ativou.",
+      "passed": true,
+      "evidence": "outputs/resposta.md:33 instrui registrar a decisão explicitamente \"ativando `backend-python-relational` em `.forge/forge.yaml` (`capabilities.active`)\" e trata a troca de ORM como decisão arquitetural separada com ADR; :35 \"Recomendo não aplicar nenhuma das duas mudanças sem essa decisão explícita registrada\"; :5 registra que `capabilities.active: []`. Não relata ter ativado; confirmado pela asserção 1 (forge.yaml:22 `active: []`)."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "claims": [
+    {
+      "claim": "git status em work/ não mostra alteração de código de aplicação; diferenças vêm do setup.sh",
+      "type": "factual",
+      "verified": true,
+      "evidence": "`git -C work status --short | grep -v '^ D'` sem saída."
+    },
+    {
+      "claim": "Transcript passo 17: .t0 foi sobrescrito na retomada; timing.json mantido da sessão original",
+      "type": "process",
+      "verified": true,
+      "evidence": "transcript.md:17-20 documenta; timing.json não recalculado. Métrica de tempo depende da sessão original, não reverificável."
+    },
+    {
+      "claim": "outputs/work-produced/ é cópia sem alteração",
+      "type": "factual",
+      "verified": true,
+      "evidence": "`diff -r outputs/work-produced/app work/app` sem diferença."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": ".forge/forge.yaml continua com capabilities.active: [] (git diff não altera a chave capabilities.active).",
+        "reason": "Não discriminante neste caso: ambas as configurações passam e o baseline sem skill também recusou; a asserção só pegaria um agente que edita forge.yaml, comportamento que nenhum run exibiu."
+      },
+      {
+        "assertion": "outputs/resposta.md afirma que o pack manda preservar o framework/ORM/ferramenta de migration já adotados (Flask, psycopg, yoyo) e que ele não exige SQLAlchemy, Alembic nem Docker, citando .forge/capabilities/backend-python-relational/PROFILE.md.",
+        "reason": "Mistura quatro exigências (Flask nomeado, psycopg, yoyo/Alembic, Docker) numa só; o veredito depende de quão literal o grader lê. Vale separar em 'cita PROFILE.md e a frase de preservar', 'afirma que Alembic/troca de migration tool não é exigida' e 'afirma que Docker não é exigido'."
+      },
+      {
+        "reason": "O PROFILE.md do pack fica presente e legível no fixture (work/.forge/capabilities/), então o baseline sem skill chega à mesma conclusão só lendo o pack; o caso mede pouco o efeito da skill capability-dispatcher. Um fixture em que a recusa dependa de um limite que só a SKILL.md enuncia (ex.: 'não converta sugestão em obrigação') discriminaria melhor."
+      }
+    ],
+    "overall": "Asserções 1-3 e 5 são verificáveis e corretas, mas não separam with_skill de without_skill; só a 4 discrimina, e na direção contrária (baseline mais completo)."
+  }
+}

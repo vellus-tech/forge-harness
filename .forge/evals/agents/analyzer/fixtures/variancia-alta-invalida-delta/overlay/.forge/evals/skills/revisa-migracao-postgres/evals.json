@@ -1,0 +1,47 @@
+{
+  "skill": "revisa-migracao-postgres",
+  "description": "Revisa migrações SQL de PostgreSQL quanto a lock, reversibilidade e tempo de bloqueio.",
+  "runner": "claude-code",
+  "test_cases": [
+    {
+      "id": "TC-01",
+      "prompt": "Revise a migração 20260920_add_status_idx.sql da tabela transacoes (180 milhões de linhas).",
+      "expectations": [
+        "Aponta o lock ACCESS EXCLUSIVE causado pelo ALTER TABLE",
+        "Sugere CREATE INDEX CONCURRENTLY em vez de CREATE INDEX",
+        "Exige migração reversível (down) ou justificativa escrita",
+        "Estima o tempo de bloqueio com base no tamanho da tabela informado"
+      ]
+    },
+    {
+      "id": "TC-02",
+      "prompt": "Essa migração que adiciona NOT NULL em cartoes.bin é segura para rodar em produção?",
+      "expectations": [
+        "Aponta o lock ACCESS EXCLUSIVE causado pelo ALTER TABLE",
+        "Sugere CREATE INDEX CONCURRENTLY em vez de CREATE INDEX",
+        "Exige migração reversível (down) ou justificativa escrita",
+        "Estima o tempo de bloqueio com base no tamanho da tabela informado"
+      ]
+    },
+    {
+      "id": "TC-03",
+      "prompt": "dá uma olhada no V87__recria_fk_operadora.sql antes de eu subir, tabela viagens tem uns 60 mi",
+      "expectations": [
+        "Aponta o lock ACCESS EXCLUSIVE causado pelo ALTER TABLE",
+        "Sugere CREATE INDEX CONCURRENTLY em vez de CREATE INDEX",
+        "Exige migração reversível (down) ou justificativa escrita",
+        "Estima o tempo de bloqueio com base no tamanho da tabela informado"
+      ]
+    },
+    {
+      "id": "TC-04",
+      "prompt": "Revisa pra mim o script de migração que troca o tipo de valor_centavos de integer para bigint em pagamentos.",
+      "expectations": [
+        "Aponta o lock ACCESS EXCLUSIVE causado pelo ALTER TABLE",
+        "Sugere CREATE INDEX CONCURRENTLY em vez de CREATE INDEX",
+        "Exige migração reversível (down) ou justificativa escrita",
+        "Estima o tempo de bloqueio com base no tamanho da tabela informado"
+      ]
+    }
+  ]
+}

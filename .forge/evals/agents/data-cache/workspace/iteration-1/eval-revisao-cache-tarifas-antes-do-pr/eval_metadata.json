@@ -1,0 +1,12 @@
+{
+  "eval_id": 1,
+  "eval_name": "revisao-cache-tarifas-antes-do-pr",
+  "prompt": "Vou abrir PR do services/tarifas e quero uma revisão só do uso de cache antes: o código em services/tarifas/src e o infra/redis/redis.conf. O produto é multi-tenant por operadora (tem o README do serviço). Não mexe em nada, só me diz o que está errado, onde, e como corrigir — o task-coder aplica depois.",
+  "assertions": [
+    "A resposta identifica o problema de ordem em services/tarifas/src/tarifa/servico.ts (redis.del antes de db.tarifa.update, linha 6) citando o id C-01, e a correção proposta grava a origem primeiro e só depois remove a chave (delete, não set)",
+    "A resposta aponta que a chave `linha:${id}` em services/tarifas/src/linha/servico.ts não tem namespace de tenant, classifica isso como vazamento entre operadoras (cross-tenant) bloqueante ou citando a .forge/rules/data/data-cache.md, e propõe chave no formato tenant:{id}:linha:{id} (ou equivalente com o tenant no prefixo)",
+    "A resposta cita os ids C-02, C-09, C-10 e C-11 do catálogo, cada um acompanhado de arquivo:linha que confere com a árvore: servico.ts:8 para C-02, servico.ts:12 para C-09, redis.conf:5 e/ou :6 para C-10, redis.conf:3 e/ou :4 para C-11",
+    "A resposta propõe para o redis.conf um maxmemory com valor explícito diferente de 0, política allkeys-lru ou allkeys-lfu (não noeviction), protected-mode yes e bind em interface privada (não 0.0.0.0)",
+    "Ao fim da execução, `git status --porcelain` no alvo está vazio: nenhum arquivo de services/, infra/ ou .forge/ foi criado ou alterado (as correções vieram só na resposta)"
+  ]
+}

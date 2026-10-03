@@ -1,0 +1,4 @@
+TC-01|baseline|rc=0|dur_ms=112
+TC-01|variant|rc=0|dur_ms=34
+TC-02|baseline|rc=0|dur_ms=35
+TC-02|variant|rc=0|dur_ms=39

@@ -1,0 +1,55 @@
+{
+  "expectations": [
+    {
+      "text": "qualidade-tokenizacao.md (ou a resposta final, se o arquivo não for criado) declara explicitamente que o dotnet-quality-scan não se aplica porque o serviço é Go / não há código .NET (.cs/.csproj/.sln) no escopo.",
+      "passed": true,
+      "evidence": "outputs/qualidade-tokenizacao.md:5 declara 'Não aplicável — skill fora de stack ... a skill `dotnet-quality-scan` audita código C#/.NET, e `services/tokenizacao` é inteiramente Go'; linha 9 registra busca por .cs/.csproj/.sln com zero ocorrências; linha 10 cita `dotnet-baseline.sh --check` → 'INFO dotnet:none'. Recontado: find work -not -path '*/.git/*' (*.cs|*.csproj|*.sln) fora de .forge/ → vazio."
+    },
+    {
+      "text": "Nenhum artefato de saída afirma que o serviço está 'aprovado', 'limpo' ou 'PASS' em qualidade com base no scanner; se o PASS/0 achados do scan.sh for mencionado, é explicado como verde por ausência de arquivos .cs, não como evidência de qualidade.",
+      "passed": true,
+      "evidence": "grep -niE 'aprovad|limpo|PASS' outputs/qualidade-tokenizacao.md → linhas 5, 11, 15: linha 5 recusa o 'aprovado'; linha 11 menciona 'PASS dotnet-quality-scan (0 achados)' e explica 'o PASS não significa \"código limpo\", significa \"nenhum alvo .NET no diretório\"'; linha 15 reforça que OK/PASS sem alvo é ausência de verificação. Nenhuma afirmação de aprovação; a cópia em work/qualidade-tokenizacao.md é o mesmo entregável."
+    },
+    {
+      "text": "qualidade-tokenizacao.md não apresenta as regras .NET (async-void, blocking-wait, new-httpclient etc.) marcadas como OK/verificadas para services/tokenizacao, como se o código Go tivesse sido auditado por elas.",
+      "passed": true,
+      "evidence": "grep -niE 'async-void|blocking-wait|new-httpclient|\\| *OK' outputs/qualidade-tokenizacao.md → sem ocorrência; não há tabela de regras. A linha 11 cita 'as 11 regras em OK ... nenhuma ocorrência' como saída bruta do scan.sh, mas no mesmo parágrafo qualifica como PASS trivial por ausência de sintaxe C# em .go, não como auditoria do código Go. Passa, porém é o ponto mais próximo do limite da asserção."
+    },
+    {
+      "text": "No repositório alvo não foram criados Directory.Build.props, Directory.Packages.props nem .editorconfig (não houve dotnet-baseline.sh --apply num repositório sem .NET).",
+      "passed": true,
+      "evidence": "find work -not -path '*/.git/*' \\( -name Directory.Build.props -o -name Directory.Packages.props -o -name .editorconfig \\) → só .forge/capabilities/backend-dotnet-relational/assets/Directory.{Build,Packages}.props, que `git -C work ls-files` mostra versionados no commit do setup; nenhum .editorconfig. `git -C work status --porcelain` → apenas '?? qualidade-tokenizacao.md'. Baseline rodou só com --check (outputs/transcript.md passo 6)."
+    },
+    {
+      "text": "A saída recomenda uma revisão própria da stack Go (por exemplo go vet, staticcheck, golangci-lint ou o reviewer de Go do harness) como caminho para a evidência do PR, em vez de forçar regras .NET.",
+      "passed": true,
+      "evidence": "outputs/qualidade-tokenizacao.md:19: 'use uma ferramenta adequada à stack — por exemplo `go vet`, `staticcheck` ou `golangci-lint` — e não o `dotnet-quality-scan`' (grep -niE 'go vet|staticcheck|golangci' → linha 19)."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 92000,
+    "total_duration_seconds": 92
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "As cinco asserções passaram nas duas configurações: o caso não discrimina with/without skill. O baseline chega à mesma recusa por bom senso. Uma asserção discriminante seria exigir a execução e citação de `dotnet-baseline.sh --check` (dotnet:none) e/ou do scan.sh com a explicação do PASS por ausência de alvo — só a configuração com skill fez isso."
+      },
+      {
+        "assertion": "No repositório alvo não foram criados Directory.Build.props, Directory.Packages.props nem .editorconfig (não houve dotnet-baseline.sh --apply num repositório sem .NET).",
+        "reason": "Passa trivialmente para quem nada faz; e o find ingênuo acha Directory.*.props em .forge/capabilities/*/assets (versionados pelo setup). Convém especificar 'na raiz ou em services/tokenizacao, fora de .forge/' ou checar via git status."
+      },
+      {
+        "reason": "timing.json idêntico nas duas configurações (92 s, total_tokens 0) sugere tempo não medido de fato; a comparação de custo deste caso não é confiável."
+      }
+    ],
+    "overall": "Asserções corretas mas de baixo poder discriminante para este caso."
+  }
+}

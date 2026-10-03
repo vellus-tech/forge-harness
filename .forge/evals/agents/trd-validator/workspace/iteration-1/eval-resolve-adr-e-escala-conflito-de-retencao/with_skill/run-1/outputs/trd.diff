@@ -1,0 +1,50 @@
+diff --git a/docs/product/trd/trd.md b/docs/product/trd/trd.md
+index b4d5d75..8c259b9 100644
+--- a/docs/product/trd/trd.md
++++ b/docs/product/trd/trd.md
+@@ -5,6 +5,7 @@
+ | Versão | Data | Descrição |
+ |---|---|---|
+ | v0.1 | 2026-09-02 | Primeira versão para revisão |
++| v0.2 | 2026-09-26 | Ajustes aplicados pelo TRD Validator: realinhamento da chamada síncrona validacao-api → tarifacao-svc a gRPC/contrato .proto (ADR-0002); registro do conflito de retenção NFRD-RET-01 (5 anos) x Data Model (24 meses) como ponto a validar, sem decidir por conta própria. |
+ 
+ ## 1. Introdução
+ 
+@@ -42,7 +43,7 @@ Microsserviços por bounded context, banco por contexto (ADR-0001), eventos de d
+ 
+ | API | Produtor | Consumidor | Protocolo | Autenticação |
+ |---|---|---|---|---|
+-| `POST /internal/v1/tarifas/calcular` | tarifacao-svc | validacao-api | REST/JSON sobre HTTP | API key interna |
++| `tarifas.v1.TarifaService/Calcular` | tarifacao-svc | validacao-api | gRPC (contrato `.proto` versionado, dono: tarifacao-svc) | mTLS entre serviços (ADR-0002; seção 12) |
+ | `GET /v1/extrato` | validacao-api | App do passageiro | REST | OAuth2 (token do app) |
+ 
+ ## 9. Arquitetura de Eventos e Mensageria
+@@ -54,7 +55,7 @@ Microsserviços por bounded context, banco por contexto (ADR-0001), eventos de d
+ 
+ ## 10. Arquitetura de Dados
+ 
+-Cada módulo escreve apenas no próprio banco (ADR-0001). `validacoes` retida por 24 meses com expurgo mensal automático, conforme Data Model. Nenhuma tabela armazena PAN.
++Cada módulo escreve apenas no próprio banco (ADR-0001). Retenção de `validacoes`: NFRD-RET-01 exige 5 anos para auditoria das operadoras, mas o Data Model (revisão do time de dados de 2026-09-18) define 24 meses com expurgo mensal automático — os dois insumos conflitam e este TRD não decide qual prevalece; ver Ponto a Validar VAL-TRD-01. Nenhuma tabela armazena PAN.
+ 
+ ## 11. Arquitetura de Integração
+ 
+@@ -93,7 +94,7 @@ Plantão da equipe de plataforma em horário comercial.
+ ```mermaid
+ flowchart LR
+   V[Validador] -->|token| API[validacao-api]
+-  API -->|REST/JSON| TAR[tarifacao-svc]
++  API -->|gRPC| TAR[tarifacao-svc]
+   TAR -->|TarifaCalculada.v1| LIQ[liquidacao-worker]
+ ```
+ 
+@@ -116,7 +117,9 @@ flowchart LR
+ 
+ ## 22. Pontos a Validar
+ 
+-Nenhum registrado.
++| Código | Ponto | Origem | Impacto | Recomendação |
++|---|---|---|---|---|
++| VAL-TRD-01 | Retenção de `validacoes`: NFRD-RET-01 exige 5 anos para auditoria das operadoras; o Data Model (revisão do time de dados de 2026-09-18) define 24 meses com expurgo mensal automático. Os insumos conflitam entre si. | NFRD-RET-01 vs Data Model | Bloqueia a decisão final de arquitetura de dados/expurgo de `validacoes`; decidir incorretamente pode comprometer a auditoria contratual com as operadoras ou reter dado pessoal além do necessário (LGPD). | Levar ao comitê de arquitetura de segunda para decisão de stakeholder (produto + compliance + time de dados) antes de fechar a retenção; até lá, tratar 24 meses como não confirmado. |
+ 
+ ## 23. Anexos
+ 

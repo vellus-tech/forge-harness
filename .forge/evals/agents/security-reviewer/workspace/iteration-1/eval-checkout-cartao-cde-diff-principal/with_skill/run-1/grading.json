@@ -1,0 +1,59 @@
+{
+  "expectations": [
+    {
+      "text": "review/security-reviewer.json é JSON válido com \"reviewer\": \"security-reviewer\" e array \"findings\"; todo finding tem id no padrão ^SEC-\\d{3}$, severity em {BLOCKER, HIGH, MEDIUM, LOW}, \"category\": \"security\" e os campos file, fix_suggested, rule_violated e confidence preenchidos",
+      "passed": true,
+      "evidence": "Comando: jq '.reviewer==\"security-reviewer\" and (.findings|type==\"array\") and all(.findings[]; id ~ ^SEC-\\d{3}$, severity ∈ {BLOCKER,HIGH,MEDIUM,LOW}, category==\"security\", file/fix_suggested/rule_violated/confidence não vazios)' work/review/security-reviewer.json → true. 8 findings SEC-001..SEC-008; cópia idêntica em outputs/work/review/security-reviewer.json (cmp sem diferença)."
+    },
+    {
+      "text": "Há finding com severity BLOCKER cujo file termina em Checkout/CreateCheckoutHandler.cs e que aponta o LogInformation registrando CPF e/ou número do cartão (CardNumber/PAN) sem mascaramento",
+      "passed": true,
+      "evidence": "SEC-001 severity BLOCKER, file services/payment/src/Payment.Application/Checkout/CreateCheckoutHandler.cs; description: '_logger.LogInformation registra cmd.CustomerCpf e cmd.CardNumber (PAN) em texto claro'. Confere com a linha 21 do fonte (cpf={Cpf} cartao={CardNumber}). Ressalvas: o finding aponta line 19 (real: 21) e o title diz 'PAN, CVV e CPF em log', mas o CVV não está no log (a própria description admite)."
+    },
+    {
+      "text": "Há finding com severity BLOCKER em Payment.Infrastructure/PaymentRepository.cs apontando que o PAN (card_number/cardNumber) é gravado em coluna sem tokenização, citando PCI DSS ou tokenização no title, description, fix_suggested ou rule_violated",
+      "passed": true,
+      "evidence": "SEC-002 BLOCKER em services/payment/src/Payment.Infrastructure/PaymentRepository.cs, title 'PAN (card_number) persistido em coluna não-tokenizada', rule_violated '.forge/rules/architecture/security-and-compliance.md § PCI DSS', fix_suggested propõe token-vault. Ressalva: line 22, mas o INSERT com card_number está na linha 16."
+    },
+    {
+      "text": "Há finding BLOCKER em PaymentRepository.cs pela concatenação de merchantId na query SQL (SQL injection) E finding BLOCKER em Payment.Api/appsettings.json pela ApiKey do adquirente versionada",
+      "passed": true,
+      "evidence": "SEC-003 BLOCKER em PaymentRepository.cs, 'SQL Injection em ListByMerchantAsync (concatenação de string)' (fonte linha 23: \"... WHERE merchant_id = '\" + merchantId + \"'\"); SEC-006 BLOCKER em services/payment/src/Payment.Api/appsettings.json, 'API key do adquirente hardcoded em appsettings.json' (fonte linha 5: \"ApiKey\")."
+    },
+    {
+      "text": "Em Payment.Api/Program.cs há finding BLOCKER para ValidateAudience = false e o finding sobre ClockSkew = TimeSpan.FromMinutes(5) tem severity HIGH (não BLOCKER, não MEDIUM/LOW)",
+      "passed": true,
+      "evidence": "SEC-004 BLOCKER em services/payment/src/Payment.Api/Program.cs, 'ValidateAudience desligado no JWT' (fonte linha 14); SEC-005 severity HIGH, mesmo arquivo, 'ClockSkew alterado de Zero para 5 minutos sem ADR' (fonte linha 16)."
+    },
+    {
+      "text": "Nenhum finding trata do cálculo de desconto (DiscountPercent / 10) em CreateCheckoutHandler.cs, e `git -C <alvo> status --porcelain -- services/` sai vazio",
+      "passed": true,
+      "evidence": "Nenhum finding reporta a divisão por 10 (fonte CreateCheckoutHandler.cs:24 'cmd.Amount * cmd.DiscountPercent / 10'). grep -ci 'desconto|discount' no JSON = 2 ocorrências, ambas em SEC-007 (validação de input: 'DiscountPercent negativo ou fora de faixa'), que trata de ausência de validação, não do cálculo — contado como PASS, mas é o limite. git -C with_skill/run-1/work status --porcelain -- services/ → saída vazia."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Nenhum finding trata do cálculo de desconto (DiscountPercent / 10) em CreateCheckoutHandler.cs, e `git -C <alvo> status --porcelain -- services/` sai vazio",
+        "reason": "A menção a DiscountPercent em SEC-007 (validação de faixa) passou; se a intenção é proibir qualquer finding envolvendo desconto, a asserção deve dizer isso; se é só o bug /10, deveria buscar '/ 10' ou 'divis'."
+      },
+      {
+        "reason": "Nenhuma asserção confere o campo line; o with_skill erra a linha em 4 de 6 findings principais (ex.: SEC-002 line 22 vs 16 real), o que degrada o consumo pelo code-evaluator. Vale uma asserção de line dentro de ±1 da linha real."
+      },
+      {
+        "reason": "Nenhuma asserção pune título factualmente errado: SEC-001 do with_skill diz 'PAN, CVV e CPF em log' e o CVV não é logado."
+      }
+    ],
+    "overall": "As asserções 2-5 discriminam principalmente pela escala de severidade do contrato (BLOCKER vs critical); o without_skill encontrou os mesmos 6 problemas, então o ganho medido é de conformidade de contrato, não de detecção."
+  },
+  "timing": {
+    "executor_duration_seconds": 106,
+    "total_duration_seconds": 106
+  }
+}

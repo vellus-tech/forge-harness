@@ -1,0 +1,13 @@
+{
+  "eval_id": 2,
+  "eval_name": "borda-evento-java-pan-governanca-nao-verificada",
+  "prompt": "Vamos registrar o schema do evento PagamentoAprovado no schema registry amanhã. Revise o contrato em src/main/resources/avro/PagamentoAprovado.avsc, o publicador e o listener em src/main/java e o application.yml, e me diga se posso registrar como está. O projeto é Spring Boot 3.3 com RabbitMQ.",
+  "assertions": [
+    "O transcript mostra `check-data-governance.sh --path` sobre src/main (ou subpaths) com saída `universo-vazio`, e a resposta diz explicitamente que PAN/PII não foi verificado por esse verificador (projeto Java), sem apresentar esse resultado como aprovação, como 'limpo' nem como conflito",
+    "A resposta cita o id T-02 para o campo `pan` com a localização src/main/resources/avro/PagamentoAprovado.avsc:7 e recomenda substituí-lo por token, dizendo que fila, DLQ ou tópico são armazenamento persistente (escopo PCI)",
+    "A resposta trata `nomeTitular` e `cpfTitular` como dado pessoal (LGPD) e recomenda removê-los ou pseudonimizá-los com chave substituta ou HMAC com chave em KMS, e não com hash sem chave",
+    "A resposta aponta `valor` como double no schema e no publicador (`doubleValue()`) e recomenda inteiro (long/int64) em centavos, citando a rule money-as-cents do projeto",
+    "A resposta cita o id RMQ-AP-28 para o application.yml sem `default-requeue-rejected: false` e explica que, no Spring AMQP, a exceção no listener volta a mensagem à fila em laço por padrão",
+    "A resposta conclui que o schema não deve ser registrado como está, e `git status --porcelain` na fixture está vazio ao fim"
+  ]
+}

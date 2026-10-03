@@ -1,0 +1,7 @@
+version: 2
+sources:
+  - name: app
+    schema: bilhetagem_app
+    tables:
+      - name: recargas
+      - name: passageiros

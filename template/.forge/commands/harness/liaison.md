@@ -60,6 +60,9 @@ bash .forge/scripts/liaison-ops.sh ack <channel> <msg_id> [--subject "<txt>"] \
 # consultar
 bash .forge/scripts/liaison-ops.sh inbox  <channel> [--thread <id>]   # não lido por thread
 bash .forge/scripts/liaison-ops.sh read   <channel> --upto <msg_id>   # avança o cursor local
+# reparo manual de acks anteriores à issue #105 (ack não avançava cursor nenhum): rode `read
+# --upto <msg_id>` para cada mensagem já ackada que ficou como não lida — é o mesmo comando que
+# um `ack` de hoje já dispara sozinho quando o cursor consegue avançar
 bash .forge/scripts/liaison-ops.sh status [<channel>]                 # one-line + posições retidas
 bash .forge/scripts/liaison-ops.sh conflicts list <channel>          # o que está retido, e o que fazer
 bash .forge/scripts/liaison-ops.sh conflicts resolve <channel> <sender> <seq>  # republica em seq novo
@@ -116,6 +119,10 @@ cara de funcionando.
 **`conflicts list` enumera o que está retido e `conflicts resolve` traz o conteúdo de volta.** O conteúdo de uma posição retida NUNCA entra no log local: para quem recebe, ele simplesmente não existe. `resolve` o republica numa sequência nova do seu próprio log — o único caminho legítimo num log append-only — com `authored_by` do autor real e `resolves` apontando a posição de origem, e sempre como `note`: reemitir um `ack` ou um `contract-change` como se fosse seu falsificaria autoria de decisão, e a cobrança de ack conta exatamente isso. Republicar não corrige a divergência (só a origem pode), e republicar duas vezes é recusado.
 
 **`status` e `render` NOMEIAM as posições retidas por divergência** — remetente, `seq` e `msg_id`, uma linha por posição, além do contador. Um remetente calado é indistinguível de um remetente quieto, e um total agregado esconde exatamente isso: a réplica parece saudável enquanto uma fatia do canal não chega. Se aparecer alguma linha `! quarentena por divergência`, a ação é na ORIGEM (restaurar a linha reescrita, ou republicar o conteúdo com `seq` novo) — a réplica não tem como decidir qual versão é a verdadeira.
+
+**`ack` avisa quando publica mas o cursor não avança** (issue #108) — `WARN: ack publicado, mas o cursor não avançou (<motivo>)` em stderr, com `rc 0`: o ack em si já é um ato de protocolo PUBLICADO no log antes desse efeito colateral rodar, então falhar o comando reportaria erro num ato que funcionou. O reparo manual é o `read --upto <msg_id>` do bloco de comandos acima. **O `doctor` nomeia quando `liaison-ops.sh status` falha**, em vez de sumir com a seção inteira: `✗ harness: LIAISON: status falhou — <primeira linha do erro>`. Cursores anteriores a essa correção que nunca avançaram (a issue #105 introduziu o avanço automático; até o #108, o `catch` que hoje avisa ficava vazio e engolia a falha em silêncio) não são reparados por esta mudança — é passivo retroativo, a medir em campo antes de decidir um reparo automático.
+
+**`status` distingue mensagem ENVIADA de mensagem PUBLICADA** (issue #109) — `· N própria(s) não publicada(s)` aparece quando o log próprio tem mensagens depois da marca do último `sync` bem-sucedido; `send` sozinho nunca publica nada, só grava localmente. Depois de um `sync` com push, a linha soma um `(há Xmin)` medido contra `published_at` (carimbo de hora do PUSH, wall clock deliberado) — nunca contra `created_at` (data do HEAD do commit, determinística e alheia a quando o push de fato aconteceu). Sem nenhum `sync` prévio, a linha aparece sem o parêntese: não há carimbo contra o que medir. É o mesmo motivo do item acima aplicado à outra ponta do protocolo — sem esta marca, uma mensagem `send`ada e esquecida (sessão encerrada antes do `sync`, transporte indisponível) ficava sem aviso nenhum, e o remetente acreditava que a contraparte já via algo que nunca saiu da árvore local.
 
 ## Regras de import (o que protege o canal de um peer malicioso ou corrompido)
 

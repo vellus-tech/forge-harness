@@ -1,0 +1,23 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-pill);
+}
+
+.success {
+  background: #E6F4EA;
+  color: var(--success);
+}
+
+.warning {
+  background: #FFF4E0;
+  color: var(--warning);
+}
+
+.neutral {
+  background: var(--n-100);
+  color: var(--n-700);
+}

@@ -1,0 +1,91 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta aponta o id N-07 citando conta-repository.ts com as linhas 19 e 25 (formato arquivo:linha ou equivalente inequívoco) e recomenda write concern majority explícito E substituir o árbitro por um segundo secundário (topologia P-S-S), relacionando o árbitro do README ao risco de perda de escrita",
+      "passed": false,
+      "evidence": "A revisão não cita o id N-07 (nenhum id de catálogo aparece), não dá arquivo:linha (\"`registrarLancamento` grava com `writeConcern: { w: 1 }`\", sem :19/:25) e recomenda só `w: 'majority'`; não recomenda substituir o árbitro por segundo secundário (P-S-S) — apenas explica que \"o árbitro não guarda dado\"."
+    },
+    {
+      "text": "A resposta aponta o uso de Decimal128 (id N-21 ou citação da money-as-cents.md) e recomenda armazenar valor como inteiro de 64 bits na menor unidade (Int64/NumberLong/long em centavos); a resposta NÃO recomenda Decimal128 nem double/number de ponto flutuante como correção",
+      "passed": false,
+      "evidence": "Não cita N-21 nem money-as-cents.md e não recomenda Int64/Long em centavos como correção: propõe consertar a conversão para `Decimal128` via string e admite \"se a decisão é `Decimal128`, `saldo` também deveria ser `Decimal128`\" — ou seja, Decimal128 é oferecido como correção válida; a menção a \"`number`/`Long`\" é condicional. Reprova nas duas pernas."
+    },
+    {
+      "text": "A resposta aponta a coleção interpolada contas_${tenant} como antipattern (N-03 ou equivalente) e recomenda as três coisas juntas: coleção única com campo tenant obrigatório, filtro de tenant injetado no repositório/interceptor e índice composto começando por tenant; e aponta que movimentos/extrato são lidos ou gravados sem tenant",
+      "passed": false,
+      "evidence": "Aponta `contas_${tenant}` e recomenda \"uma única coleção `contas` com campo `tenant` indexado (índice composto `{ tenant: 1, _id: 1 }`)\" e aponta `movimentos`/`extrato` sem tenant. Falta a terceira perna exigida: filtro de tenant injetado no repositório/interceptor para toda query — só propõe o filtro pontual em `extrato`; também não diz campo tenant obrigatório. Na dúvida, reprova."
+    },
+    {
+      "text": "A resposta aponta o $push de lancamentos sem teto (N-01 ou limite de 16 MiB do documento) e propõe tirar os lançamentos do array ilimitado (documento por lançamento em coleção própria ou bucket com teto), não apenas acrescentar $slice que descartaria lançamentos contábeis",
+      "passed": true,
+      "evidence": "§4: \"`$push: { lancamentos: lanc }` ... sem limite ... esbarra no limite de 16 MB por documento\"; \"Trocar por lançamentos em coleção própria (`lancamentos`, um documento por lançamento, com `contaId`/`tenant` indexados) — o padrão de 'bucket' ... é uma alternativa\". Não propõe `$slice`."
+    },
+    {
+      "text": "A resposta recomenda readConcern snapshot (ou majority) em lugar de local na transação de transferir E withTransaction ou retry próprio de UnknownTransactionCommitResult/TransientTransactionError no commit",
+      "passed": true,
+      "evidence": "§1: \"Trocar por `readConcern: { level: 'snapshot' }` ... combinado com `writeConcern: 'majority'`\" e \"não há o retry recomendado pelo driver para `TransientTransactionError`/`UnknownTransactionCommitResult`. Trocar por um wrapper padrão ... com retry nos dois pontos (execução e commit)\"."
+    },
+    {
+      "text": "Após a execução, `git -C <alvo> status --porcelain` sai vazio: nenhum arquivo do alvo foi criado ou alterado, e o código corrigido aparece só na resposta",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work status --porcelain` saiu vazio (medido pelo grader); `git log` mostra só o commit do fixture (c0fe42d); fragmentos de correção (wrapper try/catch/finally, construção de string sem divisão flutuante, filtro `{ tenant, origem: contaId }`, validação `Number.isInteger`) aparecem só em outputs/revisao-ledger-cobranca.md."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  },
+  "timing": {
+    "executor_duration_seconds": 125,
+    "total_duration_seconds": 125
+  },
+  "execution_metrics": {
+    "output_chars": 14255
+  },
+  "claims": [
+    {
+      "claim": "`transferir` não confere se a conta destino existe (matchedCount)",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Linha 37: updateOne no destino sem checagem do retorno."
+    },
+    {
+      "claim": "Sessão nunca é encerrada (sem endSession)",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Nenhum endSession no arquivo."
+    },
+    {
+      "claim": "conta-repository.ts tem 44 linhas",
+      "type": "factual",
+      "verified": false,
+      "evidence": "O arquivo tem 43 linhas (cat -n)."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Após a execução, `git -C <alvo> status --porcelain` sai vazio: nenhum arquivo do alvo foi criado ou alterado, e o código corrigido aparece só na resposta",
+        "reason": "A cláusula 'o código corrigido aparece só na resposta' é ambígua: as duas configurações entregaram só fragmentos, e o expected_output diz 'O código corrigido vai na resposta'. Se a intenção é exigir o arquivo corrigido completo, torne isso uma asserção separada; do contrário, a asserção mede só status vazio e passa trivialmente para qualquer resposta que não use Write."
+      },
+      {
+        "assertion": "A resposta aponta o uso de Decimal128 (id N-21 ou citação da money-as-cents.md) e recomenda armazenar valor como inteiro de 64 bits na menor unidade (Int64/NumberLong/long em centavos); a resposta NÃO recomenda Decimal128 nem double/number de ponto flutuante como correção",
+        "reason": "A asserção decidiu o caso (with_skill recomendou `number` com long opcional). Vale explicitar no agente/skill que em TypeScript o tipo correto é Long/bigint serializado como Int64, porque `number` é a saída natural do modelo e é double no BSON acima de int32."
+      },
+      {
+        "reason": "Nenhuma asserção cobre achados que o baseline trouxe e a skill não: `transferir` não confere matchedCount do destino (crédito some), ausência de idempotência e de dupla entrada, saldo dissociado de lancamentos. São achados reais de um ledger; se o catálogo os cobre, acrescente asserção; se não, é lacuna do artefato."
+      },
+      {
+        "reason": "O expected_output pede rodar check-data-governance e scan.sh, mas nenhuma asserção verifica isso; with_skill rodou os dois (o grader reproduziu o scan.sh numa cópia e os achados N-01/N-07/N-20/N-21/N-23 conferem)."
+      }
+    ],
+    "overall": "Asserções discriminam bem nos ids de catálogo e na topologia P-S-S; a asserção de árvore intacta é fraca e a de dinheiro pegou uma correção imprecisa do with_skill."
+  }
+}

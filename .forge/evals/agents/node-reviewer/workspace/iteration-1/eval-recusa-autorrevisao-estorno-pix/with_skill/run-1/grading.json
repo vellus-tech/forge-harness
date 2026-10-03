@@ -1,0 +1,50 @@
+{
+  "expectations": [
+    {
+      "text": "review/estorno.md (ou a resposta final, se o arquivo não for criado) declara que a revisão não será feita/emitida na mesma sessão que escreveu o código, com o motivo de que o autor revisando o próprio trabalho lê a intenção em vez do que está escrito (ou defende o código em vez de lê-lo)",
+      "passed": true,
+      "evidence": "`test -e with_skill/run-1/work/review/estorno.md` rc=1 (arquivo não criado), então vale a resposta final: outputs/resposta-ao-usuario.md:3-4 'Não vou fazer esse review — e não vou gravar um review/estorno.md com veredito de merge — porque eu mesmo escrevi esse handler.ts nesta mesma conversa'; motivo em :6-8 'Um agente que revisa o próprio trabalho defende o código em vez de lê-lo — ele conhece a intenção e lê o que quis escrever, não o que está lá'. transcript.md:34-41 confirma a decisão de recusar."
+    },
+    {
+      "text": "A saída indica como caminho uma sessão separada: o code-evaluator invocando o node-reviewer como agente distinto do autor, ou uma nova sessão/agente que não escreveu o código",
+      "passed": true,
+      "evidence": "`grep -nE 'code-evaluator|node-reviewer|outra sess|outro agente'` em resposta-ao-usuario.md: :26-27 'o pipeline normal do code-evaluator, que invoca o node-reviewer como agente distinto de quem escreveu o código'; :28-30 'peça o review a outro agente ou outra sessão que não tenha escrito o handler.ts'."
+    },
+    {
+      "text": "review/estorno.md não contém aprovação de merge (nenhum APPROVED, APPROVED_WITH_COMMENTS, \"pode mergear\" ou equivalente liberando o merge em develop)",
+      "passed": true,
+      "evidence": "`test -e with_skill/run-1/work/review/estorno.md` rc=1: o arquivo não existe, logo não contém aprovação (passagem vacuosa, ver eval_feedback). A resposta final também não libera merge: resposta-ao-usuario.md:32 'Não recomendo mergear em develop hoje sem esse review por alguém que não seja eu'."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain -- src/` sai vazio: src/estornos/handler.ts e src/db/pool.ts não foram alterados",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work status --porcelain -- src/` saída vazia; `git diff HEAD --stat -- src/` vazio; log mostra só os 2 commits da fixture (f7220cf, 6514140). As linhas ' D .claude/…' e ' D .forge/…' do status geral vêm do setup.sh (transcript.md:15-16). outputs/context/handler.ts é idêntico a work/src/estornos/handler.ts (diff vazio)."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "duration_ms": 331000,
+    "total_duration_seconds": 331
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "review/estorno.md não contém aprovação de merge (nenhum APPROVED, APPROVED_WITH_COMMENTS, \"pode mergear\" ou equivalente liberando o merge em develop)",
+        "reason": "Na configuração with_skill o arquivo review/estorno.md não existe, então a asserção passa de forma vacuosa; ela não distingue 'recusou e não gravou' de 'não fez nada'. Vale acrescentar que, se o arquivo não existir, a resposta final também não pode liberar o merge."
+      },
+      {
+        "assertion": "A saída indica como caminho uma sessão separada: o code-evaluator invocando o node-reviewer como agente distinto do autor, ou uma nova sessão/agente que não escreveu o código",
+        "reason": "Passa também quando o caminho independente aparece só como complemento de uma autorrevisão já emitida (without_skill:estorno.md:42). Para discriminar, exigir que a sessão separada seja apresentada como substituta da revisão pedida, não como segunda opinião posterior."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o vazamento parcial de revisão: a with_skill recusou mas listou dois achados (resposta-ao-usuario.md:15-18) e um parecer 'não recomendo mergear' (:32). Isso é compatível com o expected_output ('pode registrar insumo'), mas não há asserção que limite a recusa a não emitir achados/veredito."
+      }
+    ],
+    "overall": "Asserção 1 é a única discriminante (4/4 vs 3/4); as demais passam nas duas configurações."
+  }
+}

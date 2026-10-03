@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "Existe .forge/specs/active/aviso-saldo-baixo-push/epic_context.md com primeira linha '# Epic context — aviso-saldo-baixo-push' e os seis cabeçalhos do contrato (Objetivo, Decisões de design, Contratos externos, ADRs, Rules, Invariantes críticas); as seções ADRs e Rules estão vazias ou declaram explicitamente que o change não referencia nenhum.",
+      "passed": true,
+      "evidence": "Regrade 2026-09-28: work/.forge/specs/active/aviso-saldo-baixo-push/epic_context.md existe (git status: '?? .forge/specs/active/aviso-saldo-baixo-push/epic_context.md'), cópia idêntica em outputs/.forge/specs/active/aviso-saldo-baixo-push/epic_context.md (cmp ok); head -1 = '# Epic context — aviso-saldo-baixo-push'; grep -nE '^## ' casa exatamente Objetivo (l.5), Decisões de design (l.9), Contratos externos (l.13), ADRs (l.17), Rules (l.21), Invariantes críticas (l.25). ADRs l.19: 'Nenhum ADR está listado no spec-manifest.yaml nem referenciado em design.md (inexistente)'; Rules l.23: 'Nenhuma rule de .forge/rules/ é mencionada nos artefatos do change'."
+    },
+    {
+      "text": "O epic_context.md não menciona ADR-0018, Firebase, FCM nem a fila notificacoes.push — conteúdo que só existe na baseline (.forge/product/current/adr/) e em src/, fora dos artefatos do change.",
+      "passed": true,
+      "evidence": "grep -nE 'ADR-0018|Firebase|FCM|notificacoes\\.push' epic_context.md -> rc=1, nenhuma ocorrência; l.19 recusa explicitamente assumir o mecanismo de entrega 'a partir de contexto externo ao change'."
+    },
+    {
+      "text": "O epic_context.md não cita os símbolos enviarPushFcm nem LIMIAR_SALDO_PADRAO_CENTAVOS, que só existem em src/notificacoes/push.ts.",
+      "passed": true,
+      "evidence": "grep -nE 'enviarPushFcm|LIMIAR_SALDO_PADRAO_CENTAVOS' epic_context.md -> rc=1. Ressalva: l.11 cita genericamente 'convenções já existentes em src/notificacoes/' (vindo do prompt), sem símbolos de push.ts."
+    },
+    {
+      "text": "O epic_context.md não contém cerca de código (```) nem a assinatura 'deveAvisarSaldoBaixo(saldoCentavos' presente no bloco de código de tasks.md, e tem no máximo 150 linhas.",
+      "passed": true,
+      "evidence": "grep -nF '```' -> rc=1; grep -nF 'deveAvisarSaldoBaixo(saldoCentavos' -> rc=1; wc -l = 30 (<= 150)."
+    },
+    {
+      "text": "Fora das remoções feitas pelo setup, o único arquivo novo ou alterado no projeto é o epic_context.md do change: não foi criado design.md nem qualquer outro arquivo, e spec-manifest.yaml, proposal.md, requirements.md e tasks.md ficam idênticos ao commit da fixture.",
+      "passed": true,
+      "evidence": "git -C work log: único commit 11a9640 'fixture: estado inicial'; git -C work status --porcelain --untracked-files=all, excluídas as deleções do setup (.forge/skills, .forge/agents, .claude/skills, .claude/agents, plugin), retorna só '?? .forge/specs/active/aviso-saldo-baixo-push/epic_context.md'; --ignored sem entradas '!!'; git diff --exit-code -- .forge/specs/active/aviso-saldo-baixo-push/ rc=0; ls do change: epic_context.md, proposal.md, requirements.md, spec-manifest.yaml, tasks.md (sem design.md)."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 135000,
+    "total_duration_seconds": 135
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Fora das remoções feitas pelo setup, o único arquivo novo ou alterado no projeto é o epic_context.md do change: não foi criado design.md nem qualquer outro arquivo, e spec-manifest.yaml, proposal.md, requirements.md e tasks.md ficam idênticos ao commit da fixture.",
+        "reason": "Asserção 5 passa em ambas as configurações (não discrimina); é guarda de regressão útil, mas não mede o valor da skill."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que as invariantes críticas e o contrato externo foram extraídos corretamente de requirements/tasks; um epic_context com seções vazias passaria nas asserções 2-5."
+      }
+    ],
+    "overall": "Asserções 1-4 discriminam bem a contaminação por baseline/src; falta checar fidelidade positiva do conteúdo."
+  }
+}

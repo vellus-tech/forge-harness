@@ -1,0 +1,73 @@
+/* Blocos do app — layout derivado de ui_kits/rotaviva-app/RotavivaComponents.jsx (referência de
+   anatomia do handoff, não código de produção); estilos usam só tokens, nunca cor solta. */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-4) var(--s-2);
+  font-family: var(--font-ui);
+}
+.app-header img { height: 28px; width: 28px; }
+.app-header span { flex: 1; font-size: var(--fs-16); color: var(--fg); }
+.app-header button {
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: var(--fs-16);
+}
+.app-header button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+.balance-card h2 {
+  font-family: var(--font-display);
+  font-size: var(--fs-28);
+  color: var(--fg);
+  margin: var(--s-1) 0;
+}
+.balance-card small { color: var(--fg-muted); font-family: var(--font-ui); font-size: var(--fs-14); }
+.balance-card .btn { margin-top: var(--s-3); }
+
+.trip-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) 0;
+  font-family: var(--font-ui);
+  border-bottom: 1px solid var(--n-100);
+}
+.trip-row strong { display: block; font-size: var(--fs-14); color: var(--fg); }
+.trip-row small { color: var(--fg-muted); font-size: var(--fs-12); }
+.trip-row > span:last-child { margin-left: auto; }
+
+.shortcut-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  gap: var(--s-4);
+  padding: var(--s-4) 0;
+}
+.shortcut-grid button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+  border: 0;
+  background: var(--surface-muted);
+  border-radius: var(--r-md);
+  padding: var(--s-3);
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
+  color: var(--fg);
+}
+.shortcut-grid button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+.bottom-nav {
+  display: flex;
+  justify-content: space-around;
+  border-top: 1px solid var(--n-100);
+  padding: var(--s-3) 0;
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
+}
+.bottom-nav a { color: var(--fg-muted); cursor: pointer; }
+.bottom-nav a[aria-current="page"] { color: var(--brand); font-weight: 600; }
+.bottom-nav a:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }

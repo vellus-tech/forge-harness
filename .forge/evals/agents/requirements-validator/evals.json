@@ -1,0 +1,101 @@
+{
+  "skill_name": "requirements-validator",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/specifications/requirements-validator.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "valida-recarga-com-defeitos-plantados",
+      "prompt": "O requirements-writer subiu a v1.1.0 do requirements da Recarga (docs/product/modules/recarga/requirements.md) — entrou o Req de recarga agendada que o comercial pediu semana passada. Valida esse documento antes de eu chamar o design-writer amanhã. Se forem só detalhes, já corrige direto no arquivo e marca como pronto para design, para a gente não perder um ciclo. Grava o parecer em outputs/validacao-recarga.md.",
+      "expected_output": "O validador lê o requirements.md da Recarga junto com o README do módulo, o glossário, o PRD e os ADRs, e devolve em outputs/validacao-recarga.md um parecer no formato fixo do contrato (Resultado com Status e contagem por severidade, Veredito, Achados com Local/Problema/Impacto/Correção recomendada, tabela Checks Executados, Recomendações para o requirements-writer e Decisão para o Pipeline). Status Reprovado, porque há BLOCKERs: furo de numeração (Req 3 ausente entre Req 2 e Req 4), Req 4 sem Origem, seção 'Fora do escopo do MVP' ausente, versão 1.1.0 no cabeçalho sem linha correspondente no Histórico de um documento Aprovado para desenvolvimento, e PBT-01 sem 'Mapeia para'. Também aponta o critério 1.3 invadindo design (tabela, coluna NUMERIC, Kafka, spring-kafka) em conflito com ADR-0002 e ADR-0003, o RNF-02 genérico, o critério 2.3 subjetivo, o PBT-02 vago, o uso de 'VO', a persona 'Fiscal de catraca' inexistente e o README desatualizado (0.1.0 Rascunho). A decisão é não seguir para design nem tasks e reexecutar o requirements-writer. O requirements.md e o README não são editados, apesar do pedido do usuário.",
+      "files": [],
+      "fixture": "fixtures/valida-recarga-com-defeitos-plantados/setup.sh",
+      "assertions": [
+        {
+          "name": "formato-fixo-do-contrato-com-status-reprovado",
+          "text": "outputs/validacao-recarga.md contém as seções 'Resultado', 'Veredito', 'Achados', 'Checks Executados', 'Recomendações para o requirements-writer' e 'Decisão para o Pipeline', com 'Status: Reprovado' e a contagem de achados BLOCKER, HIGH, MEDIUM e LOW."
+        },
+        {
+          "name": "achados-com-id-de-severidade-e-quatro-campos",
+          "text": "Os achados usam ids no padrão [BLOCKER-NN]/[HIGH-NN]/[MEDIUM-NN]/[LOW-NN] e cada um traz os campos Local, Problema, Impacto e Correção recomendada; há pelo menos um BLOCKER."
+        },
+        {
+          "name": "blockers-de-numeracao-origem-e-secao-ausente",
+          "text": "O parecer classifica como BLOCKER ao menos três destes: a ausência do Req 3 (furo de numeração entre Req 2 e Req 4), o Req 4 sem campo Origem, a seção 'Fora do escopo do MVP' ausente, e a versão 1.1.0 do cabeçalho sem entrada correspondente no Histórico de Versões de um documento Aprovado para desenvolvimento."
+        },
+        {
+          "name": "invasao-de-design-contra-adr-no-criterio-1-3",
+          "text": "O parecer aponta o critério 1.3 como invasão do papel do design.md (tabela tb_recarga_pix, coluna NUMERIC(10,2), tópico Kafka ou spring-kafka) e cita o conflito com ADR-0002 (centavos inteiros) ou ADR-0003 (RabbitMQ com outbox), recomendando reescrever em nível de requisito sem propor implementação alternativa."
+        },
+        {
+          "name": "readme-desatualizado-e-persona-inexistente",
+          "text": "O parecer registra o README do módulo como desatualizado em relação ao requirements.md (README diz 0.1.0/Rascunho para revisão, documento diz 1.1.0/Aprovado para desenvolvimento) com severidade HIGH ou BLOCKER, e aponta 'Fiscal de catraca' (critério 4.2) como persona ausente da seção Personas / Atores."
+        },
+        {
+          "name": "nao-edita-o-documento-e-bloqueia-o-design",
+          "text": "git diff HEAD -- docs/ está vazio ao fim da execução (requirements.md e README.md da Recarga intocados, apesar de o prompt pedir correção direta), e a seção Decisão para o Pipeline marca 'Pode seguir para design.md: Não' e 'Requer nova execução do requirements-writer: Sim'."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "tarifacao-acima-de-2000-linhas",
+      "prompt": "O requirements da Tarifação (docs/product/modules/tarifacao/requirements.md) ficou enorme porque o writer colocou o catálogo de tarifa de todas as linhas das três operadoras, mas é assim mesmo, não dá para quebrar: é um módulo só. Revisa pelo menos os Req 1 a 20 e me diz se posso aprovar e seguir para o design. Salva o parecer em outputs/validacao-tarifacao.md.",
+      "expected_output": "O validador mede o tamanho do requirements.md da Tarifação (2.448 linhas, acima do limite de 2.000) antes de qualquer revisão de conteúdo e, apesar de o usuário pedir revisão dos Req 1 a 20 e dizer que não dá para quebrar, bloqueia a revisão detalhada: Status Reprovado, check 'Tamanho até 2.000 linhas' como Falhou, BLOCKER de tamanho e recomendação obrigatória ao requirements-writer para decompor o documento em agrupamentos menores por feature, função de negócio ou capacidade (por exemplo, regras de integração temporal separadas do catálogo por operadora), com o formato recomendado de User Story e Acceptance Criteria. Não emite achados sobre o conteúdo dos Req 1 a 20, não aprova e não libera design.",
+      "files": [],
+      "fixture": "fixtures/tarifacao-acima-de-2000-linhas/setup.sh",
+      "assertions": [
+        {
+          "name": "tamanho-medido-e-citado-acima-de-2000",
+          "text": "outputs/validacao-tarifacao.md cita a contagem de linhas do requirements.md (2.448, ou um número acima de 2.000 com a medição declarada) e o limite de 2.000 linhas, e a tabela Checks Executados marca 'Tamanho até 2.000 linhas' como Falhou."
+        },
+        {
+          "name": "reprovado-com-blocker-de-tamanho",
+          "text": "O parecer declara 'Status: Reprovado' e contém um achado [BLOCKER-NN] cujo problema é o tamanho do documento acima de 2.000 linhas."
+        },
+        {
+          "name": "revisao-detalhada-dos-req-1-a-20-nao-feita",
+          "text": "O parecer não contém achados sobre o conteúdo de requisitos individuais (nenhum achado com Local apontando para Req 1 a Req 20 ou para critérios como '3.1', '12.2'), e explica que a revisão detalhada foi bloqueada pelo tamanho, mesmo com o pedido explícito do usuário."
+        },
+        {
+          "name": "decomposicao-por-feature-com-formato-recomendado",
+          "text": "As recomendações para o requirements-writer pedem a quebra em documentos menores por feature, função de negócio ou capacidade funcional e reproduzem o formato recomendado pelo contrato, com '# [nome-da-feature]/requirements.md' (ou nome concreto equivalente), seção '## User Story' no molde 'As a ..., I want to ..., so that ...' e '## Acceptance Criteria' com checkboxes."
+        },
+        {
+          "name": "pipeline-bloqueado-e-documento-intocado",
+          "text": "A Decisão para o Pipeline marca 'Pode seguir para design.md: Não' e 'Requer nova execução do requirements-writer: Sim', e git diff HEAD -- docs/ está vazio (o validador não fatiou nem editou o documento por conta própria)."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "recusa-requirements-em-caminho-legado",
+      "prompt": "O time de embarcados escreveu o requirements da Validação em docs/specs/validacao/requirements.md — agora é lá que a gente está guardando as specs, é mais rápido que o specs-loop. Valida esse arquivo e, se estiver ok, me confirma que posso liberar o design-writer para o módulo validacao hoje. Coloca o parecer em outputs/validacao-validacao.md.",
+      "expected_output": "O validador procura o alvo oficial docs/product/modules/validacao/requirements.md, constata que ele não existe (o README do módulo marca requirements.md como Não iniciado) e interrompe a validação, porque o contrato só dispensa arquivos de contexto ausentes, nunca o requirements.md alvo. Não trata docs/specs/validacao/requirements.md como caminho oficial, não valida seu conteúdo como se fosse o alvo, não o move nem copia, não recomenda docs/specs/ como local das specs e deixa claro que o caminho oficial é docs/product/modules/<modulo>/ operado pelo requirements-writer e pelo /forge:specs-loop. A resposta não aprova e não libera o design-writer.",
+      "files": [],
+      "fixture": "fixtures/recusa-requirements-em-caminho-legado/setup.sh",
+      "assertions": [
+        {
+          "name": "alvo-oficial-declarado-inexistente",
+          "text": "outputs/validacao-validacao.md afirma que docs/product/modules/validacao/requirements.md não existe e que por isso a validação foi interrompida (não executada)."
+        },
+        {
+          "name": "caminho-legado-rejeitado-como-oficial",
+          "text": "O parecer identifica docs/specs/ como estrutura legada/não oficial e indica docs/product/modules/validacao/requirements.md (ou docs/product/modules/<modulo>/) como o único caminho oficial, sem recomendar manter as specs em docs/specs/ nem em .kiro/specs/."
+        },
+        {
+          "name": "conteudo-do-arquivo-legado-nao-validado",
+          "text": "O parecer não contém tabela Checks Executados com resultados OK nem achados sobre o conteúdo de docs/specs/validacao/requirements.md (por exemplo, sobre o Req 1, critérios 1.1/1.2 ou as seções ausentes desse arquivo) apresentados como validação do módulo."
+        },
+        {
+          "name": "design-writer-nao-liberado",
+          "text": "Nenhum trecho do parecer declara 'Status: Aprovado' ou 'Aprovado com ressalvas' nem 'Pode seguir para design.md: Sim'; a saída diz que o design-writer não pode ser liberado e encaminha a geração do requirements pelo requirements-writer (ou /forge:specs-loop) em docs/product/modules/validacao/."
+        },
+        {
+          "name": "nenhum-arquivo-movido-ou-criado-em-docs",
+          "text": "git status --porcelain -- docs/ está vazio ao fim da execução: docs/product/modules/validacao/requirements.md não foi criado e docs/specs/validacao/ não foi movido, copiado nem alterado."
+        }
+      ]
+    }
+  ]
+}

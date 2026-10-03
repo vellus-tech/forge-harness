@@ -1,0 +1,73 @@
+{
+  "expectations": [
+    {
+      "text": "outputs/summary.md registra explicitamente a divergência entre o pack backend-dotnet-relational (ProblemDetails e/ou EF Core) e a ADR-0004 e/ou ADR-0006, afirmando que a ADR prevalece.",
+      "passed": false,
+      "evidence": "outputs/summary.md:5 diz apenas que as ADRs 'divergem dos defaults usuais de um pack .NET' e 'restringem as opções' — não nomeia o pack backend-dotnet-relational (grep 'backend-dotnet' no summary: 0 ocorrências), não o carregou (transcript.md:5 só cita os packs como ativos no setup) e não afirma que a ADR prevalece sobre o pack; :7-8 justificam as escolhas pelas ADRs, sem registro de divergência pack×ADR com regra de precedência. Evidência genérica insuficiente para a asserção."
+    },
+    {
+      "text": "O código novo em services/billing-api responde 404 via InvoiceEndpoints.Error ou envelope {error:{code,message}}; nenhum arquivo do diff contém ProblemDetails, Results.Problem ou TypedResults.Problem, e o endpoint GET /invoices/{id:guid} existente não foi reescrito.",
+      "passed": true,
+      "evidence": "git diff de work/services/billing-api/src/Endpoints/InvoiceEndpoints.cs: novo MapGet '/invoices/{id:guid}/pdf-status' retorna 'Error(404, \"invoice_not_found\", \"Fatura não encontrada\")' (diff linha +16 do bloco, arquivo linha 38). Comando: git -C run-1/work diff -- services + cat 0003_*.sql | grep -cE 'ProblemDetails|Results\\.Problem|TypedResults\\.Problem' → 0; git diff -- services | grep -c '^-[^-]' → 0 (nenhuma linha removida, logo o GET /invoices/{id:guid} existente ficou intacto)."
+    },
+    {
+      "text": "Existe um novo script services/billing-api/db/scripts/0003_*.sql adicionando pdf_generated_at, e BillingApi.csproj não ganhou referência a Microsoft.EntityFrameworkCore nem surgiu DbContext ou pasta Migrations/ de EF.",
+      "passed": true,
+      "evidence": "Comando: ls work/services/billing-api/db/scripts → 0001, 0002, 0003_add_invoice_pdf_generated_at.sql; conteúdo linha 1: 'ALTER TABLE invoices ADD COLUMN pdf_generated_at timestamptz NULL;'. git diff --stat -- services/billing-api/src/BillingApi.csproj → vazio; grep -c EntityFrameworkCore BillingApi.csproj → 0; grep -rl DbContext work/services → nada; find work/services -type d -name Migrations → nada."
+    },
+    {
+      "text": "Nenhum arquivo sob web/checkout foi alterado e outputs/summary.md não declara ter carregado/aplicado o pack backend-node-postgres na mudança (pode mencioná-lo apenas como não aplicável à área).",
+      "passed": true,
+      "evidence": "Comando: git -C work status --short -- web → vazio. grep em outputs/summary.md por 'backend-node|Node': só :21 'Não toquei em web/checkout (Node/TS) — fora do escopo pedido'; nenhuma declaração de ter carregado/aplicado backend-node-postgres."
+    },
+    {
+      "text": "A query SQL do novo endpoint filtra por tenant_id além do id da fatura.",
+      "passed": true,
+      "evidence": "Comando: git -C work diff -- services | grep tenant_id → '+SELECT pdf_generated_at FROM invoices WHERE id = @id AND tenant_id = @tenantId' e a checagem '+SELECT EXISTS(SELECT 1 FROM invoices WHERE id = @id AND tenant_id = @tenantId)'; tenantId lido de X-Tenant-Id."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "timing": {
+    "executor_duration_seconds": 304,
+    "total_duration_seconds": 304
+  },
+  "claims": [
+    {
+      "claim": "Não tocou em web/checkout",
+      "type": "factual",
+      "verified": true,
+      "evidence": "git status -- web vazio."
+    },
+    {
+      "claim": "Segunda query EXISTS só quando o valor é nulo",
+      "type": "factual",
+      "verified": true,
+      "evidence": "diff: 'if (pdfGeneratedAt is null && !await conn.ExecuteScalarAsync<bool>(...EXISTS...))'."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O código novo em services/billing-api responde 404 via InvoiceEndpoints.Error ou envelope {error:{code,message}}; nenhum arquivo do diff contém ProblemDetails, Results.Problem ou TypedResults.Problem, e o endpoint GET /invoices/{id:guid} existente não foi reescrito.",
+        "reason": "Não discriminante: o baseline sem skill também passa, porque o fixture já traz InvoiceEndpoints.Error e as ADRs no baseline; qualquer agente que leia o arquivo vizinho acerta. Só mede leitura de código, não o dispatcher."
+      },
+      {
+        "assertion": "Existe um novo script services/billing-api/db/scripts/0003_*.sql adicionando pdf_generated_at, e BillingApi.csproj não ganhou referência a Microsoft.EntityFrameworkCore nem surgiu DbContext ou pasta Migrations/ de EF.",
+        "reason": "Idem: passa nas duas configurações; o padrão 0001/0002 guia sozinho. Útil como guarda de regressão, não como sinal de valor da skill."
+      },
+      {
+        "assertion": "Nenhum arquivo sob web/checkout foi alterado e outputs/summary.md não declara ter carregado/aplicado o pack backend-node-postgres na mudança (pode mencioná-lo apenas como não aplicável à área).",
+        "reason": "Trivialmente satisfeita por quem não sabe que packs existem (without_skill nunca abriu pack algum). Para discriminar, exigir que o summary declare positivamente qual pack foi carregado e por que o Node foi excluído."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o teste negativo de tenant (IDOR) exigido por rules/testing/change-test-contract.md; with_skill registrou a pendência explicitamente (summary.md:23), without_skill silenciou. É um diferencial real que não é pontuado."
+      }
+    ],
+    "overall": "Só a asserção 1 discrimina (1 de 5); o delta 5/5 vs 4/5 subestima/oculta o comportamento do protocolo. Considere endurecer a 4 e adicionar uma sobre pendência de teste de tenant."
+  }
+}

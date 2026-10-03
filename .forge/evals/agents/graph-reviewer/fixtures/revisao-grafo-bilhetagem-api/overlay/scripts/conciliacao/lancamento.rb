@@ -1,0 +1,1 @@
+Lancamento = Struct.new(:dados)

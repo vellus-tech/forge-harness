@@ -1,0 +1,56 @@
+{
+  "expectations": [
+    {
+      "text": "As subpastas de docs/product/modules/ (exceto diagrams/) são exatamente validacao-embarque-api, recarga-api, tokenizacao-cartao-adapter, tarifacao-lib, liquidacao-operadoras-worker e cadastro-passageiro-api, cada uma com README.md; não existe pasta para aggregates (viagem, cartao-transporte, tabela-tarifaria, pedido-recarga, lote-liquidacao, passageiro), para eventos (ex.: embarque-validado) nem para bounded contexts sem módulo próprio (ex.: tarifacao, validacao).",
+      "passed": true,
+      "evidence": "Comando: find work/docs/product/modules -mindepth 1 -maxdepth 1 -type d → exatamente as 6 pastas do Solution Module Map + diagrams, cada uma com README.md; nenhuma pasta de aggregate/evento/BC. outputs/modules é idêntico a work/docs/product/modules (diff -rq vazio)."
+    },
+    {
+      "text": "Todo docs/product/modules/<modulo>/README.md começa com '# Module - ' e contém os cabeçalhos '## 2. Classificação', '## 5. Fora de Escopo', '## 12. Dados Próprios', '## 16. Compliance Aplicável', '## 20. Pontos a Validar' e '## 22. Referências' (numeração e títulos do template do agente).",
+      "passed": false,
+      "evidence": "Nenhum README segue o template: primeira linha é o slug ('# cadastro-passageiro-api', '# tarifacao-lib' etc.), não '# Module - '; grep -F não encontra nenhum dos seis cabeçalhos ('## 2. Classificação', '## 5. Fora de Escopo', '## 12. Dados Próprios', '## 16. Compliance Aplicável', '## 20. Pontos a Validar', '## 22. Referências') em nenhum dos 6 módulos."
+    },
+    {
+      "text": "docs/product/modules/tarifacao-lib/README.md classifica o Tipo de Módulo como Shared Library ou Domain Package, indica que o deployable é a validacao-embarque-api (sem deploy próprio) e contém a frase 'Este módulo não expõe API pública' em vez de uma tabela de endpoints inventada.",
+      "passed": false,
+      "evidence": "tarifacao-lib/README.md l.3 diz 'Shared Library ... Sem deploy próprio — é embarcada em `validacao-embarque-api`' e l.16 'Não expõe API HTTP/gRPC própria', mas não há classificação 'Tipo de Módulo' e a frase exigida 'Este módulo não expõe API pública' não aparece (grep vazio)."
+    },
+    {
+      "text": "Existem docs/product/modules/diagrams/README.md, solution-architecture.md, module-dependencies.md, integration-flows.md e compliance-flows.md, cada um com ao menos um bloco ```mermaid; module-dependencies.md contém a seção 'Matriz de Dependências' com colunas Origem, Destino e Tipo, e docs/product/modules/README.md contém as seções 'Relação Bounded Context x Módulo' e 'Relação Módulo x Eventos'.",
+      "passed": false,
+      "evidence": "diagrams/ contém só architecture.md, dependencies.md e integration.md; README.md, solution-architecture.md, module-dependencies.md, integration-flows.md e compliance-flows.md estão ausentes (ls). Não há 'Matriz de Dependências' nem, em modules/README.md, as seções 'Relação Bounded Context x Módulo' e 'Relação Módulo x Eventos' (grep vazio)."
+    },
+    {
+      "text": "Existe docs/product/modules/diagrams/compliance-pci-dss.md com tabela 'Escopo PCI' marcando tokenizacao-cartao-adapter como dentro do CDE (Sim) e recarga-api, validacao-embarque-api e liquidacao-operadoras-worker como fora (Não), e um diagrama mermaid com subgraph CDE; existe docs/product/modules/diagrams/compliance-lgpd.md listando CPF com módulo dono cadastro-passageiro-api e a retenção de 5 anos do NFR-03.",
+      "passed": false,
+      "evidence": "ls diagrams/compliance-pci-dss.md e diagrams/compliance-lgpd.md → 'No such file or directory'. O recorte PCI/LGPD existe só como prosa nos READMEs de recarga-api, tokenizacao-cartao-adapter e cadastro-passageiro-api (transcript passos 7 e 8), sem tabela 'Escopo PCI' nem subgraph CDE em arquivo dedicado."
+    },
+    {
+      "text": "git diff HEAD -- docs/product ':(exclude)docs/product/modules' é vazio e não há arquivo novo fora de docs/product/modules/ (ignorando as remoções de .forge/agents, .claude/agents e plugin feitas pela fixture); os nomes EmbarqueValidado, RecargaConfirmada, RecargaEstornada e LoteLiquidacaoFechado aparecem literalmente (sem tradução ou renomeação) nos READMEs dos módulos que os publicam ou consomem.",
+      "passed": true,
+      "evidence": "git -C work diff --stat HEAD -- docs/product ':(exclude)docs/product/modules' → vazio; git status filtrado (sem ' D' da fixture e sem docs/product/modules/) → vazio. grep -lF: EmbarqueValidado em validacao-embarque-api e liquidacao-operadoras-worker; RecargaConfirmada e RecargaEstornada em recarga-api e validacao-embarque-api; LoteLiquidacaoFechado em liquidacao-operadoras-worker."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6,
+    "pass_rate": 0.33
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 469000,
+    "total_duration_seconds": 469
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "A asserção 4 exige bloco ```mermaid em diagrams/README.md e compliance-flows.md, mas o template do próprio agente (snapshot/project-bootstrap/.claude/agents/architecture/module-generator.md §8.1 linhas 707-737 e §8.5 a partir da linha 923) define esses dois arquivos como índices em tabela, sem mermaid; a asserção pune conformidade ao template e deveria exigir mermaid só em solution-architecture, module-dependencies e integration-flows."
+      },
+      {
+        "reason": "O expected_output pede o resumo final 'Resultado da Geração da Estrutura de Módulos', mas nenhuma asserção o verifica; nenhum dos dois transcripts contém a frase (grep -n 'Resultado da Geração' */run-1/outputs/transcript.md sem resultado)."
+      }
+    ],
+    "overall": "Asserções 1, 2, 3 e 5 discriminam bem entre seguir e não seguir o template; a 4 está descalibrada contra o template e o resumo final não é coberto."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "aplica-correcoes-editaveis-recarga-pix",
+  "prompt": "O frd-generator e o nfrd-generator do RecargaJá (recarga do cartão de transporte via Pix) fecharam a rodada e os dois documentos já estão como Aprovado para desenvolvimento, v1.0.0. Antes de passar para o ddd-architect, valida o docs/product/frd-nfrd/frd.md e o docs/product/frd-nfrd/nfrd.md contra o docs/product/prd/prd.md e deixa tudo registrado no padrão do repositório. Na daily o pessoal comentou que a matriz de rastreabilidade do FRD está esquisita e que o NFR de performance ficou vago.",
+  "assertions": [
+    "docs/product/frd-nfrd/frd-nfrd-validation-report.md existe e contém: tabela de baseline com códigos PRD-BASE-NN, tabela de achados com IDs no formato FIND-NNN (três dígitos) cada um com severidade em {Crítica, Alta, Média, Baixa}, e um parecer final que é literalmente 'Aprovado' ou 'Aprovado com Ressalvas' (não 'Reprovado').",
+    "No frd.md final: o identificador 'FRD-XX' não aparece mais (substituído por ID na convenção, ex.: FRD-REC-03); a matriz de rastreabilidade associa F2 ao requisito de consulta de saldo e F3 ao de histórico, coerente com o corpo; e o texto do requisito de recarga não contém mais 'Kafka', 'Spring Boot', 'Resilience4j' nem 'PostgreSQL 16' (detalhe movido/encaminhado ao TRD).",
+    "No nfrd.md final, a linha NFRD-PERF-01 não usa mais 'Rápida' como métrica e passa a expressar a meta do PRD: 10 segundos para 95% das recargas (p95 ≤ 10 s ou equivalente).",
+    "Tanto frd.md quanto nfrd.md têm Versão 1.0.1 no cabeçalho (não 1.0.0, não 1.1.0, não 2.0.0) e uma linha nova no Histórico de Versões para 1.0.1 cuja descrição cita a aplicação de achados FIND-NNN do relatório de validação.",
+    "No relatório, os achados corrigidos estão marcados com status 'Aplicado' indicando onde a correção foi feita (ex.: 'frd.md § 1' ou 'nfrd.md tabela 1'), e não apenas listados como recomendação.",
+    "O frd.md final continua com exatamente três requisitos funcionais (recarga, saldo, histórico) e o nfrd.md com exatamente três NFRs (PERF-01, SEC-01, AUD-01); nenhum requisito novo sem origem no PRD foi adicionado e o prd.md está inalterado."
+  ]
+}

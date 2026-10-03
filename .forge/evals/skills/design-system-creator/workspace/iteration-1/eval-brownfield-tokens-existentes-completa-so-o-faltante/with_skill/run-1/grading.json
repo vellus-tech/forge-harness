@@ -1,0 +1,80 @@
+{
+  "expectations": [
+    {
+      "text": "packages/design-tokens/src/css/tokens.css é byte a byte idêntico ao da fixture (fixtures/brownfield-tokens-existentes-completa-so-o-faltante/overlay/packages/design-tokens/src/css/tokens.css), inclusive o comentário 'rotaviva-tokens: ... fonte canônica v1.2.0', e packages/design-tokens/package.json continua com \"version\": \"1.2.0\" (git diff vazio para esses dois arquivos).",
+      "passed": true,
+      "evidence": "`cmp overlay/packages/design-tokens/src/css/tokens.css work/.../tokens.css` → CMP_OK; tokens.css:3 '/* rotaviva-tokens: espelho de colors_and_type.css do handoff — revisado em 2026-09-10, fonte canônica v1.2.0 */'; package.json:3 '\"version\": \"1.2.0\"'; `git -C work diff --stat HEAD -- <os dois arquivos>` vazio; `git status --porcelain` não lista packages/design-tokens."
+    },
+    {
+      "text": "docs/product/design-system/tokens.md mantém a linha de Histórico de Versões '1.2.0 | 2026-09-10' e a frase 'O pacote `@rotaviva/design-tokens` vence em caso de divergência'; qualquer mudança é apenas acréscimo (git diff do arquivo sem linhas removidas).",
+      "passed": true,
+      "evidence": "`grep -n` em work/docs/product/design-system/tokens.md: :13 '| 1.2.0 | 2026-09-10 | Time de produto | ...' e :15 'O pacote `@rotaviva/design-tokens` vence em caso de divergência com este documento.'; `git -C work diff --stat HEAD -- docs/product/design-system/tokens.md` vazio."
+    },
+    {
+      "text": "packages/ui-components/src/blocks/ contém AppHeader, BalanceCard, TripRow, ShortcutGrid e BottomNav, cada um com <Nome>.tsx, <Nome>.module.css, <Nome>.stories.tsx cujo title começa com 'Blocos/' e <Nome>.test.tsx que chama runA11y.",
+      "passed": true,
+      "evidence": "Laço `[ -f blocks/<Nome>/<Nome>.{tsx,module.css,stories.tsx,test.tsx} ]` sem nenhum MISSING para os 5 blocos; titles: AppHeader.stories.tsx:5 'Blocos/AppHeader', BalanceCard.stories.tsx:5, TripRow.stories.tsx:5, ShortcutGrid.stories.tsx:6, BottomNav.stories.tsx:5 (todos 'Blocos/<Nome>'); `grep -c 'runA11y('` = 1 em cada <Nome>.test.tsx. Testes não executados (pnpm install bloqueado, ver outputs/build-verify-simulado.md)."
+    },
+    {
+      "text": "HomeScreen e RechargeScreen existem como stories sob packages/ui-components/src/patterns/ com title começando por 'Padrões/', há um componente PhoneFrame em patterns/, e packages/ui-components/src/index.ts não importa nem reexporta nada de patterns/.",
+      "passed": true,
+      "evidence": "src/patterns/ contém HomeScreen.stories.tsx:6 'Padrões/HomeScreen', RechargeScreen.stories.tsx:6 'Padrões/RechargeScreen' (e RechargeFlow.stories.tsx:28 'Padrões/Fluxo de recarga'); PhoneFrame.tsx:4 'export function PhoneFrame'; `grep -n 'patterns\\|screens' src/index.ts` só acha o comentário da linha 19 ('patterns/ ... é intencionalmente NÃO exportado aqui'), nenhum import/export."
+    },
+    {
+      "text": "docs/product/design-system/design-system.md, components.md e accessibility.md foram criados com Versão, Data, Status e Histórico de Versões, components.md cita os cinco blocos; o branch atual é feat/design-system/rotaviva-ui-kit e main continua com 1 commit só.",
+      "passed": false,
+      "evidence": "Docs OK: design-system.md, components.md e accessibility.md têm Versão 0.1.0 (l.5), Data 2026-09-26 (l.6), Status 'Rascunho para revisão' (l.7) e '## Histórico de Versões' (l.9); components.md cita os cinco blocos (`grep -c` ≥ 2 para cada). Mas o branch falha: `git -C work branch --show-current` = 'main', `git branch -a` só lista main; transcript.md:59 'não troquei de branch em work/. O repositório permanece em main.' (`git rev-list --count main` = 1)."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "timing": {
+    "executor_duration_seconds": 786.0
+  },
+  "claims": [
+    {
+      "claim": "tokens.css e tokens.md existentes não foram alterados",
+      "type": "process",
+      "verified": true,
+      "evidence": "cmp + git diff vazios"
+    },
+    {
+      "claim": "RotavivaMark usa os PNGs reais, nunca SVG próprio",
+      "type": "factual",
+      "verified": true,
+      "evidence": "packages/icons/assets/{brand,logos} e src/RotavivaMark.tsx presentes"
+    },
+    {
+      "claim": "Build/typecheck/lint/test/storybook passariam",
+      "type": "quality",
+      "verified": false,
+      "evidence": "Nada executado; outputs/build-verify-simulado.md é simulação"
+    },
+    {
+      "claim": "Branch feat/design-system/rotaviva-ui-kit criado",
+      "type": "process",
+      "verified": false,
+      "evidence": "Simulado; transcript.md:59 e :74 registram que ficou em main"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/product/design-system/design-system.md, components.md e accessibility.md foram criados com Versão, Data, Status e Histórico de Versões, components.md cita os cinco blocos; o branch atual é feat/design-system/rotaviva-ui-kit e main continua com 1 commit só.",
+        "reason": "A parte de branch é insatisfazível sob as regras do harness do eval, que proíbem git checkout; o executor with_skill tratou git switch -c como coberto (transcript.md:59) e ficou em main. A asserção mistura docs, components.md e branch: uma restrição de ambiente derruba o crédito dos docs. Separe 'branch' numa asserção própria ou libere git switch -c no workspace descartável."
+      },
+      {
+        "assertion": "HomeScreen e RechargeScreen existem como stories sob packages/ui-components/src/patterns/ com title começando por 'Padrões/', há um componente PhoneFrame em patterns/, e packages/ui-components/src/index.ts não importa nem reexporta nada de patterns/.",
+        "reason": "Não verifica que HomeScreen/RechargeScreen compõem os blocos; RechargeScreen.tsx do with_skill importa só Input/Button de ../components (linhas 2-3), nenhum bloco. Considere exigir import de ../blocks nas telas."
+      },
+      {
+        "reason": "Nenhuma asserção cobre packages/icons (esperado no expected_output) nem o hard-no do handoff de usar os PNGs da marca em vez de SVG redesenhado; o without_skill criou 5 ícones SVG próprios (packages/icons/src/{Bus,Bell,Wallet,CreditCard,CircleHelp}.tsx) e isso não é capturado."
+      }
+    ],
+    "overall": "A1/A2 são checáveis por comando mas não discriminam (as duas configurações preservaram tokens); a discriminação real vem de A3/A4. A5 precisa ser desmembrada."
+  }
+}

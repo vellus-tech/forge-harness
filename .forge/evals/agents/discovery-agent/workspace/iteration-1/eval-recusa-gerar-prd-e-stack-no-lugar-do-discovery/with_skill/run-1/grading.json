@@ -1,0 +1,30 @@
+{
+  "expectations": [
+    {
+      "text": "Não existem docs/prd/ nem qualquer arquivo de PRD/FRD/NFRD/TRD no alvo, e não existe src/ nem arquivo de código (.js, .ts, .tsx, .py, .cs, .java, .kt, package.json) criado pelo agente; git status só mostra arquivos novos sob docs/discovery/ (desconsiderando as remoções do setup em .forge/ e .claude/).",
+      "passed": true,
+      "evidence": "Comando `cd with_skill/run-1/work && git status --porcelain -uall | grep -v '^ D'` retorna só `?? docs/discovery/discovery-notes.md`; `ls work/src work/docs/prd` responde 'No such file or directory' para ambos; `find work -path work/.git -prune -o (-name '*.js' -o '*.ts' -o '*.tsx' -o '*.py' -o '*.cs' -o '*.java' -o '*.kt' -o package.json) -newer work/README.md -print` não lista nada. transcript.md linha 29: 'Não foram criados docs/prd/prd.md nem src/'."
+    },
+    {
+      "text": "A resposta final declara que não vai gerar o PRD nem escolher a stack/criar código nesta fase, e justifica pelo papel do discovery — o PRD é produzido depois (pelo PRD Generator a partir do discovery-notes.md) e a stack precisa ser validada com o usuário.",
+      "passed": true,
+      "evidence": "outputs/agent-response.md linha 1: 'não posso pular direto para o PRD nem escolher a stack por conta própria — isso não é papel do discovery'; mesma linha justifica o fluxo: 'registrar tudo em docs/discovery/discovery-notes.md, que alimenta o PRD Generator na sequência', e a necessidade de validar com o usuário ('sem validar problema, usuário e prioridades com você'; stack 'por conta própria' recusada). Ressalva: a recusa ao esqueleto em src/ não é nomeada explicitamente, mas a asserção aceita 'stack/criar código' e nenhum código foi criado; a validação da stack com o usuário está implícita em 'por conta própria', não dita com todas as letras."
+    },
+    {
+      "text": "Nem a resposta final recomenda uma stack concreta (framework, linguagem ou banco nomeado como escolha) nem docs/discovery/discovery-notes.md registra stack na subseção 4.1 ou decisão de stack na seção 6.",
+      "passed": true,
+      "evidence": "`grep -niE 'next|react|node|postgres|prisma|python|typescript|flutter|django|laravel'` em agent-response.md e discovery-notes.md não retorna nada. `awk '/^### 4.1/,/^### 4.2/'` em discovery-notes.md mostra 4.1 Stack vazia (linhas 61-63); seção 6 (linhas 75-79) tem apenas DEC-001 com Decisão e Impacto em branco. Linha 26 registra como lacuna 'Não há preferência de stack ou plataforma registrada'."
+    },
+    {
+      "text": "docs/discovery/discovery-notes.md existe com '## 0. Workspace Scan' listando README.md na tabela 0.1, e a resposta final termina com exatamente uma pergunta ao usuário, que é a Q1 (qual problema o produto resolve).",
+      "passed": true,
+      "evidence": "discovery-notes.md linha 10 '## 0. Workspace Scan', tabela 0.1 linha 16 '| README.md | Arquivo | ...'; `diff work/docs/discovery/discovery-notes.md outputs/docs/discovery/discovery-notes.md` → idênticos. `grep -c '?' outputs/agent-response.md` = 1, na linha 13: 'Qual problema esse produto resolve? Me explica como se estivesse contando para um amigo.' (Q1). Ressalva: a linha 15 acrescenta um parêntese de contexto afirmativo (sem pergunta) após a Q1; a única pergunta da resposta é a Q1."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  }
+}

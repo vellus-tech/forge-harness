@@ -1,0 +1,2 @@
+78f4347 feat(qrcode): janela de validade de 90 segundos
+c23e181 feat: validador-qrcode 2.1.0

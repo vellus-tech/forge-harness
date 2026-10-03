@@ -1,0 +1,8 @@
+{"skill":"dotnet-quality-scan","root":"<worktree-do-eval>/.forge/evals/skills/dotnet-quality-scan/workspace/iteration-1/eval-revisao-recarga-pix/with_skill/run-1/work/src/Recarga","engine":"rg","findings":[
+{"rule":"blocking-wait","severity":"BLOCKER","count":3,"why":"bloquear em código async é deadlock em contexto com SynchronizationContext e esgota o pool no resto"},
+{"rule":"new-httpclient","severity":"HIGH","count":1,"why":"HttpClient instanciado direto esgota sockets (TIME_WAIT) e ignora rotação de DNS; use IHttpClientFactory"},
+{"rule":"empty-catch","severity":"HIGH","count":1,"why":"erro engolido some do log e reaparece como corrupção de dado"},
+{"rule":"datetime-now","severity":"MEDIUM","count":1,"why":"DateTime.Now amarra o domínio ao fuso da máquina e ao relógio real; use UtcNow ou abstração de tempo"},
+{"rule":"sql-interpolation","severity":"BLOCKER","count":1,"why":"interpolação em SQL é injeção; use parâmetro ou a variante Interpolated do EF Core"},
+{"rule":"single-impl-interface","severity":"MEDIUM","count":1,"why":"interface com implementação única"}
+],"total":8}

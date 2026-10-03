@@ -31,6 +31,16 @@ bash "$SCRIPT_DIR/budget-preflight.sh" --stage verify --change "$ID" --outputs "
 STATUS="$(awk -F': ' '$1=="status"{print $2; exit}' "$MAN")"
 case "$STATUS" in implementing|implemented) ;; *) echo "FAIL (status '$STATUS' — verify runs on implementing|implemented)"; exit 1 ;; esac
 TYPE="$(awk -F': ' '$1=="type"{print $2; exit}' "$MAN")"
+# issue #138 — predicado único (type:bugfix OU fixes_defects declarado), nunca mais awk direto
+# sobre `type`: fixes_defects pode ser flow-style (`[D1, D2]`), que só yaml-lite.mjs parseia
+# corretamente. Mesmo padrão de invocação node de spec-transition.sh para quick_plan.
+IS_DEFECT_FIXING="$(node --input-type=module -e "
+  import { parseYamlSubset } from '$SCRIPT_DIR/lib/yaml-lite.mjs';
+  import { isDefectFixing } from '$SCRIPT_DIR/lib/defect-scope.mjs';
+  import { readFileSync } from 'node:fs';
+  const man = parseYamlSubset(readFileSync(process.argv[1], 'utf8'));
+  process.stdout.write(isDefectFixing(man) ? '1' : '0');
+" "$MAN" 2>/dev/null || echo 0)"
 
 fail=0
 notes=""
@@ -106,7 +116,8 @@ if command -v node >/dev/null 2>&1 && [ -f "$SCRIPT_DIR/lib/spec-delta-scaffold.
 fi
 
 # ── red-first (rule testing/regression-red-first.md) — replay real, não presumido ──────────
-# Só para type:bugfix. A prova mora na EXECUÇÃO, não no artefato: `red-evidence.sh ensure` roda
+# Só para change sujeito ao red-first (type:bugfix ou fixes_defects declarado — isDefectFixing,
+# issue #138). A prova mora na EXECUÇÃO, não no artefato: `red-evidence.sh ensure` roda
 # SEMPRE, sem atalho por campo algum do JSON. Duas heurísticas anteriores foram removidas por
 # serem circulares — ler replayed_at/replay_head do próprio artefato, e consultar um cache local
 # cuja chave o autor também computa (ver ADR-0003, adendas 1 e 2). Evidência waived não dispara
@@ -115,7 +126,7 @@ fi
 # execução de teste a --timeout segundos, mas isso não impede /forge:verify de pendurar se o
 # próprio processo node travar por outro motivo (lock de worktree, etc.).
 RED_FIRST_YAML=""
-if [ "$TYPE" = "bugfix" ]; then
+if [ "$IS_DEFECT_FIXING" = "1" ]; then
   RED_JSON="$DIR/evidence/red/red-evidence.json"
   if [ -f "$RED_JSON" ] && [ -f "$SCRIPT_DIR/red-evidence.sh" ]; then
     _redfirst_status() { node -e "try{const d=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));process.stdout.write(d.status||'')}catch{process.stdout.write('')}" "$RED_JSON"; }

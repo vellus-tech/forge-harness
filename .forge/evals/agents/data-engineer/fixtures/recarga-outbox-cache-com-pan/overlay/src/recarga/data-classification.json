@@ -1,0 +1,5 @@
+{
+  "numeroCartao": { "classification": "pan", "masking": "primeiros 6 e últimos 4", "tokenization_boundary": true },
+  "cpf": { "classification": "pii", "masking": "***.***.***-NN", "tokenization_boundary": false },
+  "valorCentavos": { "classification": "public", "masking": "nenhum", "tokenization_boundary": false }
+}

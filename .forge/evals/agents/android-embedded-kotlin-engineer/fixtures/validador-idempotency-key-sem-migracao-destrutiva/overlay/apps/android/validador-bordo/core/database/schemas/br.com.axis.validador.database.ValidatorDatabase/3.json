@@ -1,0 +1,28 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 3,
+    "identityHash": "3f1c2b7a9d0e4c5b8a6f7e1d2c3b4a59",
+    "entities": [
+      {
+        "tableName": "validation_event",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`event_id` TEXT NOT NULL, `device_id` TEXT NOT NULL, `card_uid` TEXT NOT NULL, `route_id` TEXT NOT NULL, `fare_cents` INTEGER NOT NULL, `validated_at` INTEGER NOT NULL, `sync_status` TEXT NOT NULL, `retry_count` INTEGER NOT NULL, PRIMARY KEY(`event_id`))",
+        "fields": [
+          {"fieldPath": "eventId", "columnName": "event_id", "affinity": "TEXT", "notNull": true},
+          {"fieldPath": "deviceId", "columnName": "device_id", "affinity": "TEXT", "notNull": true},
+          {"fieldPath": "cardUid", "columnName": "card_uid", "affinity": "TEXT", "notNull": true},
+          {"fieldPath": "routeId", "columnName": "route_id", "affinity": "TEXT", "notNull": true},
+          {"fieldPath": "fareCents", "columnName": "fare_cents", "affinity": "INTEGER", "notNull": true},
+          {"fieldPath": "validatedAt", "columnName": "validated_at", "affinity": "INTEGER", "notNull": true},
+          {"fieldPath": "syncStatus", "columnName": "sync_status", "affinity": "TEXT", "notNull": true},
+          {"fieldPath": "retryCount", "columnName": "retry_count", "affinity": "INTEGER", "notNull": true}
+        ],
+        "primaryKey": {"autoGenerate": false, "columnNames": ["event_id"]},
+        "indices": [
+          {"name": "index_validation_event_sync_status_validated_at", "unique": false, "columnNames": ["sync_status", "validated_at"], "orders": [], "createSql": "CREATE INDEX IF NOT EXISTS `${INDEX_NAME}` ON `${TABLE_NAME}` (`sync_status`, `validated_at`)"}
+        ],
+        "foreignKeys": []
+      }
+    ]
+  }
+}

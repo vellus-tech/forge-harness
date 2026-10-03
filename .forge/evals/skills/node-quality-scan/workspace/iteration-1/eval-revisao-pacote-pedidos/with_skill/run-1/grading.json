@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "outputs/revisao-pedidos.md contém uma linha para cada uma das 11 regras do scanner (empty-catch, floating-promise, sync-fs-blocking, sql-interpolation, new-pg-client, process-env-direct, date-now, explicit-any, generic-name, mutable-module-state, single-impl-interface), incluindo as que não acharam nada marcadas como OK/limpas.",
+      "passed": false,
+      "evidence": "Comando: for r in <11 regras>; grep -c -- \"$r\" outputs/revisao-pedidos.md → empty-catch:1 sync-fs-blocking:1 sql-interpolation:1 process-env-direct:1 generic-name:1 e floating-promise, new-pg-client, date-now, explicit-any, mutable-module-state, single-impl-interface todos 0. O relatório só diz na linha 11 \"5 FOUND em 11 regras\"; as 6 regras OK não têm linha própria (o transcript.md:8 registra que o scan deu 6 OK, mas elas não chegaram ao relatório). O próprio transcript.md:10 admite \"OK implícito no total 5/11\"."
+    },
+    {
+      "text": "O relatório informa o resultado do node-baseline.sh --check (PASS/OK ou FAIL, com a origem: config na raiz do monorepo) em posição anterior à lista de regras do scan.",
+      "passed": false,
+      "evidence": "A seção \"## Baseline de lint\" (linhas 5-7) vem antes de \"## Achados do scanner\" (linha 9) e informa FAIL: posição e resultado atendem. A origem está errada: a linha 7 diz \"falta `eslint.config.mjs` na raiz do repositório\", mas `git -C work ls-files | grep eslint` lista `eslint.config.mjs` versionado na raiz do monorepo (cabeçalho: \"Materializado como `eslint.config.mjs` na raiz por node-baseline.sh --apply\"). O FAIL veio de rodar `--root packages/pedidos` (transcript.md:7), que procurou a config no pacote e não na raiz. O relatório atribui a causa errada e recomenda um `--apply` desnecessário; não atende \"com a origem: config na raiz do monorepo\"."
+    },
+    {
+      "text": "Nenhum achado do relatório aponta para packages/notificacoes (EmailManager.ts tem empty-catch, floating-promise, sync-fs, any, generic-name e export let pré-existentes em main, fora do diff).",
+      "passed": true,
+      "evidence": "grep -c notificacoes outputs/revisao-pedidos.md → 0; grep -c EmailManager → 0. A linha 3 declara o escopo restrito a packages/pedidos, e node-scan.json tem root=.../work/packages/pedidos com total 5, todos em arquivos de pedidos."
+    },
+    {
+      "text": "O relatório aponta sql-interpolation como defeito em packages/pedidos/src/rotas.ts:15 (ou src/rotas.ts:15), com recomendação de placeholder parametrizado ($1).",
+      "passed": true,
+      "evidence": "Linha 13: \"**sql-interpolation [BLOCKER] — `src/rotas.ts:15`.**\", e a correção é \"pool.query(\\\"SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC\\\", [status])\"."
+    },
+    {
+      "text": "Todo achado FOUND listado no relatório (sync-fs-blocking, sql-interpolation, empty-catch, process-env-direct, generic-name) vem acompanhado de arquivo:linha; nenhum achado aparece só com descrição genérica.",
+      "passed": true,
+      "evidence": "Os 5 FOUND trazem arquivo:linha: sql-interpolation src/rotas.ts:15 (l.13), sync-fs-blocking src/rotas.ts:20 (l.15), empty-catch src/PedidoHelper.ts:6 (l.17), process-env-direct src/PedidoHelper.ts:3 (l.19) e generic-name src/PedidoHelper.ts:1 (l.21). A observação extra da linha 25 cita PedidoHelper.renderNota, mas não é achado FOUND do scanner."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  }
+}

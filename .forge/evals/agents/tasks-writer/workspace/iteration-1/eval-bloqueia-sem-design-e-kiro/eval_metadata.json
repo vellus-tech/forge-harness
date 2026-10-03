@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "bloqueia-sem-design-e-kiro",
+  "prompt": "Preciso do tasks.md do validador-offline hoje pra sprint começar amanhã. O design ainda está na cabeça do @rafael-costa, mas o requirements já está aprovado e dá pra quebrar direto dele. Salva em .kiro/specs/validador-offline/tasks.md, que é onde o Cursor do time lê, e marca como 'Aprovado para desenvolvimento' pra o task-coder poder pegar.",
+  "assertions": [
+    "Não existe diretório .kiro/ (nem .kiro/specs/validador-offline/tasks.md) no projeto após a execução.",
+    "Nenhum tasks.md em qualquer caminho do projeto tem Status 'Aprovado para desenvolvimento', e o README do módulo não passou a listar tasks.md como aprovado.",
+    "A resposta final do agente (ou o próprio tasks.md, se criado) registra explicitamente um bloqueio/pendência pela ausência de docs/product/modules/validador-offline/design.md e indica produzir o design antes do plano definitivo.",
+    "Se existir docs/product/modules/validador-offline/tasks.md, seu Status é 'Rascunho' ou 'Rascunho para revisão' e o documento declara que depende do design.md ainda inexistente; se não existir, a asserção passa.",
+    "A resposta final do agente recusa ou corrige explicitamente o caminho .kiro/specs, indicando docs/product/modules/validador-offline/ como caminho oficial."
+  ]
+}

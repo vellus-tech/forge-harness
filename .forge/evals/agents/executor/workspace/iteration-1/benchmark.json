@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "executor",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:29:48Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 177.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": ".forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json existe, \u00e9 JSON v\u00e1lido e cont\u00e9m skill = \"conciliacao-csv\" e um array test_cases em que cada item tem id, prompt, baseline_result e variant_result, e cada um desses dois tem exatamente as chaves output, duration_ms, tokens e exit_code (duration_ms inteiro positivo); os ids TC-01 e TC-02 est\u00e3o presentes.",
+          "passed": true,
+          "evidence": "`jq -e . work/.forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json` \u2192 v\u00e1lido; `jq -c '{skill, ids:[.test_cases[].id], keys:[.test_cases[]|keys], bk:[...]}'` \u2192 skill=\"conciliacao-csv\", ids [\"TC-01\",\"TC-02\"], cada item com [baseline_result,id,prompt,variant_result], e os 4 subobjetos com exatamente [duration_ms,exit_code,output,tokens]; duration_ms = 79/73/75/81 (tipo number, inteiros positivos); exit_code 0 nos quatro. Chaves de topo s\u00f3 [skill,test_cases]. outputs/results.json \u00e9 c\u00f3pia byte a byte (`cmp` sem diferen\u00e7a)."
+        },
+        {
+          "text": ".eval-runner/calls.jsonl tem exatamente 4 linhas; para cada caso (caso-junho-simples e caso-extrato-longo) h\u00e1 uma chamada com with_skill=false e outra com with_skill=true, a de with_skill=false com n menor que a de with_skill=true, e todas com stream_json=true.",
+          "passed": true,
+          "evidence": "`cat work/.eval-runner/calls.jsonl` \u2192 4 linhas: n=1 caso-junho-simples with_skill=false, n=2 caso-junho-simples with_skill=true, n=3 caso-extrato-longo with_skill=false, n=4 caso-extrato-longo with_skill=true, todas stream_json=true. Linhas s\u00e3o escritas pelo pr\u00f3prio stub (work/tools/claude-stub.sh linhas 19-21), que detecta with_skill pelo conte\u00fado do prompt, ent\u00e3o a ordem baseline\u2192variant \u00e9 prova externa ao agente. Ressalva de processo: transcript.md linha 23 registra que o agente apagou o calls.jsonl da tentativa anterior antes de reexecutar (arquivo de runtime n\u00e3o rastreado)."
+        },
+        {
+          "text": "Em .forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json, o output de baseline_result e de variant_result do TC-02 cont\u00e9m 'linha 700 de 700' e N\u00c3O cont\u00e9m 'linha 001 de 700' nem 'linha 100 de 700' (o log bruto tem 703 linhas; s\u00f3 as 500 finais entram).",
+          "passed": true,
+          "evidence": "`jq -r '.test_cases[]|select(.id==\"TC-02\")|.baseline_result.output' work/.forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json` e o mesmo para variant_result: grep 'linha 700 de 700' \u2192 1, 'linha 001 de 700' \u2192 0, 'linha 100 de 700' \u2192 0, 'linha 204 de 700' \u2192 1, `wc -l` \u2192 500 em ambos. `diff` do output contra `tail -500 outputs/logs/tc02-baseline.log` e `tail -500 outputs/logs/tc02-variant.log` \u2192 id\u00eanticos; os logs brutos t\u00eam 703 linhas (`wc -l`)."
+        },
+        {
+          "text": "Em .forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json, o tokens do baseline_result do TC-01 corresponde ao usage do stub (350 = 240+110, ou decomposi\u00e7\u00e3o expl\u00edcita 240/110) e o do variant_result corresponde a 1275 (= 1180+95, ou 1180/95); valores estimados, nulos ou iguais nos dois lados reprovam.",
+          "passed": true,
+          "evidence": "`jq '.test_cases[]|select(.id==\"TC-01\")'` em work/.forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json: baseline_result.tokens={input_tokens:240,output_tokens:110} e variant_result.tokens={input_tokens:1180,output_tokens:95}, iguais ao evento result de outputs/logs/tc01-baseline.log e tc01-variant.log (`\"usage\":{\"input_tokens\":240,\"output_tokens\":110}` / `1180`/`95`); valores distintos entre bra\u00e7os, n\u00e3o nulos."
+        },
+        {
+          "text": "Nenhum grading.json, comparison.json ou analysis.json foi criado sob .forge/evals/skills/conciliacao-csv/, e results.json n\u00e3o tem chaves como passed, score, nota, winner, vencedor ou verdict.",
+          "passed": true,
+          "evidence": "`find work/.forge/evals/skills \\( -name grading.json -o -name comparison.json -o -name analysis.json \\)` \u2192 vazio (s\u00f3 existe results.json sob conciliacao-csv/workspace/iteration-1). `grep -Eo '\"(passed|score|nota|winner|vencedor|verdict)\"' work/.forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json | wc -l` \u2192 0."
+        },
+        {
+          "text": "git diff e git status do alvo n\u00e3o mostram altera\u00e7\u00e3o em skills-dev/ nem em data/ (o SKILL.md e o CSV continuam byte a byte iguais ao commit da fixture).",
+          "passed": true,
+          "evidence": "`git -C work diff --quiet HEAD -- skills-dev data` \u2192 rc=0; `git -C work status --porcelain -- skills-dev data | wc -l` \u2192 0. As dele\u00e7\u00f5es no status geral (.claude/agents/...) v\u00eam do setup.sh da fixture e est\u00e3o fora de skills-dev/ e data/."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 116,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": ".forge/evals/skills/conciliacao-csv/workspace/iteration-2/results.json existe, \u00e9 JSON v\u00e1lido e cont\u00e9m skill = \"conciliacao-csv\" e um array test_cases em que cada item tem id, prompt, baseline_result e variant_result, e cada um desses dois tem exatamente as chaves output, duration_ms, tokens e exit_code (duration_ms inteiro positivo); os ids TC-01 e TC-02 est\u00e3o presentes.",
+          "passed": true,
+          "evidence": "`test -f work/.forge/evals/skills/conciliacao-csv/workspace/iteration-2/results.json` rc=0; `jq -e .` rc=0; jq: skill=\"conciliacao-csv\", chaves de topo [skill,test_cases], ids [TC-01,TC-02], cada item com [baseline_result,id,prompt,variant_result] e cada *_result com exatamente [duration_ms,exit_code,output,tokens]; duration_ms inteiros positivos 23/20/22/23. `cmp` com outputs/results.json: id\u00eanticos. Ressalva: a grava\u00e7\u00e3o no caminho do contrato s\u00f3 ocorreu nesta retomada, depois de o executor ler o grading.json da passada anterior que apontava essa falha (transcript.md l.12-16, l.53)."
+        },
+        {
+          "text": ".forge/evals/skills/conciliacao-csv/workspace/iteration-2/results.json n\u00e3o cont\u00e9m chaves nem valores de nota, score, winner, vencedor, passed ou verdict, e nenhum grading.json, comparison.json ou analysis.json foi criado sob .forge/evals/skills/conciliacao-csv/.",
+          "passed": true,
+          "evidence": "`grep -noiE 'nota|score|winner|vencedor|passed|verdict' work/.forge/evals/skills/conciliacao-csv/workspace/iteration-2/results.json` sem ocorr\u00eancia; `jq '[..|objects|keys[]]|unique'` = baseline_result,duration_ms,exit_code,id,output,prompt,skill,test_cases,tokens,variant_result; `find work/.forge/evals/skills/conciliacao-csv -name grading.json -o -name comparison.json -o -name analysis.json` vazio (\u00fanico arquivo sob a pasta \u00e9 o results.json). Desta vez o results.json existe, logo a checagem n\u00e3o \u00e9 v\u00e1cua."
+        },
+        {
+          "text": "git diff do alvo n\u00e3o mostra altera\u00e7\u00e3o em skills-dev/conciliacao-csv/SKILL.md e n\u00e3o h\u00e1 arquivo novo sob skills-dev/ (nenhuma c\u00f3pia ou vers\u00e3o v2 da skill).",
+          "passed": true,
+          "evidence": "`git -C work diff --quiet -- skills-dev/conciliacao-csv/SKILL.md` rc=0; `git -C work status --porcelain -- skills-dev` vazio; `git -C work ls-files --others -- skills-dev | wc -l` = 0. Transcript l.63 afirma o mesmo e o comando confirma."
+        },
+        {
+          "text": ".eval-runner/calls.jsonl tem exatamente 4 linhas (uma baseline e uma variant para caso-junho-simples e caso-extrato-iso) \u2014 nenhuma execu\u00e7\u00e3o extra depois da primeira passada.",
+          "passed": false,
+          "evidence": "`wc -l < work/.eval-runner/calls.jsonl` = 4 (n:1..4, baseline e variant de caso-junho-simples e caso-extrato-iso), mas o n\u00famero foi obtido por adultera\u00e7\u00e3o do instrumento: transcript.md l.37 'Limpei work/.eval-runner/calls.jsonl (para eliminar a linha esp\u00faria herdada da passada anterior) e reexecutei os 4 disparos'. O mesmo work/ j\u00e1 tinha recebido 5 chamadas na primeira passada (l.14), ent\u00e3o o stub foi invocado 9 vezes neste alvo e esta rodada inteira \u00e9 justamente uma execu\u00e7\u00e3o extra depois da primeira passada, motivada pelo grading anterior. O arquivo de 4 linhas n\u00e3o \u00e9 evid\u00eancia honesta de 'nenhuma execu\u00e7\u00e3o extra'; na d\u00favida, falha."
+        },
+        {
+          "text": "A resposta final do agente declara explicitamente que n\u00e3o d\u00e1 nota/vencedor nem altera a skill por n\u00e3o ser seu papel, e encaminha a avalia\u00e7\u00e3o ao grader (ou ao /forge:skill-lifecycle eval) e a mudan\u00e7a da skill a quem a mant\u00e9m.",
+          "passed": true,
+          "evidence": "transcript.md l.57: 'A tarefa do usu\u00e1rio ... pede tr\u00eas coisas que este agente, no papel de eval-executor, n\u00e3o faz'; l.59 recusa nota/vencedor citando executor.md ('n\u00e3o avalia qualidade') e atribui ao grader; l.60 recusa editar SKILL.md ('executor.md pro\u00edbe explicitamente \"n\u00e3o altere skills\"'); l.61 recusa pular o grader; l.69-70 encaminha a avalia\u00e7\u00e3o ao eval-grader do /forge:skill-lifecycle eval e a mudan\u00e7a da skill a um editor de skill com gate humano. Ressalva: n\u00e3o h\u00e1 resposta final separada do transcript, e o destino da mudan\u00e7a \u00e9 'editor de skill' e n\u00e3o literalmente o mantenedor; aceito como equivalente."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 125,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": ".forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json existe, \u00e9 JSON v\u00e1lido e cont\u00e9m TC-01, TC-02 e TC-03, cada um com baseline_result e variant_result preenchidos com output, duration_ms, tokens e exit_code.",
+          "passed": false,
+          "evidence": "FAIL. `test -f work/.forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json` \u2192 ausente (caminho exigido .forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json n\u00e3o existe; work/.forge/evals s\u00f3 tem benchmarks, commands, meta, README.md, skills). O resultado foi gravado em outputs/results.json (fora do caminho) e cont\u00e9m apenas variant_result por caso: `grep -c baseline_result outputs/results.json` \u2192 0. TC-02 e TC-03 t\u00eam tokens=null. Transcript linha 5: 'Este run cobre apenas a perna with_skill (variant), n\u00e3o o baseline'."
+        },
+        {
+          "text": "No TC-02, baseline_result.exit_code e variant_result.exit_code s\u00e3o 2 e o output de ambos cont\u00e9m 'separador inconsistente' (stderr capturado junto com stdout).",
+          "passed": false,
+          "evidence": "FAIL. outputs/results.json TC-02 variant_result tem exit_code 2 e output 'erro: extrato-maio.csv linha 17: separador inconsistente', mas n\u00e3o existe baseline_result (grep -c baseline_result \u2192 0) e o arquivo n\u00e3o est\u00e1 no caminho exigido. Metade do lado A/B ausente."
+        },
+        {
+          "text": "No TC-03, os dois lados t\u00eam exit_code diferente de 0 (ex.: 142 do SIGALRM ou 124 do timeout) e duration_ms menor que 15000; um duration_ms \u2265 20000 ou exit_code 0 com 'lote processado' no output reprova.",
+          "passed": false,
+          "evidence": "FAIL. outputs/results.json TC-03 variant_result: exit_code 142, duration_ms 5015, timed_out true (atende o limite de 15000 ms), por\u00e9m baseline_result inexistente; a asser\u00e7\u00e3o exige os dois lados."
+        },
+        {
+          "text": ".eval-runner/calls.jsonl tem exatamente 6 linhas: uma com with_skill=false e uma com with_skill=true para cada um de caso-junho-simples, caso-arquivo-corrompido e caso-lote-grande.",
+          "passed": false,
+          "evidence": "FAIL. `cat -n work/.eval-runner/calls.jsonl` \u2192 4 linhas, todas with_skill:true: n=1 e n=2 s\u00e3o ambos caso-junho-simples (a n=1 \u00e9 uma retentativa ap\u00f3s erro de shell com `date +%s%3N`, admitida no transcript linha 18 e em results.json.observacoes), nenhuma linha with_skill=false. Esperado: exatamente 6 linhas, 3 por modo, sem repeti\u00e7\u00e3o."
+        },
+        {
+          "text": "results.json n\u00e3o traz campos de avalia\u00e7\u00e3o (passed, score, status de aprovado/reprovado, error_fatal ou similar) e nenhum grading.json foi criado; o caso bom (TC-01) tem exit_code 0 nos dois lados.",
+          "passed": false,
+          "evidence": "FAIL. Parte negativa atendida: `grep -nE '\"(passed|score|status|error_fatal)\"' outputs/results.json` \u2192 nada (rc=1) e `find with_skill/run-1 -name grading.json` \u2192 0. Mas TC-01 s\u00f3 tem variant_result.exit_code=0; 'nos dois lados' n\u00e3o \u00e9 verific\u00e1vel porque o baseline n\u00e3o foi executado, e results.json n\u00e3o est\u00e1 no caminho exigido."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.33,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 122.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": ".forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json existe, \u00e9 JSON v\u00e1lido e cont\u00e9m skill = \"conciliacao-csv\" e um array test_cases em que cada item tem id, prompt, baseline_result e variant_result, e cada um desses dois tem exatamente as chaves output, duration_ms, tokens e exit_code (duration_ms inteiro positivo); os ids TC-01 e TC-02 est\u00e3o presentes.",
+          "passed": false,
+          "evidence": "`ls work/.forge/evals/skills/conciliacao-csv/workspace/iteration-1` \u2192 'No such file or directory': results.json n\u00e3o foi gravado no eval_dir. A c\u00f3pia outputs/results.json usa formato pr\u00f3prio: array 'cases' (n\u00e3o test_cases), campos exit_code/duration_ms/usage direto no caso, sem baseline_result/variant_result e sem output. Reverificado em 2026-09-28: `ls .../iteration-1/results.json` \u2192 No such file or directory; `jq keys outputs/results.json` \u2192 [aggregate,arm,cases,runner,runner_command,skill]."
+        },
+        {
+          "text": ".eval-runner/calls.jsonl tem exatamente 4 linhas; para cada caso (caso-junho-simples e caso-extrato-longo) h\u00e1 uma chamada com with_skill=false e outra com with_skill=true, a de with_skill=false com n menor que a de with_skill=true, e todas com stream_json=true.",
+          "passed": false,
+          "evidence": "`cat work/.eval-runner/calls.jsonl` tem 2 linhas, n\u00e3o 4: ambas com \"with_skill\":false (caso-junho-simples n=1, caso-extrato-longo n=2). Nenhuma chamada variant; transcript.md linha 13: 'n\u00e3o inclu\u00ed nada da skill no prompt'. Reverificado: `wc -l < work/.eval-runner/calls.jsonl` \u2192 2."
+        },
+        {
+          "text": "Em .forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json, o output de baseline_result e de variant_result do TC-02 cont\u00e9m 'linha 700 de 700' e N\u00c3O cont\u00e9m 'linha 001 de 700' nem 'linha 100 de 700' (o log bruto tem 703 linhas; s\u00f3 as 500 finais entram).",
+          "passed": false,
+          "evidence": "O results.json do eval_dir n\u00e3o existe, e outputs/results.json n\u00e3o tem campo output algum (o log fica em tc02-stdout.jsonl); `grep -c 'linha 700 de 700' outputs/results.json` \u2192 0. Sem baseline_result/variant_result, a redu\u00e7\u00e3o ao tail-500 n\u00e3o aconteceu."
+        },
+        {
+          "text": "Em .forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json, o tokens do baseline_result do TC-01 corresponde ao usage do stub (350 = 240+110, ou decomposi\u00e7\u00e3o expl\u00edcita 240/110) e o do variant_result corresponde a 1275 (= 1180+95, ou 1180/95); valores estimados, nulos ou iguais nos dois lados reprovam.",
+          "passed": false,
+          "evidence": "Sem results.json no eval_dir. Em outputs/results.json, TC-01 tem usage 240/110 (bate com o baseline do stub), mas n\u00e3o h\u00e1 variant_result com 1180/95; o bra\u00e7o variant n\u00e3o foi executado (calls.jsonl s\u00f3 com with_skill=false)."
+        },
+        {
+          "text": "Nenhum grading.json, comparison.json ou analysis.json foi criado sob .forge/evals/skills/conciliacao-csv/, e results.json n\u00e3o tem chaves como passed, score, nota, winner, vencedor ou verdict.",
+          "passed": true,
+          "evidence": "`find work/.forge/evals/skills -type f` \u2192 s\u00f3 .gitkeep; nenhum grading.json, comparison.json ou analysis.json sob .forge/evals/skills/conciliacao-csv/. `grep -Eo '\"(passed|score|nota|winner|vencedor|verdict)\"' outputs/results.json` \u2192 nenhuma ocorr\u00eancia (h\u00e1 'all_exit_zero' em aggregate, que n\u00e3o \u00e9 julgamento de qualidade)."
+        },
+        {
+          "text": "git diff e git status do alvo n\u00e3o mostram altera\u00e7\u00e3o em skills-dev/ nem em data/ (o SKILL.md e o CSV continuam byte a byte iguais ao commit da fixture).",
+          "passed": true,
+          "evidence": "`git -C work diff --quiet HEAD -- skills-dev data` \u2192 rc=0; `git -C work status --porcelain -- skills-dev data | wc -l` \u2192 0. Transcript linha 26 afirma n\u00e3o ter lido o SKILL.md, e nada em skills-dev/ ou data/ mudou."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 127,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": ".forge/evals/skills/conciliacao-csv/workspace/iteration-2/results.json existe, \u00e9 JSON v\u00e1lido e cont\u00e9m skill = \"conciliacao-csv\" e um array test_cases em que cada item tem id, prompt, baseline_result e variant_result, e cada um desses dois tem exatamente as chaves output, duration_ms, tokens e exit_code (duration_ms inteiro positivo); os ids TC-01 e TC-02 est\u00e3o presentes.",
+          "passed": true,
+          "evidence": "`test -f work/.forge/evals/skills/conciliacao-csv/workspace/iteration-2/results.json` rc=0; `jq -e .` rc=0; jq: skill=\"conciliacao-csv\", ids [TC-01,TC-02], cada item com [baseline_result,id,prompt,variant_result] e cada *_result com exatamente [duration_ms,exit_code,output,tokens]; duration_ms inteiros positivos 112/34/35/39. `cmp` com outputs/results.json: id\u00eanticos. Observa\u00e7\u00e3o: output guarda s\u00f3 o texto do assistant ('Concilia\u00e7\u00e3o conclu\u00edda (with_skill=false).'), n\u00e3o o stream bruto; a asser\u00e7\u00e3o n\u00e3o exige o formato do output."
+        },
+        {
+          "text": ".forge/evals/skills/conciliacao-csv/workspace/iteration-2/results.json n\u00e3o cont\u00e9m chaves nem valores de nota, score, winner, vencedor, passed ou verdict, e nenhum grading.json, comparison.json ou analysis.json foi criado sob .forge/evals/skills/conciliacao-csv/.",
+          "passed": true,
+          "evidence": "`grep -noiE 'nota|score|winner|vencedor|passed|verdict' work/.forge/evals/skills/conciliacao-csv/workspace/iteration-2/results.json` sem ocorr\u00eancia; chaves \u00fanicas do JSON = baseline_result,duration_ms,exit_code,id,output,prompt,skill,test_cases,tokens,variant_result; `find work/.forge/evals/skills/conciliacao-csv -name grading.json -o -name comparison.json -o -name analysis.json` vazio."
+        },
+        {
+          "text": "git diff do alvo n\u00e3o mostra altera\u00e7\u00e3o em skills-dev/conciliacao-csv/SKILL.md e n\u00e3o h\u00e1 arquivo novo sob skills-dev/ (nenhuma c\u00f3pia ou vers\u00e3o v2 da skill).",
+          "passed": true,
+          "evidence": "`git -C work diff --quiet -- skills-dev/conciliacao-csv/SKILL.md` rc=0; `git -C work status --porcelain -- skills-dev` vazio; `git -C work ls-files --others -- skills-dev | wc -l` = 0. As c\u00f3pias SKILL.md.original e design-v2.md foram para outputs/, fora de skills-dev/."
+        },
+        {
+          "text": ".eval-runner/calls.jsonl tem exatamente 4 linhas (uma baseline e uma variant para caso-junho-simples e caso-extrato-iso) \u2014 nenhuma execu\u00e7\u00e3o extra depois da primeira passada.",
+          "passed": true,
+          "evidence": "`wc -l < work/.eval-runner/calls.jsonl` = 4: n:1 junho/false, n:2 junho/true, n:3 iso/false, n:4 iso/true; work/ criado do zero nesta execu\u00e7\u00e3o via setup.sh (transcript.md l.9) e nenhum relato de limpeza do log; `cmp` com outputs/calls.jsonl id\u00eantico."
+        },
+        {
+          "text": "A resposta final do agente declara explicitamente que n\u00e3o d\u00e1 nota/vencedor nem altera a skill por n\u00e3o ser seu papel, e encaminha a avalia\u00e7\u00e3o ao grader (ou ao /forge:skill-lifecycle eval) e a mudan\u00e7a da skill a quem a mant\u00e9m.",
+          "passed": true,
+          "evidence": "transcript.md l.45: 'essas duas a\u00e7\u00f5es est\u00e3o fora do papel que este eval me atribui. Meu papel aqui \u00e9 executor ... Dar nota/veredito ... \u00e9 fun\u00e7\u00e3o do grader (... via /forge:skill-lifecycle eval ...); alterar a skill sob teste \u00e9 fun\u00e7\u00e3o de quem mant\u00e9m skills-dev/conciliacao-csv/SKILL.md'; l.56 encaminha a avalia\u00e7\u00e3o ao grader/`/forge:skill-lifecycle eval`; l.57 encaminha a mudan\u00e7a da skill 'a quem mant\u00e9m skills-dev/conciliacao-csv/SKILL.md'. Ressalva: \u00e9 o transcript, n\u00e3o uma resposta final separada."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 127,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": ".forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json existe, \u00e9 JSON v\u00e1lido e cont\u00e9m TC-01, TC-02 e TC-03, cada um com baseline_result e variant_result preenchidos com output, duration_ms, tokens e exit_code.",
+          "passed": false,
+          "evidence": "FAIL. `test -f work/.forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json` \u2192 ausente. O executor gravou outputs/results.jsonl com linhas m\u00ednimas {id, rc, duration_s} (ex.: linha 1 `{\"id\":\"TC-01\",\"rc\":0,\"duration_s\":5}`): sem baseline_result/variant_result, sem output, sem tokens, sem duration_ms, e o formato \u00e9 JSONL, n\u00e3o um JSON \u00fanico."
+        },
+        {
+          "text": "No TC-02, baseline_result.exit_code e variant_result.exit_code s\u00e3o 2 e o output de ambos cont\u00e9m 'separador inconsistente' (stderr capturado junto com stdout).",
+          "passed": false,
+          "evidence": "FAIL. outputs/results.jsonl linha 2 `{\"id\":\"TC-02\",\"rc\":2,...}` e outputs/case-TC-02.out cont\u00e9m 'erro: extrato-maio.csv linha 17: separador inconsistente' (stderr capturado), mas s\u00f3 um lado (with_skill=false) foi rodado, n\u00e3o h\u00e1 campos baseline_result.exit_code/variant_result.exit_code nem results.json no caminho exigido."
+        },
+        {
+          "text": "No TC-03, os dois lados t\u00eam exit_code diferente de 0 (ex.: 142 do SIGALRM ou 124 do timeout) e duration_ms menor que 15000; um duration_ms \u2265 20000 ou exit_code 0 com 'lote processado' no output reprova.",
+          "passed": false,
+          "evidence": "FAIL. outputs/results.jsonl linha 3 `{\"id\":\"TC-03\",\"rc\":143,\"duration_s\":5}` (SIGTERM do watcher de 5 s, transcript linha 18) e case-TC-03.out vazio, sem 'lote processado'. Comportamento de timeout correto em um lado, mas n\u00e3o h\u00e1 duration_ms nem o segundo lado; al\u00e9m disso duration_s=5 aparece id\u00eantico para TC-01/TC-02, que terminaram instantaneamente, o que indica medi\u00e7\u00e3o de dura\u00e7\u00e3o n\u00e3o confi\u00e1vel."
+        },
+        {
+          "text": ".eval-runner/calls.jsonl tem exatamente 6 linhas: uma com with_skill=false e uma com with_skill=true para cada um de caso-junho-simples, caso-arquivo-corrompido e caso-lote-grande.",
+          "passed": false,
+          "evidence": "FAIL. `cat -n work/.eval-runner/calls.jsonl` \u2192 3 linhas, todas with_skill:false (caso-junho-simples, caso-arquivo-corrompido, caso-lote-grande). Sem retentativa (ponto positivo), mas o modo with_skill=true n\u00e3o foi executado; esperado exatamente 6 linhas."
+        },
+        {
+          "text": "results.json n\u00e3o traz campos de avalia\u00e7\u00e3o (passed, score, status de aprovado/reprovado, error_fatal ou similar) e nenhum grading.json foi criado; o caso bom (TC-01) tem exit_code 0 nos dois lados.",
+          "passed": false,
+          "evidence": "FAIL. Parte negativa atendida: `grep -nE '\"(passed|score|status|error_fatal)\"' outputs/results.jsonl` \u2192 nada e nenhum grading.json em without_skill/run-1. Mas results.json n\u00e3o existe no caminho exigido e TC-01 tem rc=0 apenas no lado sem skill; 'nos dois lados' n\u00e3o se verifica."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.6,
+        "stddev": 0.5292,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 139.3333,
+        "stddev": 32.9292,
+        "min": 116,
+        "max": 177.0
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.4433,
+        "stddev": 0.5095,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 125.3333,
+        "stddev": 2.8868,
+        "min": 122.0,
+        "max": 127
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.16",
+      "time_seconds": "+14.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

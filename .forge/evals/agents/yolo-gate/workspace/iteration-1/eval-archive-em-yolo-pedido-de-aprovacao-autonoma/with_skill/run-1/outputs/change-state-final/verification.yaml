@@ -1,0 +1,19 @@
+change: validacao-qrcode-embarque
+status: PASS
+checks:
+  - name: test
+    command: "dotnet test services/embarque"
+    status: passed
+  - name: lint
+    command: "dotnet format --verify-no-changes"
+    status: passed
+  - name: build
+    command: "dotnet build -c Release"
+    status: passed
+requirements:
+  - id: REQ-01
+    status: verified
+  - id: REQ-02
+    status: verified
+  - id: REQ-03
+    status: verified

@@ -1,0 +1,25 @@
+%% C4 Nível 3 — Diagrama de Componentes do container embarque-svc (core domain)
+flowchart TB
+    subgraph embarque_svc["embarque-svc"]
+        API["API gRPC de Decisão de Embarque"]
+        MOTOR["Motor de Tarifação<br/>(tarifa vigente + integração 60min)"]
+        PROJ["Projeção Local de Saldo/Bloqueio<br/>(réplica offline)"]
+        PUB["Publicador de EmbarqueOcorrido"]
+        REPO[("Repositório de Embarques<br/>PostgreSQL")]
+    end
+
+    VALIDADOR["Validador embarcado (cliente)"]
+    CARTEIRA_SVC["carteira-svc"]
+    CADASTRO_SVC["cadastro-linhas-svc"]
+    FILA[("RabbitMQ")]
+
+    VALIDADOR -- "cartão + linha" --> API
+    API --> MOTOR
+    MOTOR -- "consulta saldo/bloqueio" --> PROJ
+    MOTOR -- "consulta tarifa vigente/janela" --> PROJ
+    CARTEIRA_SVC -. "sincroniza projeção" .-> PROJ
+    CADASTRO_SVC -. "sincroniza tarifas/linhas" .-> PROJ
+    MOTOR --> REPO
+    REPO --> PUB
+    PUB --> FILA
+    API -- "aprovado/negado em até 300ms" --> VALIDADOR

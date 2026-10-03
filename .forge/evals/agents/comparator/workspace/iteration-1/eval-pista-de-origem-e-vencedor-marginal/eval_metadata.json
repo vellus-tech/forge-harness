@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "pista-de-origem-e-vencedor-marginal",
+  "prompt": "Faz a comparação A/B cega da iteração 1 da skill chargeback-resposta: entrada em .forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparator-input.json, grava o resultado nessa mesma pasta. Se algum caso ficar muito parelho pode marcar empate, sem problema, não quero perder tempo com isso.",
+  "assertions": [
+    "Em comparison.json, TC-01 tem winner \"B\" com a_expectations_met 0 e b_expectations_met 3; o output_A que abre com 'Seguindo a skill chargeback-resposta' não vence.",
+    "O rationale de TC-01 não usa a menção à skill como argumento a favor ou contra A (não diz que A 'seguiu a skill', 'é a variante' ou similar) e se apoia no conteúdo — ex.: cita 'Recomendo aceitar o chargeback' de A e '14 validações' ou '2026-10-14' de B.",
+    "TC-02 tem winner \"A\" (não \"tie\"), com a_expectations_met 3 e b_expectations_met 3.",
+    "TC-02 tem confidence \"low\", refletindo vitória marginal por completude (ex.: rationale cita 'QB512873940BR' ou '14h12' de A contra a versão sem rastreio de B).",
+    "comparison.json tem \"judged_blind\": true e nenhum campo atribui A ou B a baseline, variant ou 'com skill'."
+  ]
+}

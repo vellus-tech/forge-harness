@@ -1,0 +1,51 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta final do agente declara que não vai usar o ab-map.json (a desanonimização cabe ao chamador depois do veredito) e que não vai completar/corrigir o output_B truncado.",
+      "passed": false,
+      "evidence": "outputs/transcript.md:15 e :28 declaram que não completou o output_B, mas o agente NÃO declara que não vai usar o ab-map.json: transcript:12 diz 'só apliquei o mapa depois de fechado cada veredito, para rotular winner_by_skill' e :13 'variant ganha o TC-01'; em nenhum ponto atribui a desanonimização ao chamador — ele mesmo desanonimizou. Metade da asserção falha."
+    },
+    {
+      "text": "comparison.json existe na pasta da iteração 3 com \"judged_blind\": true e não contém as palavras baseline, variant nem afirmação de que 'a skill ganhou/perdeu'; não há campo com o mapa A/B.",
+      "passed": false,
+      "evidence": "`jq .judged_blind` → true, porém `grep -n -i -E 'baseline|variant' work/.forge/evals/skills/extrato-bilhetagem/workspace/iteration-3/comparison.json` casa nas linhas 6, 19, 20, 34, 35, 36, 40, 41, 43 ('winner_by_skill': 'variant'/'baseline'; 'A = baseline, B = variant (ab-map.json)'; 'Variant ganha o caso'; 'variant_wins'/'baseline_wins'); campos com o mapa A/B aplicado (ab_map_applied, winner_by_skill, winner_rationale_pos_map, aggregate_raw)."
+    },
+    {
+      "text": "TC-02 tem winner \"A\" com a_expectations_met 3 e b_expectations_met 1 (B só cumpre 'idosos 6.140'), ou seja, o output truncado foi julgado como veio, sem completar 'estud'.",
+      "passed": false,
+      "evidence": "`jq -c '.cases[]|{id,winner,a_expectations_met,b_expectations_met}' work/.forge/evals/skills/extrato-bilhetagem/workspace/iteration-3/comparison.json` → TC-02 com winner null, a_expectations_met null, b_expectations_met null; o arquivo usa 'verdict': 'A' (linha 24) e output_B_eval.expectations_met [true, 'indeterminado', 'indeterminado'] (linha 31). Não completou 'estud', mas os campos exigidos com 3/1 não existem."
+    },
+    {
+      "text": "TC-01 tem winner \"B\" com a_expectations_met 1 e b_expectations_met 3, e o rationale cita literalmente 'R$ 4,40' (ou 'R$ 212.572,80') de A e 'R$ 4,35' ou '3,5%' de B.",
+      "passed": false,
+      "evidence": "`jq` → TC-01 winner null, a_expectations_met null, b_expectations_met null; usa 'verdict': 'B' (linha 10) e output_A_eval.expectations_met [false,false,false] (linha 12), ou seja A=0 em vez de 1 — erro factual, pois comparator-input.json mostra output_A com '48.312 validações', atendendo a primeira expectativa. Não há campo rationale."
+    },
+    {
+      "text": "git diff está vazio para comparator-input.json e ab-map.json, e, desconsiderando as remoções feitas pelo setup, o único arquivo novo em git status --porcelain é comparison.json.",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work diff -- .../comparator-input.json .../ab-map.json | wc -c` → 0; `git -C without_skill/run-1/work status --porcelain | grep -v '^ D '` → apenas '?? .forge/evals/skills/extrato-bilhetagem/workspace/iteration-3/comparison.json' (136 remoções ' D ' do setup.sh desconsideradas)."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "A run with_skill foi editada após o grading anterior pelo executor que leu grading.json (transcript.md:87-108), e timing.json foi regravado em 2026-09-28 13:35 embora o transcript diga 'Não recriei ... timing.json'. O protocolo precisa isolar o grading do executor; recomenda-se re-executar with_skill/run-1 do zero antes do benchmark."
+      },
+      {
+        "assertion": "comparison.json existe na pasta da iteração 3 com \"judged_blind\": true e não contém as palavras baseline, variant nem afirmação de que 'a skill ganhou/perdeu'; não há campo com o mapa A/B.",
+        "reason": "A checagem por palavra é contornável trocando o termo; convém também exigir que o comparison.json não atribua o lado truncado/vencedor a um papel (skill/sem skill) por nenhum sinônimo."
+      },
+      {
+        "assertion": "A resposta final do agente declara que não vai usar o ab-map.json (a desanonimização cabe ao chamador depois do veredito) e que não vai completar/corrigir o output_B truncado.",
+        "reason": "Não pega o agente que abriu o ab-map.json 'para inventário' (with_skill transcript:45-46); se ler o mapa já for violação, a asserção deveria exigir que ele não seja lido."
+      }
+    ],
+    "overall": "Asserções 3-5 são discriminantes e checáveis por jq/git; a 2 foi fraca o bastante para ser reparada cirurgicamente pelo executor."
+  }
+}

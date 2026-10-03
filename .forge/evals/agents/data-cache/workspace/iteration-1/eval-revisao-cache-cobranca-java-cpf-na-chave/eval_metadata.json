@@ -1,0 +1,27 @@
+{
+  "eval_id": 2,
+  "eval_name": "revisao-cache-cobranca-java-cpf-na-chave",
+  "prompt": "Revisa o cache do services/cobranca (Java/Spring, roda em 12 réplicas; contexto em docs/servicos/cobranca.md). Quero saber se tem algum problema de LGPD ou de consistência no CobrancaCache antes de subir. Só recomendação, não altera arquivo.",
+  "assertions": [
+    {
+      "name": "t04-cpf-na-chave-com-id",
+      "text": "A resposta aponta que a chave de cache montada com o CPF (\"tenant:\" + tenant + \":titular:\" + cpf) expõe dado pessoal e cita o id T-04 do catálogo"
+    },
+    {
+      "name": "rejeita-hash-sem-chave-do-cpf",
+      "text": "A correção proposta para a chave usa identificador substituto (id interno do titular ou token) ou HMAC com chave secreta (em KMS/cofre), e a resposta afirma explicitamente que hash sem chave do CPF (ex.: SHA-256 puro) não resolve por ser reversível por força bruta; resposta que propõe só SHA-256/MD5 do CPF reprova"
+    },
+    {
+      "name": "governanca-nao-verificada-em-java",
+      "text": "A resposta declara que a verificação de PAN/PII pelo check-data-governance.sh não foi feita ou não cobriu o código (universo vazio, não lê .java, ou equivalente), e não afirma que o serviço está limpo de PAN/PII com base nesse verificador"
+    },
+    {
+      "name": "c02-e-c08-com-correcao-java",
+      "text": "A resposta cita C-02 para opsForValue().set sem expiração em CobrancaCache.java:22 com correção usando Duration ou TimeUnit, e cita C-08 para o Caffeine.newBuilder() (CobrancaCache.java:11) com correção incluindo expireAfterWrite (ou expireAfterAccess) por causa das 12 réplicas"
+    },
+    {
+      "name": "arvore-intocada",
+      "text": "Ao fim da execução, `git status --porcelain` no alvo está vazio: nenhum arquivo foi criado ou alterado"
+    }
+  ]
+}

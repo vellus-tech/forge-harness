@@ -36,7 +36,17 @@
 #       `git checkout --`, porque não existe estado intermediário sujo para desfazer: o original
 #       nunca saiu do disco. Sem este passo, uma restauração quebrada produziria mutação fantasma
 #       (LDG-0164, com o w200 antes da correção do commit anterior nesta branch).
+#   [5] LDG-0190 — 'ledger-ops.sh add --origin' fora do enum de source.origin reprovava com rc 0 e
+#       só o w202 descobria depois, sobre o ledger real: agora `add` valida ANTES de escrever,
+#       sobre fixture HERMÉTICA (repositório git sintético isolado, nunca o ledger real) — recusa
+#       nominal citando o enum completo, sem tocar o ledger.json; positiva com '--origin session';
+#       prova de mutação (remover a validação faz a recusa sair rc 0), restauração por cmp e
+#       recontrole.
 set -euo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git do cenário [5]
+# (que cria um repositório sintético para exercitar `ledger-ops.sh add`) obedecerem ao
+# repositório de quem invoca o gate, e não ao repositório sintético criado ali.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$WS" || { echo "FAIL: não foi possível entrar em '$WS'"; exit 2; }
@@ -222,5 +232,64 @@ set -e
 [ "$rc4c" -eq 0 ] || { echo "FAIL [4] recontrole: nova cópia do original deveria voltar a passar — $out4c"; exit 1; }
 grep -q "; 0 reprovando" <<<"$out4c" || { echo "FAIL [4] recontrole: esperava '0 reprovando' — got: $out4c"; exit 1; }
 echo "OK [4] recontrole — nova cópia do original (nunca escrito) volta a 0 reprovando"
+
+echo "[5] LDG-0190 — 'ledger-ops.sh add --origin' fora do enum do schema reprova ANTES de escrever"
+LG_REAL="$WS/template/.forge/scripts/ledger-ops.sh"
+[ -f "$LG_REAL" ] || { echo "FAIL: arquivo esperado ausente: $LG_REAL"; exit 1; }
+
+_run_to5() { # _run_to5 <segundos> -- <cmd...> — teto de tempo (macOS não tem `timeout` por padrão)
+  local secs="$1"; shift
+  [ "${1:-}" = "--" ] && shift
+  perl -e "alarm $secs; exec @ARGV" -- "$@"
+}
+
+# Fixture HERMÉTICA: repositório git sintético isolado, com FORGE_ROOT apontando para ele — nunca
+# toca $LEDGER (o ledger real do projeto).
+T5="$(mktemp -d "${TMPDIR:-/tmp}/forge-w202-ldg0190.XXXXXX")"
+trap 'rm -rf "$T5"' EXIT
+# w213: a mutação abaixo (com restauração) NUNCA pode mirar a árvore rastreada real — um kill -9
+# entre a mutação e a restauração deixaria o ledger-ops.sh REAL corrompido. Copia a árvore inteira
+# de scripts/ (ledger-ops.sh sourceia lib/arg-guards.sh por caminho relativo ao próprio script),
+# nunca só o arquivo isolado.
+cp -R "$WS/template/.forge" "$T5/dotforge-sandbox"
+LG="$T5/dotforge-sandbox/scripts/ledger-ops.sh"
+git -C "$T5" init -q
+_run_to5 20 -- git -C "$T5" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+LF5="$T5/.forge/ledger/ledger.json"
+_lg5() { _run_to5 20 -- env FORGE_ROOT="$T5" bash "$LG" "$@"; }
+
+set +e
+out5a="$(_lg5 add --type tech-debt --title t --detail d --origin texto-livre 2>&1)"; rc5a=$?
+set -e
+[ "$rc5a" -ne 0 ] || { echo "FAIL [5]: 'add --origin texto-livre' (fora do enum) devolveu rc=0 — got: $out5a"; exit 1; }
+case "$out5a" in *"analyze"*"verify"*"close"*"archive"*"manual"*"session"*"seed"*) : ;; *) echo "FAIL [5]: a mensagem de recusa não cita o enum completo — got: $out5a"; exit 1 ;; esac
+[ ! -f "$LF5" ] || { echo "FAIL [5]: 'add --origin texto-livre' escreveu $LF5 mesmo reprovando — o ledger devia ficar byte-idêntico ao de antes da chamada (ausente)"; exit 1; }
+echo "OK [5] recusa — $out5a"
+
+set +e
+out5b="$(_lg5 add --type tech-debt --title t --detail d --origin session 2>&1)"; rc5b=$?
+set -e
+[ "$rc5b" -eq 0 ] || { echo "FAIL [5]: 'add --origin session' (dentro do enum) devolveu rc=$rc5b — got: $out5b"; exit 1; }
+echo "OK [5] positiva — --origin session continua rc 0: $out5b"
+
+echo "[5] prova de mutação — remover a validação de 'add' faz o cenário de recusa sair rc 0"
+cp "$LG" "$T5/ledger-ops.orig"
+perl -0pi -e 's/  _validate_enum_field "\$SCHEMA" "source\.origin" "\$origin" "origin"\n  _require_git_date/  _require_git_date/' "$LG"
+cmp -s "$LG" "$T5/ledger-ops.orig" && { echo "FAIL [5]: o perl NÃO alterou ledger-ops.sh — o ponto de mutação mudou e a mutação não muta nada"; exit 1; }
+rm -f "$LF5"
+set +e
+out5c="$(_lg5 add --type tech-debt --title t2 --detail d2 --origin outro-texto-livre 2>&1)"; rc5c=$?
+set -e
+cp "$T5/ledger-ops.orig" "$LG"
+cmp -s "$LG" "$T5/ledger-ops.orig" || { echo "FAIL [5]: restauração de ledger-ops.sh não bateu byte a byte"; exit 1; }
+[ "$rc5c" -eq 0 ] || { echo "FAIL [5]: com a validação removida, esperava-se rc=0 sobre origin fora do enum (a mutação teria de ser observada) — got rc=$rc5c: $out5c"; exit 1; }
+echo "OK [5] mutação — sem a validação, 'add --origin outro-texto-livre' saiu rc 0 (o cenário de recusa observa a checagem)"
+
+rm -f "$LF5"
+set +e
+out5d="$(_lg5 add --type tech-debt --title t --detail d --origin texto-livre 2>&1)"; rc5d=$?
+set -e
+[ "$rc5d" -ne 0 ] || { echo "FAIL [5]: recontrole — depois de restaurar ledger-ops.sh, 'add --origin texto-livre' voltou a sair rc=0"; exit 1; }
+echo "OK [5] recontrole — validação restaurada volta a recusar"
 
 echo "TODOS OS CENÁRIOS OK — w202-ledger-schema-conformance-gate"

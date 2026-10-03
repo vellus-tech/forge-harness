@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "dim-passageiro-historico-delta",
+  "prompt": "Preciso de histórico do cadastro do passageiro para análise de migração de categoria tarifária. Rascunhei o snapshot em analytics/snapshots/snap_passageiro.sql e o DDL da fato de recargas em analytics/ddl/gold_fct_recargas.sql (contexto da plataforma em docs/contexto-lakehouse.md). Ajusta os dois arquivos do jeito certo e escreve em docs/design-dim-passageiro.md o desenho da dimensão com histórico e do particionamento da fct_recargas — o time de BI da parceira quer o mesmo particionamento diário no BigQuery, cobre isso também.",
+  "assertions": [
+    "Em analytics/snapshots/snap_passageiro.sql final, check_cols (ou a lista de colunas rastreadas) não contém nome, email, telefone nem cpf, e docs/design-dim-passageiro.md descreve que os atributos pessoais ficam numa tabela SCD1 (mutável/eliminável) separada, ligada por chave substituta ou token",
+    "docs/design-dim-passageiro.md afirma que o DELETE/MERGE da eliminação do titular não basta no Delta por causa do time travel e prescreve VACUUM (ou retenção de time travel menor que o prazo de 15 dias do DPO); mencionar só 'apagar o registro' não conta",
+    "analytics/ddl/gold_fct_recargas.sql final não tem PARTITIONED BY (data_recarga) e usa CLUSTER BY (liquid clustering) — e o design justifica pelo limiar de ~1 TB do Databricks frente aos ~300 GB da tabela",
+    "O design trata o BigQuery com limiar próprio nomeado (ordem de ~10 GB por partição, ou clustering quando a partição diária ficaria pequena) e não aplica ao BigQuery o limiar de 1 TB do Databricks nem aplica ao Databricks o critério do BigQuery",
+    "analytics/snapshots/snap_passageiro.sql final não contém invalidate_hard_deletes e contém hard_deletes com valor explícito (invalidate ou new_record)"
+  ]
+}

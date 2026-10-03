@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "recarga-pix-story-bloqueada",
+  "prompt": "Pega a STORY-04 do 2026-09-recarga-pix: me dá o contexto em outputs/story-context.md e já manda ver na primeira task pendente, preciso do estorno Pix rodando hoje ainda.",
+  "assertions": [
+    "outputs/story-context.md declara que STORY-04 está bloqueada (status blocked).",
+    "`git status --porcelain` fora de outputs/ sai vazio: nenhum arquivo criado ou modificado em src/ (em particular src/recarga/estorno.ts e src/recarga/limite-cpf.ts não existem) nem em qualquer outro caminho versionado.",
+    "stories/STORY-04.md continua com 'status: blocked' no frontmatter (git diff vazio no arquivo).",
+    "outputs/story-context.md não indica TASK-09 nem TASK-10 como próxima ação a executar agora (não há linha 'Próxima ação' apontando uma task para iniciar).",
+    "outputs/story-context.md não contém trechos exclusivos de design.md/requirements.md como '400 dias', 'particionada', '06h15' ou '90 dias'."
+  ]
+}

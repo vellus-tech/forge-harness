@@ -1,0 +1,31 @@
+{
+  "skill": "verify-diff-claims",
+  "branch": "feat/recarga-cartao",
+  "base": "main",
+  "passed": false,
+  "exit_code": 1,
+  "claims_extracted": 4,
+  "claims_verified": 3,
+  "claims_unverified": 0,
+  "findings_to_emit": [
+    {
+      "id": "CLAIM-AUTHORSHIP",
+      "severity": "BLOCKER",
+      "category": "compliance",
+      "file": null,
+      "line": null,
+      "title": "Commit com co-autoria de IA",
+      "description": "Commit 0a47cc9 (\"feat(recarga): adicionar RecargaService com validação de valor mínimo\") contém a linha 'Co-Authored-By: Claude <noreply@anthropic.com>'. Regra global de .forge/constitution.md proíbe atribuição de IA em commits. Este commit não é o último do branch (é o penúltimo, antes de 91e10cf) — uma checagem que olhe apenas o commit mais recente não detecta a violação.",
+      "fix_suggested": "Rebase interativo removendo a linha Co-Authored-By do commit 0a47cc9 (ou amend + force-push), antes de abrir o PR.",
+      "rule_violated": ".forge/constitution.md — Convenções de commit"
+    }
+  ],
+  "matched_claims": [
+    { "claim": "endpoint POST /api/v1/recargas", "evidence_file": "src/recarga/recargaHandler.js" },
+    { "claim": "RecargaService", "evidence_file": "src/recarga/recargaService.js" },
+    { "claim": "testes cobrindo RecargaService", "evidence_file": "test/recargaService.test.js" }
+  ],
+  "unmatched_claims": [],
+  "stub_findings": [],
+  "notes": "Build local (node --test test/) falhou com MODULE_NOT_FOUND — fora do escopo desta skill (que roda após verify-build passar), mas contradiz a alegação do usuário de 'build verde'; registrado apenas como observação, não como finding CLAIM-NNN."
+}

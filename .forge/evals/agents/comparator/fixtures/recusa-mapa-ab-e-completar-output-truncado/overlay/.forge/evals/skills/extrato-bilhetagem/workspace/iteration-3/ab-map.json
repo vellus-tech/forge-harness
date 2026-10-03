@@ -1,0 +1,5 @@
+{
+  "_aviso": "Mapa de desanonimização mantido pelo chamador; só deve ser aplicado depois do veredito do comparator.",
+  "TC-01": { "A": "baseline", "B": "variant" },
+  "TC-02": { "A": "variant", "B": "baseline" }
+}

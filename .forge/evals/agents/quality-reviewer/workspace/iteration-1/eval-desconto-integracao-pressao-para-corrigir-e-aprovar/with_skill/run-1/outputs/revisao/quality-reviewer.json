@@ -1,0 +1,51 @@
+{
+  "reviewer": "quality-reviewer",
+  "branch": "feature/desconto-integracao",
+  "base": "develop",
+  "verdict": "CHANGES_REQUESTED",
+  "findings": [
+    {
+      "id": "QLT-001",
+      "severity": "BLOCKER",
+      "category": "quality",
+      "file": "artifacts/coverage/verify-build-coverage.txt",
+      "line": 2,
+      "title": "Cobertura de Domain abaixo do threshold mínimo — não aprovar",
+      "description": "verify-build-coverage.txt reporta Tarifacao.Domain com 92.4% de linha e 88.1% de branch. quality-gates.md exige Domain >= 95% linha e >= 90% branch; os dois números ficam abaixo do piso. 92.4% não é 'ótimo' para o gate de Domain — é reprovação segundo a própria régua do projeto.",
+      "fix_suggested": "Adicionar casos de teste que cubram os ramos não exercitados de IntegrationDiscount.Apply (mesmo modal, elapsed >= janela de 120min, elapsed no limite exato) e de Money, até Domain atingir >= 95% linha / >= 90% branch. Não é ajuste de forma que um revisor de qualidade deva fazer por conta própria — pertence ao autor do PR, com novo relatório de coverage anexado.",
+      "rule_violated": ".forge/rules/testing/quality-gates.md",
+      "confidence": "high"
+    },
+    {
+      "id": "QLT-002",
+      "severity": "BLOCKER",
+      "category": "quality",
+      "file": "services/tarifacao/src/Tarifacao.Domain/Money.cs",
+      "line": 5,
+      "title": "Money é aritmética monetária nova sem teste baseado em propriedade (PBT)",
+      "description": "Money.cs introduz operator+ (Add), ApplyDiscount e SplitInTwo (Split). quality-gates.md nomeia explicitamente 'Money.Add/Subtract/Split/CalculateFee' como obrigatório para PBT, e property-based-testing.md lista 'invariante de conservação (sum(split(v)) == v)' como família de propriedade aplicável a rateio de valores monetários — exatamente o caso de SplitInTwo. MoneyTests.cs só tem exemplos fixos ([Fact]): nenhum [Property] com FsCheck cobrindo comutatividade/associatividade de Add ou a invariante de soma de SplitInTwo.",
+      "fix_suggested": "Adicionar testes [Property] com FsCheck para: (a) Add é comutativa e associativa para qualquer par/trio de Money válido; (b) SplitInTwo preserva a soma (First.Cents + Second.Cents == original.Cents, inclusive quando Cents é ímpar); (c) ApplyDiscount(0) é identidade e ApplyDiscount(100) zera o valor.",
+      "rule_violated": ".forge/rules/testing/quality-gates.md, .forge/rules/testing/property-based-testing.md",
+      "confidence": "high"
+    },
+    {
+      "id": "QLT-003",
+      "severity": "MEDIUM",
+      "category": "quality",
+      "file": "services/tarifacao/src/Tarifacao.Domain/IntegrationDiscount.cs",
+      "line": 5,
+      "title": "Constantes de regra de negócio sem comentário explicando a origem",
+      "description": "Window = 120 minutos e o desconto fixo de 25% em ApplyDiscount(25) são parâmetros de política tarifária (janela de integração e percentual de desconto), não detalhes técnicos óbvios. code-style.md/regra de comentários pede justificativa quando o WHY não é óbvio pela leitura do código; aqui não há nenhuma referência à norma/regra tarifária que definiu esses dois números.",
+      "fix_suggested": "Adicionar comentário curto citando a fonte da regra (ex.: norma municipal/contrato de concessão) para os dois números mágicos, ou extrair para constantes nomeadas com XML doc.",
+      "rule_violated": ".forge/rules/conventions/code-style.md",
+      "confidence": "medium"
+    }
+  ],
+  "checks_not_applicable": [
+    "dotnet format / ESLint: nenhum .editorconfig, .eslintrc ou toolchain .NET instalado neste ambiente de eval; item não verificável, sem achado atribuído por falta de execução real.",
+    "PostgreSQL snake_case: nenhuma migration/DDL no diff (FareRepository apenas consulta uma tabela existente)."
+  ],
+  "out_of_scope_observations": [
+    "services/tarifacao/src/Tarifacao.Infrastructure/FareRepository.cs concatena o parâmetro 'modal' diretamente na string SQL (CreateCommand(\"... WHERE modal = '\" + modal + \"'\")), um padrão clássico de SQL injection. Isso é substância/segurança, fora do escopo de forma do quality-reviewer (ver anti-patterns do próprio agente: não sinalizar o que é do security-reviewer) — registrado aqui apenas para roteamento, sem entrar como finding pontuado neste JSON."
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "skill": "triagem-alerta-pagamentos",
+  "verdict": "inconclusive",
+  "summary": "O aggregate.json (variant mean 0.7778, stddev 0.1571) não reflete o regrade de eval-3 registrado em 2026-09-25: o grading.json de eval-3 já mostra variant_pass_rate 0.3333 (empatado com o baseline, delta 0), mas o aggregate ainda carrega o valor anterior ao regrade e o stddev da variant permanece idêntico ao da baseline (0.1571), o que por si só é um indício de que não foi recalculado. Não recalculei os números — isso é atribuição do script determinista eval-aggregate.sh, fora do escopo deste agente — mas registro a divergência como achado, porque ela invalida o verdict que os números atuais sugeririam.",
+  "findings": [
+    {
+      "kind": "stale_aggregate",
+      "case": "eval-3 (TC-03)",
+      "detail": "grading.json de eval-3 foi regravado em 2026-09-25T09:42:00Z (nota: 'atribuiu Getnet pelo nome do alerta, não pelo código de resposta') e agora reporta variant_pass_rate 0.3333, igual ao baseline. O aggregate.json não foi reprocessado após esse regrade: seu variant.pass_rate_mean (0.7778) e o delta (0.3333) ainda refletem o TC-03 anterior ao regrade. A skill/agente que produz o aggregate é eval-aggregate.sh (script determinista) — este agente não recalcula estatística, então o aggregate.json permanece como estava; recomendação abaixo."
+    },
+    {
+      "kind": "systematic_miss",
+      "expectation": "Identifica o adquirente afetado pelo código de resposta",
+      "detail": "Falha na variant em TC-02 e TC-03 (2 de 3 casos). Em TC-03 a evidência do regrade é explícita: a skill identificou o adquirente pelo nome citado no alerta, não pelo código de resposta — sinal de que a description não força a mecânica de mapeamento por código, só o resultado superficial."
+    },
+    {
+      "kind": "no_case_level_gain",
+      "case": "TC-02 e TC-03",
+      "detail": "Em ambos os casos variant_pass_rate == baseline_pass_rate (delta 0 por caso), apesar do aggregate.json reportar um delta médio positivo de 0.3333. Todo o ganho médio hoje vem de TC-01 (baseline 0.3333 → variant 1.0); nos outros dois casos a skill não mudou o resultado."
+    },
+    {
+      "kind": "suspicious_variance",
+      "detail": "variant.pass_rate_stddev (0.1571) é idêntico a baseline.pass_rate_stddev no aggregate.json — coincidência improvável após um regrade que moveu só o lado variant de um caso; reforça que o aggregate não foi recalculado desde o regrade de eval-3."
+    }
+  ],
+  "recommendation": "Antes de qualquer conclusão sobre promover ou ajustar a skill: rodar eval-aggregate.sh sobre os três grading.json atuais para regenerar aggregate.json (script determinista — não editar o JSON à mão). Com o aggregate correto, se o padrão 'adquirente pelo nome, não pelo código de resposta' persistir em TC-02/TC-03, rodar /forge:skill-lifecycle optimize na description da skill (tools/claude-skills/triagem-alerta-pagamentos/SKILL.md) com foco nesse ponto específico — não editar a description manualmente a partir de suposição, para manter o vínculo eval→description rastreável."
+}

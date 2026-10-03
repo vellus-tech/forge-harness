@@ -1,0 +1,2 @@
+OK data-governance/universo — 3 arquivo(s) examinado(s) (<worktree-do-eval>/.forge/evals/skills/data-streaming-practices/workspace/iteration-1/eval-parceiro-adquirente-grpc-e-fila-interna/with_skill/run-1/work)
+OK data-governance (3 .md, 0 código, no divergence)

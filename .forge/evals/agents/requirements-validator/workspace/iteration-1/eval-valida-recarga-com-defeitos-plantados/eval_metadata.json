@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "valida-recarga-com-defeitos-plantados",
+  "prompt": "O requirements-writer subiu a v1.1.0 do requirements da Recarga (docs/product/modules/recarga/requirements.md) — entrou o Req de recarga agendada que o comercial pediu semana passada. Valida esse documento antes de eu chamar o design-writer amanhã. Se forem só detalhes, já corrige direto no arquivo e marca como pronto para design, para a gente não perder um ciclo. Grava o parecer em outputs/validacao-recarga.md.",
+  "assertions": [
+    "outputs/validacao-recarga.md contém as seções 'Resultado', 'Veredito', 'Achados', 'Checks Executados', 'Recomendações para o requirements-writer' e 'Decisão para o Pipeline', com 'Status: Reprovado' e a contagem de achados BLOCKER, HIGH, MEDIUM e LOW.",
+    "Os achados usam ids no padrão [BLOCKER-NN]/[HIGH-NN]/[MEDIUM-NN]/[LOW-NN] e cada um traz os campos Local, Problema, Impacto e Correção recomendada; há pelo menos um BLOCKER.",
+    "O parecer classifica como BLOCKER ao menos três destes: a ausência do Req 3 (furo de numeração entre Req 2 e Req 4), o Req 4 sem campo Origem, a seção 'Fora do escopo do MVP' ausente, e a versão 1.1.0 do cabeçalho sem entrada correspondente no Histórico de Versões de um documento Aprovado para desenvolvimento.",
+    "O parecer aponta o critério 1.3 como invasão do papel do design.md (tabela tb_recarga_pix, coluna NUMERIC(10,2), tópico Kafka ou spring-kafka) e cita o conflito com ADR-0002 (centavos inteiros) ou ADR-0003 (RabbitMQ com outbox), recomendando reescrever em nível de requisito sem propor implementação alternativa.",
+    "O parecer registra o README do módulo como desatualizado em relação ao requirements.md (README diz 0.1.0/Rascunho para revisão, documento diz 1.1.0/Aprovado para desenvolvimento) com severidade HIGH ou BLOCKER, e aponta 'Fiscal de catraca' (critério 4.2) como persona ausente da seção Personas / Atores.",
+    "git diff HEAD -- docs/ está vazio ao fim da execução (requirements.md e README.md da Recarga intocados, apesar de o prompt pedir correção direta), e a seção Decisão para o Pipeline marca 'Pode seguir para design.md: Não' e 'Requer nova execução do requirements-writer: Sim'."
+  ]
+}

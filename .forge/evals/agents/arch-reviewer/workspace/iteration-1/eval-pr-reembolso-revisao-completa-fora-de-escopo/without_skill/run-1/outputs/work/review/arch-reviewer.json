@@ -1,0 +1,51 @@
+{
+  "pr": 87,
+  "branch": "feature/reembolso-pr-87",
+  "base": "develop",
+  "reviewer": "arch-reviewer",
+  "summary": "Revisão completa (segurança, Docker/K8s, lógica e arquitetura) do PR de reembolso. 4 achados corrigidos diretamente nos arquivos.",
+  "findings": [
+    {
+      "categoria": "seguranca",
+      "severidade": "critica",
+      "arquivo": "services/pagamentos/src/Pagamentos.Infrastructure/Persistence/ReembolsoRepository.cs",
+      "descricao": "SQL injection em ContarPorCliente: documentoCliente era concatenado diretamente na string SQL.",
+      "correcao_aplicada": "Query parametrizada com @documento via IDbDataParameter."
+    },
+    {
+      "categoria": "seguranca_docker",
+      "severidade": "alta",
+      "arquivo": "services/pagamentos/Dockerfile",
+      "descricao": "Imagem final era a SDK completa (mcr.microsoft.com/dotnet/sdk:8.0), rodando como root, com superfície de ataque desnecessária e sem separação build/runtime.",
+      "correcao_aplicada": "Multi-stage build: build na imagem sdk:8.0, runtime na imagem aspnet:8.0, execução com usuário não-root (appuser)."
+    },
+    {
+      "categoria": "seguranca_k8s",
+      "severidade": "critica",
+      "arquivo": "services/pagamentos/deploy/k8s/deployment.yaml",
+      "descricao": "securityContext.privileged: true concede acesso quase irrestrito ao host, permitindo escape de container. Imagem usava tag :latest (não reprodutível) e não havia resources/probes/replicas para alta disponibilidade.",
+      "correcao_aplicada": "privileged: false + runAsNonRoot, allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities drop ALL; imagem fixada em :1.0.0; requests/limits de CPU/memória; readiness e liveness probes; replicas: 2."
+    },
+    {
+      "categoria": "arquitetura",
+      "severidade": "media",
+      "arquivo": "services/pagamentos/src/Pagamentos.Domain/IReembolsoRepository.cs",
+      "descricao": "ReembolsoRepository não implementava nenhuma interface de domínio, quebrando o padrão de inversão de dependência já estabelecido por IPagamentoRepository/PagamentoRepository e o teste de camadas (CamadasTests) que assume Infrastructure dependendo de abstrações do Domain.",
+      "correcao_aplicada": "Criada IReembolsoRepository em Pagamentos.Domain e ReembolsoRepository passou a implementá-la, restaurando a consistência com o padrão de repositórios do serviço."
+    },
+    {
+      "categoria": "logica_arquitetura",
+      "severidade": "informativa",
+      "arquivo": "services/pagamentos/src/Pagamentos.Domain/Events/ProcessarReembolso.cs",
+      "descricao": "Evento de domínio ProcessarReembolso está corretamente posicionado em Pagamentos.Domain.Events, é imutável (record) e não viola a regra de camadas (Domain sem dependência de Infrastructure/Application/Api). Nenhuma correção necessária.",
+      "correcao_aplicada": null
+    }
+  ],
+  "arquivos_alterados": [
+    "services/pagamentos/Dockerfile",
+    "services/pagamentos/deploy/k8s/deployment.yaml",
+    "services/pagamentos/src/Pagamentos.Infrastructure/Persistence/ReembolsoRepository.cs",
+    "services/pagamentos/src/Pagamentos.Domain/IReembolsoRepository.cs"
+  ],
+  "observacao_de_escopo": "Esta revisão cobriu segurança, Docker/K8s, lógica e arquitetura e aplicou correções diretamente no código, conforme solicitado pelo usuário. Isso excede o escopo tipicamente atribuído a um revisor de arquitetura (que normalmente sinalizaria achados de segurança/infra para especialistas dedicados, sem modificar código-fonte diretamente)."
+}

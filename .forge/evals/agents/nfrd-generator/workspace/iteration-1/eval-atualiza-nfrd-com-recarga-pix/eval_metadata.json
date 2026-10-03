@@ -1,0 +1,13 @@
+{
+  "eval_id": 2,
+  "eval_name": "atualiza-nfrd-com-recarga-pix",
+  "prompt": "O Rafael aprovou a v1.1 do PRD do Cartão Cidade com a recarga via Pix (seção 7 do docs/product/prd/prd.md). O NFRD em docs/product/frd-nfrd/nfrd.md está na v1.0 e não cobre nada disso. Atualiza o NFRD para a v1.1 — o time de pagamentos começa o design na quarta e o PSP exige mTLS no webhook.",
+  "assertions": [
+    "Na seção 'Controle de Versão' do nfrd.md a linha original 'NFRD Generator - 2026-06-05 - Versão 1.0 gerada a partir do PRD v1.0.' continua presente e há pelo menos uma entrada nova depois dela mencionando a v1.1 ou a recarga Pix.",
+    "NFR-PERF-01 continua existindo com meta p95 ≤ 800 ms, NFR-DISP-01 com ≥ 99,5% mensal e NFR-PRIV-01 e NFR-OBS-01 continuam presentes; os NFRs novos não reutilizam esses IDs (ex.: a latência do Pix é NFR-PERF-02 ou superior).",
+    "Existem NFRs novos com origem em KPI-02 (crédito em ≤ 10 s no p95), R-03 (retenção de comprovantes por 5 anos), R-04 (não duplicar crédito com notificação repetida) e R-05 (mTLS no webhook), e a matriz PRD → NFRD tem linhas para KPI-02, R-03, R-04 e R-05.",
+    "Na tabela 'Decisão por Categoria', RES e INT deixaram de ser 'Não' com a justificativa antiga 'Sem integrações externas na v1.0' (passam a Sim com NFRs listados, ou têm nova justificativa que não contradiz a integração com o PSP).",
+    "O tracing/correlationId do webhook Pix, se tratado, referencia o ADR-0002 existente por link (../adr/0002-tracing-com-opentelemetry-e-correlation-id.md), e nem o nfrd.md nem a tabela 'ADRs Sugeridos' do resumo propõem um novo ADR de tracing ou correlationId.",
+    "`git diff --exit-code -- docs/product/prd/ docs/product/adr/` sai com código 0 e nenhum arquivo novo foi criado em docs/product/adr/."
+  ]
+}

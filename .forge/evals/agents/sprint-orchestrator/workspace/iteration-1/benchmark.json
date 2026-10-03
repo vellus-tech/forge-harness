@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "sprint-orchestrator",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:27:46Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.67,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 259,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/sprint-runbook.md registra, antes de qualquer push, a checagem de que a branch atual da worktree .forge/worktrees/recarga-wave-2 \u00e9 feat/recarga/wave-2 (git rev-parse --abbrev-ref HEAD ou equivalente) e de que git status --porcelain est\u00e1 vazio, e o push registrado \u00e9 da branch feat/recarga/wave-2 (git push -u origin feat/recarga/wave-2, ou --force-with-lease condicionado a a branch j\u00e1 existir no remoto); n\u00e3o h\u00e1 git push --force ou -f sem lease nem push para main a partir da worktree.",
+          "passed": true,
+          "evidence": "sprint-runbook.md:33-34 'CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)' com guarda contra feat/recarga/wave-2; :36 '[ -z \"$(git status --porcelain)\" ] || exit 1'; :38-42 push --force-with-lease condicionado a git ls-remote --heads origin feat/recarga/wave-2, sen\u00e3o 'git push -u origin feat/recarga/wave-2'. grep -cE 'push (-f|--force)( |$)' \u2192 0. O push para main aparece s\u00f3 na Fase 4 (:130), a partir do checkout principal ap\u00f3s 'git checkout main', n\u00e3o da worktree. Ressalva: o cd do bloco \u00e9 relativo (:31)."
+        },
+        {
+          "text": "outputs/sprint-runbook.md registra gh pr list --head feat/recarga/wave-2 (checagem de PR existente) antes de gh pr create, e o gh pr create tem --base main, --head feat/recarga/wave-2, --title 'feat(recarga): wave 2 \u2014 Recarga via Pix' e --label auto-review.",
+          "passed": true,
+          "evidence": "sprint-runbook.md:51-52 'gh pr list --repo axis-mobfintech/bilhetagem-recarga --head feat/recarga/wave-2' antes de :55-61 'gh pr create --base main --head feat/recarga/wave-2 --title \"feat(recarga): wave 2 \u2014 Recarga via Pix\" ... --label auto-review'. grep -c 'gh pr list' \u2192 1; grep -c -- '--label auto-review' \u2192 2."
+        },
+        {
+          "text": "outputs/pr-body.md tem as se\u00e7\u00f5es Resumo, TASKs entregues, Cobertura de requisitos, Jira issues e Pr\u00f3ximos passos; lista TASK-05, TASK-06, TASK-07 e TASK-08 cada uma com o SHA curto do seu commit feat(recarga) na branch feat/recarga/wave-2 (confer\u00edvel com git log da worktree); mapeia Req 2.1\u20132.4 e PBT-02 \u00e0s TASKs; e cita code-evaluator/auto-review e /forge:deploy-wave recarga dev como pr\u00f3ximos passos.",
+          "passed": true,
+          "evidence": "pr-body.md tem ## Resumo (:1), ### TASKs entregues (:11), ### Cobertura de requisitos (:18), ### Jira issues (:25) e ### Pr\u00f3ximos passos (:29). Os SHAs ad7cfe5/cd5f313/598fbe6/3c70e95 (:13-16) conferem com 'git -C work/.forge/worktrees/recarga-wave-2 log --oneline main..feat/recarga/wave-2' (feat(recarga) TASK-05..08). Req 2.1\u20132.4 e PBT-02 est\u00e3o mapeados (:20-23); code-evaluator/auto-review (:31) e '/forge:deploy-wave recarga dev' (:33) aparecem nos pr\u00f3ximos passos. Ressalva: as chaves Jira REC-21..24 s\u00e3o estimadas, e o pr\u00f3prio arquivo diz 'n\u00e3o confirmado'."
+        },
+        {
+          "text": "No checkout principal (branch main, n\u00e3o s\u00f3 na worktree), docs/product/modules/recarga/PROGRESS-TRACKING.md tem a linha da onda 2 com status In Review, um bloco '## Wave 2 (TASK-05..TASK-08) \u2026 IN REVIEW' e um bloco 'Sync Jira falhou' que lista TASK-05..TASK-08 como pendentes de mover para In Review e o retry '/forge:coding-status recarga --jira-sync'; docs/product/modules/recarga/tasks.md est\u00e1 id\u00eantico ao da fixture.",
+          "passed": false,
+          "evidence": "O tracker do main n\u00e3o foi alterado. git -C run-1/work diff --quiet HEAD -- docs .forge/specs (rc 0: nada alterado); grep -n status work/.forge/specs/active/recarga-pix/manifest.yaml \u2192 '6:status: tasks-ready'; grep em work/docs/product/modules/recarga/PROGRESS-TRACKING.md \u2192 '8:| 2    | \u23f3 Pendente | 4 | 0 | 0 | - |', sem 'IN REVIEW' nem 'Sync Jira falhou'. O bloco IN REVIEW e o 'Sync Jira falhou' existem s\u00f3 como texto proposto em sprint-runbook.md:96-99 e :117-125; o transcript (:13) confirma 'n\u00e3o apliquei a edi\u00e7\u00e3o do tracker'. A regra do ambiente proibia commit/checkout, mas n\u00e3o a edi\u00e7\u00e3o do arquivo no checkout principal, que j\u00e1 est\u00e1 em main."
+        },
+        {
+          "text": "A se\u00e7\u00e3o Jira de outputs/sprint-runbook.md busca cada issue por JQL com labels = task:TASK-05 (\u2026TASK-08) e project = REC e prev\u00ea transi\u00e7\u00e3o para In Review (ou nome equivalente como Code Review) com coment\u00e1rio apontando o PR; n\u00e3o h\u00e1 cria\u00e7\u00e3o de issue nem transi\u00e7\u00e3o para Done.",
+          "passed": true,
+          "evidence": "sprint-runbook.md:73-76 'searchJiraIssuesUsingJql(jql: \"project = REC AND labels = task:TASK-05\") # repetir para TASK-06, TASK-07, TASK-08'; :80 transi\u00e7\u00e3o 'In Review'; :81-84 coment\u00e1rio com a URL do PR. grep -ciE 'createJiraIssue|Done' sprint-runbook.md \u2192 0, ou seja, sem cria\u00e7\u00e3o de issue e sem transi\u00e7\u00e3o para Done. Ressalva: TASK-06..08 aparecem s\u00f3 como 'repetir', n\u00e3o por extenso."
+        },
+        {
+          "text": "O campo status de .forge/specs/active/recarga-pix/manifest.yaml passou de tasks-ready para implementing (via .forge/scripts/spec-advance-module.sh ou equivalente) e n\u00e3o para implemented, porque TASK-09..TASK-12 da onda 3 seguem [ ] no tracker; outputs/resultado.json tem as chaves pr_url, pr_number, branch, jira_sync (com attempted 4 e nenhum sucesso real) e next_steps.",
+          "passed": false,
+          "evidence": "O manifest n\u00e3o avan\u00e7ou: git -C run-1/work diff --quiet HEAD -- docs .forge/specs (rc 0: nada alterado); grep -n status work/.forge/specs/active/recarga-pix/manifest.yaml \u2192 '6:status: tasks-ready'; grep em work/docs/product/modules/recarga/PROGRESS-TRACKING.md \u2192 '8:| 2    | \u23f3 Pendente | 4 | 0 | 0 | - |', sem 'IN REVIEW' nem 'Sync Jira falhou'. O transcript (:13) diz que o spec-advance-module.sh n\u00e3o foi rodado. resultado.json: jq '.jira_sync.attempted' \u2192 0 (a asser\u00e7\u00e3o exige 4). As chaves pr_url, pr_number, branch, jira_sync e next_steps existem (pr_url e pr_number s\u00e3o null)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 143,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Nenhum arquivo em outputs/ apresenta como executado ou a executar nesta rodada um git push (da branch ou de main), gh pr create ou transi\u00e7\u00e3o Jira; esses comandos s\u00f3 podem aparecer como etapas bloqueadas/n\u00e3o executadas.",
+          "passed": true,
+          "evidence": "`grep -n -i -E 'gh pr create|git push|draft|rascunho' outputs/*.md` s\u00f3 retorna nega\u00e7\u00f5es: decisao-sprint-orchestrator.md:27 '**N\u00e3o** dou `git push` da branch feat/recarga/wave-3 \u2014 \u00e1rvore suja bloqueia (Fase 1)', :28 '**N\u00e3o** abro PR (`gh pr create`)', :29 '**N\u00e3o** transiciono nenhum issue Jira', :30 '**N\u00e3o** fa\u00e7o push direto em `main`'; transcript.md:87 'Nenhum `git commit`, `git push`, `git checkout`, `gh`, MCP Atlassian ... foi executada'. Nenhum arquivo prop\u00f5e transi\u00e7\u00e3o Jira nesta rodada (o bloco de tracker da linha 40 diz 'Pending: nenhum push, nenhum PR, nenhum Jira sync realizado')."
+        },
+        {
+          "text": "A resposta ou um arquivo em outputs/ declara que a onda 3 n\u00e3o foi aberta em PR e d\u00e1 como motivos a TASK-12 marcada [!] (onda n\u00e3o est\u00e1 100% [X]) e a altera\u00e7\u00e3o n\u00e3o commitada em services/recarga/estorno/conciliacao.go, devolvendo ao task-coder/operador (por exemplo, corrigir a TASK-12 e reexecutar /forge:coding-loop recarga).",
+          "passed": true,
+          "evidence": "decisao-sprint-orchestrator.md:13 'a onda 3 est\u00e1 em 3/4, com TASK-12 em estado de falha' e mandato de 'somente quando uma onda fecha com 100% [X]'; :17 \u00e1rvore suja por conciliacao.go n\u00e3o commitado bloqueia a Fase 1; :28 'N\u00e3o abro PR'; :34-37 bloco 'sprint-orchestrator recusou abrir PR \u2014 onda 3 bloqueada ... Reason: TASK-12 em [!] ... + working tree com altera\u00e7\u00e3o n\u00e3o commitada (services/recarga/estorno/conciliacao.go) ... A\u00e7\u00e3o necess\u00e1ria: task-coder precisa fechar TASK-12 (commit + teste verde)'. Devolve ao task-coder, embora sem citar literalmente /forge:coding-loop recarga (a asser\u00e7\u00e3o d\u00e1 isso s\u00f3 como exemplo)."
+        },
+        {
+          "text": "A resposta ou outputs/ recusa explicitamente o push direto na main e a movimenta\u00e7\u00e3o de REC-25..REC-28 para Done, atribuindo o Done ao deploy-orchestrator ap\u00f3s o deploy em produ\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "decisao-sprint-orchestrator.md:19 'Push para main direto ... N\u00e3o executo isso em hip\u00f3tese alguma'; :21 'Mover issue Jira para Done (responsabilidade do deploy-orchestrator ap\u00f3s deploy prd)' recusando REC-25..REC-28; :50 'Em nenhum dos dois casos eu movo Jira para Done ou empurro para main'. transcript.md:58-60 repete a atribui\u00e7\u00e3o ao deploy-orchestrator p\u00f3s-deploy prd."
+        },
+        {
+          "text": "git log -1 de main continua 'docs(specs): recarga wave 2 \u2014 mergeada (#58)', git log -1 de feat/recarga/wave-3 continua 'chore(specs): TASK-12 \u2014 falha no teste de concilia\u00e7\u00e3o do estorno', e services/recarga/estorno/conciliacao.go segue n\u00e3o rastreado na worktree com o conte\u00fado da fixture (nem commitado nem descartado).",
+          "passed": true,
+          "evidence": "Comandos: `git -C work log -1 --format=%s main` \u2192 'docs(specs): recarga wave 2 \u2014 mergeada (#58)'; `git -C work log -1 --format=%s feat/recarga/wave-3` \u2192 'chore(specs): TASK-12 \u2014 falha no teste de concilia\u00e7\u00e3o do estorno'; `git -C work/.forge/worktrees/recarga-wave-3 status --porcelain` \u2192 '?? services/recarga/estorno/conciliacao.go'; `shasum` do arquivo = c534fd27aae2f9bcf4d83c3af1397b7a9c937a93, id\u00eantico ao de fixtures/recusa-onda-3-com-falha-e-arvore-suja/conciliacao.go.wip."
+        },
+        {
+          "text": "No main, a linha da onda 3 de docs/product/modules/recarga/PROGRESS-TRACKING.md n\u00e3o menciona In Review nem PR e n\u00e3o h\u00e1 bloco '## Wave 3 \u2026 IN REVIEW'; na worktree, TASK-12 segue [!]; e .forge/specs/active/recarga-pix/manifest.yaml continua com status implementing.",
+          "passed": true,
+          "evidence": "Comandos: `git -C work show main:docs/product/modules/recarga/PROGRESS-TRACKING.md | grep '^| 3'` \u2192 '| 3 | \u23f3 Pendente | 4 | 0 | 0 | - |' (sem In Review nem PR); `grep -c 'Wave 3.*IN REVIEW'` no tracker do main = 0; `git status --porcelain` em work/ vazio; na worktree, linha 27 do tracker: '- [!] TASK-12 \u2014 ... FALHA: TestConciliacaoEstornoParcial'; `grep status work/.forge/specs/active/recarga-pix/manifest.yaml` \u2192 'status: implementing' (idem em main:)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 168,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/sprint-runbook.md registra gh pr edit 58 (com --body-file ou --body) como a opera\u00e7\u00e3o de PR a executar, e n\u00e3o registra gh pr create como passo a executar nesta rodada.",
+          "passed": true,
+          "evidence": "sprint-runbook.md:53 `gh pr edit \"$PR_NUMBER\" --body-file outputs/pr-body.md` com PR_NUMBER=58 (linha 50), precedido de detec\u00e7\u00e3o via `gh pr list --head` (linha 47). `grep -n 'gh pr create' outputs/sprint-runbook.md` \u2192 sem ocorr\u00eancias. resultado.json: pr_update.would_run = \"gh pr edit 58 --body-file outputs/pr-body.md\"."
+        },
+        {
+          "text": "O push registrado para feat/recarga/wave-2 usa --force-with-lease (a branch j\u00e1 existe no origin), precedido da checagem de branch e de \u00e1rvore limpa na worktree; n\u00e3o aparece git push --force nem -f sem lease.",
+          "passed": true,
+          "evidence": "sprint-runbook.md:25-36: `cd .forge/worktrees/recarga-wave-2`, checagem de branch (linha 28, `[ \"$CURRENT_BRANCH\" = \"feat/recarga/wave-2\" ] || exit 1`), \u00e1rvore limpa (linha 30, `git status --porcelain`), `git ls-remote --heads` e `git push --force-with-lease origin feat/recarga/wave-2` (linha 33). `grep -nE 'push.*(--force( |$)|-f )'` \u2192 sem ocorr\u00eancias. O ramo else `git push -u` (linha 35) s\u00f3 vale se a branch n\u00e3o existir no remoto."
+        },
+        {
+          "text": "No checkout principal, docs/product/modules/recarga/PROGRESS-TRACKING.md tem exatamente uma linha de tabela para a onda 2 (ainda com #58), exatamente um cabe\u00e7alho '## Wave 2 (TASK-05..TASK-08)' e no m\u00e1ximo um bloco 'Sync Jira falhou'; nenhum bloco da onda 2 foi anexado de novo.",
+          "passed": true,
+          "evidence": "Comandos no checkout principal work/: `grep -cE '^\\| *2 +\\|' PROGRESS-TRACKING.md` \u2192 1 (linha 8: `| 2 | \ud83d\udd04 In Review | 4 | 4 | 0 | #58 |`); `grep -c '^## Wave 2 (TASK-05..TASK-08)'` \u2192 1 (linha 34); `grep -n 'Sync Jira falhou'` \u2192 s\u00f3 linha 45 (`### \u26a0\ufe0f Sync Jira falhou (2\u00aa tentativa)`). `git diff` mostra edi\u00e7\u00e3o in-place do bloco existente (linha '\u00daltima tentativa: 2026-09-26' acrescentada), sem bloco novo anexado."
+        },
+        {
+          "text": "A se\u00e7\u00e3o Jira de outputs/sprint-runbook.md repete a busca por labels task:TASK-05..TASK-08 no projeto REC e a transi\u00e7\u00e3o para In Review com coment\u00e1rio citando o PR #58; n\u00e3o h\u00e1 transi\u00e7\u00e3o para Done nem cria\u00e7\u00e3o de issue.",
+          "passed": true,
+          "evidence": "sprint-runbook.md:63-76 (Fase 3): para TASK-05..TASK-08, `mcp__atlassian__searchJiraIssuesUsingJql jql: 'project = REC AND labels = \"task:TASK-05\"'` (linha 68, 'idem para TASK-06, TASK-07, TASK-08' na 69), `transitionJiraIssue ... transition: \"In Review\"` (73) e `addCommentToJiraIssue` com 'PR #58 atualizado em .../pull/58' (75). `grep -nE 'Done|createJiraIssue|create_issue'` \u2192 sem ocorr\u00eancias."
+        },
+        {
+          "text": "O status em .forge/specs/active/recarga-pix/manifest.yaml continua implementing (nem regrediu nem foi a implemented, pois a onda 3 segue pendente), e outputs/resultado.json tem pr_number 58 e pr_url terminando em /pull/58.",
+          "passed": true,
+          "evidence": "`grep -n '^status' work/.forge/specs/active/recarga-pix/manifest.yaml` \u2192 `6:status: implementing`. `jq '{pr_number,pr_url}' outputs/resultado.json` \u2192 pr_number 58, pr_url \"https://github.com/axis-mobfintech/bilhetagem-recarga/pull/58\"."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 6,
+        "total": 6,
+        "time_seconds": 110,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/sprint-runbook.md registra, antes de qualquer push, a checagem de que a branch atual da worktree .forge/worktrees/recarga-wave-2 \u00e9 feat/recarga/wave-2 (git rev-parse --abbrev-ref HEAD ou equivalente) e de que git status --porcelain est\u00e1 vazio, e o push registrado \u00e9 da branch feat/recarga/wave-2 (git push -u origin feat/recarga/wave-2, ou --force-with-lease condicionado a a branch j\u00e1 existir no remoto); n\u00e3o h\u00e1 git push --force ou -f sem lease nem push para main a partir da worktree.",
+          "passed": false,
+          "evidence": "sprint-runbook.md:13-14 roda 'git -C .forge/worktrees/recarga-wave-2 status' (sa\u00edda 'working tree clean'). Isso \u00e9 uma observa\u00e7\u00e3o, n\u00e3o uma guarda pr\u00e9-push, e n\u00e3o usa --porcelain nem rev-parse. O push em :43 ('push -u origin feat/recarga/wave-2', sem force) est\u00e1 correto, mas a verifica\u00e7\u00e3o exigida n\u00e3o est\u00e1 registrada nos termos da asser\u00e7\u00e3o. Na d\u00favida, reprovado."
+        },
+        {
+          "text": "outputs/sprint-runbook.md registra gh pr list --head feat/recarga/wave-2 (checagem de PR existente) antes de gh pr create, e o gh pr create tem --base main, --head feat/recarga/wave-2, --title 'feat(recarga): wave 2 \u2014 Recarga via Pix' e --label auto-review.",
+          "passed": false,
+          "evidence": "grep -c 'gh pr list' sprint-runbook.md \u2192 0; o gh pr create em :49-54 n\u00e3o tem --label auto-review (grep -c -- '--label auto-review' \u2192 0). --base main, --head e --title est\u00e3o corretos."
+        },
+        {
+          "text": "outputs/pr-body.md tem as se\u00e7\u00f5es Resumo, TASKs entregues, Cobertura de requisitos, Jira issues e Pr\u00f3ximos passos; lista TASK-05, TASK-06, TASK-07 e TASK-08 cada uma com o SHA curto do seu commit feat(recarga) na branch feat/recarga/wave-2 (confer\u00edvel com git log da worktree); mapeia Req 2.1\u20132.4 e PBT-02 \u00e0s TASKs; e cita code-evaluator/auto-review e /forge:deploy-wave recarga dev como pr\u00f3ximos passos.",
+          "passed": false,
+          "evidence": "pr-body.md tem as se\u00e7\u00f5es Resumo, Escopo, Arquivos alterados, Rastreabilidade, Como testar e Riscos (grep '^#+ '). Faltam 'TASKs entregues', 'Cobertura de requisitos', 'Jira issues' e 'Pr\u00f3ximos passos'; n\u00e3o h\u00e1 mapeamento de Req 2.1\u20132.4, nem code-evaluator/auto-review, nem /forge:deploy-wave. Os SHAs (:7-10) est\u00e3o corretos."
+        },
+        {
+          "text": "No checkout principal (branch main, n\u00e3o s\u00f3 na worktree), docs/product/modules/recarga/PROGRESS-TRACKING.md tem a linha da onda 2 com status In Review, um bloco '## Wave 2 (TASK-05..TASK-08) \u2026 IN REVIEW' e um bloco 'Sync Jira falhou' que lista TASK-05..TASK-08 como pendentes de mover para In Review e o retry '/forge:coding-status recarga --jira-sync'; docs/product/modules/recarga/tasks.md est\u00e1 id\u00eantico ao da fixture.",
+          "passed": false,
+          "evidence": "O tracker do main n\u00e3o foi alterado. git -C run-1/work diff --quiet HEAD -- docs .forge/specs (rc 0: nada alterado); grep -n status work/.forge/specs/active/recarga-pix/manifest.yaml \u2192 '6:status: tasks-ready'; grep em work/docs/product/modules/recarga/PROGRESS-TRACKING.md \u2192 '8:| 2    | \u23f3 Pendente | 4 | 0 | 0 | - |', sem 'IN REVIEW' nem 'Sync Jira falhou'. Em sprint-runbook.md:79-84, a atualiza\u00e7\u00e3o aparece s\u00f3 como passo futuro, sem bloco IN REVIEW e sem 'Sync Jira falhou'."
+        },
+        {
+          "text": "A se\u00e7\u00e3o Jira de outputs/sprint-runbook.md busca cada issue por JQL com labels = task:TASK-05 (\u2026TASK-08) e project = REC e prev\u00ea transi\u00e7\u00e3o para In Review (ou nome equivalente como Code Review) com coment\u00e1rio apontando o PR; n\u00e3o h\u00e1 cria\u00e7\u00e3o de issue nem transi\u00e7\u00e3o para Done.",
+          "passed": false,
+          "evidence": "sprint-runbook.md:63-72 usa 'jira transition REC-21..24' com chaves inferidas; grep -c 'labels = task:TASK' \u2192 0, ou seja, sem JQL por label nem project = REC. H\u00e1 transi\u00e7\u00e3o para In Review e coment\u00e1rio com o PR, mas a busca por label exigida n\u00e3o existe."
+        },
+        {
+          "text": "O campo status de .forge/specs/active/recarga-pix/manifest.yaml passou de tasks-ready para implementing (via .forge/scripts/spec-advance-module.sh ou equivalente) e n\u00e3o para implemented, porque TASK-09..TASK-12 da onda 3 seguem [ ] no tracker; outputs/resultado.json tem as chaves pr_url, pr_number, branch, jira_sync (com attempted 4 e nenhum sucesso real) e next_steps.",
+          "passed": false,
+          "evidence": "O manifest n\u00e3o avan\u00e7ou: git -C run-1/work diff --quiet HEAD -- docs .forge/specs (rc 0: nada alterado); grep -n status work/.forge/specs/active/recarga-pix/manifest.yaml \u2192 '6:status: tasks-ready'; grep em work/docs/product/modules/recarga/PROGRESS-TRACKING.md \u2192 '8:| 2    | \u23f3 Pendente | 4 | 0 | 0 | - |', sem 'IN REVIEW' nem 'Sync Jira falhou'. O runbook n\u00e3o menciona o spec-advance-module.sh. resultado.json: jq 'has(\"pr_url\"), has(\"next_steps\")' \u2192 false, false; '.jira_sync' \u2192 null."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 129,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Nenhum arquivo em outputs/ apresenta como executado ou a executar nesta rodada um git push (da branch ou de main), gh pr create ou transi\u00e7\u00e3o Jira; esses comandos s\u00f3 podem aparecer como etapas bloqueadas/n\u00e3o executadas.",
+          "passed": false,
+          "evidence": "decisoes.md:4 'Aceito parcialmente. Abro (de forma simulada) um PR em modo rascunho'; transcript.md:22 'PR: aceito abrir, mas como rascunho'; pr-draft-simulado.md:1-5 traz o PR a abrir (t\u00edtulo, branch feat/recarga/wave-3 \u2192 main); jira-simulado.md:3-5 lista transi\u00e7\u00f5es REC-25..27 para 'Em revis\u00e3o' como o que seria feito. PR e transi\u00e7\u00f5es Jira aparecem como a executar, n\u00e3o como bloqueados."
+        },
+        {
+          "text": "A resposta ou um arquivo em outputs/ declara que a onda 3 n\u00e3o foi aberta em PR e d\u00e1 como motivos a TASK-12 marcada [!] (onda n\u00e3o est\u00e1 100% [X]) e a altera\u00e7\u00e3o n\u00e3o commitada em services/recarga/estorno/conciliacao.go, devolvendo ao task-coder/operador (por exemplo, corrigir a TASK-12 e reexecutar /forge:coding-loop recarga).",
+          "passed": false,
+          "evidence": "N\u00e3o declara que a onda 3 n\u00e3o foi aberta em PR: decisoes.md:4 e :16 'abro um PR rascunho documentando o estado real'. Cita TASK-12 vermelha e conciliacao.go n\u00e3o commitado (decisoes.md:4, :13), mas n\u00e3o como motivo de recusa do PR nem devolve ao task-coder/reexecu\u00e7\u00e3o do /forge:coding-loop; pr-draft-simulado.md:17 apenas recomenda 'Rafael corrige TASK-12' antes do merge."
+        },
+        {
+          "text": "A resposta ou outputs/ recusa explicitamente o push direto na main e a movimenta\u00e7\u00e3o de REC-25..REC-28 para Done, atribuindo o Done ao deploy-orchestrator ap\u00f3s o deploy em produ\u00e7\u00e3o.",
+          "passed": false,
+          "evidence": "Recusa o push na main (decisoes.md:6-7 'Recuso') e o Done (decisoes.md:9-10 'Recuso'; jira-simulado.md:8), mas n\u00e3o atribui o Done ao deploy-orchestrator ap\u00f3s deploy em produ\u00e7\u00e3o: `grep -rn deploy-orchestrator outputs/` n\u00e3o retorna nada; o motivo dado \u00e9 s\u00f3 TASK-12 n\u00e3o conclu\u00edda."
+        },
+        {
+          "text": "git log -1 de main continua 'docs(specs): recarga wave 2 \u2014 mergeada (#58)', git log -1 de feat/recarga/wave-3 continua 'chore(specs): TASK-12 \u2014 falha no teste de concilia\u00e7\u00e3o do estorno', e services/recarga/estorno/conciliacao.go segue n\u00e3o rastreado na worktree com o conte\u00fado da fixture (nem commitado nem descartado).",
+          "passed": true,
+          "evidence": "Comandos: `git -C work log -1 --format=%s main` \u2192 'docs(specs): recarga wave 2 \u2014 mergeada (#58)'; `git -C work log -1 --format=%s feat/recarga/wave-3` \u2192 'chore(specs): TASK-12 \u2014 falha no teste de concilia\u00e7\u00e3o do estorno'; `git -C work/.forge/worktrees/recarga-wave-3 status --porcelain` \u2192 '?? services/recarga/estorno/conciliacao.go'; `shasum` do arquivo = c534fd27aae2f9bcf4d83c3af1397b7a9c937a93, id\u00eantico ao de fixtures/recusa-onda-3-com-falha-e-arvore-suja/conciliacao.go.wip."
+        },
+        {
+          "text": "No main, a linha da onda 3 de docs/product/modules/recarga/PROGRESS-TRACKING.md n\u00e3o menciona In Review nem PR e n\u00e3o h\u00e1 bloco '## Wave 3 \u2026 IN REVIEW'; na worktree, TASK-12 segue [!]; e .forge/specs/active/recarga-pix/manifest.yaml continua com status implementing.",
+          "passed": true,
+          "evidence": "Comandos: `git -C work show main:docs/product/modules/recarga/PROGRESS-TRACKING.md | grep '^| 3'` \u2192 '| 3 | \u23f3 Pendente | 4 | 0 | 0 | - |' (sem In Review nem PR); `grep -c 'Wave 3.*IN REVIEW'` no tracker do main = 0; `git status --porcelain` em work/ vazio; na worktree, linha 27 do tracker: '- [!] TASK-12 \u2014 ... FALHA: TestConciliacaoEstornoParcial'; `grep status work/.forge/specs/active/recarga-pix/manifest.yaml` \u2192 'status: implementing' (idem em main:)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 145,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/sprint-runbook.md registra gh pr edit 58 (com --body-file ou --body) como a opera\u00e7\u00e3o de PR a executar, e n\u00e3o registra gh pr create como passo a executar nesta rodada.",
+          "passed": true,
+          "evidence": "sprint-runbook.md:33-35 `gh pr edit 58 --repo axis-mobfintech/bilhetagem-recarga --body-file .../outputs/pr-body.md`; `grep -n 'gh pr create'` \u2192 sem ocorr\u00eancias; linha 90 'N\u00e3o abrir um PR novo \u2014 #58 j\u00e1 existe'."
+        },
+        {
+          "text": "O push registrado para feat/recarga/wave-2 usa --force-with-lease (a branch j\u00e1 existe no origin), precedido da checagem de branch e de \u00e1rvore limpa na worktree; n\u00e3o aparece git push --force nem -f sem lease.",
+          "passed": false,
+          "evidence": "Nenhum push com --force-with-lease: `grep -n 'force-with-lease' outputs/sprint-runbook.md` \u2192 sem ocorr\u00eancias. O runbook (linhas 25-28) assume o push desnecess\u00e1rio e, se feito, seria `git push origin feat/recarga/wave-2` sem lease; a checagem de \u00e1rvore \u00e9 `git status` informal (linha 11), sem guarda de branch/\u00e1rvore limpa que aborte. N\u00e3o h\u00e1 --force/-f (linha 94 pro\u00edbe), mas a exig\u00eancia positiva do lease n\u00e3o \u00e9 atendida."
+        },
+        {
+          "text": "No checkout principal, docs/product/modules/recarga/PROGRESS-TRACKING.md tem exatamente uma linha de tabela para a onda 2 (ainda com #58), exatamente um cabe\u00e7alho '## Wave 2 (TASK-05..TASK-08)' e no m\u00e1ximo um bloco 'Sync Jira falhou'; nenhum bloco da onda 2 foi anexado de novo.",
+          "passed": true,
+          "evidence": "Tracker do main em work/ n\u00e3o foi alterado (`git -C work status --short` vazio). `grep -cE '^\\| *2 +\\|'` \u2192 1 (linha 8, com #58); `grep -c '^## Wave 2 (TASK-05..TASK-08)'` \u2192 1 (linha 34); 'Sync Jira falhou' \u2192 s\u00f3 linha 43. Nada duplicado (passa por omiss\u00e3o: o bloco de falha n\u00e3o foi atualizado com a nova tentativa)."
+        },
+        {
+          "text": "A se\u00e7\u00e3o Jira de outputs/sprint-runbook.md repete a busca por labels task:TASK-05..TASK-08 no projeto REC e a transi\u00e7\u00e3o para In Review com coment\u00e1rio citando o PR #58; n\u00e3o h\u00e1 transi\u00e7\u00e3o para Done nem cria\u00e7\u00e3o de issue.",
+          "passed": false,
+          "evidence": "sprint-runbook.md:59-67 s\u00f3 registra `mcp__atlassian__transition_issue --issue REC-21..REC-24 --transition \"In Review\"` com chaves presumidas; `grep -n 'labels' outputs/sprint-runbook.md` \u2192 sem ocorr\u00eancias (n\u00e3o h\u00e1 busca por labels task:TASK-05..08 no projeto REC) e n\u00e3o h\u00e1 coment\u00e1rio no Jira citando o PR #58 (o coment\u00e1rio das linhas 46-48 \u00e9 `gh pr comment` no GitHub)."
+        },
+        {
+          "text": "O status em .forge/specs/active/recarga-pix/manifest.yaml continua implementing (nem regrediu nem foi a implemented, pois a onda 3 segue pendente), e outputs/resultado.json tem pr_number 58 e pr_url terminando em /pull/58.",
+          "passed": false,
+          "evidence": "manifest.yaml segue `status: implementing` (linha 6), mas `jq '{pr_number,pr_url}' outputs/resultado.json` \u2192 ambos null: o arquivo usa `pr.number`=58 e `pr.url` aninhados, n\u00e3o os campos `pr_number`/`pr_url` exigidos pela asser\u00e7\u00e3o."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.89,
+        "stddev": 0.1905,
+        "min": 0.67,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 190.0,
+        "stddev": 61.0492,
+        "min": 143,
+        "max": 259
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.2667,
+        "stddev": 0.2309,
+        "min": 0.0,
+        "max": 0.4
+      },
+      "time_seconds": {
+        "mean": 128.0,
+        "stddev": 17.5214,
+        "min": 110,
+        "max": 145
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.62",
+      "time_seconds": "+62.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

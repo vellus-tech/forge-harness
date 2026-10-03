@@ -11,6 +11,9 @@
 #   [9] o pré-flight do archive aplica; spec-close NUNCA é bloqueado
 #   [10] o gate nunca invoca `claude -p` (o ask-peer é .md, não .sh)
 set -euo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
+# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 T="$(mktemp -d /tmp/forge-w113.XXXXXX)"

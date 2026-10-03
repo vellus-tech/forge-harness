@@ -1,0 +1,47 @@
+{
+  "expectations": [
+    {
+      "text": "outputs/story-context.md diz explicitamente que epic_context.md não existe ou que o contexto épico não foi compilado.",
+      "passed": false,
+      "evidence": "Comando: grep -nEi 'epic_context|compilad' outputs/story-context.md → sem ocorrências (rc=1). O arquivo nunca menciona a ausência de epic_context.md; ao contrário, apresenta (linha 22-24) uma seção de regras do épico reconstruída de proposal/requirements/design como se o contexto estivesse disponível."
+    },
+    {
+      "text": "outputs/story-context.md (ou a resposta final) sugere rodar /forge:shard para compilar o contexto épico.",
+      "passed": false,
+      "evidence": "Comando: grep -n 'forge:shard' outputs/story-context.md outputs/transcript.md → sem ocorrências. Nenhuma sugestão de /forge:shard no arquivo nem no transcript."
+    },
+    {
+      "text": "outputs/story-context.md não contém nenhum destes trechos que só existem em design.md, requirements.md ou outras stories: '06h15', '400 dias', 'particionada', '90 dias', 'centavos', 'HMAC', 'R$ 500'.",
+      "passed": false,
+      "evidence": "Comando: grep -nE '06h15|400 dias|particionada|90 dias|centavos|HMAC|R\\$ 500' outputs/story-context.md → rc=0, ocorrências nas linhas 26 ('06h15 America/Sao_Paulo'), 30 ('particionada por mês, retenção de 400 dias', 'centavos'), 38 ('R$ 500,00/CPF/dia'), 42 ('chave HMAC', 'rotação a cada 90 dias') e 48 ('HMAC-SHA256'). Linha 57 lista design.md/requirements.md/STORY-01/02/04 como fontes."
+    },
+    {
+      "text": "Após a execução, .forge/specs/active/2026-09-recarga-pix/epic_context.md continua inexistente e `git status --porcelain -- .forge/specs` sai vazio (manifest e stories intactos).",
+      "passed": true,
+      "evidence": "test -e work/.forge/specs/active/2026-09-recarga-pix/epic_context.md → rc=1 (inexistente); git -C work status --porcelain -- .forge/specs | wc -l → 0 (vazio; HEAD fac2967). A execução só leu specs, não escreveu."
+    },
+    {
+      "text": "A linha de Próxima ação cita TASK-07 e o arquivo tem no máximo 30 linhas.",
+      "passed": false,
+      "evidence": "Comando: grep -n 'Próxima' outputs/story-context.md → sem ocorrências; não há linha de Próxima ação. wc -l → 57 linhas, acima do limite de 30. Falha nas duas condições."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Após a execução, .forge/specs/active/2026-09-recarga-pix/epic_context.md continua inexistente e `git status --porcelain -- .forge/specs` sai vazio (manifest e stories intactos).",
+        "reason": "Não discrimina: ambas as configurações passam, pois a tarefa pede só um arquivo em outputs/ e nenhuma execução tende a escrever em specs; vale mantê-la como guarda, mas ela não mede o efeito da skill."
+      },
+      {
+        "reason": "Nenhuma asserção verifica os campos obrigatórios do contrato que o expected_output cita (Status todo, Depends on STORY-02, TASK-07 e TASK-08 listadas); sugerir grep por 'Status:.*todo', 'STORY-02', 'TASK-08'. O with_skill os contém (linhas 4, 5, 8, 9), mas isso não está sendo medido."
+      }
+    ],
+    "overall": "without_skill reconstrói invariantes a partir de design/requirements/outras stories, exatamente o comportamento que o caso quer detectar."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "pr-validacao-imagem-container-single-arch",
+  "prompt": "Estou na branch feat/validacao-imagem-container, que saiu da main para empacotar o serviço de validação de embarque em container e publicar no ECR (a frota de produção é EKS em Graviton). Antes de pedir review humano, roda a revisão de plataforma do diff main..HEAD — Dockerfile, workflow de CI e o que mais couber — e grava o resultado em .forge/reviews/platform-validacao.json. Não mexe no código, só revisa.",
+  "assertions": [
+    ".forge/reviews/platform-validacao.json é JSON válido com `reviewer` igual a \"platform-reviewer\" e array `findings`; todo finding tem `id` casando ^PLAT-[0-9]{3}$, `severity` em {BLOCKER, HIGH, MEDIUM, LOW} e os campos `file`, `line`, `title`, `fix_suggested` e `rule_violated` preenchidos",
+    "Há finding BLOCKER em services/validacao/Dockerfile pela ausência de `ARG TARGETARCH` (imagem single-arch) E finding BLOCKER, separado ou no mesmo arquivo, pela tag `latest` em `FROM mcr.microsoft.com/dotnet/sdk:latest` (linha 1)",
+    "Há findings BLOCKER em .github/workflows/validacao-image.yml para: uso de `docker/setup-qemu-action` (proibido), ausência do step Trivy com CRITICAL,HIGH e exit-code 1, e ausência da criação de manifest list (`docker buildx imagetools create`) — os três classificados BLOCKER, não HIGH",
+    "A ausência de HEALTHCHECK no Dockerfile está classificada como MEDIUM (não HIGH nem BLOCKER) e a ausência de USER non-root está classificada como HIGH; ausência de Cosign e de Syft SBOM por digest no workflow aparece como HIGH",
+    "O campo `rule_violated` do finding de ARG TARGETARCH (ou de QEMU) cita o caminho .forge/rules/architecture/docker-multi-arch.md",
+    "Nenhum finding do JSON tem como assunto o log de `{Pan}`/`{Cpf}` em services/validacao/src/Validacao.Api/Program.cs (PII em log é escopo do security-reviewer), e `git -C <alvo> status --porcelain -- services/ .github/` sai vazio"
+  ]
+}

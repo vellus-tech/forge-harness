@@ -1,0 +1,75 @@
+{
+  "expectations": [
+    {
+      "text": "Não existe docs/product/modules/diagrams/compliance-pci-dss.md; docs/product/modules/diagrams/compliance-flows.md existe e sua tabela 'Compliance Aplicável' marca PCI DSS como 'Não' com motivo citando a ausência de dados de cartão/pagamento.",
+      "passed": false,
+      "evidence": "Não existe diretório outputs/docs/product/modules/diagrams/ (`test -d diagrams` → 'sem-diagrams'); portanto compliance-flows.md não existe e não há tabela 'Compliance Aplicável'. A ausência de compliance-pci-dss.md é trivial (nenhum diagrama foi gerado). PCI só aparece em prosa no README.md:17 ('Nenhum módulo abaixo deve ser desenhado com escopo de PCI DSS')."
+    },
+    {
+      "text": "Existe docs/product/modules/diagrams/compliance-lgpd.md cuja tabela de dados pessoais lista CPF, CNH e telefone do motorista com módulo dono jornada-api, e a retenção de 5 anos após o desligamento do NFR-01.",
+      "passed": false,
+      "evidence": "compliance-lgpd.md não existe (não há diretório diagrams/). LGPD só em prosa no README.md:18, que ainda cita a retenção de 5 anos como '(NFR-02)' — citação errada; no fixture nfrd.md:5 a retenção é NFR-01 e NFR-02 é disponibilidade."
+    },
+    {
+      "text": "Existem as pastas docs/product/modules/escalas-api/ e docs/product/modules/publicador-escala-worker/, ambas com README cuja Classificação aponta o bounded context 'Programação de Escalas'; em docs/product/modules/README.md a seção 'Relação Bounded Context x Módulo' associa Programação de Escalas aos dois módulos, e não há pasta chamada programacao-de-escalas.",
+      "passed": false,
+      "evidence": "Pastas escalas-api/ e publicador-escala-worker/ existem e os READMEs têm seção '## Bounded context' com 'Programação de Escalas' (escalas-api/README.md:7-9), e não há pasta programacao-de-escalas; porém não existe tabela 'Classificação' nos READMEs nem a seção 'Relação Bounded Context x Módulo' no README.md do índice (só '## Índice de módulos', linhas 5-13, com coluna Bounded Context). Asserção exige as duas estruturas nomeadas; falha."
+    },
+    {
+      "text": "docs/product/modules/notificacao-motoristas/README.md tem na tabela de Classificação o Tipo de Módulo igual a 'Ponto a Validar' (não Worker, CronJob nem BFF), e há um item VAL-MOD-NN (no README do módulo ou no índice) descrevendo a decisão pendente entre worker próprio e rota no BFF do painel.",
+      "passed": false,
+      "evidence": "notificacao-motoristas/README.md não tem tabela de Classificação; o tipo aparece como seção '## Tipo de módulo — decisão em aberto' e no índice README.md:12 como 'A definir (worker próprio ou rota no BFF)', não 'Ponto a Validar'. `grep -rn 'VAL-' .` → rc=1, nenhum VAL-MOD-NN. A decisão foi corretamente não tomada, mas o formato exigido não foi cumprido."
+    },
+    {
+      "text": "Em docs/product/modules/escalas-api/README.md a consulta de escala do motorista (FR-02) não aparece com caminho HTTP definido como fato (ex.: GET /v1/escalas/...) sem marcação; o endpoint está como 'Ponto a Validar' na tabela de APIs ou há um VAL-MOD-NN explícito sobre o endpoint não definido.",
+      "passed": false,
+      "evidence": "`grep -rnE '(GET|POST|PUT|PATCH|DELETE) +/|/v1/' outputs/docs` → rc=1: nenhum endpoint inventado (lado negativo atendido). Porém escalas-api/README.md não tem tabela de APIs com 'Ponto a Validar' nem VAL-MOD-NN sobre o endpoint; a seção 'Pendências' (linha 44) diz 'Nenhuma pendência de escopo própria deste módulo', omitindo que FR-02 tem endpoint não definido. A segunda parte obrigatória da asserção falha."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0.0
+  },
+  "timing": {
+    "executor_duration_seconds": 252,
+    "total_duration_seconds": 252
+  },
+  "claims": [
+    {
+      "claim": "Retenção de 5 anos por obrigação trabalhista (NFR-02) (README.md:18)",
+      "type": "factual",
+      "verified": false,
+      "evidence": "Fixture nfrd.md:5 atribui a retenção a NFR-01; NFR-02 é o SLA de publicação às 18:00"
+    },
+    {
+      "claim": "Diagrama de contexto Mermaid em cada README",
+      "type": "factual",
+      "verified": true,
+      "evidence": "escalas-api/README.md:46-59; README.md:21-34"
+    },
+    {
+      "claim": "Gerou 'os diagramas' pedidos pelo usuário",
+      "type": "quality",
+      "verified": false,
+      "evidence": "Só diagramas de contexto embutidos nos READMEs; nenhum diagrama de compliance, integração ou dependências"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Em docs/product/modules/escalas-api/README.md a consulta de escala do motorista (FR-02) não aparece com caminho HTTP definido como fato (ex.: GET /v1/escalas/...) sem marcação; o endpoint está como 'Ponto a Validar' na tabela de APIs ou há um VAL-MOD-NN explícito sobre o endpoint não definido.",
+        "reason": "A parte negativa (sem endpoint inventado) é satisfeita trivialmente por quem simplesmente omite a tabela de APIs; e a parte positiva aceita um caminho concreto desde que anotado 'Ponto a Validar' (with_skill escreveu GET /escalas/hoje). Considere exigir que o VAL-MOD citado no endpoint seja o que trata do endpoint (with_skill referenciou VAL-MOD-01 na linha, o errado)."
+      },
+      {
+        "assertion": "docs/product/modules/notificacao-motoristas/README.md tem na tabela de Classificação o Tipo de Módulo igual a 'Ponto a Validar' (não Worker, CronJob nem BFF), e há um item VAL-MOD-NN (no README do módulo ou no índice) descrevendo a decisão pendente entre worker próprio e rota no BFF do painel.",
+        "reason": "'Ponto a Validar' como prefixo seguido de 'Worker próprio (CronJob/Worker)' passa; se a intenção é que o campo não mencione tipos candidatos, a asserção deveria dizer isso."
+      },
+      {
+        "reason": "Nenhuma asserção verifica a correção das referências NFR (without_skill atribuiu a retenção LGPD ao NFR-02) nem a existência do módulo painel-despachante-web, que está no expected_output."
+      }
+    ],
+    "overall": "Asserções discriminam bem formato do module-generator (Classificação, VAL-MOD, diagrams/), o que explica o 5/0; parte delas mede aderência ao template mais do que o julgamento, já que o baseline acertou o conteúdo (não decidiu o tipo, não inventou endpoint, isolou PII)."
+  }
+}

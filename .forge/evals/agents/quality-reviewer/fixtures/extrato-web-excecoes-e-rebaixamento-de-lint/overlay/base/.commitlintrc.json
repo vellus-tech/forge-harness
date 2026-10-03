@@ -1,0 +1,8 @@
+{
+  "extends": ["@commitlint/config-conventional"],
+  "rules": {
+    "scope-enum": [2, "always", ["web", "ui-components", "design-tokens", "specs", "docs", "ci", "deps", "tests"]],
+    "subject-case": [2, "always", "lower-case"],
+    "header-max-length": [2, "always", 72]
+  }
+}

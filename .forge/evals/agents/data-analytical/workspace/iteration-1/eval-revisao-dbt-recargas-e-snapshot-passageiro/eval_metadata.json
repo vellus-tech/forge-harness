@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "revisao-dbt-recargas-e-snapshot-passageiro",
+  "prompt": "O PR do time de dados mexe no projeto dbt em analytics/ (recargas de cartão de transporte e cadastro de passageiros). Faz a revisão analítica antes do merge: quero o parecer com o que está errado e como corrigir, com o trecho corrigido quando fizer sentido. Quem aplica a correção é o task-coder, então não mexe nos arquivos.",
+  "assertions": [
+    "A resposta cita os ids A-08, A-10, A-12 e A-14, e cada um vem acompanhado da localização no formato arquivo:linha correspondente: stg_recargas.sql:1 para A-08, fct_recargas.sql:3 para A-10 e A-12, snap_passageiro.yml:8 para A-14",
+    "A resposta aponta que o snapshot snap_passageiro rastreia atributos pessoais (nome, email, telefone) em SCD2 e recomenda tirá-los do snapshot para uma tabela mutável/SCD1 eliminável ligada por chave substituta ou token (citar o id A-16 é suficiente, mas não obrigatório se a recomendação estiver explícita)",
+    "A resposta aponta `cast(valor as numeric(12,2)) as valor_reais` em stg_recargas.sql como violação da regra de valor monetário em inteiro na menor unidade (money-as-cents) e propõe coluna inteira em centavos (bigint/integer), não decimal",
+    "A correção proposta para stg_recargas.sql inclui unique_key na chave de grão (recarga_id) E uma janela de lookback no filtro incremental (ou microbatch com event_time e lookback), não apenas unique_key",
+    "O transcript mostra a execução de `.forge/scripts/check-data-governance.sh --path analytics` e a resposta diz que PAN/PII não foi verificado por esse verificador (universo vazio: nenhum arquivo do tipo que ele lê), sem declarar o projeto aprovado ou limpo quanto a dado sensível",
+    "`git -C <alvo> status --porcelain` sai vazio ao fim da execução: o agente entregou as correções na resposta e não editou nem criou arquivo no alvo"
+  ]
+}

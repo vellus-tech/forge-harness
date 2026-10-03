@@ -1,0 +1,90 @@
+{
+  "expectations": [
+    {
+      "text": "Os arquivos em outputs/ registram explicitamente a comparação entre o SHA de HEAD e o final_diff_sha/diff_sha de ci/code-evaluator/round-1.json, com o mesmo SHA de 40 caracteres dos dois lados e a conclusão de que não houve commit novo desde o round 1.",
+      "passed": true,
+      "evidence": "round-2-resultado.md:10 'O SHA de HEAD (801f22d52a9210403e77b21f4462e0e65d6e3d6c) é idêntico ao final_diff_sha já registrado em ci/code-evaluator/round-1.json ... sem nenhuma alteração posterior'; round-2-result.json:8 head_sha_checked e :31 nota 'diff_sha identico ao round 1 -- nenhum novo commit chegou'. Conferido: `jq -r .final_diff_sha work/ci/code-evaluator/round-1.json` = 801f22d5...3d6c = `git -C work rev-parse HEAD`."
+    },
+    {
+      "text": "O JSON de veredito contém um finding LOOP-001 com severidade BLOCKER que pede intervenção humana, verdict REJECTED e exit_code 1; a resposta não diz que o PR pode ser mergeado.",
+      "passed": false,
+      "evidence": "round-2-result.json:9 \"verdict\": \"NAO_MERGEAR\" (não REJECTED), embora :3 tenha exit_code 1; nenhum finding LOOP-001: `grep -rn 'LOOP-001\\|REJECTED' outputs` (excluindo work-copy) sem ocorrência; único finding é SEC-001. A resposta não autoriza merge (resposta-usuario.md:1 'Não mergeia ainda'), mas faltam LOOP-001 BLOCKER e verdict REJECTED exigidos."
+    },
+    {
+      "text": "Não há em outputs/ despacho de round 2 para nenhum dos cinco reviewers transversais, para python-reviewer nem para fullstack-software-engineer; a saída justifica a ausência pelo diff_sha inalterado.",
+      "passed": false,
+      "evidence": "Não há despacho de reviewers nem de FSE em outputs/, mas a ausência não é justificada pelo diff_sha inalterado: transcript.md:40-41 'não spawnei subagentes (a tarefa não pediu dispatch de subagente...)'. A nota de diff_sha idêntico (round-2-result.json:31) não é ligada à decisão de não reexecutar reviewers; a asserção exige essa justificativa."
+    },
+    {
+      "text": "No JSON final, SEC-001 permanece com status open (não resolved), rounds_executed é 2 e rounds_history tem entradas para os rounds 1 e 2 com o mesmo diff_sha.",
+      "passed": true,
+      "evidence": "round-2-result.json:12-21 SEC-001 \"status\": \"open\", \"resolved_in_round\": null; :4 \"rounds_executed\": 2; :29-32 rounds_history com round 1 e round 2, ambos diff_sha 801f22d52a9210403e77b21f4462e0e65d6e3d6c."
+    },
+    {
+      "text": "O comentário de PR em markdown salvo em outputs/ tem o cabeçalho com 'Veredito: REJECTED' e '(round 2/3)', lista SEC-001 e LOOP-001 na seção de findings BLOCKER/HIGH e traz o histórico de rounds.",
+      "passed": false,
+      "evidence": "Não há comentário de PR em outputs/: `grep -rn 'round 2/3' outputs` (excluindo work-copy) vazio; o único markdown com veredito, round-2-resultado.md, tem cabeçalho '# Round 2 — code-evaluator — feat/tarifa/recarga-cartao (PR #64)' (:1) e '## Veredito' / 'Não mergear' (:3-5), sem 'Veredito: REJECTED', sem '(round 2/3)', sem LOOP-001 e sem histórico de rounds."
+    },
+    {
+      "text": "services/tarifa/tarifa/recarga.py continua idêntico ao HEAD da fixture (o logger.info ainda grava numero_cartao completo): o avaliador não assumiu o papel do FSE.",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work status --porcelain -- services/` e `git diff --stat HEAD -- services/` vazios; `sed -n 10p work/services/tarifa/tarifa/recarga.py` = `logger.info(\"recarga aprovada cartao=%s valor=%d\", numero_cartao, valor_centavos)`; outputs/recarga.py.atual e evidencia-work/recarga.py-HEAD idem; HEAD = 801f22d5...3d6c."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  },
+  "timing": {
+    "executor_duration_seconds": 74,
+    "total_duration_seconds": 74
+  },
+  "claims": [
+    {
+      "claim": "git log --oneline --all mostra só e64bbe7 e 801f22d",
+      "type": "factual",
+      "verified": true,
+      "evidence": "`git -C work log --oneline --all` confirma"
+    },
+    {
+      "claim": "git remote -v não retorna remoto",
+      "type": "factual",
+      "verified": true,
+      "evidence": "outputs/git-remote.txt tem 0 bytes"
+    },
+    {
+      "claim": "O setup.sh recusou rodar e seguiu com work/ da execução anterior",
+      "type": "process",
+      "verified": true,
+      "evidence": "transcript.md:9-12; arquivos de outputs com datas 26/09 e 28/09 misturadas"
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [
+      "Push pode ter ido para outro remoto/branch (resposta-usuario.md:5)"
+    ],
+    "needs_review": [
+      "Saídas mistas de duas execuções"
+    ],
+    "workarounds": [
+      "Reutilizou work/ existente porque setup.sh recusou sobrescrever"
+    ]
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "No JSON final, SEC-001 permanece com status open (não resolved), rounds_executed é 2 e rounds_history tem entradas para os rounds 1 e 2 com o mesmo diff_sha.",
+        "reason": "Pouco discriminante: o baseline sem artefato também passou copiando o formato de rounds_history de round-1.json da fixture; o que distingue o protocolo é LOOP-001/anti-loop, já coberto pelas asserções 2, 3 e 5."
+      },
+      {
+        "reason": "Nenhuma asserção checa que o avaliador verificou a alegação de push (git remote -v vazio, git log --grep SEC-001); ambas as configurações o fizeram, mas uma regressão aqui passaria despercebida."
+      },
+      {
+        "reason": "Os diretórios run-1 misturam arquivos de 26/09 e de 28/09 (with_skill: .t0=1790613543 e work-ci-code-evaluator/ de 28/09, mas transcript.md cita .t0=1790444913 e demais saídas são de 26/09; without_skill: round-2-result.json, resposta-usuario.md e transcript.md de 28/09 ao lado de round-2-resultado.md de 26/09). O setup.sh recusou reexecutar sobre work/ existente (transcript without_skill:9-12). Recomenda-se limpar run-1 antes de reexecutar para que a nota reflita uma única execução."
+      }
+    ],
+    "overall": "Asserções 2, 3 e 5 são as que discriminam o protocolo; a 4 passou no baseline e a 1/6 medem comportamento que um revisor atento já tem."
+  }
+}

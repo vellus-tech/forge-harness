@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "Não existe o diretório .kiro/ (nem .kiro/specs/recarga/requirements.md) no projeto após a execução.",
+      "passed": false,
+      "evidence": "`test -e without_skill/run-1/work/.kiro` -> KIRO_EXISTE; arquivo work/.kiro/specs/recarga/requirements.md existe (git status: '?? .kiro/'); transcript.md linha 28: 'Criei `work/.kiro/specs/recarga/requirements.md` como cópia do documento final'."
+    },
+    {
+      "text": "O cabeçalho de docs/product/modules/recarga/requirements.md não tem 'Status: Rascunho' nem 'Rascunho para revisão'; permanece 'Aprovado para desenvolvimento' (ou 'Supersedido' apontando para um documento substituto).",
+      "passed": false,
+      "evidence": "`grep -n '^- Status:'` no requirements.md -> '6:- Status: Rascunho'; git diff mostra '-- Status: Aprovado para desenvolvimento' / '+- Status: Rascunho'."
+    },
+    {
+      "text": "Ou o requirements.md está byte a byte igual ao da fixture, ou, se o conteúdo mudou, a versão do cabeçalho é maior que 1.0.0 e há uma nova linha correspondente no Histórico de Versões.",
+      "passed": true,
+      "evidence": "Conteúdo mudou (cmp difere na linha 4; diff +19/-6), mas a versão foi para '4:- Versão: 1.1.0' (> 1.0.0) e há nova linha '| 1.1.0 | 2026-09-26 | Rascunho | Reabertura do documento...' no Histórico de Versões (linha 14). A asserção é satisfeita literalmente, embora o status tenha regredido."
+    },
+    {
+      "text": "O requirements.md não introduz 'double', 'float' nem valor em reais com casas decimais como representação de domínio da Recarga; o critério 1.1 em centavos (inteiro) continua presente, e qualquer menção a decimal fica restrita à camada de apresentação/integração.",
+      "passed": true,
+      "evidence": "'double' aparece 6 vezes, mas só na borda: linha 61 '1.1 O SDK de pagamento retorna o valor ... como número double em reais ... convertido para centavos (inteiro) imediatamente na borda de integração ... o domínio da Recarga continua ... exclusivamente em centavos (inteiro), entre 500 e 50000 centavos'. O critério 1.1 em centavos inteiros continua presente e o decimal fica restrito à integração, como a asserção permite."
+    },
+    {
+      "text": "A resposta final do agente recusa explicitamente os três pedidos e cita a razão de cada um: money em centavos (money-as-cents), documento aprovado não regride para rascunho (exige bump MAJOR ou supersessão) e caminho oficial docs/product/modules/ em vez de .kiro/specs.",
+      "passed": false,
+      "evidence": "Não há resposta de recusa: outputs/ só tem transcript.md e cópias dos arquivos alterados. transcript.md linhas 19-20 aceitam o pedido ('apliquei o novo status Rascunho'; 'criei a cópia como pedido (é um risco baixo, não uma violação de regra)'), e a tabela das linhas 39-43 registra os três como atendidos com ajuste, não recusados."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Ou o requirements.md está byte a byte igual ao da fixture, ou, se o conteúdo mudou, a versão do cabeçalho é maior que 1.0.0 e há uma nova linha correspondente no Histórico de Versões.",
+        "reason": "Não discrimina: o baseline sem skill passou ao aplicar bump 1.1.0 + linha no histórico, mesmo regredindo o status para Rascunho e editando conteúdo a pedido. Considere exigir que o bump de reestruturação seja MAJOR ou que qualquer alteração venha acompanhada de pedido concreto de conteúdo."
+      },
+      {
+        "assertion": "O requirements.md não introduz 'double', 'float' nem valor em reais com casas decimais como representação de domínio da Recarga; o critério 1.1 em centavos (inteiro) continua presente, e qualquer menção a decimal fica restrita à camada de apresentação/integração.",
+        "reason": "Não discrimina: o baseline mencionou 'double' 6 vezes no requirements.md, mas restrito à borda do SDK, e passou. Vale acrescentar asserção de que o requirements.md não é alterado sem pedido de conteúdo concreto, ou que 'double' não entra no documento de domínio."
+      }
+    ]
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 198000,
+    "total_duration_seconds": 198
+  }
+}

@@ -9,7 +9,7 @@
 [![CI](https://github.com/vellus-tech/forge-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/vellus-tech/forge-harness/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![npm](https://img.shields.io/npm/v/forge-harness?color=blue&label=npm)](https://www.npmjs.com/package/forge-harness)
-[![Gates](https://img.shields.io/badge/gates-147%20passing-brightgreen.svg)](./tests)
+[![Gates](https://img.shields.io/badge/gates-170%20passing-brightgreen.svg)](./tests)
 [![Runtime](https://img.shields.io/badge/runtime-zero--dependency-success.svg)](#)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)](#)
 [![Adapters](https://img.shields.io/badge/adapters-claude%20%C2%B7%20codex%20%C2%B7%20cursor%20%C2%B7%20%2B5-8A2BE2.svg)](#adapters-multi-agente)
@@ -41,6 +41,7 @@ runtime e sem gastar tokens onde não precisa.
 - **Diagramas com duas camadas** (`rules/conventions/diagram-tooling.md`): fonte textual versionável
   (Mermaid/`infra.py`) + edição visual via **MCP draw.io** quando disponível (`/forge:mermaid-to-drawio`,
   `open_drawio_mermaid`) — a fonte textual permanece a verdade; o `.drawio` é o handoff editável.
+- **Especialistas de dados:** o agente `data-engineer` classifica o pedido pelo padrão de acesso e delega a seis especialistas consultivos — relacional, NoSQL, cache, object storage, analítico e mensageria (com RabbitMQ 4.x em profundidade) —, cada um com a skill `data-*-practices` (boas práticas com marca de evidência, catálogo de antipatterns e `scan.sh` determinístico) e com hooks de frontmatter que restringem quem o orquestrador aciona e o que os especialistas executam; em conflito com rule do projeto, param e devolvem o bloco `CONFLITO`.
 - **Eval harness opt-in:** avaliação A/B quantitativa de skills/commands/templates + **meta-avaliação do
   próprio harness** (evolução por evidência, não opinião).
 - **Sessões longas:** story sharding, waves, ledger de deferrals e disciplina de contexto.
@@ -225,14 +226,14 @@ Trocar/adicionar um agente reconcilia o workspace (gera os ausentes, poda os rem
 ```text
 template/.forge/        # o harness instalável (fonte única)
 ├── FORGE.md            # governança + frontmatter de runtime
-├── agents/  (47)       # subagentes por categoria (specifications, architecture, review, …)
+├── agents/  (54)       # subagentes por categoria (specifications, architecture, review, data, …)
 ├── commands/ (56)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
 ├── contracts/ (5)      # contratos de I/O por estágio (verify, archive, eval, …)
 ├── capabilities/       # packs opt-in por stack (C#/.NET, Node, Java, Python)
-├── skills/   (20)      # skills especialistas (gate-runner, capability-dispatcher, dotnet-quality-scan, …)
+├── skills/   (46)      # skills especialistas (gate-runner, capability-dispatcher, dotnet-quality-scan, data-*-practices, …)
 ├── rules/   (50)       # convenções (arquitetura, domínio, testing, …)
 ├── schemas/ (27)       # JSON Schemas (manifest, run-manifest, benchmark, graph, …)
-└── scripts/ (140)      # engine determinista (graph, archive, eval, provenance, hooks, …) — inclui lib/ e tests/
+└── scripts/ (144)      # engine determinista (graph, archive, eval, provenance, hooks, …) — inclui lib/ e tests/
 bin/forge.mjs           # CLI do npx (forge-harness init) — porta cross-platform do install.sh
 installer/              # install.sh + gitignore.patch + delegação global do /init-project
 tests/                  # gates deterministas + run-all.sh

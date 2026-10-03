@@ -1,0 +1,7 @@
+{
+  "change_id": "2026-09-estorno-tarifa-duplicada",
+  "deferrals": [
+    { "id": "DEFER-01", "raised_in": "2026-09-13T14:20:00Z", "description": "Janela de duplicidade (60 s) precisa de confirmação do operador", "reason": "Janela de duplicidade (60 s) precisa de confirmação do operador", "blocks": ["STORY-03"], "depends_on": [], "status": "tested", "resolved_at": "2026-09-16T10:02:00Z", "resolution_note": "Operador confirmou 60 s por e-mail" },
+    { "id": "DEFER-02", "raised_in": "2026-09-22T09:10:00Z", "description": "Texto da notificação push do estorno aguardando revisão de UX", "reason": "Texto da notificação push do estorno aguardando revisão de UX", "blocks": ["STORY-05"], "depends_on": [], "status": "resolved", "resolved_at": "2026-09-24T16:40:00Z", "resolution_note": "Texto aprovado pela UX em 24/09" }
+  ]
+}

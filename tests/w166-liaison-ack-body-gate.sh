@@ -12,6 +12,9 @@
 #   [7] ack sem corpo nenhum continua funcionando (retrocompatibilidade do recibo puro)
 #   [8] --subject continua aceito e independente do corpo
 set -euo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
+# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 T="$(mktemp -d /tmp/forge-w166.XXXXXX)"
@@ -25,6 +28,10 @@ mk_repo() { # mk_repo <dir>
   mkdir -p "$dir/.forge"
   cp -R "$WS/template/.forge/scripts" "$dir/.forge/"
   cp -R "$WS/template/.forge/templates" "$dir/.forge/"
+  # LDG-0190 (#103): ledger-ops.sh add/harvest passaram a validar enum contra
+  # ../schemas/ledger.schema.json em runtime — a fixture precisa do schema para não quebrar.
+  mkdir -p "$dir/.forge/schemas"
+  cp "$WS/template/.forge/schemas/ledger.schema.json" "$dir/.forge/schemas/"
   git -C "$dir" init -q
   git -C "$dir" config user.email "$1@test"
   git -C "$dir" config user.name "$1"

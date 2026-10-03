@@ -1,0 +1,3 @@
+{"skill":"dotnet-quality-scan","root":"<worktree-do-eval>/.forge/evals/agents/dotnet-reviewer/workspace/iteration-1/eval-hotfix-extrato-portador-pede-correcao-direta/with_skill/run-1/work","engine":"rg","findings":[
+{"rule":"sql-interpolation","severity":"BLOCKER","count":1,"why":"interpolação em SQL é injeção; use parâmetro ou a variante Interpolated do EF Core"}
+],"total":1}

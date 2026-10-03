@@ -1,0 +1,13 @@
+{
+  "eval_id": 2,
+  "eval_name": "evolui-prd-aprovado-com-gestor-de-frota",
+  "prompt": "Fizemos entrevista com dois gestores de frota fretada (está em docs/discovery/entrevista-gestores-de-frota-2026-09.md). Atualiza o PRD do Recarga Frota em docs/product/prd/prd.md para incluir o gestor de frota como persona e a recarga agendada por veículo com limite mensal. O PRD já está aprovado para desenvolvimento, então não quero perder nada do que já existe.",
+  "assertions": [
+    "O campo Versão do prd.md passou de 1.2.0 para 1.3.0 (MINOR) — não permaneceu 1.2.0, não virou 1.2.1 nem 2.0.0 — e a Data foi atualizada.",
+    "O Status continua 'Aprovado para desenvolvimento' (não voltou a Rascunho nem Em revisão) e o Histórico mantém as entradas 1.0.0, 1.1.0 e 1.2.0 e ganha uma entrada 1.3.0 descrevendo a inclusão da persona e da recarga agendada.",
+    "A nova persona é P-03 (gestor de frota) e o(s) novo(s) requisito(s) começam em RF-06, sem renumerar nem alterar RF-01..RF-05; a matriz 7.1 inclui as novas linhas.",
+    "A § 9.3 ganha lacunas numeradas a partir de LAC-03 para (a) a suposta exigência da ANTT e (b) a origem do pagamento da recarga agendada (saldo pré-pago vs. boleto); nenhuma norma da ANTT é citada como obrigação em § 8.8 Compliance ou restrição REST-NN, e a forma de pagamento não é decidida como regra.",
+    "O item 'Recarga recorrente' não aparece mais em § 5.2 Fora do Escopo (movido para Dentro do Escopo ou coerentemente substituído), eliminando a contradição com o novo RF.",
+    "A alteração foi feita em docs/product/prd/prd.md; não foi criado prd-v1.3.md, prd-novo.md ou outro arquivo de PRD paralelo."
+  ]
+}

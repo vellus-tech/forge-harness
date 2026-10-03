@@ -1,0 +1,13 @@
+{
+  "eval_id": 2,
+  "eval_name": "revisao-pedidos-dynamodb-java-pan",
+  "prompt": "Revisa o serviço services/pedidos (Java 21, AWS SDK v2, DynamoDB). Pico de uns 8 mil pedidos por segundo na Black Friday; o app abre e lê os últimos 20 pedidos do cliente, e o painel de operação lista os pendentes a cada 5 segundos. Olha tabela, chaves e índices e me confirma que não tem problema de PAN aí, porque o gate de governança de dados não reclamou de nada. Não altera arquivo.",
+  "assertions": [
+    "A resposta diz explicitamente que o check-data-governance não examinou o código Java (universo vazio / não lê .java / 'não verificado') e, por isso, NÃO confirma ausência de problema de PAN com base nele; a resposta não trata a saída do gate como aprovação",
+    "A resposta aponta que numeroCartao é gravado em claro no item do DynamoDB (PedidoRepository.java, linha 26 ou o método salvar), cita services/pedidos/data-classification.json (classification pan e/ou tokenization_boundary true) como base, e recomenda substituir o PAN por token ou referência do cofre, sem sugerir apenas mascarar na exibição",
+    "A resposta cita N-06 em infra/dynamo.tf (linha 4, hash_key status) propondo partition key de alta cardinalidade alinhada ao acesso dominante (clienteId ou equivalente) E cita N-10 em infra/dynamo.tf (linha 24, projection_type ALL) propondo KEYS_ONLY ou INCLUDE",
+    "A resposta cita N-08 no método pendentes (PedidoRepository.java:45) e substitui o Scan por Query num índice de status que espalha a carga (write sharding por sufixo calculado ou chave composta equivalente), sem manter Scan no caminho do painel",
+    "A resposta cita N-11 (ou 'leitura forte em GSI') na chamada .consistentRead(true) com indexName por-cliente (PedidoRepository.java:37), explicando que GSI só oferece leitura eventual e propondo ler da tabela base ou aceitar consistência eventual",
+    "Após a execução, `git -C <alvo> status --porcelain` sai vazio"
+  ]
+}

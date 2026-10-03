@@ -109,10 +109,14 @@ fi
 ROOT="$(forge_resolve_root)"
 LEDGER_DIR="$ROOT/.forge/ledger"
 LF="$LEDGER_DIR/ledger.json"
+SCHEMA="$SCRIPT_DIR/../schemas/ledger.schema.json"
 TPL="$(cd "$SCRIPT_DIR/.." && pwd)/templates/ledger/LEDGER.md"
 OUT="$LEDGER_DIR/LEDGER.md"
 
 cmd="${1:-}"; shift || true
+case "$cmd" in
+  -h|--help|help) echo "Usage: ledger-ops.sh add|update|note|resolve|promote|harvest|render|status|list [args...]"; exit 0 ;;
+esac
 [ -n "$cmd" ] || { echo "Usage: ledger-ops.sh add|update|note|resolve|promote|harvest|render|status|list [args...]" >&2; exit 1; }
 
 _git_date() { git -C "$ROOT" log -1 --format=%cI 2>/dev/null || echo ""; }
@@ -134,6 +138,33 @@ _require_git_date() {
     exit 1
   fi
   GIT_DATE_NOW="$d"
+}
+# _validate_enum_field <schema> <caminho-no-item> <valor> <nome-da-flag> — LDG-0190: recusa ANTES
+# de escrever quando `valor` não pertence ao enum que `ledger.schema.json` declara para o campo em
+# `caminho-no-item` (ex.: "type", "source.origin"). Valor vazio passa (campo opcional não
+# informado); campo sem enum no schema passa (nada a validar). Fonte única de verdade é o próprio
+# schema — nunca uma lista de valores redigitada aqui, que divergiria da primeira vez que o schema
+# mudasse.
+_validate_enum_field() {
+  local schema="$1" path="$2" value="$3" flag="$4"
+  [ -n "$value" ] || return 0
+  node -e '
+    const fs = require("fs");
+    const [, schemaPath, path, value, flag] = process.argv;
+    const schema = JSON.parse(fs.readFileSync(schemaPath, "utf8"));
+    let node = schema.properties && schema.properties.entries && schema.properties.entries.items && schema.properties.entries.items.properties;
+    const segs = path.split(".");
+    segs.forEach((seg, i) => {
+      node = node && node[seg];
+      if (i < segs.length - 1) node = node && node.properties;
+    });
+    const enumVals = node && Array.isArray(node.enum) ? node.enum.filter((v) => v !== null) : null;
+    if (!enumVals) process.exit(0);
+    if (!enumVals.includes(value)) {
+      console.error("FAIL: ledger-ops: --" + flag + " \x27" + value + "\x27 fora do enum do schema (" + enumVals.join("|") + ")");
+      process.exit(1);
+    }
+  ' "$schema" "$path" "$value" "$flag"
 }
 _write_json() { local f="$1"; local tmp; tmp="$(mktemp "${f}.XXXXXX")"; printf '%s\n' "$2" > "$tmp"; mv "$tmp" "$f"; }
 _init_ledger() { mkdir -p "$LEDGER_DIR"; [ -f "$LF" ] || _write_json "$LF" '{"entries":[]}'; }
@@ -187,6 +218,11 @@ add)
       exit 1
       ;;
   esac
+  _validate_enum_field "$SCHEMA" "type" "$type" "type"
+  _validate_enum_field "$SCHEMA" "severity" "$severity" "severity"
+  _validate_enum_field "$SCHEMA" "priority" "$priority" "priority"
+  _validate_enum_field "$SCHEMA" "status" "$status" "status"
+  _validate_enum_field "$SCHEMA" "source.origin" "$origin" "origin"
   _require_git_date
   _init_ledger
   result="$(node - "$LF" "$type" "$title" "$detail" "$severity" "$priority" "$status" "$origin" "$change" "$ref" "$adr" "$capability" "$GIT_DATE_NOW" <<'NODEEOF'
@@ -388,6 +424,10 @@ const [, , lf, id, note, newStatus, now] = process.argv;
 const data = JSON.parse(readFileSync(lf, 'utf8'));
 const e = (data.entries || []).find((x) => x.id === id);
 if (!e) { console.error('entrada ' + id + ' não encontrada'); process.exit(1); }
+if (e.status === 'resolved' || e.status === 'wont-fix') {
+  console.error('FAIL: ' + id + " já está '" + e.status + "' desde " + e.resolved_at + ' — use update --detail para acrescentar nota');
+  process.exit(1);
+}
 e.status = newStatus;
 e.resolved_at = now;
 e.updated_at = now;
@@ -440,6 +480,7 @@ harvest)
     --origin) _require_value "harvest" --origin "${2-}" "--origin"; origin="$2"; shift 2 ;;
     *) _reject_unknown "harvest" "--origin" "$1" "harvest é best-effort quanto ao CONTEÚDO (change ausente devolve 0 e rc 0), nunca quanto ao USO: flag desconhecida é erro de quem chama, e engoli-la publicaria a colheita sob a origem errada." ;;
   esac; done
+  _validate_enum_field "$SCHEMA" "source.origin" "$origin" "origin"
   spec_dir="$ROOT/.forge/specs/active/$change_id"
   # best-effort: sem pasta do change, não há o que colher — nunca falha o caller (close/archive).
   [ -d "$spec_dir" ] || { echo "OK harvest $change_id — 0 nova(s) (change não encontrado)"; exit 0; }

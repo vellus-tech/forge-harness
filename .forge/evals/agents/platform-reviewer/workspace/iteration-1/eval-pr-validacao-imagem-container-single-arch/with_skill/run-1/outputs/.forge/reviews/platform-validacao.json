@@ -1,0 +1,190 @@
+{
+  "reviewer": "platform-reviewer",
+  "diff": "main..HEAD",
+  "branch": "feat/validacao-imagem-container",
+  "findings": [
+    {
+      "id": "PLAT-001",
+      "severity": "BLOCKER",
+      "category": "platform",
+      "file": "services/validacao/Dockerfile",
+      "line": 1,
+      "title": "Estágio build usa tag `latest` (`dotnet/sdk:latest`)",
+      "description": "`FROM mcr.microsoft.com/dotnet/sdk:latest` usa a tag `latest`, proibida em qualquer ambiente. Builds deixam de ser reprodutíveis e a base pode mudar de versão do SDK sem aviso entre execuções do CI.",
+      "fix_suggested": "Fixar a versão exata verificada multi-arch, ex.: `mcr.microsoft.com/dotnet/sdk:8.0-alpine` (ver tabela de base images aprovadas).",
+      "rule_violated": ".forge/rules/architecture/docker-image-security.md",
+      "confidence": "high"
+    },
+    {
+      "id": "PLAT-002",
+      "severity": "BLOCKER",
+      "category": "platform",
+      "file": "services/validacao/Dockerfile",
+      "line": 1,
+      "title": "Dockerfile sem `ARG TARGETARCH` — viola multi-arch",
+      "description": "O estágio build não declara `ARG TARGETARCH` nem publica com `-a $TARGETARCH`. Combinado com o workflow, a imagem é produzida via QEMU multi-plataforma em vez de cross-compile nativo; sem TARGETARCH o Dockerfile em si não suporta o padrão de build per-arch exigido para Graviton3.",
+      "fix_suggested": "Adicionar `ARG TARGETARCH` no estágio build e usar `dotnet publish -a $TARGETARCH` conforme o padrão em .forge/rules/architecture/docker-multi-arch.md.",
+      "rule_violated": ".forge/rules/architecture/docker-multi-arch.md",
+      "confidence": "high"
+    },
+    {
+      "id": "PLAT-003",
+      "severity": "HIGH",
+      "category": "platform",
+      "file": "services/validacao/Dockerfile",
+      "line": 1,
+      "title": "Dockerfile sem diretiva `# syntax=docker/dockerfile:1.7+`",
+      "description": "A primeira linha do Dockerfile não declara o BuildKit moderno, exigido para suportar os recursos de cache por arquitetura e build multi-plataforma corretamente.",
+      "fix_suggested": "Adicionar `# syntax=docker/dockerfile:1.7` como primeira linha do arquivo.",
+      "rule_violated": ".forge/rules/architecture/docker-multi-arch.md",
+      "confidence": "high"
+    },
+    {
+      "id": "PLAT-004",
+      "severity": "HIGH",
+      "category": "platform",
+      "file": "services/validacao/Dockerfile",
+      "line": 1,
+      "title": "Estágio build sem `FROM --platform=$BUILDPLATFORM`",
+      "description": "O estágio build não usa `--platform=$BUILDPLATFORM`, que permite compilar na arquitetura nativa do runner e cross-compilar para `$TARGETARCH` (mais rápido que QEMU).",
+      "fix_suggested": "`FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build`.",
+      "rule_violated": ".forge/rules/architecture/docker-multi-arch.md",
+      "confidence": "high"
+    },
+    {
+      "id": "PLAT-005",
+      "severity": "HIGH",
+      "category": "platform",
+      "file": "services/validacao/Dockerfile",
+      "line": 7,
+      "title": "Estágio runtime roda como root (sem `USER` não-root)",
+      "description": "Não há criação de usuário/grupo de sistema nem diretiva `USER` antes do `ENTRYPOINT`. O container final roda como root, ampliando o blast radius de qualquer RCE na aplicação.",
+      "fix_suggested": "Criar `appgroup`/`appuser` via `addgroup`/`adduser --system` e adicionar `USER appuser` antes do `ENTRYPOINT`, conforme docker-image-security.md.",
+      "rule_violated": ".forge/rules/architecture/docker-image-security.md",
+      "confidence": "high"
+    },
+    {
+      "id": "PLAT-006",
+      "severity": "MEDIUM",
+      "category": "platform",
+      "file": "services/validacao/Dockerfile",
+      "line": 7,
+      "title": "Estágio runtime sem `apk update && apk upgrade`",
+      "description": "A imagem `aspnet:8.0-alpine` não recebe os patches de segurança do Alpine publicados após o release da imagem base, deixando CVEs corrigíveis sem correção.",
+      "fix_suggested": "Adicionar `RUN apk update && apk upgrade --no-cache` no início do estágio runtime.",
+      "rule_violated": ".forge/rules/architecture/docker-image-security.md",
+      "confidence": "high"
+    },
+    {
+      "id": "PLAT-007",
+      "severity": "MEDIUM",
+      "category": "platform",
+      "file": "services/validacao/Dockerfile",
+      "line": 11,
+      "title": "Dockerfile sem `HEALTHCHECK`",
+      "description": "Apesar de o serviço expor `/health/live`, o Dockerfile não declara `HEALTHCHECK`, então o próprio runtime Docker/orquestrador básico não detecta o container travado sem depender do orquestrador K8s.",
+      "fix_suggested": "Adicionar `HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD wget -q --tries=1 -T 5 -O /dev/null http://127.0.0.1:8080/health/live || exit 1`.",
+      "rule_violated": ".forge/rules/architecture/docker-image-security.md",
+      "confidence": "high"
+    },
+    {
+      "id": "PLAT-008",
+      "severity": "HIGH",
+      "category": "platform",
+      "file": "services/validacao/Dockerfile",
+      "line": 4,
+      "title": "Cache mount do NuGet sem `id=nuget-${TARGETARCH}`",
+      "description": "`--mount=type=cache,target=/root/.nuget/packages` não isola o cache por arquitetura. Em builds multi-arch, o mesmo cache é compartilhado entre amd64 e arm64 e pode contaminar pacotes nativos entre plataformas.",
+      "fix_suggested": "Usar `--mount=type=cache,target=/root/.nuget/packages,id=nuget-${TARGETARCH}`.",
+      "rule_violated": ".forge/rules/architecture/docker-multi-arch.md",
+      "confidence": "high"
+    },
+    {
+      "id": "PLAT-009",
+      "severity": "BLOCKER",
+      "category": "platform",
+      "file": ".github/workflows/validacao-image.yml",
+      "line": 17,
+      "title": "`docker/setup-qemu-action` usado em CI — proibido",
+      "description": "O workflow usa QEMU (`setup-qemu-action`) para emular arm64 em runner amd64. A rule de multi-arch proíbe explicitamente QEMU em CI — é permitido só localmente. Em CI, builds emulados são 5–10× mais lentos e mascaram diferenças reais de comportamento entre arquiteturas.",
+      "fix_suggested": "Remover `setup-qemu-action` e usar matriz de runners nativos (`ubuntu-24.04` para amd64, `ubuntu-24.04-arm` para arm64), com job separado de criação de manifest list.",
+      "rule_violated": ".forge/rules/architecture/docker-multi-arch.md",
+      "confidence": "high"
+    },
+    {
+      "id": "PLAT-010",
+      "severity": "BLOCKER",
+      "category": "platform",
+      "file": ".github/workflows/validacao-image.yml",
+      "line": 9,
+      "title": "Sem matriz de runners nativos (`ubuntu-24.04` + `ubuntu-24.04-arm`)",
+      "description": "O job `build` roda único em `ubuntu-latest` e usa `docker/build-push-action` com `platforms: linux/amd64,linux/arm64` via QEMU, em vez da matriz de build per-arch em runners nativos exigida pela política multi-arch (ADR-0013).",
+      "fix_suggested": "Dividir em job `build-per-arch` com `strategy.matrix` `{arch: amd64, runner: ubuntu-24.04}` / `{arch: arm64, runner: ubuntu-24.04-arm}`, seguido de job `manifest-list` que junta os digests com `docker buildx imagetools create`.",
+      "rule_violated": ".forge/rules/architecture/docker-multi-arch.md",
+      "confidence": "high"
+    },
+    {
+      "id": "PLAT-011",
+      "severity": "BLOCKER",
+      "category": "platform",
+      "file": ".github/workflows/validacao-image.yml",
+      "line": 28,
+      "title": "Workflow sem etapa de scan Trivy antes do push",
+      "description": "Não há step `aquasecurity/trivy-action` (ou equivalente) com `severity: CRITICAL,HIGH` e `exit-code: 1`. A imagem é publicada no ECR sem gate de vulnerabilidades, violando a política zero-tolerance de docker-image-security.md.",
+      "fix_suggested": "Adicionar step de Trivy por digest (amd64 e arm64 separadamente) com `severity: CRITICAL,HIGH`, `exit-code: 1`, `ignore-unfixed: false`, antes de qualquer etapa que disponibilize a imagem para deploy.",
+      "rule_violated": ".forge/rules/architecture/docker-image-security.md",
+      "confidence": "high"
+    },
+    {
+      "id": "PLAT-012",
+      "severity": "HIGH",
+      "category": "platform",
+      "file": ".github/workflows/validacao-image.yml",
+      "line": 28,
+      "title": "Sem assinatura Cosign da imagem por digest",
+      "description": "O workflow não assina a imagem publicada com Cosign, quebrando a cadeia de supply-chain security exigida antes do deploy em produção (Graviton3 EKS).",
+      "fix_suggested": "Adicionar step `cosign sign --yes <registry>/<image>@<digest>` por digest de arquitetura e novamente sobre a manifest list.",
+      "rule_violated": ".forge/rules/architecture/docker-multi-arch.md",
+      "confidence": "high"
+    },
+    {
+      "id": "PLAT-013",
+      "severity": "HIGH",
+      "category": "platform",
+      "file": ".github/workflows/validacao-image.yml",
+      "line": 28,
+      "title": "Sem geração de SBOM (Syft) por digest",
+      "description": "Não há geração de SBOM CycloneDX via Syft por digest de arquitetura, exigida para rastreabilidade de dependências antes do deploy.",
+      "fix_suggested": "Adicionar step `anchore/syft-action` por arch, publicando `sbom-<arch>.cdx.json` como artifact.",
+      "rule_violated": ".forge/rules/architecture/docker-multi-arch.md",
+      "confidence": "high"
+    },
+    {
+      "id": "PLAT-014",
+      "severity": "BLOCKER",
+      "category": "platform",
+      "file": ".github/workflows/validacao-image.yml",
+      "line": 28,
+      "title": "Sem etapa explícita de criação de manifest list",
+      "description": "O workflow depende do comportamento implícito do `build-push-action` com múltiplas plataformas em um único job via QEMU, em vez do padrão exigido: build per-arch em runners nativos seguido de job dedicado `docker buildx imagetools create` + verificação de que a manifest list contém `linux/amd64` e `linux/arm64`.",
+      "fix_suggested": "Adicionar job `manifest-list` que combina as tags `-amd64`/`-arm64` publicadas pelo job per-arch, com step de verificação via `docker buildx imagetools inspect`.",
+      "rule_violated": ".forge/rules/architecture/docker-multi-arch.md",
+      "confidence": "medium"
+    },
+    {
+      "id": "PLAT-015",
+      "severity": "HIGH",
+      "category": "platform",
+      "file": ".github/workflows/validacao-image.yml",
+      "line": 28,
+      "title": "Sem smoke test em runner arm64 real após publicação",
+      "description": "O workflow não valida a imagem publicada rodando de fato em um runner `ubuntu-24.04-arm`, então uma imagem quebrada em Graviton (`exec format error` ou falha silenciosa de performance sob emulação) só seria detectada em produção.",
+      "fix_suggested": "Adicionar job `smoke-arm64` (`runs-on: ubuntu-24.04-arm`) que sobe o container publicado e faz `curl` em `/health/live` com retry.",
+      "rule_violated": ".forge/rules/architecture/docker-multi-arch.md",
+      "confidence": "high"
+    }
+  ],
+  "out_of_scope_observed": [
+    "Program.cs: log inclui PAN e CPF em texto claro — PII/PCI DSS, fora do escopo de platform-reviewer (→ security)."
+  ]
+}

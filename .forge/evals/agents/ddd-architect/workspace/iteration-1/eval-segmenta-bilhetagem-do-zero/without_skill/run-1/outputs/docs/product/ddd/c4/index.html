@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tarifa Viva — Diagramas C4</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1a1a1a;
+    --muted: #5a5a5a;
+    --accent: #0f6b4c;
+    --border: #e2e2e2;
+    --card-bg: #fafafa;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14181a;
+      --fg: #eaeaea;
+      --muted: #a0a0a0;
+      --accent: #4fd3a0;
+      --border: #2c3234;
+      --card-bg: #1b2022;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14181a;
+    --fg: #eaeaea;
+    --muted: #a0a0a0;
+    --accent: #4fd3a0;
+    --border: #2c3234;
+    --card-bg: #1b2022;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  header {
+    padding: 24px 16px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { margin: 0 0 4px; font-size: 1.4rem; }
+  header p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+  nav {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 5;
+  }
+  nav button {
+    background: var(--card-bg);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  nav button[aria-selected="true"] {
+    background: var(--accent);
+    color: #0a0a0a;
+    border-color: var(--accent);
+  }
+  main { padding: 16px; max-width: 1200px; margin: 0 auto; }
+  section { display: none; }
+  section[aria-current="true"] { display: block; }
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    overflow-x: auto;
+  }
+  .card h2 { margin-top: 0; font-size: 1.1rem; }
+  .card p.desc { color: var(--muted); font-size: 0.92rem; }
+  .mermaid { min-width: 640px; }
+  footer { padding: 16px; color: var(--muted); font-size: 0.85rem; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Tarifa Viva — Diagramas C4</h1>
+  <p>Segmentação DDD para apresentação ao consórcio de Vale do Sereno (Viação Serrana, Expresso Vale, TransSereno)</p>
+</header>
+<nav id="tabs">
+  <button data-target="c1" aria-selected="true">Nível 1 — Contexto</button>
+  <button data-target="c2" aria-selected="false">Nível 2 — Containers</button>
+  <button data-target="c3" aria-selected="false">Nível 3 — Componentes (Embarque)</button>
+</nav>
+<main>
+  <section id="c1" aria-current="true">
+    <div class="card">
+      <h2>Diagrama de Contexto do Sistema</h2>
+      <p class="desc">Como o Tarifa Viva se relaciona com passageiros, gestor, pontos de venda, operadoras e os três sistemas externos (ValidaBus, adquirente/PSP, FCM).</p>
+      <pre class="mermaid">
+flowchart TB
+    PASSAGEIRO(["Passageiro<br/>usa cartão físico ou app"])
+    GESTOR(["Gestor do Consórcio<br/>backoffice"])
+    PDV(["Ponto de Venda Credenciado"])
+
+    TARIFAVIVA[["Tarifa Viva<br/>plataforma de bilhetagem eletrônica"]]
+
+    OPERADORAS(["Operadoras do Consórcio<br/>Viação Serrana, Expresso Vale, TransSereno"])
+    VALIDABUS[("Firmware ValidaBus<br/>fornecedor terceiro")]
+    ADQUIRENTE[("Adquirente de Cartão / PSP Pix")]
+    FCM[("Firebase Cloud Messaging")]
+
+    PASSAGEIRO -- "embarca, recarrega, consulta histórico" --> TARIFAVIVA
+    GESTOR -- "bloqueia cartão, acompanha clearing" --> TARIFAVIVA
+    PDV -- "registra recarga em dinheiro" --> TARIFAVIVA
+    TARIFAVIVA -- "repasse diário auditável" --> OPERADORAS
+    TARIFAVIVA -- "protocolo proprietário de sincronização" --> VALIDABUS
+    TARIFAVIVA -- "autoriza recarga por cartão" --> ADQUIRENTE
+    TARIFAVIVA -- "envia push de saldo baixo" --> FCM
+      </pre>
+    </div>
+  </section>
+  <section id="c2">
+    <div class="card">
+      <h2>Diagrama de Containers</h2>
+      <p class="desc">Os nove serviços do domínio, o validador embarcado, o app, o backoffice e a infraestrutura compartilhada (gRPC interno, REST externo, RabbitMQ, PostgreSQL por serviço).</p>
+      <pre class="mermaid">
+flowchart TB
+    PASSAGEIRO(["Passageiro"])
+    GESTOR(["Gestor do Consórcio"])
+    PDV(["Ponto de Venda"])
+    ONIBUS(["Validador embarcado no ônibus"])
+
+    APP["App do Passageiro<br/>(mobile)"]
+    BACKOFFICE["Backoffice do Gestor<br/>(web)"]
+
+    subgraph tarifaviva["Tarifa Viva — serviços containerizados (gRPC interno, REST externo)"]
+        EMBARQUE["embarque-svc"]
+        CLEARING["clearing-svc"]
+        CARTEIRA["carteira-svc"]
+        RECARGA["recarga-svc"]
+        FROTA["frota-validadores-svc"]
+        CADASTRO["cadastro-linhas-svc"]
+        IDENTIDADE["identidade-svc"]
+        NOTIF["notificacoes-svc"]
+        PAGAMENTOS["pagamentos-svc"]
+        FILA[("RabbitMQ")]
+        PG[("PostgreSQL<br/>1 schema por serviço")]
+    end
+
+    VALIDABUS[("Firmware ValidaBus")]
+    ADQUIRENTE[("Adquirente / PSP Pix")]
+    FCM[("FCM")]
+
+    PASSAGEIRO --> APP
+    GESTOR --> BACKOFFICE
+    ONIBUS -- "protocolo proprietário" --> VALIDABUS
+    VALIDABUS --> FROTA
+    ONIBUS -. "réplica offline de saldo/bloqueio/tarifa" .-> EMBARQUE
+
+    APP -- REST --> RECARGA
+    APP -- REST --> CARTEIRA
+    APP -- REST --> IDENTIDADE
+    PDV -- REST --> RECARGA
+    BACKOFFICE -- REST --> CLEARING
+    BACKOFFICE -- REST --> CADASTRO
+
+    EMBARQUE -- gRPC --> CARTEIRA
+    EMBARQUE -- gRPC --> CADASTRO
+    FROTA -- gRPC/evento --> EMBARQUE
+    FROTA -- evento --> FILA
+    EMBARQUE -- evento EmbarqueOcorrido --> FILA
+    FILA --> CLEARING
+    FILA --> CARTEIRA
+    RECARGA -- gRPC --> PAGAMENTOS
+    RECARGA -- gRPC --> IDENTIDADE
+    RECARGA -- evento comando crédito --> FILA
+    CARTEIRA -- evento SaldoBaixo --> FILA
+    FILA --> NOTIF
+    PAGAMENTOS -- REST externo --> ADQUIRENTE
+    NOTIF -- REST externo --> FCM
+
+    EMBARQUE --- PG
+    CLEARING --- PG
+    CARTEIRA --- PG
+    RECARGA --- PG
+    FROTA --- PG
+    CADASTRO --- PG
+    IDENTIDADE --- PG
+      </pre>
+    </div>
+  </section>
+  <section id="c3">
+    <div class="card">
+      <h2>Diagrama de Componentes — embarque-svc</h2>
+      <p class="desc">O core domain que decide o embarque em até 300 ms, inclusive offline, e publica o evento que alimenta o clearing diário entre as três operadoras.</p>
+      <pre class="mermaid">
+flowchart TB
+    subgraph embarque_svc["embarque-svc"]
+        API["API gRPC de Decisão de Embarque"]
+        MOTOR["Motor de Tarifação<br/>(tarifa vigente + integração 60min)"]
+        PROJ["Projeção Local de Saldo/Bloqueio<br/>(réplica offline)"]
+        PUB["Publicador de EmbarqueOcorrido"]
+        REPO[("Repositório de Embarques<br/>PostgreSQL")]
+    end
+
+    VALIDADOR["Validador embarcado (cliente)"]
+    CARTEIRA_SVC["carteira-svc"]
+    CADASTRO_SVC["cadastro-linhas-svc"]
+    FILA[("RabbitMQ")]
+
+    VALIDADOR -- "cartão + linha" --> API
+    API --> MOTOR
+    MOTOR -- "consulta saldo/bloqueio" --> PROJ
+    MOTOR -- "consulta tarifa vigente/janela" --> PROJ
+    CARTEIRA_SVC -. "sincroniza projeção" .-> PROJ
+    CADASTRO_SVC -. "sincroniza tarifas/linhas" .-> PROJ
+    MOTOR --> REPO
+    REPO --> PUB
+    PUB --> FILA
+    API -- "aprovado/negado em até 300ms" --> VALIDADOR
+      </pre>
+    </div>
+  </section>
+</main>
+<footer>Tarifa Viva — segmentação DDD, gerado a partir de PRD/FRD/NFRD/TRD (docs/product)</footer>
+<script>
+  (function () {
+    function getPreferredTheme() {
+      try {
+        var stored = localStorage.getItem('tarifaviva-theme');
+        if (stored === 'light' || stored === 'dark') return stored;
+      } catch (e) {}
+      return null;
+    }
+    var preferred = getPreferredTheme();
+    if (preferred) document.documentElement.setAttribute('data-theme', preferred);
+
+    var isDark = preferred
+      ? preferred === 'dark'
+      : window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: isDark ? 'dark' : 'default',
+      securityLevel: 'loose'
+    });
+
+    var tabs = document.querySelectorAll('#tabs button');
+    var sections = document.querySelectorAll('main > section');
+    tabs.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        tabs.forEach(function (b) { b.setAttribute('aria-selected', 'false'); });
+        sections.forEach(function (s) { s.removeAttribute('aria-current'); });
+        btn.setAttribute('aria-selected', 'true');
+        document.getElementById(btn.dataset.target).setAttribute('aria-current', 'true');
+      });
+    });
+  })();
+</script>
+</body>
+</html>

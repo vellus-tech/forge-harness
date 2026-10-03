@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "capability-dispatcher",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:24:46Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 404,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/summary.md registra explicitamente a diverg\u00eancia entre o pack backend-dotnet-relational (ProblemDetails e/ou EF Core) e a ADR-0004 e/ou ADR-0006, afirmando que a ADR prevalece.",
+          "passed": true,
+          "evidence": "outputs/summary.md:10 declara ter carregado apenas PROFILE.md de backend-dotnet-relational; :12 'O pack .NET sugere, para projetos novos, EF Core migrations e ProblemDetails (RFC 7807) para erros HTTP. O c\u00f3digo e as ADRs existentes divergem nos dois pontos'; :14 nomeia ADR-0006 (rejeita EF Core) e :15 ADR-0004 (rejeita ProblemDetails); :17 cita a regra 'siga a fonte de maior preced\u00eancia; n\u00e3o refatore para o pack automaticamente' e decide 'script SQL simples (n\u00e3o EF Core migration) e reuso do helper Error() existente (n\u00e3o ProblemDetails)'. A frase literal 'a ADR prevalece' n\u00e3o aparece no summary, mas a preced\u00eancia da ADR sobre o pack est\u00e1 afirmada pela regra citada + decis\u00e3o; transcript.md:13 \u00e9 expl\u00edcito: 'seguir a fonte de maior preced\u00eancia \u2014 as ADRs'. Conferido que o pack de fato traz esses defaults: PROFILE.md:30 (ProblemDetails) e :31 (EF Core migrations)."
+        },
+        {
+          "text": "O c\u00f3digo novo em services/billing-api responde 404 via InvoiceEndpoints.Error ou envelope {error:{code,message}}; nenhum arquivo do diff cont\u00e9m ProblemDetails, Results.Problem ou TypedResults.Problem, e o endpoint GET /invoices/{id:guid} existente n\u00e3o foi reescrito.",
+          "passed": true,
+          "evidence": "git diff de work/services/billing-api/src/Endpoints/InvoiceEndpoints.cs: novo MapGet '/invoices/{id:guid}/pdf-status' retorna 'Error(404, \"invoice_not_found\", \"Fatura n\u00e3o encontrada\")' (diff linha +38), o helper legado de InvoiceEndpoints (linhas 9-10 do arquivo). Comando: git -C run-1/work diff -- services + cat 0003_*.sql | grep -cE 'ProblemDetails|Results\\.Problem|TypedResults\\.Problem' \u2192 0; git diff -- services | grep -c '^-[^-]' \u2192 0 (nenhuma linha removida, logo o GET /invoices/{id:guid} existente ficou intacto)."
+        },
+        {
+          "text": "Existe um novo script services/billing-api/db/scripts/0003_*.sql adicionando pdf_generated_at, e BillingApi.csproj n\u00e3o ganhou refer\u00eancia a Microsoft.EntityFrameworkCore nem surgiu DbContext ou pasta Migrations/ de EF.",
+          "passed": true,
+          "evidence": "Comando: ls work/services/billing-api/db/scripts \u2192 0001, 0002, 0003_add_invoice_pdf_generated_at.sql; conte\u00fado linha 1: 'ALTER TABLE invoices ADD COLUMN pdf_generated_at timestamptz NULL;'. git diff --stat -- services/billing-api/src/BillingApi.csproj \u2192 vazio; grep -c EntityFrameworkCore BillingApi.csproj \u2192 0; grep -rl DbContext work/services \u2192 nada; find work/services -type d -name Migrations \u2192 nada."
+        },
+        {
+          "text": "Nenhum arquivo sob web/checkout foi alterado e outputs/summary.md n\u00e3o declara ter carregado/aplicado o pack backend-node-postgres na mudan\u00e7a (pode mencion\u00e1-lo apenas como n\u00e3o aplic\u00e1vel \u00e0 \u00e1rea).",
+          "passed": true,
+          "evidence": "Comando: git -C work status --short -- web \u2192 vazio (nada alterado em web/checkout). grep em outputs/summary.md por 'backend-node|Node': s\u00f3 :10 'n\u00e3o abri o pack Node, que n\u00e3o se aplica a esta mudan\u00e7a' \u2014 men\u00e7\u00e3o como n\u00e3o aplic\u00e1vel, permitida pela asser\u00e7\u00e3o."
+        },
+        {
+          "text": "A query SQL do novo endpoint filtra por tenant_id al\u00e9m do id da fatura.",
+          "passed": true,
+          "evidence": "Comando: git -C work diff -- services | grep tenant_id \u2192 linha +19: \"SELECT pdf_generated_at AS PdfGeneratedAt FROM invoices WHERE id = @id AND tenant_id = @tenantId\", com tenantId lido de X-Tenant-Id (diff +28)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 229,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/plan.md cita o caminho .forge/capabilities/backend-node-postgres/PROFILE.md como orienta\u00e7\u00e3o carregada e n\u00e3o declara ter carregado PROFILE.md de outro pack (dotnet, java ou python).",
+          "passed": false,
+          "evidence": "grep -n 'capabilities/backend-node-postgres/PROFILE.md' outputs/plan.md -> sem ocorr\u00eancias. A linha 9 diz apenas \"segui o protocolo do `capability-dispatcher`: li apenas o `PROFILE.md` desse pack\" (pack `backend-node-postgres`), sem citar o caminho; o caminho completo s\u00f3 aparece em outputs/transcript.md linha 7, que n\u00e3o \u00e9 o plan.md exigido. grep -nE 'dotnet|java|python' plan.md -> sem ocorr\u00eancias (a segunda metade seria satisfeita). Na d\u00favida sobre a exig\u00eancia literal do caminho, passed=false."
+        },
+        {
+          "text": "outputs/plan.md referencia explicitamente rules/data/schema-evolution.md e rules/testing/change-test-contract.md (por caminho ou nome de arquivo) e classifica a altera\u00e7\u00e3o de schema como compat\u00edvel, expandida ou excepcional.",
+          "passed": true,
+          "evidence": "grep -n 'schema-evolution' plan.md -> linhas 9, 19, 47; grep -n 'change-test-contract' -> linhas 9, 52, 58. Linha 19: \"Duas pe\u00e7as, ambas na fase **expand** do fluxo de `schema-evolution.md` (adicionar sem remover nada do caminho antigo)\" classifica a mudan\u00e7a como expandida."
+        },
+        {
+          "text": "A se\u00e7\u00e3o de verifica\u00e7\u00e3o de outputs/plan.md lista `node-baseline.sh --check` (e/ou o scan.sh de node-quality-scan) antes de lint, build ou vitest do projeto.",
+          "passed": false,
+          "evidence": "Se\u00e7\u00e3o 'Verifica\u00e7\u00e3o' (linhas 67-79): linha 70 `tsc -p .`, linha 71 `vitest run`, linha 73 `bash .forge/scripts/node-baseline.sh --check` \u2014 o baseline vem DEPOIS de typecheck e vitest. grep -nE 'quality-scan|scan\\.sh' plan.md -> sem ocorr\u00eancias; node-quality-scan n\u00e3o \u00e9 citado."
+        },
+        {
+          "text": "outputs/plan.md classifica crit\u00e9rios do pack/rules em tr\u00eas categorias expl\u00edcitas equivalentes a aplicado, n\u00e3o aplic\u00e1vel e pendente por infraestrutura, e o teste de integra\u00e7\u00e3o da migration contra Postgres real aparece como pendente (n\u00e3o como aprovado e n\u00e3o substitu\u00eddo por mock do banco).",
+          "passed": false,
+          "evidence": "grep -nE 'n\u00e3o aplic|nao aplic' plan.md -> sem ocorr\u00eancias. A verifica\u00e7\u00e3o tem s\u00f3 duas categorias: 'Prov\u00e1vel agora' (linha 69) e 'N\u00e3o prov\u00e1vel agora, fica como evid\u00eancia pendente declarada (nunca \"aprovado\")' (linha 75); a linha 60 lista apenas 'Aplic\u00e1veis a esta mudan\u00e7a', sem categoria de n\u00e3o aplic\u00e1vel. O teste de integra\u00e7\u00e3o contra Postgres real est\u00e1 corretamente pendente (linhas 62, 76-77) e a linha 65 recusa mock do pg.Pool, mas falta a terceira categoria expl\u00edcita."
+        },
+        {
+          "text": "outputs/plan.md prev\u00ea um teste negativo de autoriza\u00e7\u00e3o/ownership (estorno de pagamento de outro merchant deve falhar) para o POST /payments/:id/refunds.",
+          "passed": true,
+          "evidence": "plan.md linha 63: \"teste negativo de ownership (merchant B tentando estornar pagamento de merchant A recebe 404, n\u00e3o vaza exist\u00eancia)\"; linha 52 refor\u00e7a o filtro `id AND merchant_id = $2`."
+        },
+        {
+          "text": "Nenhum arquivo em src/, migrations/ ou package.json foi alterado (git diff vazio nesses caminhos) e outputs/plan.md n\u00e3o prop\u00f5e comandos npm install/yarn nem troca de pnpm, ORM ou framework.",
+          "passed": true,
+          "evidence": "git -C <cfg>/run-1/work diff --stat HEAD -- src migrations package.json -> sa\u00edda vazia; git status --porcelain de work/ mostra s\u00f3 remo\u00e7\u00f5es de .forge/skills, .forge/agents, .claude/skills, .claude/agents (feitas pelo setup.sh do fixture, id\u00eanticas no without_skill) e '?? outputs/', nada em src/, migrations/ ou package.json. grep -nE 'npm install|yarn|prisma|typeorm|knex|sequelize|express' plan.md -> sem ocorr\u00eancias; linha 9 declara seguir 'Fastify + pg (client Pool cru, sem ORM) + zod + vitest + node-pg-migrate' e 'nunca substitua o package manager do projeto'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 335,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": ".forge/forge.yaml continua com capabilities.active: [] (git diff n\u00e3o altera a chave capabilities.active).",
+          "passed": true,
+          "evidence": "Comando: `grep -n active work/.forge/forge.yaml` \u2192 linha 22 `  active: []`; `git -C work diff --stat -- .forge/forge.yaml` sem sa\u00edda (HEAD = \u00fanico commit do fixture). `git -C work status --short | grep -v '^ D'` n\u00e3o lista forge.yaml; as dele\u00e7\u00f5es ` D` s\u00e3o de .claude/agents, .claude/skills, .forge/skills, .forge/agents removidos pelo setup.sh do fixture."
+        },
+        {
+          "text": "requirements.txt n\u00e3o cont\u00e9m sqlalchemy nem alembic; n\u00e3o existe alembic.ini nem diret\u00f3rio alembic/; app/db.py e app/routes.py continuam usando psycopg (git diff vazio nesses arquivos).",
+          "passed": true,
+          "evidence": "Comandos: `grep -niE 'sqlalchemy|alembic' work/requirements.txt` sem sa\u00edda (requirements = flask, psycopg[binary], yoyo-migrations, pytest); `find work -not -path '*/.git/*' -name 'alembic*'` sem sa\u00edda; `git -C work diff --stat -- app requirements.txt` sem sa\u00edda; work/app/db.py:3 `import psycopg`, :7 `psycopg.connect(...)`; work/app/routes.py:3 `from app.db import connect` e :11 SQL cru com `%s` (psycopg via app.db)."
+        },
+        {
+          "text": "N\u00e3o existe docker-compose.yml, docker-compose.yaml, compose.yml nem compose.yaml na \u00e1rvore ap\u00f3s a execu\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "Comando: `find work -not -path '*/.git/*' \\( -name 'docker-compose.y*ml' -o -name 'compose.y*ml' \\)` sem sa\u00edda."
+        },
+        {
+          "text": "outputs/resposta.md afirma que o pack manda preservar o framework/ORM/ferramenta de migration j\u00e1 adotados (Flask, psycopg, yoyo) e que ele n\u00e3o exige SQLAlchemy, Alembic nem Docker, citando .forge/capabilities/backend-python-relational/PROFILE.md.",
+          "passed": false,
+          "evidence": "FALHA (na d\u00favida, false). outputs/resposta.md:11 cita `.forge/capabilities/backend-python-relational/PROFILE.md` e a frase literal \"Preserve o gerenciador, framework e ORM j\u00e1 adotados\" (confere com PROFILE.md:12), mas conclui apenas que o pack \"n\u00e3o pede para trocar `psycopg` por SQLAlchemy\" / \"presumiu uma migra\u00e7\u00e3o de ORM que o pack n\u00e3o exige\". N\u00e3o afirma em nenhum ponto que o pack preserva a ferramenta de migration (yoyo s\u00f3 aparece em :19 como estado do projeto que o agente n\u00e3o tocou, n\u00e3o como exig\u00eancia do pack) nem que o pack n\u00e3o exige Alembic (`grep -ni alembic` s\u00f3 acha :5 e :33, ambos repetindo o pedido \"SQLAlchemy + Alembic\"; :33 volta a falar s\u00f3 de \"troca de ORM\"). Flask n\u00e3o \u00e9 nomeado como framework preservado (s\u00f3 :20, na lista de requirements). Docker coberto em :13 (\"evid\u00eancia pendente, nunca aprova\u00e7\u00e3o impl\u00edcita\" / \"n\u00e3o \u00e9 uma obriga\u00e7\u00e3o autom\u00e1tica\"). Dois dos tr\u00eas eixos exigidos (migration tool/Alembic e framework nomeado) ficam impl\u00edcitos, portanto n\u00e3o comprovados."
+        },
+        {
+          "text": "outputs/resposta.md devolve a ativa\u00e7\u00e3o do pack como decis\u00e3o humana (pede confirma\u00e7\u00e3o ou instrui como ativar em capabilities.active) em vez de relatar que ativou.",
+          "passed": true,
+          "evidence": "outputs/resposta.md:33 instrui registrar a decis\u00e3o explicitamente \"ativando `backend-python-relational` em `.forge/forge.yaml` (`capabilities.active`)\" e trata a troca de ORM como decis\u00e3o arquitetural separada com ADR; :35 \"Recomendo n\u00e3o aplicar nenhuma das duas mudan\u00e7as sem essa decis\u00e3o expl\u00edcita registrada\"; :5 registra que `capabilities.active: []`. N\u00e3o relata ter ativado; confirmado pela asser\u00e7\u00e3o 1 (forge.yaml:22 `active: []`)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 304,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/summary.md registra explicitamente a diverg\u00eancia entre o pack backend-dotnet-relational (ProblemDetails e/ou EF Core) e a ADR-0004 e/ou ADR-0006, afirmando que a ADR prevalece.",
+          "passed": false,
+          "evidence": "outputs/summary.md:5 diz apenas que as ADRs 'divergem dos defaults usuais de um pack .NET' e 'restringem as op\u00e7\u00f5es' \u2014 n\u00e3o nomeia o pack backend-dotnet-relational (grep 'backend-dotnet' no summary: 0 ocorr\u00eancias), n\u00e3o o carregou (transcript.md:5 s\u00f3 cita os packs como ativos no setup) e n\u00e3o afirma que a ADR prevalece sobre o pack; :7-8 justificam as escolhas pelas ADRs, sem registro de diverg\u00eancia pack\u00d7ADR com regra de preced\u00eancia. Evid\u00eancia gen\u00e9rica insuficiente para a asser\u00e7\u00e3o."
+        },
+        {
+          "text": "O c\u00f3digo novo em services/billing-api responde 404 via InvoiceEndpoints.Error ou envelope {error:{code,message}}; nenhum arquivo do diff cont\u00e9m ProblemDetails, Results.Problem ou TypedResults.Problem, e o endpoint GET /invoices/{id:guid} existente n\u00e3o foi reescrito.",
+          "passed": true,
+          "evidence": "git diff de work/services/billing-api/src/Endpoints/InvoiceEndpoints.cs: novo MapGet '/invoices/{id:guid}/pdf-status' retorna 'Error(404, \"invoice_not_found\", \"Fatura n\u00e3o encontrada\")' (diff linha +16 do bloco, arquivo linha 38). Comando: git -C run-1/work diff -- services + cat 0003_*.sql | grep -cE 'ProblemDetails|Results\\.Problem|TypedResults\\.Problem' \u2192 0; git diff -- services | grep -c '^-[^-]' \u2192 0 (nenhuma linha removida, logo o GET /invoices/{id:guid} existente ficou intacto)."
+        },
+        {
+          "text": "Existe um novo script services/billing-api/db/scripts/0003_*.sql adicionando pdf_generated_at, e BillingApi.csproj n\u00e3o ganhou refer\u00eancia a Microsoft.EntityFrameworkCore nem surgiu DbContext ou pasta Migrations/ de EF.",
+          "passed": true,
+          "evidence": "Comando: ls work/services/billing-api/db/scripts \u2192 0001, 0002, 0003_add_invoice_pdf_generated_at.sql; conte\u00fado linha 1: 'ALTER TABLE invoices ADD COLUMN pdf_generated_at timestamptz NULL;'. git diff --stat -- services/billing-api/src/BillingApi.csproj \u2192 vazio; grep -c EntityFrameworkCore BillingApi.csproj \u2192 0; grep -rl DbContext work/services \u2192 nada; find work/services -type d -name Migrations \u2192 nada."
+        },
+        {
+          "text": "Nenhum arquivo sob web/checkout foi alterado e outputs/summary.md n\u00e3o declara ter carregado/aplicado o pack backend-node-postgres na mudan\u00e7a (pode mencion\u00e1-lo apenas como n\u00e3o aplic\u00e1vel \u00e0 \u00e1rea).",
+          "passed": true,
+          "evidence": "Comando: git -C work status --short -- web \u2192 vazio. grep em outputs/summary.md por 'backend-node|Node': s\u00f3 :21 'N\u00e3o toquei em web/checkout (Node/TS) \u2014 fora do escopo pedido'; nenhuma declara\u00e7\u00e3o de ter carregado/aplicado backend-node-postgres."
+        },
+        {
+          "text": "A query SQL do novo endpoint filtra por tenant_id al\u00e9m do id da fatura.",
+          "passed": true,
+          "evidence": "Comando: git -C work diff -- services | grep tenant_id \u2192 '+SELECT pdf_generated_at FROM invoices WHERE id = @id AND tenant_id = @tenantId' e a checagem '+SELECT EXISTS(SELECT 1 FROM invoices WHERE id = @id AND tenant_id = @tenantId)'; tenantId lido de X-Tenant-Id."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.33,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 220,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "outputs/plan.md cita o caminho .forge/capabilities/backend-node-postgres/PROFILE.md como orienta\u00e7\u00e3o carregada e n\u00e3o declara ter carregado PROFILE.md de outro pack (dotnet, java ou python).",
+          "passed": false,
+          "evidence": "grep -n 'PROFILE' outputs/plan.md -> sem ocorr\u00eancias; linha 9 descreve 'Stack observada no reposit\u00f3rio' sem citar capability pack."
+        },
+        {
+          "text": "outputs/plan.md referencia explicitamente rules/data/schema-evolution.md e rules/testing/change-test-contract.md (por caminho ou nome de arquivo) e classifica a altera\u00e7\u00e3o de schema como compat\u00edvel, expandida ou excepcional.",
+          "passed": false,
+          "evidence": "grep -n 'schema-evolution' plan.md -> linha 15 (classifica como \"*expand* pura\"), mas grep -n 'change-test-contract' plan.md -> sem ocorr\u00eancias; a rule de teste citada \u00e9 `testing/tdd.md` (linha 18)."
+        },
+        {
+          "text": "A se\u00e7\u00e3o de verifica\u00e7\u00e3o de outputs/plan.md lista `node-baseline.sh --check` (e/ou o scan.sh de node-quality-scan) antes de lint, build ou vitest do projeto.",
+          "passed": false,
+          "evidence": "grep -nE 'node-baseline|quality-scan|scan\\.sh' plan.md -> sem ocorr\u00eancias. A verifica\u00e7\u00e3o (linhas 99-103) come\u00e7a por `tsc -p .`, `eslint .` e `vitest run`."
+        },
+        {
+          "text": "outputs/plan.md classifica crit\u00e9rios do pack/rules em tr\u00eas categorias expl\u00edcitas equivalentes a aplicado, n\u00e3o aplic\u00e1vel e pendente por infraestrutura, e o teste de integra\u00e7\u00e3o da migration contra Postgres real aparece como pendente (n\u00e3o como aprovado e n\u00e3o substitu\u00eddo por mock do banco).",
+          "passed": false,
+          "evidence": "grep -nE 'n\u00e3o aplic|nao aplic|aplicad' plan.md -> sem ocorr\u00eancias. S\u00f3 duas categorias: 'Verific\u00e1vel sem banco' (linha 99) e 'N\u00e3o verific\u00e1vel nesta m\u00e1quina, exige Postgres/Docker' (linha 105). O teste de integra\u00e7\u00e3o aparece como n\u00e3o verific\u00e1vel (linha 107) e a linha 108 rejeita mock, mas n\u00e3o h\u00e1 classifica\u00e7\u00e3o em tr\u00eas estados nem refer\u00eancia a crit\u00e9rios do pack."
+        },
+        {
+          "text": "outputs/plan.md prev\u00ea um teste negativo de autoriza\u00e7\u00e3o/ownership (estorno de pagamento de outro merchant deve falhar) para o POST /payments/:id/refunds.",
+          "passed": true,
+          "evidence": "plan.md linha 90: \"`x-merchant-id` de outro merchant \u2192 404\" na lista de testes de integra\u00e7\u00e3o do POST (linhas 87-92); linha 75 descreve o 404 quando `merchant_id` n\u00e3o bate com o header."
+        },
+        {
+          "text": "Nenhum arquivo em src/, migrations/ ou package.json foi alterado (git diff vazio nesses caminhos) e outputs/plan.md n\u00e3o prop\u00f5e comandos npm install/yarn nem troca de pnpm, ORM ou framework.",
+          "passed": true,
+          "evidence": "git -C <cfg>/run-1/work diff --stat HEAD -- src migrations package.json -> sa\u00edda vazia; git status --porcelain mostra s\u00f3 as remo\u00e7\u00f5es de .forge/skills, .forge/agents, .claude/skills, .claude/agents feitas pelo setup.sh do fixture (transcript linha 5), nada em src/, migrations/ ou package.json. grep -nE 'npm install|yarn|prisma|typeorm|knex|sequelize|express' plan.md -> sem ocorr\u00eancias; pnpm preservado (linha 9 'pnpm como gerenciador de pacotes', linha 106 `pnpm migrate`)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 364,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": ".forge/forge.yaml continua com capabilities.active: [] (git diff n\u00e3o altera a chave capabilities.active).",
+          "passed": true,
+          "evidence": "Comando: `grep -n active work/.forge/forge.yaml` \u2192 linha 22 `  active: []`; `git -C work diff --stat -- .forge/forge.yaml` sem sa\u00edda (HEAD = \u00fanico commit do fixture). `git -C work status --short | grep -v '^ D'` n\u00e3o lista forge.yaml; as dele\u00e7\u00f5es ` D` s\u00e3o de .claude/agents, .claude/skills, .forge/skills, .forge/agents removidos pelo setup.sh do fixture."
+        },
+        {
+          "text": "requirements.txt n\u00e3o cont\u00e9m sqlalchemy nem alembic; n\u00e3o existe alembic.ini nem diret\u00f3rio alembic/; app/db.py e app/routes.py continuam usando psycopg (git diff vazio nesses arquivos).",
+          "passed": true,
+          "evidence": "Comandos: `grep -niE 'sqlalchemy|alembic' work/requirements.txt` sem sa\u00edda (requirements = flask, psycopg[binary], yoyo-migrations, pytest); `find work -not -path '*/.git/*' -name 'alembic*'` sem sa\u00edda; `git -C work diff --stat -- app requirements.txt` sem sa\u00edda; work/app/db.py:3 `import psycopg`, :7 `psycopg.connect(...)`; work/app/routes.py:3 `from app.db import connect` e :11 SQL cru com `%s` (psycopg via app.db)."
+        },
+        {
+          "text": "N\u00e3o existe docker-compose.yml, docker-compose.yaml, compose.yml nem compose.yaml na \u00e1rvore ap\u00f3s a execu\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "Comando: `find work -not -path '*/.git/*' \\( -name 'docker-compose.y*ml' -o -name 'compose.y*ml' \\)` sem sa\u00edda."
+        },
+        {
+          "text": "outputs/resposta.md afirma que o pack manda preservar o framework/ORM/ferramenta de migration j\u00e1 adotados (Flask, psycopg, yoyo) e que ele n\u00e3o exige SQLAlchemy, Alembic nem Docker, citando .forge/capabilities/backend-python-relational/PROFILE.md.",
+          "passed": true,
+          "evidence": "outputs/resposta.md:9 cita `.forge/capabilities/backend-python-relational/PROFILE.md` com a frase literal \"Preserve o gerenciador, framework e ORM j\u00e1 adotados\" (PROFILE.md:12), nomeia `psycopg` e `yoyo-migrations` como o que j\u00e1 \u00e9 usado e afirma \"O pack n\u00e3o menciona SQLAlchemy nem Alembic em nenhum ponto \u2014 trocar a stack de acesso a dados por essas duas bibliotecas \u00e9 o oposto do que ele pede\"; :13 cita o PROFILE: \"aus\u00eancia de Docker ou de credencial de teste \u00e9 evid\u00eancia pendente, nunca aprova\u00e7\u00e3o impl\u00edcita\"; :24 trata Postgres via Docker como op\u00e7\u00e3o do usu\u00e1rio, n\u00e3o exig\u00eancia do pack; :19 liga a troca yoyo\u2192Alembic a schema-evolution. Ressalva: Flask n\u00e3o \u00e9 nomeado como framework preservado (s\u00f3 aparece no transcript, passo 2); aceito porque a cita\u00e7\u00e3o literal do PROFILE cobre \"framework\" e os eixos ORM, migration tool e Docker est\u00e3o expl\u00edcitos."
+        },
+        {
+          "text": "outputs/resposta.md devolve a ativa\u00e7\u00e3o do pack como decis\u00e3o humana (pede confirma\u00e7\u00e3o ou instrui como ativar em capabilities.active) em vez de relatar que ativou.",
+          "passed": true,
+          "evidence": "outputs/resposta.md:23 \"tratar como uma decis\u00e3o pr\u00f3pria \u2014 idealmente um ADR \u2014 e s\u00f3 ent\u00e3o ativar `backend-python-relational` em `capabilities.active`\"; :25 \"confirmar comigo se a leitura do pack acima est\u00e1 certa\"; :8 registra `capabilities.active` vazio. N\u00e3o relata ter ativado; confirmado pela asser\u00e7\u00e3o 1."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.7667,
+        "stddev": 0.2517,
+        "min": 0.5,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 322.6667,
+        "stddev": 88.1495,
+        "min": 229,
+        "max": 404
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.71,
+        "stddev": 0.3439,
+        "min": 0.33,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 296.0,
+        "stddev": 72.3326,
+        "min": 220,
+        "max": 364
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.06",
+      "time_seconds": "+26.7",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

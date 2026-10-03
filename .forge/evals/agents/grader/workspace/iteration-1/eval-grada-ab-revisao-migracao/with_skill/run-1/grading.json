@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": ".forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/grading.json existe e valida contra .forge/schemas/grading.schema.json (additionalProperties: false em todos os níveis): nenhum campo como baseline_passed, variant_passed, score, notes por expectativa ou verdict fora do schema; cada expectativa tem exatamente text, passed e evidence.",
+      "passed": true,
+      "evidence": "Comando: python3 jsonschema.validate(outputs/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/grading.json, template/.forge/schemas/grading.schema.json) -> VALID (mesma validação na cópia em work/.forge/.../eval-1/grading.json -> VALID). Cada expectativa tem exatamente as chaves ['evidence','passed','text'] (checado por script nas 12 entradas); topo só tem skill, graded_at, baseline, variant, test_cases, aggregate (grading.json linhas 2-6, 104). Ressalva: o grader codificou o lado no próprio text ('[baseline] Apontou que...', linha 24), porque o schema não tem campo de lado; é válido contra o schema, mas duplica textos por lado."
+    },
+    {
+      "text": "Nenhuma entrada de expectativa sobre rodar o squawk (TC-01) tem passed: true; a evidence correspondente cita ou menciona que o variant apenas anunciou 'vou rodar o squawk' sem reportar resultado de execução.",
+      "passed": true,
+      "evidence": "outputs/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/grading.json linhas 49-51: '[variant] Rodou o squawk na migration e reportou o resultado da execução', passed: false, evidence \"output diz apenas 'vou rodar o squawk nesta migration para confirmar que não há outro alerta' — é intenção futura, não execução realizada nem resultado reportado\"; entrada baseline correspondente (linhas 34-36) também passed: false. Transcript: 'é **intenção futura**, não execução realizada'."
+    },
+    {
+      "text": "Toda evidence de expectativa com passed: true contém um trecho de pelo menos 5 palavras consecutivas que aparece literalmente no output correspondente de results.json (por exemplo 'CREATE INDEX CONCURRENTLY idx_validacoes_cartao_id ON validacoes' ou 'consulte pg_depend e information_schema.view_column_usage'); nenhuma evidence cita texto inexistente nos outputs.",
+      "passed": true,
+      "evidence": "Script extraiu os trechos entre aspas das 7 evidences com passed: true e testou substring contra o output do lado correspondente em results.json: 7/7 True. Ex.: linha 46 cita 'use CREATE INDEX CONCURRENTLY idx_validacoes_cartao_id ON validacoes (cartao_id); e marque a migration com -- flyway:executeInTransaction=false...' e linha 99 cita 'Antes do drop, consulte pg_depend e information_schema.view_column_usage...', ambos literais no variant_result.output. Nenhum trecho inexistente."
+    },
+    {
+      "text": "aggregate.baseline_pass_rate está entre 0,32 e 0,35 (2 de 6 expectativas), aggregate.variant_pass_rate entre 0,82 e 0,85 (5 de 6) e delta_pass_rate entre 0,49 e 0,51 — prova de que baseline e variant foram avaliados separadamente e que a expectativa do squawk falhou nos dois lados.",
+      "passed": true,
+      "evidence": "outputs/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/grading.json linhas 105-107: baseline_pass_rate 0.3333333333333333, variant_pass_rate 0.8333333333333334, delta_pass_rate 0.5 — dentro das faixas; contagem das entradas confirma 2/6 baseline e 5/6 variant, com squawk false nos dois lados (linhas 35 e 50)."
+    },
+    {
+      "text": "aggregate.baseline_duration_mean_ms = 4500, aggregate.variant_duration_mean_ms = 6300 e, se presente, delta_duration_ms = 1800; os baseline_result/variant_result de cada test_case repetem duration_ms, tokens e exit_code de results.json.",
+      "passed": true,
+      "evidence": "outputs/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/grading.json linhas 111-113: baseline_duration_mean_ms 4500, variant_duration_mean_ms 6300, delta_duration_ms 1800. baseline_result/variant_result dos dois test_cases (linhas 10-21 e 58-69) repetem duration_ms (4000/6100, 5000/6500), tokens (310/540, 330/610) e exit_code 0 de results.json; comando cmp confirmou results.json copiado idêntico à fixture."
+    },
+    {
+      "text": ".forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/results.json é byte a byte idêntico ao arquivo da fixture (fixtures/grada-ab-revisao-migracao/overlay/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/results.json); o grader não reescreveu nem 'corrigiu' outputs.",
+      "passed": true,
+      "evidence": "Comando: cmp .forge/evals/agents/grader/fixtures/grada-ab-revisao-migracao/overlay/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/results.json with_skill/run-1/work/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/results.json -> idêntico (sem saída de diferença); a cópia em outputs também é idêntica."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  }
+}

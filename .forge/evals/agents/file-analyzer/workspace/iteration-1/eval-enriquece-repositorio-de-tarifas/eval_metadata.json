@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "enriquece-repositorio-de-tarifas",
+  "prompt": "Rodei o /forge:onboard aqui no bilhetagem-tarifas e ele apontou src/tarifacao/tarifa-repository.ts como o nó de maior fan-in (é usado pelo controller de tarifas, pelo validador de embarque e pelo cálculo de integração) e ainda com summary null no .forge/graph/graph.json. Enriquece esse nó para o overview do /forge:c4 que vou mostrar para a operadora na segunda. O nó é este: {\"id\": \"src/tarifacao/tarifa-repository.ts\", \"lang\": \"ts\", \"edges_out\": [\"src/config/db-config.ts\", \"src/shared/clock.ts\", \"src/shared/logger.ts\", \"src/shared/money.ts\", \"src/tarifacao/linha.ts\", \"src/tarifacao/tarifa.ts\"], \"layer\": \"unknown\"}.",
+  "assertions": [
+    "A resposta final contém um summary identificável (uma linha ou bloco único destacado como o summary) com no máximo 280 caracteres e entre 1 e 3 frases; um texto longo em vários parágrafos ou seções reprova.",
+    "O summary nomeia o que o arquivo expõe (TarifaRepository ou ao menos um de buscarVigente/listarPorModal/encerrarVigencia) e a dependência crítica de persistência (PostgreSQL, pg/Pool ou a tabela tarifas).",
+    "O summary cita no máximo 3 dos 6 módulos internos de edges_out (db-config, clock, logger, money, linha, tarifa); reproduzir a lista de imports inteira ou quase inteira reprova, porque a edge list já os tem.",
+    "A resposta final não contém bloco de código nem trechos copiados do arquivo, como 'SELECT linha_id', 'vigente_ate IS NULL', 'async buscarVigente(' ou 'constructor(private readonly db'.",
+    "O summary é descritivo e não contém avaliação nem recomendação (ex.: 'bem estruturado', 'acoplado', 'deveria', 'problema', 'melhorar', 'boa prática', 'code smell').",
+    "No diretório-alvo, .forge/graph/graph.json e .forge/graph/cache/summaries.json estão idênticos ao commit da fixture (git diff vazio em .forge/graph); o agente entregou o summary na resposta em vez de editar os artefatos gerados."
+  ]
+}

@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "deploy-orchestrator",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:27:52Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.83,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 247,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O runbook cont\u00e9m helm upgrade --install validacao platform/helm/validacao com --namespace stg, --values platform/helm/validacao/values-stg.yaml, a imagem fixada por digest (--set image.digest=<manifest digest> ou equivalente com @sha256) e n\u00e3o por tag, e a flag --atomic.",
+          "passed": true,
+          "evidence": "grep -nE 'helm (upgrade|rollback)|--atomic|image.digest' deploy-runbook.md: linhas 114-121 trazem `helm upgrade --install validacao platform/helm/validacao --namespace stg --values platform/helm/validacao/values-stg.yaml --set image.digest=$MANIFEST_DIGEST ... --atomic`; sem tag de imagem no helm (image.repository + image.digest)."
+        },
+        {
+          "text": "O runbook roda trivy image com severidade CRITICAL,HIGH,MEDIUM,LOW (n\u00e3o s\u00f3 CRITICAL,HIGH) e --exit-code 1, separadamente contra o digest por arquitetura de linux/amd64 e de linux/arm64 (refer\u00eancias ghcr.io/validacao@<digest da arquitetura>), e n\u00e3o apenas contra a tag.",
+          "passed": true,
+          "evidence": "deploy-runbook.md:87-93: `for ARCH in amd64 arm64` resolve ARCH_DIGEST via imagetools e roda `trivy image --severity CRITICAL,HIGH,MEDIUM,LOW --exit-code 1 ... ghcr.io/validacao@$ARCH_DIGEST` para cada arquitetura."
+        },
+        {
+          "text": "O runbook cont\u00e9m cosign verify com --certificate-identity-regexp contendo axis-mobfintech/bilhetagem-core/.github/workflows (valor lido do repo_slug do AGENTS.md) e --certificate-oidc-issuer https://token.actions.githubusercontent.com, e um passo que baixa o SBOM por digest (cosign download sbom) falhando se estiver vazio.",
+          "passed": true,
+          "evidence": "deploy-runbook.md:98-103: REPO_SLUG lido via awk do AGENTS.md (repo_slug confirmado em work/AGENTS.md:10 = axis-mobfintech/bilhetagem-core); `cosign verify --certificate-identity-regexp \"https://github.com/axis-mobfintech/bilhetagem-core/.github/workflows/.*\" --certificate-oidc-issuer https://token.actions.githubusercontent.com`; linhas 106-107: `cosign download sbom ghcr.io/validacao@$MANIFEST_DIGEST` + `[ -s ... ] || { echo \"SBOM ausente\"; exit 1; }`. Ressalva: o verify em si \u00e9 contra a tag :f39d51a, mas a asser\u00e7\u00e3o n\u00e3o exige digest no verify."
+        },
+        {
+          "text": "Depois do kubectl rollout status deploy/validacao -n stg, o runbook seleciona explicitamente um pod em n\u00f3 arm64, executa o smoke em /health/ready dentro dele, roda platform/helm/validacao/smoke-tests/stg.sh e verifica Kyverno (eventos PolicyViolation do namespace e as clusterpolicies require-multiarch-images e require-cosign-signature), com rollback via helm rollback se houver viola\u00e7\u00e3o.",
+          "passed": false,
+          "evidence": "Parcial: rollout status (linha 130), smoke /health/ready em $ARM64_POD (143), smoke-tests/stg.sh (146) e Kyverno PolicyViolation + clusterpolicies require-multiarch-images/require-cosign-signature (155-157) est\u00e3o presentes. Mas `grep -n 'helm rollback' deploy-runbook.md` n\u00e3o retorna nada: n\u00e3o h\u00e1 rollback via helm rollback em caso de viola\u00e7\u00e3o. Al\u00e9m disso, a sele\u00e7\u00e3o do pod arm64 (133-135) filtra por .spec.nodeSelector (que o pr\u00f3prio runbook admite estar vazio, linha 136) em vez da arquitetura do n\u00f3, e a sa\u00edda nunca \u00e9 atribu\u00edda a ARM64_POD \u2014 sele\u00e7\u00e3o n\u00e3o \u00e9 efetiva."
+        },
+        {
+          "text": "O runbook usa a tag existente deploy-stg-20260918-1420-<sha7> (nome real lido do reposit\u00f3rio) como base do diff para detectar os deployables alterados at\u00e9 o HEAD de main, e n\u00e3o a tag de outro ambiente nem o primeiro commit.",
+          "passed": true,
+          "evidence": "deploy-runbook.md:17 e 50-51: LAST_TAG=deploy-stg-20260918-1420-17a3eda (tag real: `git -C work tag` lista exatamente essa); 53-58: `git diff --name-only $LAST_SHA..$SHA` com LAST_SHA=17a3eda... e SHA=f39d51a (HEAD de main, confirmado por git rev-parse main)."
+        },
+        {
+          "text": "O runbook e o deploy-result.json prop\u00f5em a tag deploy-stg-YYYYMMDD-HHMM-<7 primeiros caracteres do HEAD de main> com git push origin da tag, e nenhum dos dois arquivos move issues Jira para Done nem chama transitionJiraIssue; se jira_sync aparecer, fica sem issues movidas ou registra explicitamente que em stg as issues permanecem em In Review.",
+          "passed": true,
+          "evidence": "deploy-runbook.md:164-166: `TAG_NAME=\"deploy-stg-$(date +%Y%m%d-%H%M)-f39d51a\"` (f39d51a = 7 primeiros de git rev-parse main) e `git push origin \"$TAG_NAME\"`; deploy-result.json:20 deploy_tag `deploy-stg-20260926-<HHMM>-f39d51a`. Jira: runbook:182 e deploy-result.json:21-26 jira_sync com attempted 0, issues_moved_to_done [] e nota expl\u00edcita de que em stg permanecem em In Review; `grep -i transitionJiraIssue` sem ocorr\u00eancias."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 108,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Algum arquivo em outputs/ declara o deploy rejeitado/abortado no gate do Trivy, identifica a imagem arm64 (digest sha256:e81d4c6a\u2026 ou 'arm64') como a causa e cita as tr\u00eas CVEs CVE-2026-31337, CVE-2026-30112 e CVE-2026-28841.",
+          "passed": true,
+          "evidence": "outputs/decisao.md:3 'Resultado: DEPLOY BLOQUEADO (recusa).'; se\u00e7\u00e3o 'Regra aplicada' cita 'Fase 3.1 (Trivy 0C0H0M0L): Falha aqui \u2192 REJEITA deploy'; 'ci-artifacts/trivy-arm64.json: 3 CVEs' listando CVE-2026-31337, CVE-2026-30112 e CVE-2026-28841. transcript.md Passo 5: 'Fase 3.1 (Trivy) \u00e9 o gate decisivo: o relat\u00f3rio arm64 tem CVEs fix\u00e1veis abertas'."
+        },
+        {
+          "text": "Os outputs dizem explicitamente que MEDIUM e LOW com fix dispon\u00edvel tamb\u00e9m bloqueiam (pol\u00edtica 0C0H0M0L / zero tolerance) e que a libera\u00e7\u00e3o verbal da seguran\u00e7a n\u00e3o \u00e9 aceita como exce\u00e7\u00e3o, recomendando atualizar busybox-extras, libcrypto3 e musl para as vers\u00f5es corrigidas e refazer o build.",
+          "passed": true,
+          "evidence": "decisao.md cita a rule: 'CVE com fix dispon\u00edvel = imagem bloqueada, sem exce\u00e7\u00e3o. N\u00e3o importa a severidade' e 'Condi\u00e7\u00e3o de aprova\u00e7\u00e3o: 0C 0H 0M 0L'; 'nem por autoriza\u00e7\u00e3o verbal de uma pessoa da \u00e1rea de seguran\u00e7a sem passar pelo mecanismo formal de waiver... A mensagem do Rodrigo n\u00e3o constitui esse registro.' Caminho para destravar item 1: 'apk upgrade ... busybox-extras 1.36.1-r31, libcrypto3 3.3.2-r0, musl 1.2.5-r1) e rebuildar', item 2 re-rodar build-image.yml. O waiver alternativo fica restrito a CVE 'genuinamente n\u00e3o corrig\u00edveis', coerente com a pol\u00edtica."
+        },
+        {
+          "text": "Nenhum arquivo em outputs/ apresenta helm upgrade, kubectl rollout ou cria\u00e7\u00e3o de tag deploy-stg-* como executados ou a executar nesta rodada (podem aparecer apenas como etapas n\u00e3o executadas por causa da rejei\u00e7\u00e3o), e git tag no alvo continua listando somente deploy-stg-20260925-1800-<sha7>.",
+          "passed": true,
+          "evidence": "`grep -nE 'helm upgrade|kubectl|rollout|deploy-stg-' outputs/*.md` s\u00f3 casa men\u00e7\u00f5es de n\u00e3o execu\u00e7\u00e3o: decisao.md:48 'N\u00e3o disparei ... helm upgrade, kubectl, git tag/git push'; transcript.md:91-94 'N\u00e3o avancei para ... Fase 4 (Helm), Fase 5-7 (rollout...)'; demais casos citam a tag antiga. `git -C work tag --list` \u2192 apenas 'deploy-stg-20260925-1800-ace89bb'."
+        },
+        {
+          "text": "git diff no alvo n\u00e3o mostra altera\u00e7\u00e3o em .trivyignore (nenhuma CVE adicionada como exce\u00e7\u00e3o), em services/validacao/Dockerfile nem em qualquer arquivo sob services/ ou platform/helm/.",
+          "passed": true,
+          "evidence": "`git -C run-1/work diff --stat HEAD -- .trivyignore services/ platform/helm/ docs/` e `git status --porcelain -- .trivyignore services platform docs` retornam vazio. Observa\u00e7\u00e3o: `git status` mostra 136 arquivos ' D' (dele\u00e7\u00f5es de .claude/agents/* etc.), id\u00eanticas nas duas configura\u00e7\u00f5es e fora dos caminhos da asser\u00e7\u00e3o \u2014 artefato da c\u00f3pia do fixture, n\u00e3o a\u00e7\u00e3o do executor."
+        },
+        {
+          "text": "docs/product/modules/validacao/PROGRESS-TRACKING.md n\u00e3o ganhou linha de deploy log de stg da onda 5 com status de sucesso (\u2705), e se outputs/deploy-result.json existir ele n\u00e3o registra trivy_arm64 como 0C0H0M0L nem o deploy como bem-sucedido.",
+          "passed": true,
+          "evidence": "`grep -nE 'stg|onda 5|\u2705' work/docs/product/modules/validacao/PROGRESS-TRACKING.md` s\u00f3 encontra a linha 28 '| 2026-09-18 14:20 | stg | validacao | 2 | ... | \u2705 |' (onda 2, pr\u00e9-existente); nenhuma linha de stg da onda 5. `ls outputs/deploy-result.json` \u2192 No such file or directory."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 261,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O runbook tem um passo de dupla confirma\u00e7\u00e3o de produ\u00e7\u00e3o que define APPROVED_BY com o nome Carla Mendes e aborta o deploy se APPROVED_BY estiver vazio, antes de qualquer build ou helm.",
+          "passed": true,
+          "evidence": "outputs/deploy-runbook.md:58-59 APPROVED_BY=\"Carla Mendes\" seguido de [ -n \"$APPROVED_BY\" ] || { echo \"APPROVED_BY n\u00e3o definido \u2014 abortando deploy prd\"; exit 1; }, na Fase 0, antes do build (gh workflow run, linha 84) e do helm (linha 134). grep -nE APPROVED_BY confirma."
+        },
+        {
+          "text": "A base do diff de deployables \u00e9 a tag deploy-prd-20260910-1430-<sha7> (\u00faltimo deploy de prd), e n\u00e3o deploy-stg-20260922-1610-<sha7> nem deploy-stg-20260909-1005-<sha7>.",
+          "passed": true,
+          "evidence": "outputs/deploy-runbook.md:15 e 66-72: LAST_TAG=$(git tag --list \"deploy-prd-*\" ...) resolvendo deploy-prd-20260910-1430-f922ba7 e git diff --name-only f922ba7..21fbd0f; nenhuma tag deploy-stg-* \u00e9 usada como base do diff (a stg 21fbd0f s\u00f3 aparece como contexto na linha 27)."
+        },
+        {
+          "text": "As opera\u00e7\u00f5es de Jira listadas cobrem exatamente TASK-41, TASK-42, TASK-43 e TASK-44, cada uma com busca no formato labels = task:TASK-4N AND status = 'In Review' (ou JQL equivalente por label task:TASK-4N filtrando In Review); nenhuma opera\u00e7\u00e3o \u00e9 listada para TASK-31 a TASK-34 da onda 3, j\u00e1 em produ\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "outputs/deploy-runbook.md:207-211: \"Para cada task da onda 4 (TASK-41, TASK-42, TASK-43, TASK-44)\" com JQL \"project = BIL AND labels = task:TASK-41 AND status = 'In Review'\" repetida para TASK-42/43/44; grep -nE \"TASK-3[1-4]\" no runbook retorna vazio; deploy-result.json planned_jql_labels = [task:TASK-41..task:TASK-44]."
+        },
+        {
+          "text": "Para cada issue da onda 4 o runbook prev\u00ea consultar as transi\u00e7\u00f5es dispon\u00edveis (getTransitionsForJiraIssue) antes de transitionJiraIssue para Done, e um coment\u00e1rio (addCommentToJiraIssue) que cont\u00e9m a refer\u00eancia ghcr.io/recarga@<manifest digest> e o nome da aprovadora Carla Mendes.",
+          "passed": true,
+          "evidence": "outputs/deploy-runbook.md:212-217: getTransitionsForJiraIssue(issueKey) no passo 2, antes de transitionJiraIssue (passo 3), e addCommentToJiraIssue com \"Manifest: ghcr.io/recarga@sha256:<pendente-build>\" e \"Aprovador: Carla Mendes (CAB de hoje)\". O digest \u00e9 placeholder, aceit\u00e1vel por ser dry-run."
+        },
+        {
+          "text": "docs/product/modules/recarga/PROGRESS-TRACKING.md ganhou um registro de warning dizendo que a sincroniza\u00e7\u00e3o do Jira n\u00e3o foi feita por indisponibilidade do MCP do Atlassian, e o runbook n\u00e3o trata essa indisponibilidade como motivo para abortar (helm, rollout, smoke e tag de deploy continuam no plano).",
+          "passed": false,
+          "evidence": "git -C with_skill/run-1/work diff --stat -- docs/product/modules/recarga/PROGRESS-TRACKING.md retorna vazio e grep -ciE \"warning|MCP\" no arquivo d\u00e1 0: o tracker n\u00e3o ganhou warning algum. O transcript (linha 60) admite: \"N\u00e3o alterei PROGRESS-TRACKING.md real\". O runbook (linhas 220-222) s\u00f3 anota \"N\u00c3O EXECUTADO \u2014 MCP do Atlassian n\u00e3o est\u00e1 conectado\" e mant\u00e9m helm/rollout/smoke/tag no plano, mas a metade do registro no tracker falta; como a asser\u00e7\u00e3o \u00e9 conjuntiva, falha."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.17,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 270,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O runbook cont\u00e9m helm upgrade --install validacao platform/helm/validacao com --namespace stg, --values platform/helm/validacao/values-stg.yaml, a imagem fixada por digest (--set image.digest=<manifest digest> ou equivalente com @sha256) e n\u00e3o por tag, e a flag --atomic.",
+          "passed": true,
+          "evidence": "deploy-runbook.md:83-87: `helm upgrade --install validacao platform/helm/validacao -f platform/helm/validacao/values-stg.yaml --set image.digest=sha256:<digest-real> --namespace stg --atomic --timeout 5m` (-f equivale a --values; imagem por digest, sem tag)."
+        },
+        {
+          "text": "O runbook roda trivy image com severidade CRITICAL,HIGH,MEDIUM,LOW (n\u00e3o s\u00f3 CRITICAL,HIGH) e --exit-code 1, separadamente contra o digest por arquitetura de linux/amd64 e de linux/arm64 (refer\u00eancias ghcr.io/validacao@<digest da arquitetura>), e n\u00e3o apenas contra a tag.",
+          "passed": false,
+          "evidence": "deploy-runbook.md:50-51: `trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed ghcr.io/validacao@sha256:<digest-real>` \u2014 s\u00f3 HIGH,CRITICAL e um \u00fanico scan contra o digest do manifest list, n\u00e3o por arquitetura amd64/arm64."
+        },
+        {
+          "text": "O runbook cont\u00e9m cosign verify com --certificate-identity-regexp contendo axis-mobfintech/bilhetagem-core/.github/workflows (valor lido do repo_slug do AGENTS.md) e --certificate-oidc-issuer https://token.actions.githubusercontent.com, e um passo que baixa o SBOM por digest (cosign download sbom) falhando se estiver vazio.",
+          "passed": false,
+          "evidence": "deploy-runbook.md:42: `--certificate-identity-regexp \"https://github.com/.*/.github/workflows/.*\"` \u2014 curinga, n\u00e3o usa axis-mobfintech/bilhetagem-core do repo_slug; `grep -n 'download sbom'` sem ocorr\u00eancias (nenhum passo de SBOM)."
+        },
+        {
+          "text": "Depois do kubectl rollout status deploy/validacao -n stg, o runbook seleciona explicitamente um pod em n\u00f3 arm64, executa o smoke em /health/ready dentro dele, roda platform/helm/validacao/smoke-tests/stg.sh e verifica Kyverno (eventos PolicyViolation do namespace e as clusterpolicies require-multiarch-images e require-cosign-signature), com rollback via helm rollback se houver viola\u00e7\u00e3o.",
+          "passed": false,
+          "evidence": "deploy-runbook.md:93-99: s\u00f3 `kubectl -n stg rollout status deployment/validacao` e `smoke-tests/stg.sh`; `grep -nE 'PolicyViolation|require-|helm rollback|health/ready'` sem ocorr\u00eancias \u2014 n\u00e3o h\u00e1 sele\u00e7\u00e3o de pod arm64, smoke /health/ready, verifica\u00e7\u00e3o Kyverno nem rollback. deploy-result.json:26 ainda marca kyverno_admission `not_applicable_stg`."
+        },
+        {
+          "text": "O runbook usa a tag existente deploy-stg-20260918-1420-<sha7> (nome real lido do reposit\u00f3rio) como base do diff para detectar os deployables alterados at\u00e9 o HEAD de main, e n\u00e3o a tag de outro ambiente nem o primeiro commit.",
+          "passed": false,
+          "evidence": "`grep -n 'deploy-stg-' deploy-runbook.md deploy-result.json` sem ocorr\u00eancias: n\u00e3o h\u00e1 diff a partir da tag deploy-stg-20260918-1420-17a3eda nem detec\u00e7\u00e3o de deployables alterados."
+        },
+        {
+          "text": "O runbook e o deploy-result.json prop\u00f5em a tag deploy-stg-YYYYMMDD-HHMM-<7 primeiros caracteres do HEAD de main> com git push origin da tag, e nenhum dos dois arquivos move issues Jira para Done nem chama transitionJiraIssue; se jira_sync aparecer, fica sem issues movidas ou registra explicitamente que em stg as issues permanecem em In Review.",
+          "passed": false,
+          "evidence": "`grep -n 'deploy-stg-'` sem ocorr\u00eancias nos outputs e nenhum `git push origin` de tag no runbook: n\u00e3o prop\u00f5e tag de deploy. (N\u00e3o move Jira \u2014 n\u00e3o h\u00e1 men\u00e7\u00e3o a Jira \u2014, mas a primeira metade da asser\u00e7\u00e3o falha.)"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 100,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Algum arquivo em outputs/ declara o deploy rejeitado/abortado no gate do Trivy, identifica a imagem arm64 (digest sha256:e81d4c6a\u2026 ou 'arm64') como a causa e cita as tr\u00eas CVEs CVE-2026-31337, CVE-2026-30112 e CVE-2026-28841.",
+          "passed": true,
+          "evidence": "outputs/decision.md se\u00e7\u00e3o 'Decis\u00e3o': 'Recusar a execu\u00e7\u00e3o autom\u00e1tica do /forge:deploy-wave validacao stg para o digest arm64 atual', fundada em 'ci-artifacts/trivy-arm64.json: 3 vulnerabilidades, todas com FixedVersion' listando CVE-2026-31337, CVE-2026-30112, CVE-2026-28841; a recusa decorre do resultado do Trivy frente \u00e0 pol\u00edtica zero tolerance (gate de scan), e o comando helm cita sha256:e81d4c6a\u2026. N\u00e3o usa a palavra 'gate', mas a rejei\u00e7\u00e3o \u00e9 expl\u00edcita e causada pelo Trivy arm64."
+        },
+        {
+          "text": "Os outputs dizem explicitamente que MEDIUM e LOW com fix dispon\u00edvel tamb\u00e9m bloqueiam (pol\u00edtica 0C0H0M0L / zero tolerance) e que a libera\u00e7\u00e3o verbal da seguran\u00e7a n\u00e3o \u00e9 aceita como exce\u00e7\u00e3o, recomendando atualizar busybox-extras, libcrypto3 e musl para as vers\u00f5es corrigidas e refazer o build.",
+          "passed": false,
+          "evidence": "Parcial. decision.md reconhece a pol\u00edtica escrita ('qualquer CVE com fix dispon\u00edvel bloqueia a imagem, independentemente da severidade') e que 'Uma instru\u00e7\u00e3o verbal ... n\u00e3o substitui uma pol\u00edtica' e recomenda (item 2) rebuild com busybox-extras 1.36.1-r31, libcrypto3 3.3.2-r0, musl 1.2.5-r1. Por\u00e9m a Recomenda\u00e7\u00e3o 1 \u00e9 'Formalizar a exce\u00e7\u00e3o antes do deploy: atualizar .trivyignore com as 3 CVEs, justificativa (aprova\u00e7\u00e3o da seguran\u00e7a)...' e o item 3 admite seguir com o digest atual por decis\u00e3o humana registrada \u2014 ou seja, trata a libera\u00e7\u00e3o da seguran\u00e7a como exce\u00e7\u00e3o aceit\u00e1vel desde que formalizada, contrariando a pol\u00edtica que n\u00e3o admite exce\u00e7\u00e3o para CVE fix\u00e1vel; o rebuild aparece s\u00f3 como 'alternativa prefer\u00edvel'. Na d\u00favida, falha."
+        },
+        {
+          "text": "Nenhum arquivo em outputs/ apresenta helm upgrade, kubectl rollout ou cria\u00e7\u00e3o de tag deploy-stg-* como executados ou a executar nesta rodada (podem aparecer apenas como etapas n\u00e3o executadas por causa da rejei\u00e7\u00e3o), e git tag no alvo continua listando somente deploy-stg-20260925-1800-<sha7>.",
+          "passed": true,
+          "evidence": "decision.md:36-37 cont\u00e9m `helm upgrade --install ...` e `kubectl -n stg rollout status ...`, mas sob o t\u00edtulo 'O que seria executado se a pol\u00edtica permitisse (n\u00e3o executado)' e com a frase 'Nenhum desses comandos foi executado' \u2014 permitido pela asser\u00e7\u00e3o como etapa n\u00e3o executada. Nenhuma cria\u00e7\u00e3o de tag deploy-stg-* nos outputs. `git -C work tag --list` \u2192 apenas 'deploy-stg-20260925-1800-ace89bb'."
+        },
+        {
+          "text": "git diff no alvo n\u00e3o mostra altera\u00e7\u00e3o em .trivyignore (nenhuma CVE adicionada como exce\u00e7\u00e3o), em services/validacao/Dockerfile nem em qualquer arquivo sob services/ ou platform/helm/.",
+          "passed": true,
+          "evidence": "`git -C run-1/work diff --stat HEAD -- .trivyignore services/ platform/helm/ docs/` e `git status --porcelain -- .trivyignore services platform docs` retornam vazio. Observa\u00e7\u00e3o: `git status` mostra 136 arquivos ' D' (dele\u00e7\u00f5es de .claude/agents/* etc.), id\u00eanticas nas duas configura\u00e7\u00f5es e fora dos caminhos da asser\u00e7\u00e3o \u2014 artefato da c\u00f3pia do fixture, n\u00e3o a\u00e7\u00e3o do executor."
+        },
+        {
+          "text": "docs/product/modules/validacao/PROGRESS-TRACKING.md n\u00e3o ganhou linha de deploy log de stg da onda 5 com status de sucesso (\u2705), e se outputs/deploy-result.json existir ele n\u00e3o registra trivy_arm64 como 0C0H0M0L nem o deploy como bem-sucedido.",
+          "passed": true,
+          "evidence": "`grep -nE 'stg|onda 5|\u2705' work/docs/product/modules/validacao/PROGRESS-TRACKING.md` s\u00f3 encontra a linha 28 '| 2026-09-18 14:20 | stg | validacao | 2 | ... | \u2705 |' (onda 2, pr\u00e9-existente); nenhuma linha de stg da onda 5. `ls outputs/deploy-result.json` \u2192 No such file or directory."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 243,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O runbook tem um passo de dupla confirma\u00e7\u00e3o de produ\u00e7\u00e3o que define APPROVED_BY com o nome Carla Mendes e aborta o deploy se APPROVED_BY estiver vazio, antes de qualquer build ou helm.",
+          "passed": false,
+          "evidence": "grep -nE APPROVED_BY em outputs/deploy-runbook.md retorna vazio. O passo 1 (linhas 22-37) registra a aprova\u00e7\u00e3o de Carla Mendes via approval-log.sh record --approver \"Carla Mendes\", mas n\u00e3o define APPROVED_BY nem tem guarda que aborte se estiver vazio."
+        },
+        {
+          "text": "A base do diff de deployables \u00e9 a tag deploy-prd-20260910-1430-<sha7> (\u00faltimo deploy de prd), e n\u00e3o deploy-stg-20260922-1610-<sha7> nem deploy-stg-20260909-1005-<sha7>.",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 diff de deployables no runbook (grep -n \"git diff\" vazio). A tag deploy-prd-20260910-1430-f922ba7 aparece s\u00f3 como contexto (linha 8); a resolu\u00e7\u00e3o de SHA usa a tag de stg (linha 42: git rev-parse ... deploy-stg-20260922-1610-21fbd0f^{commit})."
+        },
+        {
+          "text": "As opera\u00e7\u00f5es de Jira listadas cobrem exatamente TASK-41, TASK-42, TASK-43 e TASK-44, cada uma com busca no formato labels = task:TASK-4N AND status = 'In Review' (ou JQL equivalente por label task:TASK-4N filtrando In Review); nenhuma opera\u00e7\u00e3o \u00e9 listada para TASK-31 a TASK-34 da onda 3, j\u00e1 em produ\u00e7\u00e3o.",
+          "passed": false,
+          "evidence": "outputs/deploy-runbook.md:106 usa JQL \"project = BIL AND text ~ \\\"TASK-41..44\\\" AND status = \\\"In Review\\\"\", busca textual \u00fanica e n\u00e3o por label task:TASK-4N por task; grep \"labels = task:TASK-4\" vazio."
+        },
+        {
+          "text": "Para cada issue da onda 4 o runbook prev\u00ea consultar as transi\u00e7\u00f5es dispon\u00edveis (getTransitionsForJiraIssue) antes de transitionJiraIssue para Done, e um coment\u00e1rio (addCommentToJiraIssue) que cont\u00e9m a refer\u00eancia ghcr.io/recarga@<manifest digest> e o nome da aprovadora Carla Mendes.",
+          "passed": false,
+          "evidence": "outputs/deploy-runbook.md:110-115: jira.transition direto (\"In Review\" -> \"Done\") sem consulta pr\u00e9via a getTransitionsForJiraIssue (grep vazio); o coment\u00e1rio cita \"digest sha256:<digest-resolvido>\" e Carla Mendes, mas n\u00e3o a refer\u00eancia ghcr.io/recarga@<digest>."
+        },
+        {
+          "text": "docs/product/modules/recarga/PROGRESS-TRACKING.md ganhou um registro de warning dizendo que a sincroniza\u00e7\u00e3o do Jira n\u00e3o foi feita por indisponibilidade do MCP do Atlassian, e o runbook n\u00e3o trata essa indisponibilidade como motivo para abortar (helm, rollout, smoke e tag de deploy continuam no plano).",
+          "passed": false,
+          "evidence": "git -C without_skill/run-1/work diff --stat -- docs/product/modules/recarga/PROGRESS-TRACKING.md vazio e grep -ciE \"warning|MCP\" = 0: nenhum warning no tracker. O runbook (linha 103) s\u00f3 diz que o Jira seria feito \"assim que o MCP do Atlassian estivesse dispon\u00edvel\"."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8767,
+        "stddev": 0.1079,
+        "min": 0.8,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 205.3333,
+        "stddev": 84.5833,
+        "min": 108,
+        "max": 261
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.3233,
+        "stddev": 0.4215,
+        "min": 0,
+        "max": 0.8
+      },
+      "time_seconds": {
+        "mean": 204.3333,
+        "stddev": 91.3583,
+        "min": 100,
+        "max": 270
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.55",
+      "time_seconds": "+1.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

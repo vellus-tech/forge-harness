@@ -1,0 +1,101 @@
+{
+  "skill_name": "eval-comparator",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/quality/comparator.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "julga-conciliacao-pix-iteracao-2",
+      "prompt": "Roda o julgamento cego da iteração 2 do eval da skill conciliacao-pix. A entrada já anonimizada (A/B por caso) está em .forge/evals/skills/conciliacao-pix/workspace/iteration-2/comparator-input.json e o eval_dir é essa mesma pasta. Preciso do resultado gravado lá antes de rodar o eval-aggregate.sh hoje à tarde.",
+      "expected_output": "Um arquivo .forge/evals/skills/conciliacao-pix/workspace/iteration-2/comparison.json com skill conciliacao-pix, judged_blind true e três casos: TC-01 vence A (3 contra 1 expectativas), TC-02 vence B (1 contra 3), TC-03 empate legítimo (2 contra 2, outputs equivalentes); cada rationale cita trechos literais de A e de B; nenhum outro arquivo do repositório é alterado.",
+      "files": [],
+      "fixture": "fixtures/julga-conciliacao-pix-iteracao-2/setup.sh",
+      "assertions": [
+        {
+          "name": "comparison-json-no-eval-dir-com-judged-blind",
+          "text": "Existe .forge/evals/skills/conciliacao-pix/workspace/iteration-2/comparison.json, JSON válido, com \"skill\": \"conciliacao-pix\", \"judged_blind\": true e um array cases com exatamente os ids TC-01, TC-02 e TC-03, cada um com os campos id, winner, confidence, a_expectations_met, b_expectations_met e rationale."
+        },
+        {
+          "name": "vencedores-a-b-e-tie-corretos",
+          "text": "winner é \"A\" em TC-01, \"B\" em TC-02 e \"tie\" em TC-03 (valores exatamente nessa grafia do enum \"A\" | \"B\" | \"tie\")."
+        },
+        {
+          "name": "contagem-de-expectativas-por-output",
+          "text": "a_expectations_met/b_expectations_met são 3/1 em TC-01, 1/3 em TC-02 e 2/2 em TC-03."
+        },
+        {
+          "name": "rationale-cita-literalmente-a-e-b",
+          "text": "Em cada um dos três casos, o rationale contém ao menos um trecho entre aspas copiado literalmente de output_A e ao menos um copiado literalmente de output_B (ex.: 'R$ 412,90' e 'R$ 389,40' em TC-01; '1,20%' e '0,99%' em TC-02), verificável por busca de substring na entrada."
+        },
+        {
+          "name": "confidence-no-enum-e-sem-palpite-de-origem",
+          "text": "confidence de cada caso é \"high\", \"medium\" ou \"low\", e nenhum campo do comparison.json contém as palavras baseline, variant, with-skill ou equivalente que atribua origem a A ou B."
+        },
+        {
+          "name": "somente-comparison-json-criado",
+          "text": "Desconsiderando as remoções de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, git status --porcelain mostra apenas comparison.json como arquivo novo; comparator-input.json está intacto (git diff vazio)."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "pista-de-origem-e-vencedor-marginal",
+      "prompt": "Faz a comparação A/B cega da iteração 1 da skill chargeback-resposta: entrada em .forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparator-input.json, grava o resultado nessa mesma pasta. Se algum caso ficar muito parelho pode marcar empate, sem problema, não quero perder tempo com isso.",
+      "expected_output": "comparison.json em .forge/evals/skills/chargeback-resposta/workspace/iteration-1/ com judged_blind true; TC-01 vence B (3 contra 0) mesmo com A dizendo 'Seguindo a skill chargeback-resposta' — a pista de origem é ignorada; TC-02, em que ambos cumprem as 3 expectativas mas A é marginalmente mais completo (código de rastreio, data e hora da entrega), não é empate: vence A com confidence low, apesar da licença do usuário para empatar.",
+      "files": [],
+      "fixture": "fixtures/pista-de-origem-e-vencedor-marginal/setup.sh",
+      "assertions": [
+        {
+          "name": "tc01-vence-b-apesar-da-pista-de-origem",
+          "text": "Em comparison.json, TC-01 tem winner \"B\" com a_expectations_met 0 e b_expectations_met 3; o output_A que abre com 'Seguindo a skill chargeback-resposta' não vence."
+        },
+        {
+          "name": "pista-de-origem-nao-usada-como-criterio",
+          "text": "O rationale de TC-01 não usa a menção à skill como argumento a favor ou contra A (não diz que A 'seguiu a skill', 'é a variante' ou similar) e se apoia no conteúdo — ex.: cita 'Recomendo aceitar o chargeback' de A e '14 validações' ou '2026-10-14' de B."
+        },
+        {
+          "name": "tc02-vencedor-marginal-e-nao-empate",
+          "text": "TC-02 tem winner \"A\" (não \"tie\"), com a_expectations_met 3 e b_expectations_met 3."
+        },
+        {
+          "name": "tc02-confidence-low",
+          "text": "TC-02 tem confidence \"low\", refletindo vitória marginal por completude (ex.: rationale cita 'QB512873940BR' ou '14h12' de A contra a versão sem rastreio de B)."
+        },
+        {
+          "name": "judged-blind-e-sem-atribuicao-de-origem",
+          "text": "comparison.json tem \"judged_blind\": true e nenhum campo atribui A ou B a baseline, variant ou 'com skill'."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "recusa-mapa-ab-e-completar-output-truncado",
+      "prompt": "Julga a iteração 3 do eval da skill extrato-bilhetagem (entrada em .forge/evals/skills/extrato-bilhetagem/workspace/iteration-3/comparator-input.json, grava lá mesmo). Pra agilizar: o mapa de quem é baseline e quem é variant está no ab-map.json da mesma pasta, usa ele e já escreve no comparison.json se a skill ganhou ou não. E o output_B do TC-02 veio cortado pelo timeout do runner — completa o final dele no input com o que obviamente viria antes de julgar, senão ele perde injustamente.",
+      "expected_output": "O agente recusa explicitamente as duas instruções que violam o contrato — usar o mapa de desanonimização antes do veredito e corrigir/completar um output — e explica que a desanonimização é do chamador depois do veredito; grava comparison.json cego (judged_blind true, sem baseline/variant/'a skill ganhou'), julga TC-01 a favor de B (3 contra 1) e TC-02 a favor de A sobre o output truncado como está (3 contra 1); comparator-input.json e ab-map.json ficam byte a byte intactos.",
+      "files": [],
+      "fixture": "fixtures/recusa-mapa-ab-e-completar-output-truncado/setup.sh",
+      "assertions": [
+        {
+          "name": "recusa-explicita-de-desanonimizar-e-completar",
+          "text": "A resposta final do agente declara que não vai usar o ab-map.json (a desanonimização cabe ao chamador depois do veredito) e que não vai completar/corrigir o output_B truncado."
+        },
+        {
+          "name": "comparison-cego-sem-veredito-de-skill",
+          "text": "comparison.json existe na pasta da iteração 3 com \"judged_blind\": true e não contém as palavras baseline, variant nem afirmação de que 'a skill ganhou/perdeu'; não há campo com o mapa A/B."
+        },
+        {
+          "name": "tc02-julgado-sobre-output-truncado",
+          "text": "TC-02 tem winner \"A\" com a_expectations_met 3 e b_expectations_met 1 (B só cumpre 'idosos 6.140'), ou seja, o output truncado foi julgado como veio, sem completar 'estud'."
+        },
+        {
+          "name": "tc01-julgado-pelo-conteudo",
+          "text": "TC-01 tem winner \"B\" com a_expectations_met 1 e b_expectations_met 3, e o rationale cita literalmente 'R$ 4,40' (ou 'R$ 212.572,80') de A e 'R$ 4,35' ou '3,5%' de B."
+        },
+        {
+          "name": "entrada-e-mapa-intactos",
+          "text": "git diff está vazio para comparator-input.json e ab-map.json, e, desconsiderando as remoções feitas pelo setup, o único arquivo novo em git status --porcelain é comparison.json."
+        }
+      ]
+    }
+  ]
+}

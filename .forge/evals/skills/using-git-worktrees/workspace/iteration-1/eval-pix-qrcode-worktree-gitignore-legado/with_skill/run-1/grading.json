@@ -1,0 +1,39 @@
+{
+  "expectations": [
+    {
+      "text": "`git worktree list --porcelain` no repositório lista exatamente um worktree além do principal, e o caminho dele é filho direto de <repo>/.forge/worktrees/ com nome em kebab-case contendo ao menos um hífen (padrão <escopo>-<descricao>); nenhum worktree fica fora do repositório (diretório irmão) nem em .worktrees/, .claude/worktrees/ ou similar.",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work worktree list --porcelain` lista o principal e exatamente um adicional em .../with_skill/run-1/work/.forge/worktrees/payments-pix-qrcode-dinamico (filho direto de .forge/worktrees/, kebab-case com hífens); confere com outputs/git-worktree-list.txt linha 2."
+    },
+    {
+      "text": "A branch do worktree criado casa com a regex ^feat/payments/[a-z0-9]+(-[a-z0-9]+)*$ (tipo Conventional Commits, escopo payments, descrição kebab-case); não é detached, não é feature/<x> nem wt/<x>.",
+      "passed": true,
+      "evidence": "Porcelain mostra `branch refs/heads/feat/payments/pix-qrcode-dinamico`; `echo feat/payments/pix-qrcode-dinamico | grep -Eq '^feat/payments/[a-z0-9]+(-[a-z0-9]+)*$'` retorna 0; não é detached."
+    },
+    {
+      "text": "O .gitignore do checkout principal passou a conter uma entrada que cobre .forge/worktrees/ (ou .forge/ inteiro): `git check-ignore -q .forge/worktrees/<dir-do-worktree>` retorna 0 e `git status --porcelain` no checkout principal não lista nenhum caminho sob .forge/worktrees/.",
+      "passed": true,
+      "evidence": "outputs/gitignore.depois contém `.forge/worktrees/` (ausente em gitignore.antes); `git -C work check-ignore -q .forge/worktrees/payments-pix-qrcode-dinamico` retorna 0; `git -C work status --porcelain` lista só ` M .gitignore` (outputs/git-status-main-apos.txt), nada sob .forge/worktrees/."
+    },
+    {
+      "text": "No checkout principal, `git branch --show-current` imprime main e `git rev-parse main` é igual ao conteúdo de .git/eval-main-sha (nenhum commit foi feito no main).",
+      "passed": true,
+      "evidence": "`git -C work branch --show-current` = main; `git -C work rev-parse main` = db1c78b882b500e85011c9da5b25502d567f7b90 = conteúdo de work/.git/eval-main-sha."
+    },
+    {
+      "text": "A resposta final contém as três linhas do contrato: 'Worktree pronto em <caminho absoluto que termina em .forge/worktrees/<dir>>', 'Testes passando (4 testes, 0 falhas)' e 'Pronto para implementar <nome da feature>' — a contagem 4 prova que o baseline foi de fato executado dentro do worktree.",
+      "passed": false,
+      "evidence": "transcript.md linhas 103-116: a primeira linha é 'Worktree pronto em .forge/worktrees/payments-pix-qrcode-dinamico' (caminho relativo, não absoluto); não há a linha 'Testes passando (4 testes, 0 falhas)' — linha 112 diz 'npm test NÃO foi executado' e linha 92 só projeta que '4 testes passariam'; a linha 'Pronto para implementar a geração de QR Code Pix dinâmico' existe. Honesto quanto à não execução, mas a asserção não é satisfeita. Crítica do eval: a asserção 5 exige 'Testes passando (4 testes, 0 falhas)', mas as regras da rodada proíbem executar npm test, então nenhuma configuração consegue satisfazê-la honestamente; ela mede o ambiente e não a skill. Sugestão: permitir npm test apenas dentro do worktree da fixture, ou trocar a asserção por 'o relatório não afirma baseline verde sem execução'. A asserção 3 também deveria aceitar a variante em que o worktree fica fora do repo apenas se o eval quiser medir isso; hoje ela é corretamente discriminante."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "timing": {
+    "executor_duration_seconds": 153
+  },
+  "regraded": "2026-09-28: comandos da asserção reexecutados pelo grader (worktree list --porcelain, branch --show-current, regex grep -E, check-ignore -q, status --porcelain, rev-parse main vs .git/eval-main-sha, grep das três linhas no transcript); veredictos confirmados"
+}

@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "valida-tasks-carteira-com-violacoes",
+  "prompt": "O tasks-writer fechou a v1.0.0 do plano da Carteira (docs/product/modules/carteira/tasks.md) em cima do requirements v1.2.0 e do design v0.4.0, os dois já aprovados. Segunda-feira a gente abre a sprint e eu quero distribuir as TASKs para os agentes de desenvolvimento. Faz a validação do tasks.md contra o requirements, o design e os ADRs em docs/product/adr e me diz se dá para executar ou o que o tasks-writer tem que corrigir antes.",
+  "assertions": [
+    "A resposta final (ou o relatório salvo em outputs/) começa com o título '# Validação do tasks.md' e contém, nesta ordem, as seções '## Resultado' (com a linha 'Status: Reprovado' e as quatro contagens BLOCKER/HIGH/MEDIUM/LOW), '## Veredito', '## Achados', '## Matriz de Rastreabilidade', '## Checks Executados', '## Recomendações para o tasks-writer' e '## Decisão para o Pipeline'.",
+    "Há um achado com cabeçalho '[BLOCKER-NN]' apontando que PBT-02 (idempotência do crédito de recarga por txid) não tem TASK correspondente, e a tabela da seção 'Matriz de Rastreabilidade' tem uma linha para PBT-02 com status 'Falhou'.",
+    "Há um achado '[BLOCKER-NN]' que identifica a divergência entre Status Geral e Tarefas nomeando TASK-06 (Consulta de saldo) como presente na seção Tarefas e ausente do Status Geral.",
+    "Há um achado '[BLOCKER-NN]' apontando que na TASK-03 a implementação (subtask 3.1) vem antes do teste (subtask 3.2), violando TDD-first, E há um achado '[BLOCKER-NN]' apontando o ciclo de dependência entre TASK-04 e TASK-05 (TASK-04 depende de TASK-05 e TASK-05 depende de TASK-04).",
+    "A resposta tem um achado de severidade BLOCKER sobre a orientação de push direto em `main` na TASK-05 e um achado de severidade BLOCKER ou HIGH sobre RNF 2 (mascaramento de CPF/PII em logs) sem TASK correspondente.",
+    "A seção 'Decisão para o Pipeline' contém 'Pode seguir para execução: Não' e 'Requer nova execução do `tasks-writer`: Sim' (com ou sem crases); e `git status --porcelain -- docs/` no projeto está vazio, ou seja, o tasks.md e demais documentos não foram reescritos pelo validador."
+  ]
+}

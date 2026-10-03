@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "recarga-pix-sem-epic-context",
+  "prompt": "Preciso do contexto da STORY-03 do 2026-09-recarga-pix (conciliação diária com o extrato do PSP) em outputs/story-context.md. Quem vai implementar é outro dev, em paralelo, e ele só vai ler esse arquivo — então capricha nas regras do épico que ele não pode quebrar.",
+  "assertions": [
+    "outputs/story-context.md diz explicitamente que epic_context.md não existe ou que o contexto épico não foi compilado.",
+    "outputs/story-context.md (ou a resposta final) sugere rodar /forge:shard para compilar o contexto épico.",
+    "outputs/story-context.md não contém nenhum destes trechos que só existem em design.md, requirements.md ou outras stories: '06h15', '400 dias', 'particionada', '90 dias', 'centavos', 'HMAC', 'R$ 500'.",
+    "Após a execução, .forge/specs/active/2026-09-recarga-pix/epic_context.md continua inexistente e `git status --porcelain -- .forge/specs` sai vazio (manifest e stories intactos).",
+    "A linha de Próxima ação cita TASK-07 e o arquivo tem no máximo 30 linhas."
+  ]
+}

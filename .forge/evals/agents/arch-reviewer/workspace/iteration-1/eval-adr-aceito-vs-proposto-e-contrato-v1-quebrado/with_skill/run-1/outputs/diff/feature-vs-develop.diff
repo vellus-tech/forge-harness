@@ -1,0 +1,58 @@
+diff --git a/services/pagamentos/src/Pagamentos.Contracts/Events/PagamentoAprovadoV1.cs b/services/pagamentos/src/Pagamentos.Contracts/Events/PagamentoAprovadoV1.cs
+index acce3ba..45b8e7e 100644
+--- a/services/pagamentos/src/Pagamentos.Contracts/Events/PagamentoAprovadoV1.cs
++++ b/services/pagamentos/src/Pagamentos.Contracts/Events/PagamentoAprovadoV1.cs
+@@ -1,4 +1,4 @@
+ namespace Pagamentos.Contracts.Events.V1;
+ 
+ // Evento publicado no tópico "pagamentos.pagamento-aprovado.v1"; consumido por Bilhetagem e Conciliação.
+-public sealed record PagamentoAprovadoV1(Guid PagamentoId, decimal Valor, DateTimeOffset AprovadoEm);
++public sealed record PagamentoAprovadoV1(Guid PagamentoId, long ValorEmCentavos, DateTimeOffset AprovadoEm);
+diff --git a/services/pagamentos/src/Pagamentos.Infrastructure/Pagamentos.Infrastructure.csproj b/services/pagamentos/src/Pagamentos.Infrastructure/Pagamentos.Infrastructure.csproj
+index 3d3fc25..d170a15 100644
+--- a/services/pagamentos/src/Pagamentos.Infrastructure/Pagamentos.Infrastructure.csproj
++++ b/services/pagamentos/src/Pagamentos.Infrastructure/Pagamentos.Infrastructure.csproj
+@@ -5,5 +5,7 @@
+   <ItemGroup>
+     <ProjectReference Include="..\Pagamentos.Application\Pagamentos.Application.csproj" />
+     <ProjectReference Include="..\Pagamentos.Domain\Pagamentos.Domain.csproj" />
++    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
++    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.8" />
+   </ItemGroup>
+ </Project>
+diff --git a/services/pagamentos/src/Pagamentos.Infrastructure/Persistence/CachedPagamentoRepository.cs b/services/pagamentos/src/Pagamentos.Infrastructure/Persistence/CachedPagamentoRepository.cs
+new file mode 100644
+index 0000000..ed5c64a
+--- /dev/null
++++ b/services/pagamentos/src/Pagamentos.Infrastructure/Persistence/CachedPagamentoRepository.cs
+@@ -0,0 +1,15 @@
++using Newtonsoft.Json;
++using Microsoft.Extensions.Caching.Distributed;
++using Pagamentos.Domain;
++
++namespace Pagamentos.Infrastructure.Persistence;
++
++// Decorator de cache sobre PagamentoRepository; as duas implementações ficam ativas (leitura quente x fria).
++public sealed class CachedPagamentoRepository(PagamentoRepository interno, IDistributedCache cache) : IPagamentoRepository
++{
++    public async Task<Pagamento?> ObterAsync(Guid id, CancellationToken ct)
++    {
++        var bruto = await cache.GetStringAsync(id.ToString(), ct);
++        return bruto is null ? await interno.ObterAsync(id, ct) : JsonConvert.DeserializeObject<Pagamento>(bruto);
++    }
++}
+diff --git a/services/pagamentos/src/Pagamentos.Infrastructure/Persistence/PagamentosDbContext.cs b/services/pagamentos/src/Pagamentos.Infrastructure/Persistence/PagamentosDbContext.cs
+new file mode 100644
+index 0000000..34c206b
+--- /dev/null
++++ b/services/pagamentos/src/Pagamentos.Infrastructure/Persistence/PagamentosDbContext.cs
+@@ -0,0 +1,9 @@
++using Microsoft.EntityFrameworkCore;
++using Pagamentos.Domain;
++
++namespace Pagamentos.Infrastructure.Persistence;
++
++public sealed class PagamentosDbContext(DbContextOptions<PagamentosDbContext> options) : DbContext(options)
++{
++    public DbSet<Pagamento> Pagamentos => Set<Pagamento>();
++}

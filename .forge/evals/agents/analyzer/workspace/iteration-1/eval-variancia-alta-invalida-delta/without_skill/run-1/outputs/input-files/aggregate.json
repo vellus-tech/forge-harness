@@ -1,0 +1,23 @@
+{
+  "skill": "revisa-migracao-postgres",
+  "n_evals": 4,
+  "baseline": {
+    "pass_rate_mean": 0.3125,
+    "pass_rate_stddev": 0.2073,
+    "duration_mean_ms": 18000,
+    "duration_stddev_ms": 3535.5,
+    "tokens_mean": 5550
+  },
+  "variant": {
+    "pass_rate_mean": 0.5625,
+    "pass_rate_stddev": 0.4463,
+    "duration_mean_ms": 22600,
+    "duration_stddev_ms": 5931.3,
+    "tokens_mean": 6575
+  },
+  "delta": {
+    "pass_rate": 0.25,
+    "duration_ms": 4600,
+    "tokens": 1025
+  }
+}

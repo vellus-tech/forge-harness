@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "implementa-formulario-recarga-portal-react",
+  "prompt": "Pega a TASK-03 do módulo recarga (docs/product/modules/recarga/tasks.md) e implementa no portal-passageiro: o formulário de recarga do cartão de transporte, com os botões de valor rápido e o campo de outro valor. O backend de recargas já está no ar conforme o contrato em contracts/. Quando terminar, deixa o relatório da entrega em docs/entregas/TASK-03.md.",
+  "assertions": [
+    "Algum arquivo novo em apps/web/portal-passageiro/src/ (fora de arquivos .tsx de componente) chama POST /v1/recargas enviando o campo `amountCents` como número inteiro e o header `Idempotency-Key`; nenhum arquivo .tsx novo contém `fetch(` nem chamada direta a `request(`",
+    "A mutação de recarga não configura retry maior que zero (retry ausente com default de mutation, `retry: false` ou `retry: 0`), e um teste novo verifica que o botão de envio fica desabilitado (ou aria-busy) enquanto a requisição está pendente",
+    "O(s) teste(s) novo(s) em src/features/recharge/ cobrem, em casos distintos: valor fora da faixa R$ 5,00–R$ 500,00 com erro exibido sem chamar a API, erro 422 exibindo a `message` retornada (ex.: LIMITE_DIARIO_EXCEDIDO), e sucesso exibindo o `status` retornado",
+    "Todo `var(--x)` nos arquivos de estilo novos de src/features/recharge/ referencia um token definido em packages/ui/src/tokens.css, nenhum usa fallback literal (`var(--x, #...)`) e nenhum contém cor literal (#hex, rgb(, hsl()",
+    "docs/entregas/TASK-03.md menciona o token `--surface-1` usado em HistoryPage.module.css como não definido em tokens.css (token fantasma / gate A1 ou varredura da superfície inteira), registrado como pendência ou achado",
+    "docs/entregas/TASK-03.md contém, nesta ordem, as seções `## Resumo do que foi alterado`, `## Arquivos alterados`, `## Testes executados`, `## Testes recomendados`, `## Riscos conhecidos`, `## Impacto visual/UX` e `## Pendências`; se não existe node_modules no alvo, a seção Testes executados diz explicitamente que os testes não foram executados e lista os comandos a rodar; e `git rev-list --count HEAD` continua 1"
+  ]
+}

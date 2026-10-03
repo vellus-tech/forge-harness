@@ -1,0 +1,8 @@
+{
+  "tarifas": {
+    "onibus": 4.40,
+    "metro": 5.00
+  },
+  "descontoIntegracao": 0.25,
+  "janelaIntegracaoMinutos": 120,
+}

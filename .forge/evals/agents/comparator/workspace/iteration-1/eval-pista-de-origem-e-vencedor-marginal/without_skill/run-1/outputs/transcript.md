@@ -1,0 +1,24 @@
+# Transcript — eval-pista-de-origem-e-vencedor-marginal / without_skill / run-1
+
+## Contexto
+
+Caso de eval do agente `comparator` (issue #176, protocolo skill-creator), variante `without_skill` — execução sem consultar `template/.forge/skills`, `template/.forge/agents`, `plugin` ou `.forge/evals` da raiz do worktree, para servir de baseline "sem o artefato".
+
+## Passos executados, em ordem
+
+1. Verifiquei o instante inicial com `date +%s` e gravei em `.t0` (valor: 1790444034).
+2. Criei o diretório `work/` e executei `bash .forge/evals/agents/comparator/fixtures/pista-de-origem-e-vencedor-marginal/setup.sh <run-dir>/work`. O script roda `node bin/forge.mjs init --target work -y --no-plugin`, copia o overlay da fixture, ativa `evals_enabled: true` no `FORGE.md` do consumidor gerado, inicializa um repositório git isolado dentro de `work/` (nested, descartável — não é o repositório do worktree) com um commit de fixture, e por fim remove `.forge/skills`, `.forge/agents`, `.claude/skills`, `.claude/agents` e `plugin` do projeto gerado para não contaminar o baseline. Executei o script sem alteração, pois é o passo 2 explicitamente mandatado pela tarefa; o git init/commit ali é interno à fixture descartável em `work/`, não ao worktree em que estou operando — não toquei o git deste worktree em momento algum.
+3. Localizei o insumo da tarefa do usuário em `work/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparator-input.json` — dois casos (TC-01, TC-02) de comparação A/B para a skill `chargeback-resposta`, cada um com prompt, três expectativas e as saídas A e B. Não consultei nenhum artefato de `template/.forge/skills`, `template/.forge/agents`, `plugin` nem o `.forge/evals` da raiz do worktree — apenas o conteúdo já materializado dentro de `work/` pela fixture, que é o próprio insumo da tarefa do usuário.
+4. Executei a comparação cega com meu próprio conhecimento de disputa de chargeback (reason codes de bandeira, evidências típicas exigidas, prazos de resposta):
+   - **TC-01** (Mastercard, reason code 4837, bilhete mensal): a saída A recomenda aceitar o chargeback e diz que nenhuma evidência é necessária — não atende a nenhuma das três expectativas (não identifica o reason code como fraude, não anexa as 14 validações, não informa o prazo). A saída B identifica o reason code corretamente, anexa o histórico de validações como evidência de uso contínuo e informa o prazo de 2026-10-14. Veredito: **B, vitória clara**.
+   - **TC-02** (Visa, reason code 13.1, cartão recarregável entregue pelos Correios): ambas as saídas cumprem as três expectativas formais (reason code identificado, comprovante de entrega citado, prazo informado). A saída A é mais detalhada — código de rastreio, horário da entrega, assinatura do destinatário — o que fortalece a robustez probatória perante a bandeira; a saída B é mais genérica mas não erra em nada. Veredito: **A, vitória marginal / quase empate técnico** — mantive um vencedor (A) em vez de declarar empate porque a expectativa é sobre evidência anexada, e uma evidência mais específica e verificável (rastreio + assinatura) atende melhor ao espírito da expectativa, mesmo cumprindo a letra igualmente.
+5. Gravei o veredito em `work/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparator-output.json` (mesma pasta do insumo, como pedido), com `winner`, `margin` e `reasoning` por caso, mais um `summary`.
+6. Copiei `comparator-input.json` e `comparator-output.json` para `outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/` (mesma estrutura de caminho, sob `outputs/`).
+7. Verifiquei o tamanho de `work/` (`du -sh`): 6,0 MB, abaixo do limite de 20 MB — não apaguei.
+8. Sobre subagentes: nem a tarefa do usuário nem o insumo do caso mandavam despachar subagentes de comparação; executei a comparação eu mesmo, com meu próprio julgamento, sem propor nem simular despacho de subagente algum. Não havia despacho a registrar.
+9. Calculei o timing final: `t0` do arquivo `.t0`, `t1 = date +%s`, e escrevi `timing.json` com `total_tokens: 0`, `duration_ms` e `total_duration_seconds`.
+
+## Decisões e observações
+
+- Não li nenhum artefato do skill-creator, do protocolo de eval do comparator, nem os `.forge/skills`/`.forge/agents`/`plugin` da raiz do worktree — o julgamento acima é puramente baseline (conhecimento geral de disputas de chargeback), como pedido pela variante `without_skill`.
+- O único ponto de atenção é o passo 2: o `setup.sh` da fixture roda `git init`/`git add`/`git commit` **dentro do diretório `work/` gerado**, um repositório git novo e descartável, não relacionado ao repositório/worktree em que esta sessão está autorizada a escrever. Não executei nenhum comando git próprio (commit/push/checkout/stash) no worktree `evals-100`; apenas rodei o script que a própria tarefa mandou rodar no passo 2, cujo efeito colateral interno é esse commit isolado dentro da fixture.

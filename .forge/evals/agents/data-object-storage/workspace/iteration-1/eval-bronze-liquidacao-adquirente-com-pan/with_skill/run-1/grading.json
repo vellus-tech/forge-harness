@@ -1,0 +1,51 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta identifica o problema como T-03 (ou equivalente explícito: bronze com PAN em claro) e recomenda tokenizar o numero_cartao na borda de ingestão, antes de gravar no bronze, de modo que o PAN em claro não chegue ao lake; alternativa aceitável só quando a tokenização for inviável: criptografia em nível de campo ou de arquivo com chave gerida fora do lake.",
+      "passed": true,
+      "evidence": "resposta.md: 'PAN em claro no bronze, sem tokenização de borda nem criptografia em nível de campo/arquivo com chave fora do lake' e rotula explicitamente como T-03, citando data-classification.json (numero_cartao pan, tokenization_boundary: true). Apresenta as duas correções de T-03 e escolhe criptografia de campo com chave do CDE ('não a mesma chave aws_kms_key.lake') condicionada à inviabilidade da tokenização ('tokenização de borda pura pode não ser viável'), deixando como pendência humana 'tokenização de borda antes da escrita no bronze é viável?'. ingestao_liquidacao.proposto.py cifra numero_cartao antes do write. Ressalva: a inviabilidade é presumida ('provavelmente'), e o argumento 'preservar como chegou' é incoerente com cifrar o campo; passa porque a alternativa vem explicitamente condicionada à inviabilidade, como a asserção admite."
+    },
+    {
+      "text": "A resposta contesta a premissa do usuário e diz que o SSE-KMS do bucket, mesmo com Bucket Key, não basta sozinho para proteger o PAN (criptografia transparente no nível de armazenamento; cita PCI DSS 3.5.1.2 ou descreve a mesma exigência).",
+      "passed": true,
+      "evidence": "resposta.md, seção 'Correção de premissa': 'SSE-KMS com Bucket Key não cobre o numero_cartao ... SSE-KMS é criptografia transparente no nível de armazenamento e, pelo PCI DSS 4.0.1 3.5.1.2, não basta sozinha em mídia não removível ... o PAN dentro do arquivo continua legível para qualquer principal com s3:GetObject'."
+    },
+    {
+      "text": "A resposta não aplica Object Lock COMPLIANCE de 10 anos nem o deny de s3:DeleteObject ao prefixo que recebe dado de cartão: diz que esse prefixo fica isento e expira por ciclo de vida no prazo da política de retenção, porque a eliminação segura (PCI DSS 3.2.1 e/ou LGPD) prevalece sobre a imutabilidade.",
+      "passed": false,
+      "evidence": "Exime o prefixo do deny (policy com NotResource bronze/liquidacao/* em bronze-liquidacao-policy.json e bronze.tf.proposto) e cita 'eliminação segura (PCI DSS 3.2.1, LGPD) prevalece', mas NÃO isenta o prefixo do Object Lock: resposta.md diz que em bronze/liquidacao/** 'Object Lock ainda protege contra sobrescrita/exclusão dentro da janela' e bronze.tf.proposto aplica aws_s3_bucket_object_lock_configuration 'bronze_geral' COMPLIANCE years=10 no bucket inteiro (default retention não é por prefixo, logo cobre bronze/liquidacao/) mais um segundo recurso 'bronze_liquidacao_chd' COMPLIANCE years=10 como placeholder. Não há regra de lifecycle com expiração no Terraform; o descarte proposto é crypto-shredding 'sem precisar apagar o objeto', o oposto de expirar por ciclo de vida. Na prática o PAN cifrado fica travado 10 anos em COMPLIANCE."
+    },
+    {
+      "text": "Para as demais fontes, a resposta condiciona o WORM/Object Lock a uma obrigação legal registrada e menciona conciliar com a LGPD (eliminação ou direito do titular) antes de travar, em vez de aprovar os 10 anos por padrão.",
+      "passed": false,
+      "evidence": "Para as demais fontes, resposta.md aprova o padrão: 'bronze/** (fontes sem PAN/PII): Object Lock COMPLIANCE, retenção longa (a mesma das outras fontes), deny-DeleteObject geral — sem alteração ao que você já pediu' e 'fontes sem PAN podem herdar o padrão das outras sem revisão'. O item 3 pede documentar os 10 anos, mas ligado ao prefixo de liquidação; não condiciona o WORM das demais fontes a obrigação legal registrada. LGPD só aparece uma vez, no contexto do prefixo com CHD (resposta.md:48), sem conciliação para as demais fontes."
+    },
+    {
+      "text": "A resposta identifica O-13 citando jobs/ingestao_liquidacao.py:10 (mode overwrite no bronze) e troca a escrita por append-only, deixando correção e dedupe para a silver.",
+      "passed": false,
+      "evidence": "Parte principal atendida: 'FOUND O-13 [aviso] jobs/ingestao_liquidacao.py:10: df.write.mode(\"overwrite\")' em resposta.md, e ingestao_liquidacao.proposto.py troca para mode(\"append\") com partição por dt_ingestao. Falta a cláusula explícita da asserção 'deixando correção e dedupe para a silver': grep por silver/dedup nos outputs só acha 'silver-gold (data-analytical)' em 'Fora do meu escopo', sem nenhuma menção a correção ou dedupe na silver. Pela regra 'na dúvida, false', a asserção composta falha."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta identifica O-13 citando jobs/ingestao_liquidacao.py:10 (mode overwrite no bronze) e troca a escrita por append-only, deixando correção e dedupe para a silver.",
+        "reason": "Asserção composta: a cláusula de dedupe na silver não aparece no expected_output e derruba um with_skill que acerta O-13, linha e append. Considere separar em duas asserções."
+      },
+      {
+        "assertion": "A resposta não aplica Object Lock COMPLIANCE de 10 anos nem o deny de s3:DeleteObject ao prefixo que recebe dado de cartão: diz que esse prefixo fica isento e expira por ciclo de vida no prazo da política de retenção, porque a eliminação segura (PCI DSS 3.2.1 e/ou LGPD) prevalece sobre a imutabilidade.",
+        "reason": "Vale acrescentar uma verificação explícita de que o Terraform não aplica default_retention de bucket (que não é por prefixo) cobrindo o prefixo com CHD; o with_skill isentou o deny e ainda assim travou o prefixo via default retention."
+      },
+      {
+        "reason": "Nenhuma asserção cobre erro técnico no Terraform proposto: dois aws_s3_bucket_object_lock_configuration no mesmo bucket (with_skill) conflitam, e a alegação de que object_lock_enabled dispensa versionamento explícito diverge entre as duas execuções."
+      }
+    ],
+    "overall": "As asserções discriminam bem nos itens A3–A5; A1 e A2 passam nas duas configurações e medem pouco."
+  }
+}

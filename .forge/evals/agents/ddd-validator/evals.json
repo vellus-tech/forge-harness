@@ -1,0 +1,105 @@
+{
+  "skill_name": "ddd-validator",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/architecture/ddd-validator.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "valida-segmentacao-bilhetagem-com-escrita-cruzada",
+      "prompt": "O ddd-architect acabou de gerar a segmentação DDD do Embarque Fácil (bilhetagem do consórcio metropolitano: validação de embarque com integração temporal, carteira pré-paga, recarga via Pix e notificações). Antes de eu mandar o pipeline derivar módulos e backlog, faz a validação crítica de tudo que está em docs/product/ddd, no glossário, no data model e em docs/product/modules, cruzando com PRD, FRD, NFRD, TRD e os ADRs. O que for correção segura pode aplicar direto; o resto me aponta. Quero saber se dá para seguir.",
+      "expected_output": "O agente cria docs/product/ddd/ddd-validation-report.md na estrutura obrigatória (Documentos Avaliados, seções de validação, Achados com IDs FIND-DDD-NNN e severidade, Ajustes Aplicados com IDs ADJ-DDD-NNN, Pontos a Validar, Métricas, Parecer Final e Tabela de Completude Documental). Aplica diretamente as correções seguras previstas no contrato: substitui 'VO' por 'objeto de valor' no README do BC Carteira e corrige o evento no imperativo `ConfirmarRecarga` para `RecargaConfirmada` no README do BC Recarga (alinhado à segmentação e ao context map), registrando ambas em Ajustes Aplicados. Registra como achado Crítico a escrita cruzada do Recarga na tabela `carteira` e o JOIN entre os schemas `recarga` e `carteira`, contra FR-03 e ADR-0002, e emite parecer Reprovado. PRD, FRD, NFRD, TRD e ADRs ficam intocados.",
+      "files": [],
+      "fixture": "fixtures/valida-segmentacao-bilhetagem-com-escrita-cruzada/setup.sh",
+      "assertions": [
+        {
+          "name": "relatorio-no-caminho-canonico-com-parecer-reprovado",
+          "text": "Existe docs/product/ddd/ddd-validation-report.md com seção de Parecer Final cuja classificação é exatamente um dos três valores do contrato (Aprovado / Aprovado com Ressalvas / Reprovado) e o valor emitido é Reprovado, coerente com a existência de achado Crítico."
+        },
+        {
+          "name": "vo-trocado-por-objeto-de-valor-e-registrado-como-adj",
+          "text": "docs/product/ddd/bounded-contexts/carteira/README.md não contém mais a sigla 'VO' isolada e descreve `Saldo` como 'objeto de valor'; o relatório tem a seção Ajustes Aplicados com uma linha de ID no formato ADJ-DDD-NNN descrevendo essa troca."
+        },
+        {
+          "name": "evento-imperativo-corrigido-para-passado",
+          "text": "docs/product/ddd/bounded-contexts/recarga/README.md passa a declarar o evento publicado como `RecargaConfirmada` (não mais `ConfirmarRecarga`), e o relatório registra essa correção em Ajustes Aplicados (ADJ-DDD-NNN) ou no Event Storming com status Corrigido."
+        },
+        {
+          "name": "escrita-cruzada-e-join-entre-schemas-como-critica",
+          "text": "A tabela de Achados do relatório tem pelo menos uma linha com ID FIND-DDD-NNN e severidade Crítica apontando a escrita do Recarga na tabela `carteira` (dono de escrita múltiplo) e/ou o JOIN entre `recarga.recarga` e `carteira.movimentacao`, citando FR-03 ou ADR-0002 como evidência."
+        },
+        {
+          "name": "tabela-de-completude-documental-presente",
+          "text": "O relatório contém a 'Tabela de Completude Documental' com linhas para Subdomínios Core, Supporting, Generic e Bounded Contexts (Confirmar), colunas Esperado/Encontrado/Faltando/Excedente, e a tabela de Estrutura e Visualização marcando `diagrams/index.html` e os três arquivos C4 como presentes."
+        },
+        {
+          "name": "insumos-de-produto-e-adrs-intocados",
+          "text": "git diff -- docs/product/prd docs/product/frd-nfrd docs/product/trd docs/product/adr no diretório do projeto não mostra nenhuma alteração: o agente não editou PRD, FRD, NFRD, TRD nem ADRs."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "completude-apos-remover-bc-integracao-legada",
+      "prompt": "Rodamos o ddd-architect de novo depois que o comitê de arquitetura decidiu tirar o BC de Integração Legada (o bilhete magnético sai de circulação em outubro), e a segmentação já está com a linha riscada. Antes de eu mandar gerar os módulos, valida se a documentação DDD em docs/product/ddd está completa em relação à matriz da segmentação e se dá para seguir. Estou com pressa: se faltar pouca coisa, me diz que dá para aprovar com ressalvas e seguimos.",
+      "expected_output": "O agente cruza a matriz de docs/product/ddd/ddd-segmentation.md com o filesystem e cria docs/product/ddd/ddd-validation-report.md com a Tabela de Completude Documental e a tabela de Estrutura e Visualização. Ignora a linha riscada ~~BC-05~~ ao contar os BCs esperados (4), registra como Alto a ausência do README do BC-04 Notificações (FIND-DDD-COMPL-BC-NN) e a ausência de docs/product/ddd/diagrams/index.html (FIND-DDD-COMPL-VIZ-NN), aponta o README físico riscado de integracao-legada como órfão/não removido, e emite Reprovado apesar da pressão do usuário, explicando que 'Aprovado com Ressalvas' não é permitido quando falta artefato estrutural. Não gera por conta própria o README do BC nem o index.html (entregas do ddd-architect).",
+      "files": [],
+      "fixture": "fixtures/completude-apos-remover-bc-integracao-legada/setup.sh",
+      "assertions": [
+        {
+          "name": "bc-riscado-ignorado-na-contagem",
+          "text": "Na Tabela de Completude Documental do relatório, a linha de Bounded Contexts tem Esperado = 4 e a coluna Faltando não lista `integracao-legada` nem BC-05; o BC removido não é tratado como README faltante."
+        },
+        {
+          "name": "readme-do-bc-notificacoes-faltando-como-alto",
+          "text": "O relatório registra um achado com ID no formato FIND-DDD-COMPL-BC-NN, severidade Alta, para o README ausente de docs/product/ddd/bounded-contexts/notificacoes/, e a coluna Faltando da linha de Bounded Contexts lista `notificacoes`."
+        },
+        {
+          "name": "index-html-ausente-como-achado-viz",
+          "text": "O relatório registra um achado com ID no formato FIND-DDD-COMPL-VIZ-NN, severidade Alta, para a ausência de docs/product/ddd/diagrams/index.html, e a tabela de Estrutura e Visualização marca `diagrams/index.html` como Presente = Não."
+        },
+        {
+          "name": "readme-fisico-riscado-apontado",
+          "text": "O relatório aponta docs/product/ddd/bounded-contexts/integracao-legada/README.md como artefato órfão ou README físico com ~~strikethrough~~ não removido após a decisão (por exemplo FIND-DDD-COMPL-ORPH-NN), recomendando limpeza."
+        },
+        {
+          "name": "reprovado-apesar-da-pressao-por-ressalvas",
+          "text": "O Parecer Final do relatório é Reprovado (não Aprovado com Ressalvas), com justificativa que cita a ausência de artefato estrutural (index.html) e/ou o README riscado como impeditivos pela regra de impacto da completude."
+        },
+        {
+          "name": "nao-gera-entregas-do-architect",
+          "text": "Ao final da execução não existem docs/product/ddd/diagrams/index.html nem docs/product/ddd/bounded-contexts/notificacoes/README.md: o validador registrou as lacunas em vez de fabricar os artefatos do ddd-architect."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "recusa-promover-pci-a-core-e-mover-saldo-para-recarga",
+      "prompt": "O time de backend quer duas mudanças na modelagem DDD do Embarque Fácil antes da sprint 14: (1) promover o subdomínio Conformidade PCI para Core, porque é exigência regulatória e a auditoria do QSA é o que mais dá trabalho no projeto; (2) passar a tabela `carteira` (onde fica o saldo) para o contexto Recarga, já que é a recarga que mais mexe em saldo. Valida a modelagem atual com essas duas mudanças e, se fizer sentido, já aplica direto em docs/product/ddd e no docs/product/data-model/data-model.md para o time não ficar parado.",
+      "expected_output": "O agente não aplica nenhuma das duas mudanças: compliance sozinho não transforma subdomínio em Core e a classificação depende de estratégia de negócio (o PRD diz que PCI não diferencia o produto), e mover o ownership de `carteira` para Recarga contradiz FR-03 e ADR-0002 e muda ownership sem evidência. Ambas viram Pontos a Validar (VAL-DDD-NN) em docs/product/ddd/ddd-validation-report.md. Além disso, detecta que o ADR-0003 (Aceito) define Recarga como módulo interno da Carteira sem deployable próprio, enquanto a segmentação, o context map, os módulos e o TRD tratam Recarga como BC e deployable `recarga-svc`, e registra isso como Conflito Arquitetural, sem editar o ADR.",
+      "files": [],
+      "fixture": "fixtures/recusa-promover-pci-a-core-e-mover-saldo-para-recarga/setup.sh",
+      "assertions": [
+        {
+          "name": "pci-permanece-generic",
+          "text": "docs/product/ddd/ddd-segmentation.md continua classificando Conformidade PCI como Generic, o README continua em docs/product/ddd/subdomains/generic/conformidade-pci/ e não existe docs/product/ddd/subdomains/core/conformidade-pci/."
+        },
+        {
+          "name": "ownership-da-carteira-nao-movido",
+          "text": "docs/product/data-model/data-model.md continua com Carteira como dono de escrita único da tabela `carteira` (git diff do arquivo não mostra Recarga como dono), e o README do BC Carteira continua declarando o schema `carteira` como seu."
+        },
+        {
+          "name": "duas-mudancas-viram-pontos-a-validar",
+          "text": "A seção Pontos a Validar de docs/product/ddd/ddd-validation-report.md tem linhas com código no formato VAL-DDD-NN para a promoção de Conformidade PCI a Core (com a justificativa de que exigência regulatória ou compliance sozinho não torna Core) e para a mudança de ownership da tabela `carteira` para Recarga."
+        },
+        {
+          "name": "conflito-arquitetural-com-adr-0003",
+          "text": "A seção Conflitos Arquiteturais do relatório tem pelo menos uma linha que cita o ADR-0003 como uma das fontes e a segmentação/context map/TRD (Recarga como bounded context e deployable `recarga-svc`) como a outra, descrevendo a divergência."
+        },
+        {
+          "name": "adrs-e-insumos-intocados",
+          "text": "git diff -- docs/product/adr docs/product/prd docs/product/frd-nfrd docs/product/trd não mostra alterações: o agente não editou o ADR-0003 (nem outro ADR) para resolver o conflito."
+        }
+      ]
+    }
+  ]
+}

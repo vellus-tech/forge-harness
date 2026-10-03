@@ -1,0 +1,166 @@
+{
+  "schema": "graph/v0",
+  "generated_at": "2026-09-26T15:58:40.018Z",
+  "engine": "native",
+  "root": "<worktree-do-eval>/.forge/evals/skills/impact-scan/workspace/iteration-1/eval-rotacao-jwt-scale3/without_skill/run-1/work",
+  "stats": {
+    "nodes": 9,
+    "edges": 11,
+    "languages": [
+      "ts"
+    ],
+    "summaries_stale": 9,
+    "census": {
+      "ts": 9
+    },
+    "layer_coverage": {
+      "classified": 5,
+      "unclassified": 4,
+      "out_of_taxonomy": 0,
+      "denominator": 9,
+      "ratio": 0.5556
+    }
+  },
+  "nodes": [
+    {
+      "id": "src/api/routes/payments.ts",
+      "lang": "ts",
+      "loc": 5,
+      "fingerprint": "efceac9a23c542b0ec7877bf930137fea4552856b74156f667eb9c7237863df7",
+      "layer": "api",
+      "summary": null
+    },
+    {
+      "id": "src/api/routes/users.ts",
+      "lang": "ts",
+      "loc": 3,
+      "fingerprint": "96f867f94087a775fb1fbab3e2e8cce590b04f7da9cfb08a54ba8dbecb37d828",
+      "layer": "api",
+      "summary": null
+    },
+    {
+      "id": "src/api/server.ts",
+      "lang": "ts",
+      "loc": 4,
+      "fingerprint": "01b07bca61c1cff7442427143714a0b14fb7a94872806dd7de12b923812d27f5",
+      "layer": "api",
+      "summary": null
+    },
+    {
+      "id": "src/auth/index.ts",
+      "lang": "ts",
+      "loc": 3,
+      "fingerprint": "7f2457285e02f27a01536b0eccc275b1715bb3a5b5294fdf7bf69e1ac6bd3f98",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "src/auth/jwt.ts",
+      "lang": "ts",
+      "loc": 5,
+      "fingerprint": "1e43e70c2bd3938aed73b76671a3d99d346bd42b765262e01e99dd535b2acf80",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "src/billing/invoice.ts",
+      "lang": "ts",
+      "loc": 2,
+      "fingerprint": "df3106c1b4b455a2c5f841faac3b6fc05d3bfa8b5583b323714528646902a1e4",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "src/middleware/auth.ts",
+      "lang": "ts",
+      "loc": 3,
+      "fingerprint": "0ae0d20ac46935c3b81ac6df531afbe698e987f2c15f5f91d47fac084626eff6",
+      "layer": "api",
+      "summary": null
+    },
+    {
+      "id": "src/middleware/rate-limit.ts",
+      "lang": "ts",
+      "loc": 4,
+      "fingerprint": "10fac5f706e019d79654f9309aaea9c0c42af81bd4038d1eb6f32132d2c61deb",
+      "layer": "api",
+      "summary": null
+    },
+    {
+      "id": "src/utils/logger.ts",
+      "lang": "ts",
+      "loc": 2,
+      "fingerprint": "d43ba4a626ee3b2b3aa457e4a07f5c25e32234a32e788a7df95cf25fa8397b5a",
+      "layer": "unknown",
+      "summary": null
+    }
+  ],
+  "edges": [
+    {
+      "from": "src/api/routes/payments.ts",
+      "to": "src/billing/invoice.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/api/routes/payments.ts",
+      "to": "src/middleware/auth.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/api/routes/payments.ts",
+      "to": "src/middleware/rate-limit.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/api/routes/users.ts",
+      "to": "src/middleware/auth.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/api/server.ts",
+      "to": "src/api/routes/payments.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/api/server.ts",
+      "to": "src/api/routes/users.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/auth/index.ts",
+      "to": "src/auth/jwt.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/auth/index.ts",
+      "to": "src/auth/jwt.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/auth/jwt.ts",
+      "to": "src/utils/logger.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/middleware/auth.ts",
+      "to": "src/auth/index.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/middleware/rate-limit.ts",
+      "to": "src/auth/index.ts",
+      "kind": "import",
+      "resolved": true
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": ".forge/evals/skills/gerar-changelog-release/workspace/iteration-1/eval-1/grading.json existe, valida contra .forge/schemas/grading.schema.json e o variant_result do TC-01 mantém exit_code 124, duration_ms 120000 e tokens null, iguais a results.json (o timeout não foi omitido, zerado nem transformado em erro fatal sem grading).",
+      "passed": false,
+      "evidence": "python3 jsonschema Draft202012Validator sobre work/.forge/evals/skills/gerar-changelog-release/workspace/iteration-1/eval-1/grading.json → INVALID (8 erros): 'baseline', 'variant' e 'aggregate' ausentes; propriedades 'eval', 'iteration', 'summary' não permitidas; test_cases[0] sem 'baseline_result'/'variant_result'/'expectations'. jq '.test_cases[0].variant_result' → null; exit_code 124 solto (linha 33) e 120000/null só em texto no 'caveat' (linha 53). Transcript linha 26: 'schema não fornecido no fixture nem consultado'."
+    },
+    {
+      "text": "A expectativa 'O changelog ficou claro e bem escrito' tem passed: false em todas as entradas em que aparece, e a evidence menciona que o critério é ambíguo/subjetivo ou não verificável — não aprova o baseline por julgamento de gosto.",
+      "passed": false,
+      "evidence": "grading.json linhas 23-27: para o baseline a expectativa tem \"met\": true com notes 'Entradas curtas, verbos no particípio, linguagem consistente e legível' — aprova por gosto; nenhuma menção a ambiguidade/subjetividade."
+    },
+    {
+      "text": "A expectativa 'Incluiu o número do PR em cada entrada do changelog' não tem passed: true para o baseline, e a evidence cita a entrada 'Ajusta timeout do gateway de recarga' (ou trecho literal dela) como a que não tem número de PR.",
+      "passed": true,
+      "evidence": "grading.json linhas 18-22 (baseline): \"met\": false e notes 'a entrada 'Ajusta timeout do gateway de recarga' (seção Corrigido) não tem número de PR'. Aprovada pelo conteúdo; ressalva: campos met/notes em vez de passed/evidence (a forma é penalizada na asserção de schema)."
+    },
+    {
+      "text": "Nenhuma expectativa do variant tem passed: true, e nenhuma evidence do variant cita seções '### Adicionado', entradas ou números de PR como se estivessem no output do variant; as evidences declaram ausência ou citam trechos reais como 'timeout após 120s — execução interrompida'.",
+      "passed": true,
+      "evidence": "grading.json linhas 34-50 (variant): as três com \"met\": false; notes 'interrompida pelo timeout do runner (120s) antes de qualquer seção do changelog ser emitida', 'Nenhuma entrada de changelog chegou a ser produzida', 'log de progresso ('Lendo commits...', 'Classificando commits...')' — declaram ausência e citam trechos reais, sem inventar seções/PRs. Ressalva: campos met/notes, não passed/evidence."
+    },
+    {
+      "text": "aggregate.baseline_pass_rate entre 0,32 e 0,35, aggregate.variant_pass_rate = 0, delta_pass_rate entre -0,35 e -0,32, baseline_duration_mean_ms = 38000 e variant_duration_mean_ms = 120000.",
+      "passed": false,
+      "evidence": "jq '.aggregate' → null; o arquivo só tem summary com baseline_score '2/3' e variant_score '0/3' (linhas 57-62); nenhum baseline_pass_rate, variant_pass_rate, delta_pass_rate nem médias de duração, e 2/3 estaria fora da faixa 0,32–0,35 de qualquer forma."
+    },
+    {
+      "text": ".forge/evals/skills/gerar-changelog-release/workspace/iteration-1/eval-1/results.json é byte a byte idêntico ao da fixture e não surgiram novos logs de execução do runner (/tmp/eval-*.log criados pelo agente, ou novos diretórios eval-2/ iteration-2/) — o grader avalia, não reexecuta.",
+      "passed": true,
+      "evidence": "cmp work/.../eval-1/results.json contra o overlay da fixture → idênticos; git -C work status --porcelain: único arquivo novo é grading.json; find work outputs -name eval-2 -o -name iteration-2 → nada. ls -la -T /tmp/eval-*.log → mtime 26 set 14:43:34, anterior à retomada (.t0 1790613394, 28 set), conteúdo de outra skill; nenhum log novo. Transcript linha 5: setup.sh recusado com exit 3 e não usado --force; linha 24: variant não reexecutado."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  }
+}

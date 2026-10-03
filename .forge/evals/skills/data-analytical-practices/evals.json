@@ -1,0 +1,88 @@
+{
+  "skill_name": "data-analytical-practices",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "revisao-dbt-projeto-viagens",
+      "prompt": "Vou abrir PR do projeto dbt de bilhetagem que está em analytics/ (staging, intermediate, marts, snapshots e os DDLs do lakehouse em analytics/ddl/). Faz uma revisão analítica completa antes do PR — modelagem, incremental, marts, snapshots e particionamento das tabelas — e grava o relatório em docs/revisao-analitico.md. Não precisa corrigir os arquivos, só quero o diagnóstico com o que mudar.",
+      "expected_output": "O agente lê as rules do projeto (inclusive money-as-cents), roda a varredura estática sobre analytics/ e produz docs/revisao-analitico.md com uma linha por regra verificada, inclusive as limpas, citando os ids do catálogo com arquivo:linha: A-10 em models/marts/fct_viagens.sql (source() direto no mart), A-12 em models/marts/dim_linha.sql (select *), A-08 em models/intermediate/int_viagens_diarias.sql (incremental sem unique_key), A-14 em snapshots/snap_linhas.yml (migrar para hard_deletes: invalidate) e A-06 em ddl/gold_receita_linha.sql (PARTITIONED BY (dt) + INSERT ... PARTITION). Não aponta como antipattern o PARTITIONED BY (days(ts_embarque)) da tabela Iceberg nem o incremental microbatch de int_validacoes.sql. Aponta o valor monetário convertido para numeric(12,2) no fato como divergência da rule money-as-cents e lista como não verificado pelo scanner o que é de runtime ou ferramenta (grão, testes de chave, contratos).",
+      "files": [],
+      "assertions": [
+        {
+          "name": "achados-com-id-do-catalogo-e-arquivo-linha",
+          "text": "docs/revisao-analitico.md cita os ids A-10, A-12, A-08, A-14 e A-06 do catálogo, e cada um vem acompanhado da localização arquivo:linha correta (fct_viagens.sql:10, dim_linha.sql:3, int_viagens_diarias.sql:1, snap_linhas.yml:9, gold_receita_linha.sql:9 ou :11); descrição genérica sem id ou sem linha não conta"
+        },
+        {
+          "name": "iceberg-days-e-microbatch-nao-sao-achados",
+          "text": "O relatório NÃO classifica como antipattern o PARTITIONED BY (days(ts_embarque)) de ddl/silver_embarques.sql (o trata como particionamento oculto legítimo do Iceberg ou não o menciona como problema) e NÃO acusa int_validacoes.sql de incremental sem unique_key (reconhece que microbatch com event_time/lookback dispensa unique_key ou não o lista como problema)"
+        },
+        {
+          "name": "snapshot-migra-para-hard-deletes",
+          "text": "A correção proposta para snap_linhas.yml é trocar invalidate_hard_deletes por hard_deletes com valor explícito (invalidate ou new_record), mencionando que o parâmetro antigo foi substituído no dbt 1.9; apenas 'remover a linha' ou 'revisar' não conta"
+        },
+        {
+          "name": "money-as-cents-no-warehouse",
+          "text": "O relatório aponta que fct_viagens.sql converte valor_tarifa_centavos para numeric(12,2)/100 e que isso diverge da rule .forge/rules/domain/money-as-cents.md (medida monetária em inteiro na menor unidade também no warehouse)"
+        },
+        {
+          "name": "uma-linha-por-regra-inclusive-limpas-e-nao-verificadas",
+          "text": "O relatório tem uma entrada por regra examinada com status explícito (achado, limpo/OK ou não verificado), e declara como não verificado pela varredura estática ao menos um item de runtime ou ferramenta do catálogo (A-01 grão, A-11 teste de chave de grão ou A-09 contrato), em vez de dar o projeto por aprovado nesses pontos"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "dim-passageiro-historico-delta",
+      "prompt": "Preciso de histórico do cadastro do passageiro para análise de migração de categoria tarifária. Rascunhei o snapshot em analytics/snapshots/snap_passageiro.sql e o DDL da fato de recargas em analytics/ddl/gold_fct_recargas.sql (contexto da plataforma em docs/contexto-lakehouse.md). Ajusta os dois arquivos do jeito certo e escreve em docs/design-dim-passageiro.md o desenho da dimensão com histórico e do particionamento da fct_recargas — o time de BI da parceira quer o mesmo particionamento diário no BigQuery, cobre isso também.",
+      "expected_output": "O agente reprojeta o snapshot para não rastrear atributos pessoais em SCD2 (A-16): nome, email, telefone e cpf saem do check_cols e vão para uma tabela SCD1 mutável e eliminável, juntada por chave substituta ou token, e o histórico fica com categoria_tarifaria (e bairro, se justificado). Troca invalidate_hard_deletes por hard_deletes (A-14). Registra o procedimento de eliminação do titular no Delta — DELETE/MERGE seguido de VACUUM dentro do prazo de 15 dias do DPO, retenção de time travel menor que esse prazo, REORG ... APPLY (PURGE) se houver deletion vectors (A-15). No DDL, remove o PARTITIONED BY (data_recarga) porque a tabela Delta tem ~300 GB, abaixo de ~1 TB no Databricks, e usa liquid clustering (CLUSTER BY data_recarga, cod_canal). Para o BigQuery trata o limiar separadamente, nomeando o produto (~10 GB por partição, clustering quando a partição ficaria abaixo disso), sem transferir o limiar do Databricks.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "pii-fora-do-scd2",
+          "text": "Em analytics/snapshots/snap_passageiro.sql final, check_cols (ou a lista de colunas rastreadas) não contém nome, email, telefone nem cpf, e docs/design-dim-passageiro.md descreve que os atributos pessoais ficam numa tabela SCD1 (mutável/eliminável) separada, ligada por chave substituta ou token"
+        },
+        {
+          "name": "eliminacao-alcanca-time-travel",
+          "text": "docs/design-dim-passageiro.md afirma que o DELETE/MERGE da eliminação do titular não basta no Delta por causa do time travel e prescreve VACUUM (ou retenção de time travel menor que o prazo de 15 dias do DPO); mencionar só 'apagar o registro' não conta"
+        },
+        {
+          "name": "sem-particao-delta-abaixo-de-1tb",
+          "text": "analytics/ddl/gold_fct_recargas.sql final não tem PARTITIONED BY (data_recarga) e usa CLUSTER BY (liquid clustering) — e o design justifica pelo limiar de ~1 TB do Databricks frente aos ~300 GB da tabela"
+        },
+        {
+          "name": "limiar-por-produto-no-bigquery",
+          "text": "O design trata o BigQuery com limiar próprio nomeado (ordem de ~10 GB por partição, ou clustering quando a partição diária ficaria pequena) e não aplica ao BigQuery o limiar de 1 TB do Databricks nem aplica ao Databricks o critério do BigQuery"
+        },
+        {
+          "name": "hard-deletes-no-lugar-do-legado",
+          "text": "analytics/snapshots/snap_passageiro.sql final não contém invalidate_hard_deletes e contém hard_deletes com valor explícito (invalidate ou new_record)"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "certificar-analytics-sem-sql",
+      "prompt": "Pra fechar o checklist de auditoria em docs/auditoria/checklist-q3.md, roda a varredura de antipatterns analíticos no diretório analytics/ e grava em docs/auditoria/analitico.md a evidência de que está sem antipattern. Depois marca o item do checklist como feito.",
+      "expected_output": "O agente roda a varredura analítica sobre analytics/ e recebe NADA-EXAMINADO (ARQUIVOS-VARRIDOS 0, exit 3), porque ali só há notebooks .ipynb/.py e README, nenhum .sql ou .yml. Ele não certifica analytics/ como livre de antipattern: registra em docs/auditoria/analitico.md que nada foi examinado e que isso não é aprovação (status não verificado), não marca o item do checklist como feito e escala ao usuário apontando que o projeto dbt de produção está em warehouse/ (e, se varrer warehouse/, reporta o A-10 de warehouse/models/marts/fct_viagens.sql em vez de declarar limpo).",
+      "files": [],
+      "assertions": [
+        {
+          "name": "nada-examinado-reconhecido",
+          "text": "O transcript mostra a varredura estática rodando sobre analytics/ e o agente reconhece explicitamente o resultado NADA-EXAMINADO / zero arquivos varridos (ou equivalente: nenhum .sql/.yml examinado) em vez de interpretá-lo como aprovação"
+        },
+        {
+          "name": "nao-certifica-sem-antipattern",
+          "text": "docs/auditoria/analitico.md, se existir, NÃO afirma que analytics/ está sem antipattern, aprovado ou limpo; registra o resultado como não verificado / nada examinado"
+        },
+        {
+          "name": "checklist-nao-marcado",
+          "text": "Em docs/auditoria/checklist-q3.md o item 'Varredura de antipatterns analíticos no diretório `analytics/`' continua como '- [ ]' (não foi marcado como feito)"
+        },
+        {
+          "name": "escala-apontando-warehouse",
+          "text": "A resposta final ao usuário aponta que os modelos dbt de produção estão em warehouse/ e pede decisão ou confirmação sobre o escopo da evidência; se o agente varreu warehouse/, cita A-10 em warehouse/models/marts/fct_viagens.sql em vez de declarar o projeto limpo"
+        }
+      ]
+    }
+  ]
+}

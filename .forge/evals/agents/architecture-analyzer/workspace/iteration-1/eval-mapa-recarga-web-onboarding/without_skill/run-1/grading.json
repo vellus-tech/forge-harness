@@ -1,0 +1,56 @@
+{
+  "expectations": [
+    {
+      "text": "docs/arquitetura/mapa-recarga-web.md traz a contagem de nós por camada igual à do .forge/graph/graph.json: api 2, application 2, domain 2, infrastructure 2, contracts 1 (e os 2 nós unknown — src/main.ts e src/shared/logger.ts — reportados à parte ou como unknown, não redistribuídos em outra camada)",
+      "passed": true,
+      "evidence": "`jq -r '.nodes[].layer' work/.forge/graph/graph.json | sort | uniq -c` → api 2, application 2, contracts 1, domain 2, infrastructure 2, unknown 2; outputs/docs/arquitetura/mapa-recarga-web.md:9-14 traz api, application, domain, infrastructure com 2 arquivos cada, contracts com 1 e 'Não classificado (unknown) | main.ts, shared/logger.ts', sem redistribuir (a contagem é implícita pela lista de arquivos, mas bate)."
+    },
+    {
+      "text": "O documento lista como violação de direção as duas arestas src/domain/cartao.ts → src/infrastructure/db/postgres-client.ts e src/application/solicitar-recarga.ts → src/api/http-errors.ts, cada uma com os dois paths completos, e usa a qualificação 'candidata' (ou equivalente explícito) para as violações",
+      "passed": false,
+      "evidence": "`grep -n -i candidat outputs/docs/arquitetura/mapa-recarga-web.md` → nenhuma ocorrência. :43 '## Violações de direção de camada' e :45-46 citam `domain/cartao.ts` → `infrastructure/db/postgres-client.ts` e `application/solicitar-recarga.ts` → `api/http-errors.ts` sem o prefixo src/ (paths não completos) e as afirmam como violações definitivas, sem qualificação de candidata."
+    },
+    {
+      "text": "O documento cita .forge/rules/architecture/camadas-recarga-web.md (pelo nome do arquivo) como a regra contra a qual as violações foram conferidas",
+      "passed": false,
+      "evidence": "`grep -n camadas-recarga-web.md outputs/docs/arquitetura/mapa-recarga-web.md` → nenhuma ocorrência. O documento derivou a direção de uma convenção genérica (:41 'A direção esperada num backend em camadas é...') e não cita a regra do projeto, embora o transcript.md:9 e :15 diga que a leu — a citação não chegou ao entregável."
+    },
+    {
+      "text": "O documento NÃO lista como violação os imports de src/domain/cartao.ts ou src/domain/recarga.ts para src/contracts/eventos-recarga.ts (menção como permitido pela ADR-0003/regra do projeto é aceitável)",
+      "passed": true,
+      "evidence": "Seção de violações (outputs/docs/arquitetura/mapa-recarga-web.md:43-46) lista só as duas arestas esperadas; domain → contracts aparece em :25,27 sem marca de violação e :58 trata eventos-recarga.ts como 'acoplamento saudável'. O documento não menciona ADR-0003 (só o transcript.md:26), mas a asserção exige apenas não listar como violação."
+    },
+    {
+      "text": "A seção de pontos de concentração aponta src/shared/logger.ts como o nó de maior fan-in (6 importadores) e inclui src/domain/cartao.ts (4 importadores)",
+      "passed": true,
+      "evidence": "`jq -r '.edges[].to' work/.forge/graph/graph.json | sort | uniq -c | sort -rn` → 6 src/shared/logger.ts, 4 src/domain/cartao.ts. outputs/docs/arquitetura/mapa-recarga-web.md:56 '`shared/logger.ts` | 6' (maior da tabela) e :57 '`domain/cartao.ts` | 4'. Paths sem o prefixo src/, mas identificam inequivocamente os nós."
+    },
+    {
+      "text": "O documento não contém o conteúdo bruto do grafo (nenhuma ocorrência de \"fingerprint\" nem de um bloco JSON com as chaves \"nodes\"/\"edges\") e `git -C <alvo> status --porcelain -- src/` sai vazio",
+      "passed": true,
+      "evidence": "`git -C work status --porcelain -- src/` saiu vazio (rc=0; 11 arquivos de src rastreados no commit da fixture); `grep -c fingerprint` = 0; `grep -cE '\"(nodes|edges)\"'` = 0."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 2,
+    "total": 6,
+    "pass_rate": 0.67
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O documento NÃO lista como violação os imports de src/domain/cartao.ts ou src/domain/recarga.ts para src/contracts/eventos-recarga.ts (menção como permitido pela ADR-0003/regra do projeto é aceitável)",
+        "reason": "Não discriminante: o without_skill passou sem citar ADR-0003 no documento; a asserção só verifica ausência. Considerar exigir menção explícita da exceção como permitida."
+      },
+      {
+        "assertion": "O documento não contém o conteúdo bruto do grafo (nenhuma ocorrência de \"fingerprint\" nem de um bloco JSON com as chaves \"nodes\"/\"edges\") e `git -C <alvo> status --porcelain -- src/` sai vazio",
+        "reason": "Trivialmente satisfeita pelos dois lados (git status de src vazio e sem dump); não diferencia as configurações."
+      },
+      {
+        "reason": "Nenhuma asserção cobre a seção de fluxos de dependência entre camadas, que o expected_output exige."
+      }
+    ],
+    "overall": "As asserções 2 e 3 são as que discriminam; o resto passa para ambos."
+  }
+}

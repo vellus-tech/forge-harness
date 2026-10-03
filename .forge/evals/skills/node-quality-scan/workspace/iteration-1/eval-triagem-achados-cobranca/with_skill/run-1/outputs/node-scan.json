@@ -1,0 +1,7 @@
+{"skill":"node-quality-scan","root":"<worktree-do-eval>/.forge/evals/skills/node-quality-scan/workspace/iteration-1/eval-triagem-achados-cobranca/with_skill/run-1/work","engine":"rg","findings":[
+{"rule":"floating-promise","severity":"HIGH","count":1,"why":"promise sem .catch() correspondente perde a rejeição em silêncio (fire-and-forget não intencional)"},
+{"rule":"sync-fs-blocking","severity":"BLOCKER","count":1,"why":"chamada síncrona de fs bloqueia o event loop inteiro — todo request concorrente espera"},
+{"rule":"sql-interpolation","severity":"BLOCKER","count":1,"why":"template literal interpolado em query é injeção de SQL; use placeholder parametrizado ($1, ?) do driver"},
+{"rule":"new-pg-client","severity":"HIGH","count":1,"why":"Pool/Client instanciado fora de um módulo de bootstrap de banco esgota conexões por instância descartada"},
+{"rule":"single-impl-interface","severity":"MEDIUM","count":1,"why":"interface com implementação única"}
+],"total":5}

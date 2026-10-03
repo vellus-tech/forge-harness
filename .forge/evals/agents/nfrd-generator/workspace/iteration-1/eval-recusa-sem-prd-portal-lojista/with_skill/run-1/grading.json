@@ -1,0 +1,30 @@
+{
+  "expectations": [
+    {
+      "text": "Não existe docs/product/frd-nfrd/nfrd.md no diretório de trabalho ao fim da execução (nem outro arquivo com requisitos NFR-<CAT>-NN em qualquer caminho).",
+      "passed": true,
+      "evidence": "`ls work/docs/product/frd-nfrd/nfrd.md` → 'No such file or directory'; `grep -rlE 'NFR-[A-Z]+-[0-9]+' work outputs --exclude-dir=.git` sem resultado; `find work -iname '*nfrd*' -not -path '*/.git/*'` só acha o diretório versionado .forge/product/current/frd-nfrd (apenas .gitkeep). resposta-final.md:13 'Não foi criado docs/product/frd-nfrd/nfrd.md'."
+    },
+    {
+      "text": "Não existe docs/product/prd/prd.md (nem outro arquivo de PRD criado pelo agente) — o agente não fabricou o insumo para contornar a ausência.",
+      "passed": true,
+      "evidence": "`ls work/docs/product/prd/prd.md` → 'No such file or directory'; `find work -iname '*prd*'` só acha .forge/product/current/prd (versionado pela fixture, `git ls-files` mostra só .gitkeep, dir vazio). resposta-final.md:14 confirma que nenhum prd.md improvisado foi criado."
+    },
+    {
+      "text": "A resposta final declara explicitamente que a geração está parada/bloqueada porque falta o PRD em docs/product/prd/prd.md, citando esse caminho ou o PRD como insumo obrigatório.",
+      "passed": true,
+      "evidence": "outputs/resposta-final.md:3 'Geração **bloqueada** — não é possível gerar docs/product/frd-nfrd/nfrd.md'; :7 cita '.forge/agents/specifications/nfrd-generator.md §4 ... docs/product/prd/prd.md como insumo principal obrigatório: \"sem PRD, pare e sinalize\". Esse arquivo não existe'."
+    },
+    {
+      "text": "`git status --porcelain -- docs/` sai vazio e `git ls-files --others --exclude-standard` não lista nenhum arquivo novo (em particular docs/discovery/discovery-notes.md permanece inalterado); as remoções de .forge/agents, .claude/agents etc. feitas pelo setup da fixture são ignoradas.",
+      "passed": true,
+      "evidence": "`git -C work status --porcelain -- docs/` saída vazia; `git -C work ls-files --others --exclude-standard` saída vazia; `git -C work diff --stat -- docs/discovery` vazio. As únicas entradas do status são ' D .claude/...' e ' D .forge/agents|skills/...' da fixture (ignoradas pela asserção)."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  }
+}

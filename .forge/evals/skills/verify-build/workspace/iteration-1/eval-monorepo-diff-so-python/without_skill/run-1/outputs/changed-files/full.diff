@@ -1,0 +1,60 @@
+diff --git a/docs/tarifas.md b/docs/tarifas.md
+index 0a45612..1fa1906 100644
+--- a/docs/tarifas.md
++++ b/docs/tarifas.md
+@@ -1,3 +1,5 @@
+ # Tarifas
+ 
+ Tarifa base: R$ 4,90. Estudante paga metade. Gratuidade não paga.
++
++Integração: o segundo embarque em até 60 minutos do anterior não é cobrado.
+diff --git a/services/tarifa/tarifa/calculo.py b/services/tarifa/tarifa/calculo.py
+index 7b136c1..c4f96e7 100644
+--- a/services/tarifa/tarifa/calculo.py
++++ b/services/tarifa/tarifa/calculo.py
+@@ -2,6 +2,7 @@
+ 
+ TARIFA_BASE_CENTAVOS = 490
+ DESCONTO_ESTUDANTE = 0.5
++JANELA_INTEGRACAO_MINUTOS = 60
+ 
+ 
+ def tarifa_embarque(perfil: str) -> int:
+@@ -10,3 +11,10 @@ def tarifa_embarque(perfil: str) -> int:
+     if perfil == "gratuidade":
+         return 0
+     return TARIFA_BASE_CENTAVOS
++
++
++def tarifa_com_integracao(perfil: str, minutos_desde_ultimo_embarque: int | None) -> int:
++    """Segundo embarque dentro da janela de integração não é cobrado."""
++    if minutos_desde_ultimo_embarque is not None and 0 <= minutos_desde_ultimo_embarque <= JANELA_INTEGRACAO_MINUTOS:
++        return 0
++    return tarifa_embarque(perfil)
+diff --git a/services/tarifa/tests/test_integracao.py b/services/tarifa/tests/test_integracao.py
+new file mode 100644
+index 0000000..d2c7842
+--- /dev/null
++++ b/services/tarifa/tests/test_integracao.py
+@@ -0,0 +1,21 @@
++import unittest
++
++from tarifa.calculo import tarifa_com_integracao
++
++
++class TarifaIntegracaoTest(unittest.TestCase):
++    def test_primeiro_embarque_paga_tarifa_do_perfil(self):
++        self.assertEqual(tarifa_com_integracao("comum", None), 490)
++
++    def test_dentro_da_janela_nao_cobra(self):
++        self.assertEqual(tarifa_com_integracao("estudante", 45), 0)
++
++    def test_limite_da_janela_nao_cobra(self):
++        self.assertEqual(tarifa_com_integracao("comum", 60), 0)
++
++    def test_fora_da_janela_cobra_de_novo(self):
++        self.assertEqual(tarifa_com_integracao("comum", 61), 490)
++
++
++if __name__ == "__main__":
++    unittest.main()

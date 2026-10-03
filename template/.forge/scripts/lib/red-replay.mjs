@@ -51,6 +51,20 @@
 // casa com failure_pattern quando declarado; (5) a saída MENCIONA o test_id declarado — o caso
 // que falhou precisa ser o caso declarado, não uma falha histórica adjacente que por acaso casa
 // com o padrão (Furo 2). Qualquer ausência aborta com motivo nomeado — ver replay() abaixo.
+//
+// Issue #150 — uma âncora (failure_pattern) NULA ou VAZIA casava com QUALQUER falha na base
+// (matchesPattern devolvia true sem padrão nenhum), então uma base que falhasse por um motivo
+// adjacente ao defeito relatado — não o defeito em si — virava 'observed' sem prova nenhuma de
+// que ela seria capaz de ficar verde. Dois reforços, nenhum deles mexe no schema (record já
+// exige failure_pattern; um `null` só chega aqui por um artefato legado ou editado à mão):
+//   (a) matchesPattern agora recusa (devolve false) padrão nulo/vazio — a ausência de âncora
+//       nunca mais "casa com tudo"; o item (4) acima passa a distinguir "diverge do padrão
+//       declarado" (fail, ruleItem '4') de "não há padrão declarado" (not-possible, item 3 do
+//       corpo da issue: âncora que não amarra nada é defeito do TESTE).
+//   (b) positive_control (opcional, DA-13): um comando que precisa PASSAR na mesma árvore base,
+//       na mesma corrida — prova, por execução, que a base seria capaz de ficar verde antes de
+//       aceitar a falha do comando declarado como o defeito relatado. Falhando, not-possible com
+//       a saída do controle no excerpt, mesmo que o comando declarado também falhe na base.
 import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -466,8 +480,12 @@ function normalizeExcerpt(text, worktreeDirs = []) {
   return out;
 }
 
-function matchesPattern(output, pattern) {
-  if (!pattern) return true;
+// matchesPattern: issue #150 — padrão nulo/vazio NUNCA casa (antes devolvia `true`, o que fazia
+// qualquer falha na base — inclusive uma falha adjacente ao defeito relatado — parecer uma
+// âncora satisfeita). O chamador (replay(), abaixo) distingue essa ausência de um mismatch
+// genuíno para dar o veredito certo (not-possible vs fail item 4).
+export function matchesPattern(output, pattern) {
+  if (pattern === null || pattern === undefined || pattern === '') return false;
   try { return new RegExp(pattern).test(output); }
   catch { return output.includes(pattern); }
 }
@@ -539,6 +557,7 @@ export async function replay({ root, evidence, timeoutS = DEFAULT_TIMEOUT_S }) {
   const fixFiles = (evidence && evidence.fix_files) || [];
   const failurePattern = evidence && evidence.failure_pattern;
   const setupCommand = (evidence && evidence.setup_command) || null;
+  const positiveControl = (evidence && evidence.positive_control) || null;
 
   const replayHead = currentHeadSha(root);
   const finish = (obj) => ({ replay_head: replayHead, ...obj });
@@ -636,6 +655,31 @@ export async function replay({ root, evidence, timeoutS = DEFAULT_TIMEOUT_S }) {
       return finish({ verdict: 'not-possible', reason: `ambiente do worktree incompleto — ${baseSetup.reason} na base (declare setup_command correto ou dispense com /forge:red waive)`, strategy: effective.strategy });
     }
 
+    // ── positive_control (issue #150, opcional — DA-13) ─────────────────────────────────
+    // Roda ANTES do comando declarado, na MESMA árvore base e na mesma corrida: prova, por
+    // execução real, que a base é capaz de passar em ALGO antes de aceitar a falha do comando
+    // declarado como o defeito relatado. Falhando (ou indeterminado), not-possible — nunca deixa
+    // o comando declarado decidir sozinho quando não há prova de que a base seria capaz de ficar
+    // verde (item 3 do corpo da issue: a âncora que não amarra nada é defeito do teste).
+    if (positiveControl) {
+      const pcRun = await runTest({ cwd: baseDir, command: positiveControl, timeoutS });
+      if (pcRun.indeterminate) {
+        return finish({ verdict: 'not-possible', reason: 'positive_control com resultado indeterminado na base (sinal externo/erro de spawn)', strategy: effective.strategy });
+      }
+      if (pcRun.exitCode !== 0) {
+        const pcExcerpt = truncateExcerpt(normalizeExcerpt(pcRun.output, [baseDir, headDir]));
+        return finish({
+          verdict: 'not-possible',
+          reason: 'positive_control declarado falha na base — sem prova de que a base seria capaz de ficar verde, a falha do comando declarado não comprova o defeito relatado (item 3 do corpo da issue #150)',
+          strategy: effective.strategy,
+          // classification fica null (não 'behavioral'/'build-error'/'unknown' — nenhum descreve
+          // a falha de um positive_control, que não é o teste declarado) — só o excerpt do
+          // controle importa aqui, para o auditor ver por que a base foi recusada.
+          diagnostic: { classification: null, excerpt: pcExcerpt },
+        });
+      }
+    }
+
     const baseRun = await runTest({ cwd: baseDir, command, timeoutS });
     if (baseRun.indeterminate) {
       return finish({ verdict: 'not-possible', reason: 'ambiente do worktree incompleto — execução indeterminada na base (sinal externo/erro de spawn)', strategy: effective.strategy });
@@ -655,6 +699,17 @@ export async function replay({ root, evidence, timeoutS = DEFAULT_TIMEOUT_S }) {
       });
     }
     if (!matchesPattern(baseRun.output, failurePattern)) {
+      // issue #150 — failure_pattern ausente/vazio é distinto de um mismatch genuíno: uma âncora
+      // que não amarra nada nunca comprova o defeito relatado, então o veredito é not-possible
+      // (defeito do TESTE — precisa de /forge:red record com failure_pattern declarado), não um
+      // fail de item 4 (que pressupõe um padrão declarado que a saída real não corresponde).
+      if (!failurePattern) {
+        return finish({
+          verdict: 'not-possible',
+          reason: 'failure_pattern ausente ou vazio na evidência — uma âncora vazia aceitaria qualquer falha na base como se fosse o defeito relatado (item 3 do corpo da issue #150: a âncora que não amarra nada é defeito do TESTE, que afirma o CAMINHO da falha, não só o resultado). Declare failure_pattern com /forge:red record antes de replay',
+          strategy: effective.strategy, base: baseInfo, base_result: 'failed', diagnostic: { classification, excerpt },
+        });
+      }
       return finish({
         verdict: 'fail', ruleItem: '4',
         reason: `saída da falha diverge do failure_pattern declarado ('${failurePattern}') (item 4)`,
@@ -692,4 +747,237 @@ export async function replay({ root, evidence, timeoutS = DEFAULT_TIMEOUT_S }) {
     removeWorktree(root, baseDir);
     removeWorktree(root, headDir);
   }
+}
+
+// ── replayTask (issue #156) ─────────────────────────────────────────────────────────────────────
+// O vermelho do TDD de uma TASK delegada, provado por execução. Mesmo motor do replay acima
+// (worktree git efêmero, um comando, timeout explícito, classificador de falha), sem derivar base:
+// o chamador aponta os dois commits — o de vermelho e o de implementação (verde).
+//
+// Invariante: o TESTE DO VERDE falha sobre a árvore do vermelho por asserção (rc ≠ 0, saída
+// classificada como 'behavioral' — nunca 'build-error' nem 'unknown' — e casando failure_pattern)
+// e passa sobre a árvore do verde. Cinco regras sustentam isso:
+//
+//   (1) ENXERTO — os arquivos de teste (convenção de isTestPath) que diferem entre vermelho e verde
+//       são materializados na árvore do vermelho na versão do verde (apagados, se o verde os
+//       apagou), como o graftTest do replay de bugfix. O teste fica fixo; o vermelho só pode
+//       diferir do verde na implementação. Fecha o vermelho que traz a implementação completa com
+//       um teste forjado (expectativa errada, assert.fail() incondicional, fixture ou snapshot
+//       adulterado) que o verde só corrige.
+//   (2) INFRAESTRUTURA — o commit de vermelho não pode tocar arquivo de infraestrutura
+//       (isInfraPath: manifesto, lockfile, config de build/teste, scripts/, CI, dotfiles, e todo
+//       arquivo citado pelo comando do teste ou do setup). Arquivo de teste é enxertado; arquivo
+//       de produção (stub) é permitido; infraestrutura reprova com [vermelho-infra]. Fecha o
+//       vermelho que sabota setup, package.json ou config de teste para falhar e o verde reverte.
+//   (3) TOPOLOGIA — com --green: o verde tem exatamente um pai, e ele é o vermelho (nada entre os
+//       dois, nada depois do verde se o chamador passa o HEAD da TASK); com --task-base: o pai do
+//       vermelho é o início da TASK (nada da TASK antes do vermelho); com --task-id: o assunto do
+//       vermelho contém "<TASK> — vermelho" e o do verde contém "<TASK> — " sem "vermelho".
+//   (4) VERDE VAZIO — depois do enxerto e antes de rodar o teste no vermelho: se vermelho e verde
+//       não diferem em nenhum arquivo fora da convenção de teste (git diff --name-only entre os dois
+//       commits, filtrado por isTestPath), as duas árvores são iguais e o verde não implementa nada.
+//       Reprova com [vermelho-vazio], sem gastar execução: qualquer falha do vermelho viria do
+//       ambiente, não do código (teste que lê o assunto do commit, que grava um arquivo fora da
+//       worktree na primeira execução e passa na segunda). A checagem prova que o verde muda algum
+//       arquivo de produção, não que a mudança é a causa do verde.
+//   (5) CLASSIFICAÇÃO — a mesma política do replay de bugfix: só 'behavioral' com padrão casado é
+//       vermelho. 'build-error' reprova com [vermelho-compilacao]; 'unknown' (nenhuma assinatura de
+//       framework de asserção) reprova com [vermelho-padrao].
+//
+// Limites declarados — o que isto NÃO detecta, de propósito (execução não distingue; fica para a
+// revisão do diff e para o gate humano do plano):
+//   - stub que imprime 'AssertionError' e chama process.exit(1): a saída casa a assinatura e o
+//     padrão sem asserção nenhuma ter rodado;
+//   - comando do plano que roda outro teste (ou nenhum, ex.: `grep -q ... || exit 1`): o comando
+//     vem do plano, que passa por gate humano;
+//   - lógica num arquivo de produção que o teste declarado não exercita: o vermelho pode trazê-la
+//     inteira sem que o teste perceba;
+//   - sabotagem em src/ que o verde remove: lógica quebrada de propósito num arquivo de produção do
+//     vermelho é indistinguível de um stub por execução — não há classificação "stub vs lógica".
+//
+// Sem --green, roda só o vermelho com o teste do PRÓPRIO vermelho — pré-checagem, sem enxerto nem
+// topologia, que não prova o TDD; o OK diz isso. A prova é sempre com --green.
+//
+// Devolve { ok, stage, code, reason, excerpt? }. `code` é o token estável que o gate w242 confere:
+// entrada | topologia | vermelho-infra | vermelho-vazio | vermelho-ambiente | vermelho-indeterminado |
+// vermelho-timeout | vermelho-passa | vermelho-compilacao | vermelho-padrao | verde-ambiente |
+// verde-indeterminado | verde-timeout | verde-falha.
+
+// Convenção de arquivo de teste — a mesma serve para o enxerto e para a regra de infraestrutura.
+// Diretório: qualquer segmento do caminho é um nome de pasta de teste ou de material de teste
+// (test/, tests/, __tests__/, spec/, e2e/, testdata/, fixtures/, test-utils/, testutil(s)/, testing/,
+// support/, golden/, snapshots/...) ou um projeto de teste .NET/Java (Money.Tests/, foo-tests/,
+// Bar.UnitTests/). Nome: *.test.*, *.spec.*, *_test.*, *_spec.*, test_*.py, conftest.py, *.snap,
+// FooTest(s).cs/.java/.kt..., FooSpec.scala, FooIT.java. A convenção é larga de propósito: tudo o
+// que ela reconhece é enxertado do verde, então ampliá-la só torna o enxerto mais rigoroso.
+const TEST_DIR_SEGMENTS = new Set([
+  'test', 'tests', '__tests__', '__mocks__', '__snapshots__', '__fixtures__', 'spec', 'testdata', 'e2e',
+  'fixtures', 'test-utils', 'testutil', 'testutils', 'testing', 'support', 'golden', 'snapshots',
+]);
+const TEST_PROJECT_DIR_RE = /[.\-_](?:unit|integration|functional|e2e)?tests?$/i;
+const TEST_BASENAME_RES = [
+  /\.(?:test|spec)\.[^/]+$/i,
+  /_(?:test|spec)\.[^./]+$/i,
+  /^test_[^/]*\.py$/i,
+  /^conftest\.py$/,
+  /\.snap$/i,
+  /(?:Tests?|Spec|IT)\.(?:java|kt|kts|cs|fs|vb|scala|groovy|swift|php)$/,
+];
+export function isTestPath(p) {
+  const segs = String(p).split('/');
+  const base = segs.pop();
+  if (segs.some((s) => TEST_DIR_SEGMENTS.has(s.toLowerCase()) || TEST_PROJECT_DIR_RE.test(s))) return true;
+  return TEST_BASENAME_RES.some((re) => re.test(base));
+}
+
+// Convenção de infraestrutura — o que o vermelho não pode tocar (nunca avaliada para arquivo de
+// teste, que é enxertado do verde). Inclui todo arquivo citado literalmente pelo comando do teste
+// ou do setup (ex.: `bash run-tests.sh`).
+const INFRA_DIR_SEGMENTS = new Set(['scripts', 'ci']);
+const INFRA_BASENAMES = new Set([
+  'package.json', 'package-lock.json', 'npm-shrinkwrap.json', 'yarn.lock', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'bun.lockb',
+  'Makefile', 'makefile', 'GNUmakefile', 'Dockerfile', 'Containerfile', 'Justfile', 'justfile', 'Taskfile.yml',
+  'go.mod', 'go.sum', 'go.work', 'Cargo.toml', 'Cargo.lock',
+  'pyproject.toml', 'setup.py', 'setup.cfg', 'tox.ini', 'pytest.ini', 'noxfile.py', 'Pipfile', 'Pipfile.lock', 'poetry.lock', 'uv.lock',
+  'pom.xml', 'gradle.properties', 'gradlew', 'gradlew.bat', 'build.xml', 'build.sbt',
+  'global.json', 'nuget.config', 'NuGet.Config', 'Gemfile', 'Gemfile.lock', 'Rakefile', 'composer.json', 'composer.lock', 'CMakeLists.txt',
+]);
+const INFRA_BASENAME_RES = [
+  /\.config\.[cm]?[jt]sx?$/i,               // jest/vitest/vite/babel/webpack/playwright.config.*
+  /^tsconfig.*\.json$/i, /^jsconfig.*\.json$/i,
+  /^requirements.*\.txt$/i,
+  /^(?:jest|vitest|karma|mocha|babel)[.\-_]/i,  // jest.setup.js, karma.conf.js, babel.config...
+  /^(?:setup|test)[-_]?(?:tests?|setup)\.[^/]+$/i, // setupTests.ts, test-setup.js
+  /\.(?:csproj|fsproj|vbproj|sln|props|targets|runsettings|cmake|gradle|gradle\.kts|mk)$/i,
+  /^docker-compose.*\.ya?ml$/i, /^compose\.ya?ml$/i,
+];
+function commandPaths(...commands) {
+  const out = new Set();
+  for (const c of commands) {
+    if (!c) continue;
+    for (const tok of String(c).split(/[\s'"`;&|()<>=]+/)) {
+      const t = tok.replace(/^\.\//, '');
+      if (t) out.add(t);
+    }
+  }
+  return out;
+}
+export function isInfraPath(p, cmdPaths = new Set()) {
+  const s = String(p);
+  if (cmdPaths.has(s)) return true;
+  const segs = s.split('/');
+  const base = segs[segs.length - 1];
+  if (segs.some((seg) => seg.startsWith('.') || INFRA_DIR_SEGMENTS.has(seg.toLowerCase()))) return true;
+  return INFRA_BASENAMES.has(base) || INFRA_BASENAME_RES.some((re) => re.test(base));
+}
+
+function splitZ(out) { return String(out || '').split('\0').filter(Boolean); }
+
+// graftTaskTests: materializa na árvore do vermelho os arquivos de teste do verde — só os que
+// diferem entre os dois commits; os iguais já estão lá. Arquivo de teste que o verde apagou some
+// da árvore do vermelho. Preserva o bit de execução. Devolve a lista de caminhos enxertados.
+function graftTaskTests(root, dir, redSha, graftFrom) {
+  const changed = splitZ(git(root, ['diff', '--name-only', '--no-renames', '-z', redSha, graftFrom])).filter(isTestPath);
+  for (const p of changed) {
+    const dest = join(dir, p);
+    let entry = '';
+    try { entry = git(root, ['ls-tree', '-z', graftFrom, '--', p]).replace(/\0$/, '').trim(); } catch { entry = ''; }
+    if (!entry) { rmSync(dest, { force: true }); continue; }
+    const mode = entry.split(/\s+/)[0];
+    const content = execFileSync('git', ['-C', root, 'show', `${graftFrom}:${p}`], { maxBuffer: MAX_BUFFER_BYTES });
+    mkdirSync(dirname(dest), { recursive: true });
+    rmSync(dest, { force: true });
+    writeFileSync(dest, content, { mode: mode === '100755' ? 0o755 : 0o644 });
+  }
+  return changed;
+}
+
+export async function replayTask({ root, red, green = null, taskBase = null, taskId = null, command, failurePattern, setupCommand = null, timeoutS = DEFAULT_TIMEOUT_S }) {
+  const bad = (code, reason) => ({ ok: false, stage: 'entrada', code, reason });
+  if (!command) return bad('entrada', '--command ausente — declare o comando do teste na TASK do plano');
+  if (!failurePattern) return bad('entrada', '--failure-pattern ausente ou vazio — sem a assinatura da asserção, qualquer falha passaria por vermelho');
+  const resolveRef = (ref) => { try { return git(root, ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`]).trim(); } catch { return null; } };
+  const parentsOf = (sha) => git(root, ['rev-list', '--parents', '-n', '1', sha]).trim().split(/\s+/).slice(1);
+  const subjectOf = (sha) => git(root, ['log', '-1', '--format=%s', sha]).trim();
+  const topo = (reason) => ({ ok: false, stage: 'topologia', code: 'topologia', reason });
+
+  const redSha = red ? resolveRef(red) : null;
+  if (!redSha) return bad('entrada', `--red '${red || ''}' não resolve a um commit`);
+  let greenSha = null;
+  if (green) {
+    greenSha = resolveRef(green);
+    if (!greenSha) return bad('entrada', `--green '${green}' não resolve a um commit`);
+    if (greenSha === redSha) return bad('entrada', 'verde e vermelho são o mesmo commit — falta o commit de implementação');
+    const parents = parentsOf(greenSha);
+    if (parents.length !== 1 || parents[0] !== redSha) {
+      const between = isAncestorOrEqual(root, redSha, greenSha) ? git(root, ['rev-list', '--count', `${redSha}..${greenSha}`]).trim() : null;
+      return topo(between === null
+        ? 'o commit de vermelho não é ancestral do verde'
+        : `o vermelho tem de ser o pai direto do verde (o HEAD da TASK) — há ${Number(between) - 1} commit(s) entre eles ou depois do commit de implementação`);
+    }
+  }
+  if (taskBase) {
+    const baseSha = resolveRef(taskBase);
+    if (!baseSha) return bad('entrada', `--task-base '${taskBase}' não resolve a um commit`);
+    const rp = parentsOf(redSha);
+    if (rp.length !== 1 || rp[0] !== baseSha) return topo('o pai do vermelho não é o início da TASK (--task-base) — há commit(s) da TASK antes do vermelho');
+  }
+  if (taskId) {
+    if (!subjectOf(redSha).includes(`${taskId} — vermelho`)) return topo(`o assunto do commit de vermelho não contém '${taskId} — vermelho'`);
+    if (greenSha) {
+      const gs = subjectOf(greenSha);
+      if (!gs.includes(`${taskId} — `) || gs.includes('vermelho')) return topo(`o commit de implementação não é da ${taskId} (assunto: '${gs}')`);
+    }
+  }
+
+  const touched = splitZ(git(root, ['diff-tree', '--root', '--no-commit-id', '-r', '--name-only', '--no-renames', '-z', redSha]));
+  const cmdPaths = commandPaths(command, setupCommand);
+  const infraTouched = touched.filter((p) => !isTestPath(p) && isInfraPath(p, cmdPaths));
+  if (infraTouched.length) {
+    return { ok: false, stage: 'vermelho', code: 'vermelho-infra', reason: `o commit de vermelho toca infraestrutura (${infraTouched.join(', ')}) — o vermelho só pode trazer testes e stubs de produção; mudança de setup, manifesto ou config de teste vai numa TASK própria` };
+  }
+
+  const runAt = async (sha, graftFrom) => {
+    let dir = null;
+    try {
+      try { dir = addWorktree(root, sha); }
+      catch (e) { return { setupFail: `worktree falhou: ${(e.stderr || e.message || '').toString().trim()}` }; }
+      if (graftFrom) {
+        try { graftTaskTests(root, dir, redSha, graftFrom); }
+        catch (e) { return { setupFail: `enxerto dos testes do verde falhou (${e.message})` }; }
+        // Regra (4): depois do enxerto, a árvore do vermelho só difere da do verde nos arquivos de
+        // produção que o verde muda. Nenhum ⇒ árvores iguais ⇒ não roda o teste.
+        const implChanged = splitZ(git(root, ['diff', '--name-only', '--no-renames', '-z', redSha, graftFrom])).filter((p) => !isTestPath(p));
+        if (!implChanged.length) return { emptyGreen: true };
+      }
+      const setup = await runSetup({ cwd: dir, setupCommand, timeoutS });
+      if (!setup.ok) return { setupFail: setup.reason };
+      const run = await runTest({ cwd: dir, command, timeoutS });
+      return { ...run, excerpt: truncateExcerpt(normalizeExcerpt(run.output, [dir])) };
+    } finally {
+      removeWorktree(root, dir);
+    }
+  };
+
+  const redRun = await runAt(redSha, greenSha);
+  const redFail = (code, reason) => ({ ok: false, stage: 'vermelho', code, reason, excerpt: redRun.excerpt });
+  if (redRun.emptyGreen) return redFail('vermelho-vazio', 'vermelho e verde são idênticos fora dos arquivos de teste — o verde não implementa nada; a falha do vermelho pode vir do ambiente (assunto do commit, arquivo fora da worktree), não do código');
+  if (redRun.setupFail) return redFail('vermelho-ambiente', `ambiente do worktree no vermelho — ${redRun.setupFail}`);
+  if (redRun.indeterminate) return redFail('vermelho-indeterminado', 'execução indeterminada no vermelho (sinal externo/erro de spawn)');
+  if (redRun.timedOut) return redFail('vermelho-timeout', `o teste estourou o timeout de ${timeoutS}s no vermelho — timeout não é falha por asserção`);
+  if (redRun.exitCode === 0) return redFail('vermelho-passa', `o teste${greenSha ? ' do verde' : ''} PASSA sobre a implementação do vermelho — o vermelho já traz a lógica que o satisfaz, ou o teste não testa nada`);
+  const redClass = classify(redRun.output);
+  if (redClass === 'build-error') return redFail('vermelho-compilacao', 'o teste falha por compilação/import/símbolo ausente no vermelho, não por asserção — use stub ou tipo vazio para o teste compilar');
+  if (redClass !== 'behavioral') return redFail('vermelho-padrao', `a falha no vermelho não tem assinatura de asserção reconhecida (classificação: ${redClass}) — exceção ou erro de execução não é vermelho`);
+  if (!matchesPattern(redRun.output, failurePattern)) return redFail('vermelho-padrao', `a falha no vermelho não casa o failure-pattern declarado ('${failurePattern}') — não é a asserção esperada`);
+
+  if (!greenSha) return { ok: true, stage: 'vermelho', code: 'ok', reason: `pré-checagem: vermelho ${redSha.slice(0, 12)} falha por asserção com o próprio teste (sem --green: sem enxerto nem topologia — não prova o TDD)`, excerpt: redRun.excerpt };
+
+  const greenRun = await runAt(greenSha, null);
+  const greenFail = (code, reason) => ({ ok: false, stage: 'verde', code, reason, excerpt: greenRun.excerpt });
+  if (greenRun.setupFail) return greenFail('verde-ambiente', `ambiente do worktree no verde — ${greenRun.setupFail}`);
+  if (greenRun.indeterminate) return greenFail('verde-indeterminado', 'execução indeterminada no verde (sinal externo/erro de spawn)');
+  if (greenRun.timedOut) return greenFail('verde-timeout', `o teste estourou o timeout de ${timeoutS}s no verde`);
+  if (greenRun.exitCode !== 0) return greenFail('verde-falha', 'o teste NÃO passa no commit de implementação');
+  return { ok: true, stage: 'verde', code: 'ok', reason: `teste do verde falha por asserção sobre o vermelho ${redSha.slice(0, 12)} (classificação: ${redClass}) e passa no verde ${greenSha.slice(0, 12)}` };
 }

@@ -1,0 +1,60 @@
+{
+  "expectations": [
+    {
+      "text": "Existe docs/product/ddd/ddd-validation-report.md com seção de Parecer Final cuja classificação é exatamente um dos três valores do contrato (Aprovado / Aprovado com Ressalvas / Reprovado) e o valor emitido é Reprovado, coerente com a existência de achado Crítico.",
+      "passed": false,
+      "evidence": "Comando: ls work/docs/product/ddd → bounded-contexts, context-map, ddd-segmentation.md, diagrams, subdomains; git status mostra só recarga/README.md modificado. Não existe docs/product/ddd/ddd-validation-report.md; o relatório foi gravado em outputs/relatorio-validacao.md e o veredito é em prosa ('Não dá para seguir...', l.5), sem Parecer Final com os três valores do contrato."
+    },
+    {
+      "text": "docs/product/ddd/bounded-contexts/carteira/README.md não contém mais a sigla 'VO' isolada e descreve `Saldo` como 'objeto de valor'; o relatório tem a seção Ajustes Aplicados com uma linha de ID no formato ADJ-DDD-NNN descrevendo essa troca.",
+      "passed": false,
+      "evidence": "Comando: grep -nw 'VO' work/docs/product/ddd/bounded-contexts/carteira/README.md → l.7 '`Saldo` é VO imutável em centavos' (rc=0). A troca não foi feita e não há seção Ajustes Aplicados nem ID ADJ-DDD-NNN no relatório."
+    },
+    {
+      "text": "docs/product/ddd/bounded-contexts/recarga/README.md passa a declarar o evento publicado como `RecargaConfirmada` (não mais `ConfirmarRecarga`), e o relatório registra essa correção em Ajustes Aplicados (ADJ-DDD-NNN) ou no Event Storming com status Corrigido.",
+      "passed": false,
+      "evidence": "A metade do arquivo passa: work/.../recarga/README.md l.9 declara '`RecargaConfirmada` v1' (git diff confirma). Mas o registro exigido falha: outputs/relatorio-validacao.md não tem seção Ajustes Aplicados nem ID ADJ-DDD-NNN (grep 'ADJ-DDD' → 0); a correção aparece só como '### 3. Nome do evento publicado pela Recarga estava trocado pelo comando' (l.35), sem status Corrigido em Event Storming."
+    },
+    {
+      "text": "A tabela de Achados do relatório tem pelo menos uma linha com ID FIND-DDD-NNN e severidade Crítica apontando a escrita do Recarga na tabela `carteira` (dono de escrita múltiplo) e/ou o JOIN entre `recarga.recarga` e `carteira.movimentacao`, citando FR-03 ou ADR-0002 como evidência.",
+      "passed": false,
+      "evidence": "outputs/relatorio-validacao.md identifica corretamente a escrita cruzada (l.9-23, cita FR-03 e ADR-0002) e o JOIN (l.25-31), mas como 'Achados bloqueantes' sem tabela de Achados, sem ID FIND-DDD-NNN e sem severidade 'Crítica' (grep 'FIND-DDD\\|Crítica' → 0). O conteúdo está certo; o formato exigido pela asserção não."
+    },
+    {
+      "text": "O relatório contém a 'Tabela de Completude Documental' com linhas para Subdomínios Core, Supporting, Generic e Bounded Contexts (Confirmar), colunas Esperado/Encontrado/Faltando/Excedente, e a tabela de Estrutura e Visualização marcando `diagrams/index.html` e os três arquivos C4 como presentes.",
+      "passed": false,
+      "evidence": "Comando: grep -n 'Completude\\|Excedente\\|index.html' outputs/relatorio-validacao.md → nenhuma linha. Não há Tabela de Completude Documental nem tabela de Estrutura e Visualização."
+    },
+    {
+      "text": "git diff -- docs/product/prd docs/product/frd-nfrd docs/product/trd docs/product/adr no diretório do projeto não mostra nenhuma alteração: o agente não editou PRD, FRD, NFRD, TRD nem ADRs.",
+      "passed": true,
+      "evidence": "Comando: git -C without_skill/run-1/work diff --stat -- docs/product/prd docs/product/frd-nfrd docs/product/trd docs/product/adr → saída vazia (rc=0); única alteração em docs/ é bounded-contexts/recarga/README.md."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 5,
+    "total": 6,
+    "pass_rate": 0.1667
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A tabela de Achados do relatório tem pelo menos uma linha com ID FIND-DDD-NNN e severidade Crítica apontando a escrita do Recarga na tabela `carteira` (dono de escrita múltiplo) e/ou o JOIN entre `recarga.recarga` e `carteira.movimentacao`, citando FR-03 ou ADR-0002 como evidência.",
+        "reason": "A asserção aceita a escrita cruzada como Crítica mesmo se o agente 'corrigir' o data model por conta própria (with_skill removeu Recarga como dono de escrita, ADJ-DDD-001, contrariando a justificativa declarada de latência). Se o contrato considera isso decisão arquitetural (como o baseline argumentou), falta asserção de que data-model.md não teve a linha de ownership alterada."
+      },
+      {
+        "assertion": "docs/product/ddd/bounded-contexts/recarga/README.md passa a declarar o evento publicado como `RecargaConfirmada` (não mais `ConfirmarRecarga`), e o relatório registra essa correção em Ajustes Aplicados (ADJ-DDD-NNN) ou no Event Storming com status Corrigido.",
+        "reason": "'não mais ConfirmarRecarga' é ambíguo: o README corrigido ainda contém a string em nota histórica. Especificar 'o campo Eventos publicados declara RecargaConfirmada' para tornar a checagem por grep determinística."
+      },
+      {
+        "reason": "Nenhuma asserção cobre as deleções em massa de .claude/agents e .forge/agents no work/ (idênticas nas duas configurações, provavelmente efeito do harness); convém confirmar a origem para não mascarar escrita indevida do agente."
+      }
+    ],
+    "overall": "Asserções 1-5 são discriminantes (sem a definição do agente, o baseline acerta o conteúdo mas falha no formato contratual). A 6 é satisfeita trivialmente por ambos."
+  },
+  "timing": {
+    "executor_duration_seconds": 408,
+    "total_duration_seconds": 408
+  }
+}

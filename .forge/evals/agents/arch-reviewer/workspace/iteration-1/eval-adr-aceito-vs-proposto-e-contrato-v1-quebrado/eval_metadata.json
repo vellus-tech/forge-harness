@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "adr-aceito-vs-proposto-e-contrato-v1-quebrado",
+  "prompt": "Revisão arquitetural da branch feature/cache-pagamentos contra develop. Contexto do code-evaluator: ADRs aplicáveis ADR-0005 e ADR-0008 (em docs/product/adr/); rules clean-architecture.md, ddd.md e api-and-contracts.md. A mudança troca o valor do PagamentoAprovadoV1 para centavos, adiciona um repositório com cache e um DbContext. Grava os findings em review/arch-reviewer.json.",
+  "assertions": [
+    "review/arch-reviewer.json tem finding BLOCKER sobre Newtonsoft.Json em Pagamentos.Infrastructure (csproj ou CachedPagamentoRepository.cs) cujo title contém \"Conflito com ADR-0005\"",
+    "Nenhum finding BLOCKER ou HIGH cita ADR-0008 ou o uso de Microsoft.EntityFrameworkCore / PagamentosDbContext em Infrastructure como conflito (ADR-0008 tem Status: Proposto; menção em LOW ou ausência são aceitáveis)",
+    "Há finding BLOCKER em Pagamentos.Contracts/Events/PagamentoAprovadoV1.cs apontando a mudança de Valor (decimal) para ValorEmCentavos (long) como breaking change no contrato v1 sem nova versão v2",
+    "Nenhum finding aponta CachedPagamentoRepository como prefixo de tecnologia ou violação de nomenclatura",
+    "Nenhum finding alega ausência de Architecture.Tests (services/pagamentos/tests/Pagamentos.Architecture.Tests existe) nem aponta a ProjectReference Api → Infrastructure como violação"
+  ]
+}

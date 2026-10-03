@@ -1,0 +1,96 @@
+{
+  "skill_name": "using-git-worktrees",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "pix-qrcode-worktree-gitignore-legado",
+      "prompt": "Vou começar a feature de geração de QR Code Pix dinâmico no módulo payments deste repo (axis-payments-api). Prepara um worktree isolado pra essa feature, não quero que nada encoste no meu checkout do main. Estou rodando pelo Codex, então não tem ferramenta nativa de worktree nesta sessão: faz com git mesmo. Deixa tudo pronto pra eu começar a implementar e me diz onde ficou.",
+      "expected_output": "O agente roda a detecção de isolamento (checkout normal no main), cria o worktree pelo fallback git dentro do repo, em .forge/worktrees/<escopo>-<descricao>, com branch no formato feat/payments/<descricao-kebab>. Antes de criar, percebe que o .gitignore legado do projeto não cobre .forge/worktrees/ e adiciona a entrada, de modo que o worktree não polui o git status do checkout principal. O main continua no commit inicial. Roda o setup Node (npm install) e o baseline (npm test, 4 testes verdes) dentro do worktree e fecha com o relatório de três linhas do contrato: caminho completo, contagem de testes e prontidão para a feature.",
+      "files": ["fixtures/pix-qrcode-worktree-gitignore-legado/setup.sh"],
+      "assertions": [
+        {
+          "name": "worktree_sob_forge_worktrees_nao_irmao",
+          "text": "`git worktree list --porcelain` no repositório lista exatamente um worktree além do principal, e o caminho dele é filho direto de <repo>/.forge/worktrees/ com nome em kebab-case contendo ao menos um hífen (padrão <escopo>-<descricao>); nenhum worktree fica fora do repositório (diretório irmão) nem em .worktrees/, .claude/worktrees/ ou similar."
+        },
+        {
+          "name": "branch_no_formato_tipo_escopo_descricao",
+          "text": "A branch do worktree criado casa com a regex ^feat/payments/[a-z0-9]+(-[a-z0-9]+)*$ (tipo Conventional Commits, escopo payments, descrição kebab-case); não é detached, não é feature/<x> nem wt/<x>."
+        },
+        {
+          "name": "gitignore_legado_passa_a_cobrir_worktrees",
+          "text": "O .gitignore do checkout principal passou a conter uma entrada que cobre .forge/worktrees/ (ou .forge/ inteiro): `git check-ignore -q .forge/worktrees/<dir-do-worktree>` retorna 0 e `git status --porcelain` no checkout principal não lista nenhum caminho sob .forge/worktrees/."
+        },
+        {
+          "name": "main_intacto",
+          "text": "No checkout principal, `git branch --show-current` imprime main e `git rev-parse main` é igual ao conteúdo de .git/eval-main-sha (nenhum commit foi feito no main)."
+        },
+        {
+          "name": "relatorio_de_tres_linhas_com_contagem_real",
+          "text": "A resposta final contém as três linhas do contrato: 'Worktree pronto em <caminho absoluto que termina em .forge/worktrees/<dir>>', 'Testes passando (4 testes, 0 falhas)' e 'Pronto para implementar <nome da feature>' — a contagem 4 prova que o baseline foi de fato executado dentro do worktree."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "worktree-destacada-com-commit",
+      "prompt": "Ontem abri uma worktree em .forge/worktrees/agent-tarifa-noturna pra feature de tarifa noturna do módulo fare (desconto entre 22h e 5h) e já deixei um commit lá com o esqueleto em src/fare/night.js. Hoje quero retomar exatamente dali. Entra nessa worktree e deixa o ambiente pronto pra eu continuar a implementação, e me avisa se tiver algo estranho com ela.",
+      "expected_output": "O agente trabalha dentro de .forge/worktrees/agent-tarifa-noturna, detecta pelo Passo 0 (git-dir diferente de git-common-dir, sem superproject) que já está num worktree vinculado e NÃO cria outro. Detecta que o HEAD está destacado, avisa que worktree sem branch não tem o que empurrar, não admite PR e perde o rastro ao ser removida, e dá nome a ela imediatamente com git switch -c <tipo>/<escopo>/<descricao> a partir do HEAD atual, preservando o commit de esqueleto. Depois roda setup e baseline (3 testes verdes) e reporta no formato do contrato.",
+      "files": ["fixtures/worktree-destacada-com-commit/setup.sh"],
+      "assertions": [
+        {
+          "name": "nenhum_worktree_novo_criado",
+          "text": "`git worktree list --porcelain` no repositório lista exatamente dois worktrees: o principal e <repo>/.forge/worktrees/agent-tarifa-noturna (nenhum worktree aninhado ou adicional foi criado)."
+        },
+        {
+          "name": "worktree_destacada_ganhou_branch_nomeada",
+          "text": "Em .forge/worktrees/agent-tarifa-noturna, `git symbolic-ref -q HEAD` retorna 0 (HEAD não está mais destacado) e o nome da branch casa com ^(feat|fix)/[a-z0-9-]+/[a-z0-9]+(-[a-z0-9]+)*$ e não começa com wt/."
+        },
+        {
+          "name": "commit_de_esqueleto_preservado_na_branch",
+          "text": "O SHA gravado em .git/eval-detached-sha é ancestral (ou igual) da ponta da branch nova: `git merge-base --is-ancestor $(cat .git/eval-detached-sha) <branch>` retorna 0, e src/fare/night.js existe no worktree — o commit feito em HEAD destacado não foi abandonado."
+        },
+        {
+          "name": "main_intacto",
+          "text": "No checkout principal, `git branch --show-current` imprime main e `git rev-parse main` é igual ao conteúdo de .git/eval-main-sha."
+        },
+        {
+          "name": "aviso_de_head_destacado_com_consequencia",
+          "text": "A resposta final diz que a worktree já era um workspace isolado e estava com HEAD destacado, cita ao menos uma consequência do contrato (não há o que empurrar / não admite PR / o rastro morre com a árvore) e informa o nome da branch criada."
+        },
+        {
+          "name": "baseline_reportado_com_contagem_real",
+          "text": "A resposta final contém 'Testes passando (3 testes, 0 falhas)' (ou texto equivalente com exatamente 3 testes e 0 falhas), provando que o baseline rodou dentro da worktree."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "baseline-vermelho-para-antes-de-implementar",
+      "prompt": "Preciso do split de tarifa integrada ônibus+metrô no módulo fare do axis-fare-engine: quando o passageiro faz a integração, a receita da tarifa integrada vai 45% para a operadora de ônibus e 55% para o metrô, arredondando o centavo residual para o metrô. Cria um worktree pra isso (sem ferramenta nativa de worktree aqui, usa git) e já implementa a função splitIntegratedFare em src/fare/split.js com os testes. Quero o PR ainda hoje.",
+      "expected_output": "O agente cria o worktree em .forge/worktrees/<escopo>-<descricao> com branch feat/fare/<descricao>, roda o setup e o baseline de testes ANTES de implementar e encontra um teste pré-existente vermelho ('validade expira no fim do dia operacional de São Paulo'). Pelo contrato, não dá para distinguir bug novo de problema pré-existente sem baseline verde: o agente para, reporta a falha pelo nome e pergunta se deve prosseguir ou investigar, sem criar src/fare/split.js, sem commitar e sem declarar testes passando, apesar da pressão de prazo do pedido.",
+      "files": ["fixtures/baseline-vermelho-para-antes-de-implementar/setup.sh"],
+      "assertions": [
+        {
+          "name": "worktree_criado_antes_de_parar",
+          "text": "`git worktree list --porcelain` lista um worktree filho direto de <repo>/.forge/worktrees/ cuja branch casa com ^feat/fare/[a-z0-9]+(-[a-z0-9]+)*$ — o agente chegou ao Passo 3 pelo caminho do contrato antes de parar."
+        },
+        {
+          "name": "implementacao_nao_iniciada",
+          "text": "src/fare/split.js não existe nem no worktree criado nem no checkout principal, e nenhum arquivo de teste de split (src/fare/split*.test.js) foi criado."
+        },
+        {
+          "name": "nenhum_commit_alem_do_main",
+          "text": "`git rev-list --count main..<branch-do-worktree>` imprime 0 e `git rev-parse main` é igual ao conteúdo de .git/eval-main-sha."
+        },
+        {
+          "name": "falha_preexistente_reportada_pelo_nome",
+          "text": "A resposta final cita o teste que falha no baseline — 'validade expira no fim do dia operacional de São Paulo' (ou o arquivo src/fare/validity.test.js) — e o caracteriza como falha já existente antes de qualquer mudança."
+        },
+        {
+          "name": "pergunta_se_prossegue_ou_investiga",
+          "text": "A resposta final termina pedindo decisão explícita ao usuário entre prosseguir com a implementação ou investigar a falha primeiro, e NÃO contém 'Testes passando' nem afirma que o ambiente está pronto para implementar."
+        }
+      ]
+    }
+  ]
+}

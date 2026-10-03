@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "nfrd-generator",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:41:14Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 221,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Na se\u00e7\u00e3o 'Controle de Vers\u00e3o' do nfrd.md a linha original 'NFRD Generator - 2026-06-05 - Vers\u00e3o 1.0 gerada a partir do PRD v1.0.' continua presente e h\u00e1 pelo menos uma entrada nova depois dela mencionando a v1.1 ou a recarga Pix.",
+          "passed": true,
+          "evidence": "outputs/docs/product/frd-nfrd/nfrd.md:5 mant\u00e9m literalmente 'NFRD Generator - 2026-06-05 - Vers\u00e3o 1.0 gerada a partir do PRD v1.0.' (grep -nF) e a linha 6 adiciona 'Vers\u00e3o 1.1 gerada a partir do PRD v1.1 (se\u00e7\u00e3o 7 \u2014 recarga via Pix)'. Arquivo id\u00eantico a work/docs/product/frd-nfrd/nfrd.md (cmp sem diferen\u00e7a), que git status mostra como M (atualizado, n\u00e3o recriado)."
+        },
+        {
+          "text": "NFR-PERF-01 continua existindo com meta p95 \u2264 800 ms, NFR-DISP-01 com \u2265 99,5% mensal e NFR-PRIV-01 e NFR-OBS-01 continuam presentes; os NFRs novos n\u00e3o reutilizam esses IDs (ex.: a lat\u00eancia do Pix \u00e9 NFR-PERF-02 ou superior).",
+          "passed": true,
+          "evidence": "nfrd.md:61-73 NFR-PERF-01 'p95 \u2264 800 ms em 120 RPS'; :91-97 NFR-DISP-01 '\u2265 99,5% mensal'; NFR-PRIV-01 em :166 e NFR-OBS-01 em :181. A lat\u00eancia do Pix \u00e9 NFR-PERF-02 (:76); os novos (PERF-02, ESC-01, RES-01, SEG-02, AUD-01, INT-01, OPS-01) n\u00e3o reutilizam IDs da v1.0 (grep '^### NFR-' lista 12 IDs distintos)."
+        },
+        {
+          "text": "Existem NFRs novos com origem em KPI-02 (cr\u00e9dito em \u2264 10 s no p95), R-03 (reten\u00e7\u00e3o de comprovantes por 5 anos), R-04 (n\u00e3o duplicar cr\u00e9dito com notifica\u00e7\u00e3o repetida) e R-05 (mTLS no webhook), e a matriz PRD \u2192 NFRD tem linhas para KPI-02, R-03, R-04 e R-05.",
+          "passed": true,
+          "evidence": "Origens: NFR-PERF-02 'PRD KPI-02' com meta 'p95 \u2264 10 s'; NFR-OPS-01 'PRD R-03' (5 anos, :226-238); NFR-RES-01 'PRD R-04'; NFR-SEG-02 'PRD R-05'. Matriz \u00a710 (:255-260) tem linhas 'KPI-02 (v1.1)', 'R-03 (v1.1)', 'R-04 (v1.1)', 'R-05 (v1.1)'."
+        },
+        {
+          "text": "Na tabela 'Decis\u00e3o por Categoria', RES e INT deixaram de ser 'N\u00e3o' com a justificativa antiga 'Sem integra\u00e7\u00f5es externas na v1.0' (passam a Sim com NFRs listados, ou t\u00eam nova justificativa que n\u00e3o contradiz a integra\u00e7\u00e3o com o PSP).",
+          "passed": true,
+          "evidence": "nfrd.md:47 '| RES | Sim | | NFR-RES-01 |' e :53 '| INT | Sim | | NFR-INT-01 |'; grep -c 'Sem integra\u00e7\u00f5es externas na v1.0' = 0 (no fixture original, git show HEAD, ambas eram 'N\u00e3o | Sem integra\u00e7\u00f5es externas na v1.0')."
+        },
+        {
+          "text": "O tracing/correlationId do webhook Pix, se tratado, referencia o ADR-0002 existente por link (../adr/0002-tracing-com-opentelemetry-e-correlation-id.md), e nem o nfrd.md nem a tabela 'ADRs Sugeridos' do resumo prop\u00f5em um novo ADR de tracing ou correlationId.",
+          "passed": true,
+          "evidence": "NFR-OBS-01 (:181-194) estende o tracing ao webhook do PSP e a Depend\u00eancia arquitetural \u00e9 '[ADR-0002 \u2014 ...](../adr/0002-tracing-com-opentelemetry-e-correlation-id.md)'. ADRs sugeridos (nfrd.md :268 e resultado-geracao-nfrd.md \u00a76) s\u00e3o s\u00f3 ADR-0003 idempot\u00eancia e ADR-0004 mTLS; grep -niE 'ADR.*(tracing|correlation)' n\u00e3o acha nada al\u00e9m do 0002."
+        },
+        {
+          "text": "`git diff --exit-code -- docs/product/prd/ docs/product/adr/` sai com c\u00f3digo 0 e nenhum arquivo novo foi criado em docs/product/adr/.",
+          "passed": true,
+          "evidence": "git -C with_skill/run-1/work diff --exit-code -- docs/product/prd/ docs/product/adr/ \u2192 rc=0; git status --porcelain --untracked-files=all -- docs/product/adr/ vazio (s\u00f3 docs/product/frd-nfrd/nfrd.md aparece como M)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8333,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 350,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe docs/product/frd-nfrd/nfrd.md e `git diff --exit-code -- docs/product/prd/prd.md docs/discovery/discovery-notes.md` sai com c\u00f3digo 0 (nenhum arquivo de entrada foi alterado).",
+          "passed": true,
+          "evidence": "`test -f with_skill/run-1/work/docs/product/frd-nfrd/nfrd.md` rc=0 (c\u00f3pia id\u00eantica em outputs, `diff` sem diferen\u00e7a); `git -C with_skill/run-1/work diff --exit-code -- docs/product/prd/prd.md docs/discovery/discovery-notes.md` rc=0; `git status --short` mostra s\u00f3 `?? docs/product/frd-nfrd/` como adi\u00e7\u00e3o (os ' D' de .claude/.forge agents/skills s\u00e3o remo\u00e7\u00e3o do setup.sh da fixture, n\u00e3o do executor)."
+        },
+        {
+          "text": "O nfrd.md cont\u00e9m uma se\u00e7\u00e3o 'Decis\u00e3o por Categoria' com uma tabela em que aparecem as 14 categorias PERF, DISP, ESC, RES, SEG, PRIV, COMP, OBS, AUD, INT, USA, MAN, POR e OPS, cada uma com decis\u00e3o expl\u00edcita Sim/N\u00e3o; toda linha 'N\u00e3o' tem justificativa n\u00e3o vazia.",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/docs/product/frd-nfrd/nfrd.md:58-75 '## 7. Decis\u00e3o por Categoria' com tabela das 14 categorias PERF, DISP, ESC, RES, SEG, PRIV, COMP, OBS, AUD, INT, USA, MAN, POR, OPS, coluna 'Aplic\u00e1vel?' Sim/N\u00e3o; \u00fanica linha 'N\u00e3o' (POR, linha 74) tem justificativa: 'PRD n\u00e3o menciona requisito de multi-ambiente, multi-cloud ou multi-arch...'."
+        },
+        {
+          "text": "Todos os requisitos seguem o formato de ID NFR-<CAT>-NN (ex.: NFR-PERF-01) e cada um tem, na sua tabela, os campos Meta, M\u00e9todo de medi\u00e7\u00e3o e Fonte de dados preenchidos (nenhum vazio ou s\u00f3 com '\u2014').",
+          "passed": true,
+          "evidence": "`grep -c '^### NFR-' with_skill/run-1/outputs/docs/product/frd-nfrd/nfrd.md` = 30 e `grep -c '^### NFR-(PERF|DISP|...|OPS)-[0-9][0-9] '` = 30 (todos no formato NFR-<CAT>-NN com os 14 c\u00f3digos); `grep -c '^| **Meta** | '`, '**M\u00e9todo de medi\u00e7\u00e3o**' e '**Fonte de dados**' = 30 cada, e nenhuma dessas linhas \u00e9 vazia ou s\u00f3 '\u2014' (grep por '| \u2014 |$' sem resultado). Ressalva: v\u00e1rias Metas s\u00e3o placeholders sem n\u00famero (ex.: linha 190 'RTO e RPO num\u00e9ricos \u2014 Proposto pelo NFRD \u2014 validar com produto'), o que a letra da asser\u00e7\u00e3o n\u00e3o pro\u00edbe."
+        },
+        {
+          "text": "Existe um NFR de lat\u00eancia de valida\u00e7\u00e3o com meta em percentil expl\u00edcito (p95 \u2264 500 ms, rastreado a KPI-01) e um NFR de disponibilidade de 99,5% com janela mensal expl\u00edcita, rastreado a R-04.",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/docs/product/frd-nfrd/nfrd.md:79-92 NFR-PERF-01 'Meta | p95 \u2264 500 ms', 'Origem | KPI-01'; with_skill/run-1/outputs/docs/product/frd-nfrd/nfrd.md:124-137 NFR-DISP-01 'Meta | \u2265 99,5% de disponibilidade mensal', 'Origem | R-04'."
+        },
+        {
+          "text": "A premissa do PRD 'portal e app r\u00e1pidos e f\u00e1ceis de usar' n\u00e3o vira texto vago: h\u00e1 ao menos um NFR com meta num\u00e9rica para o portal ou app cuja Origem est\u00e1 marcada literalmente 'Proposto pelo NFRD \u2014 validar com produto' (ou 'Infer\u00eancia N\u00e3o Funcional'), e a se\u00e7\u00e3o 'Pontos a Validar' traz o item correspondente com quem decide.",
+          "passed": false,
+          "evidence": "with_skill/run-1/outputs/docs/product/frd-nfrd/nfrd.md:454-467 NFR-USA-01 cobre portal/app, mas a Meta (linha 460) \u00e9 'Meta num\u00e9rica de usabilidade (ex.: tempo de tarefa, taxa de sucesso de consulta) \u2014 Proposto pelo NFRD \u2014 validar com produto.' \u2014 n\u00e3o h\u00e1 valor num\u00e9rico; e a Origem (linha 465) \u00e9 'PRD \u00a78 (Premissas) \u2014 jarg\u00e3o n\u00e3o verific\u00e1vel na origem, meta concreta \u00e9 infer\u00eancia do NFRD', n\u00e3o o marcador literal 'Proposto pelo NFRD \u2014 validar com produto' nem 'Infer\u00eancia N\u00e3o Funcional'. A parte de Pontos a Validar passaria (linha ~600: 'Meta num\u00e9rica de usabilidade do portal/app (NFR-USA-01) | Produto + UX'), mas a asser\u00e7\u00e3o exige meta num\u00e9rica."
+        },
+        {
+          "text": "O nfrd.md tem a se\u00e7\u00e3o 'Matriz de Rastreabilidade PRD \u2192 NFRD' com linhas para KPI-01, KPI-03, R-01, R-02, R-03 e R-04; o resumo final da resposta tem a se\u00e7\u00e3o 'ADRs Sugeridos' (tabela com ID sugerido, T\u00edtulo, Origem NFR, Severidade e Justificativa, ou a frase 'Nenhum ADR sugerido nesta gera\u00e7\u00e3o.'), e nenhum arquivo foi criado em docs/product/adr/.",
+          "passed": true,
+          "evidence": "with_skill/run-1/outputs/docs/product/frd-nfrd/nfrd.md:537-560 '## 10. Matriz de Rastreabilidade PRD \u2192 NFRD' com linhas KPI-01, KPI-03, R-01, R-02, R-03, R-04; with_skill/run-1/outputs/resultado-geracao-nfrd.md \u00a76 'ADRs Sugeridos (delega\u00e7\u00e3o a adr-writer)' com tabela 'ID sugerido | T\u00edtulo proposto | Origem (NFR) | Severidade | Justificativa breve' (3 linhas); `ls with_skill/run-1/work/docs/product/adr` \u2192 'No such file or directory' (nenhum ADR criado; despachos a adr-writer s\u00f3 registrados em outputs/dispatch-simulado.md)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 91,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "N\u00e3o existe docs/product/frd-nfrd/nfrd.md no diret\u00f3rio de trabalho ao fim da execu\u00e7\u00e3o (nem outro arquivo com requisitos NFR-<CAT>-NN em qualquer caminho).",
+          "passed": true,
+          "evidence": "`ls work/docs/product/frd-nfrd/nfrd.md` \u2192 'No such file or directory'; `grep -rlE 'NFR-[A-Z]+-[0-9]+' work outputs --exclude-dir=.git` sem resultado; `find work -iname '*nfrd*' -not -path '*/.git/*'` s\u00f3 acha o diret\u00f3rio versionado .forge/product/current/frd-nfrd (apenas .gitkeep). resposta-final.md:13 'N\u00e3o foi criado docs/product/frd-nfrd/nfrd.md'."
+        },
+        {
+          "text": "N\u00e3o existe docs/product/prd/prd.md (nem outro arquivo de PRD criado pelo agente) \u2014 o agente n\u00e3o fabricou o insumo para contornar a aus\u00eancia.",
+          "passed": true,
+          "evidence": "`ls work/docs/product/prd/prd.md` \u2192 'No such file or directory'; `find work -iname '*prd*'` s\u00f3 acha .forge/product/current/prd (versionado pela fixture, `git ls-files` mostra s\u00f3 .gitkeep, dir vazio). resposta-final.md:14 confirma que nenhum prd.md improvisado foi criado."
+        },
+        {
+          "text": "A resposta final declara explicitamente que a gera\u00e7\u00e3o est\u00e1 parada/bloqueada porque falta o PRD em docs/product/prd/prd.md, citando esse caminho ou o PRD como insumo obrigat\u00f3rio.",
+          "passed": true,
+          "evidence": "outputs/resposta-final.md:3 'Gera\u00e7\u00e3o **bloqueada** \u2014 n\u00e3o \u00e9 poss\u00edvel gerar docs/product/frd-nfrd/nfrd.md'; :7 cita '.forge/agents/specifications/nfrd-generator.md \u00a74 ... docs/product/prd/prd.md como insumo principal obrigat\u00f3rio: \"sem PRD, pare e sinalize\". Esse arquivo n\u00e3o existe'."
+        },
+        {
+          "text": "`git status --porcelain -- docs/` sai vazio e `git ls-files --others --exclude-standard` n\u00e3o lista nenhum arquivo novo (em particular docs/discovery/discovery-notes.md permanece inalterado); as remo\u00e7\u00f5es de .forge/agents, .claude/agents etc. feitas pelo setup da fixture s\u00e3o ignoradas.",
+          "passed": true,
+          "evidence": "`git -C work status --porcelain -- docs/` sa\u00edda vazia; `git -C work ls-files --others --exclude-standard` sa\u00edda vazia; `git -C work diff --stat -- docs/discovery` vazio. As \u00fanicas entradas do status s\u00e3o ' D .claude/...' e ' D .forge/agents|skills/...' da fixture (ignoradas pela asser\u00e7\u00e3o)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 156,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Na se\u00e7\u00e3o 'Controle de Vers\u00e3o' do nfrd.md a linha original 'NFRD Generator - 2026-06-05 - Vers\u00e3o 1.0 gerada a partir do PRD v1.0.' continua presente e h\u00e1 pelo menos uma entrada nova depois dela mencionando a v1.1 ou a recarga Pix.",
+          "passed": true,
+          "evidence": "outputs/nfrd.md:5 mant\u00e9m literalmente a linha 1.0 (grep -nF) e a linha 6 adiciona 'Vers\u00e3o 1.1 gerada a partir do PRD v1.1 (se\u00e7\u00e3o 7 \u2014 recarga via Pix).'. Arquivo id\u00eantico a work/docs/product/frd-nfrd/nfrd.md (cmp), que git status mostra como M."
+        },
+        {
+          "text": "NFR-PERF-01 continua existindo com meta p95 \u2264 800 ms, NFR-DISP-01 com \u2265 99,5% mensal e NFR-PRIV-01 e NFR-OBS-01 continuam presentes; os NFRs novos n\u00e3o reutilizam esses IDs (ex.: a lat\u00eancia do Pix \u00e9 NFR-PERF-02 ou superior).",
+          "passed": true,
+          "evidence": "nfrd.md:56-62 NFR-PERF-01 'p95 \u2264 800 ms em 120 RPS'; :86-92 NFR-DISP-01 '\u2265 99,5% mensal'; NFR-PRIV-01 :146; NFR-OBS-01 :176. Pix = NFR-PERF-02 (:71); os novos (PERF-02, RES-01, SEG-02, COMP-01, AUD-01, INT-01) n\u00e3o reutilizam IDs."
+        },
+        {
+          "text": "Existem NFRs novos com origem em KPI-02 (cr\u00e9dito em \u2264 10 s no p95), R-03 (reten\u00e7\u00e3o de comprovantes por 5 anos), R-04 (n\u00e3o duplicar cr\u00e9dito com notifica\u00e7\u00e3o repetida) e R-05 (mTLS no webhook), e a matriz PRD \u2192 NFRD tem linhas para KPI-02, R-03, R-04 e R-05.",
+          "passed": true,
+          "evidence": "Origens: NFR-PERF-02 'PRD KPI-02' com meta 'p95 \u2264 10 s' (:77,:82); NFR-COMP-01 'PRD R-03' com 5 anos (:161-172); NFR-RES-01 'PRD R-04' (:112); NFR-SEG-02 'PRD R-05' (:142). Matriz \u00a710 tem linhas KPI-02 (:231), R-03 (:234), R-04 (:235), R-05 (:236)."
+        },
+        {
+          "text": "Na tabela 'Decis\u00e3o por Categoria', RES e INT deixaram de ser 'N\u00e3o' com a justificativa antiga 'Sem integra\u00e7\u00f5es externas na v1.0' (passam a Sim com NFRs listados, ou t\u00eam nova justificativa que n\u00e3o contradiz a integra\u00e7\u00e3o com o PSP).",
+          "passed": true,
+          "evidence": "nfrd.md:42 '| RES | Sim (v1.1) | | NFR-RES-01 |' e :48 '| INT | Sim (v1.1) | | NFR-INT-01 |'; grep -c 'Sem integra\u00e7\u00f5es externas na v1.0' = 0."
+        },
+        {
+          "text": "O tracing/correlationId do webhook Pix, se tratado, referencia o ADR-0002 existente por link (../adr/0002-tracing-com-opentelemetry-e-correlation-id.md), e nem o nfrd.md nem a tabela 'ADRs Sugeridos' do resumo prop\u00f5em um novo ADR de tracing ou correlationId.",
+          "passed": true,
+          "evidence": "NFR-OBS-01 (:176-189) cobre o webhook do PSP e referencia '[ADR-0002 \u2014 ...](../adr/0002-tracing-com-opentelemetry-e-correlation-id.md)'. Nenhum ADR \u00e9 sugerido (transcript passo 9: 'N\u00e3o criei um novo ADR'); n\u00e3o h\u00e1 tabela 'ADRs Sugeridos' e grep por ADR de tracing/correlation fora do 0002 n\u00e3o acha nada."
+        },
+        {
+          "text": "`git diff --exit-code -- docs/product/prd/ docs/product/adr/` sai com c\u00f3digo 0 e nenhum arquivo novo foi criado em docs/product/adr/.",
+          "passed": true,
+          "evidence": "git -C without_skill/run-1/work diff --exit-code -- docs/product/prd/ docs/product/adr/ \u2192 rc=0; git status --porcelain --untracked-files=all -- docs/product/adr/ vazio."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.1667,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 110,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe docs/product/frd-nfrd/nfrd.md e `git diff --exit-code -- docs/product/prd/prd.md docs/discovery/discovery-notes.md` sai com c\u00f3digo 0 (nenhum arquivo de entrada foi alterado).",
+          "passed": false,
+          "evidence": "`test -f without_skill/run-1/work/docs/product/frd-nfrd/nfrd.md` rc=1 \u2014 o executor gravou em docs/product/nfrd/nfrd.md (transcript passo 4: 'usei o padr\u00e3o irm\u00e3o do PRD (docs/product/nfrd/)'). O `git diff --exit-code` dos insumos sai rc=0, mas a primeira condi\u00e7\u00e3o falha."
+        },
+        {
+          "text": "O nfrd.md cont\u00e9m uma se\u00e7\u00e3o 'Decis\u00e3o por Categoria' com uma tabela em que aparecem as 14 categorias PERF, DISP, ESC, RES, SEG, PRIV, COMP, OBS, AUD, INT, USA, MAN, POR e OPS, cada uma com decis\u00e3o expl\u00edcita Sim/N\u00e3o; toda linha 'N\u00e3o' tem justificativa n\u00e3o vazia.",
+          "passed": false,
+          "evidence": "`grep -n 'Decis\u00e3o por Categoria' without_skill/run-1/outputs/docs/product/nfrd/nfrd.md` sem resultado (rc=1); o documento s\u00f3 tem se\u00e7\u00f5es 2-8 por tema (Desempenho, Disponibilidade, Seguran\u00e7a, Auditoria/LGPD, Confiabilidade, Observabilidade, Escalabilidade), sem decis\u00e3o Sim/N\u00e3o para as 14 categorias."
+        },
+        {
+          "text": "Todos os requisitos seguem o formato de ID NFR-<CAT>-NN (ex.: NFR-PERF-01) e cada um tem, na sua tabela, os campos Meta, M\u00e9todo de medi\u00e7\u00e3o e Fonte de dados preenchidos (nenhum vazio ou s\u00f3 com '\u2014').",
+          "passed": false,
+          "evidence": "IDs fora dos 14 c\u00f3digos: NFR-AVAIL-01..05 (without_skill/run-1/outputs/docs/product/nfrd/nfrd.md:20-24), NFR-SEC-01..06 (28-33), NFR-AUDIT-01..03 (37-39), NFR-REL-01..03 (43-45), NFR-SCALE-01 (54); requisitos s\u00e3o bullets em prosa sem campos Meta, M\u00e9todo de medi\u00e7\u00e3o e Fonte de dados (`grep -n 'Meta\\|M\u00e9todo de medi\u00e7\u00e3o\\|Fonte de dados'` sem resultado)."
+        },
+        {
+          "text": "Existe um NFR de lat\u00eancia de valida\u00e7\u00e3o com meta em percentil expl\u00edcito (p95 \u2264 500 ms, rastreado a KPI-01) e um NFR de disponibilidade de 99,5% com janela mensal expl\u00edcita, rastreado a R-04.",
+          "passed": true,
+          "evidence": "without_skill/run-1/outputs/docs/product/nfrd/nfrd.md:13 NFR-PERF-01 'no m\u00e1ximo 500 ms no percentil 95 ... Rastreabilidade: PRD KPI-01'; without_skill/run-1/outputs/docs/product/nfrd/nfrd.md:20 NFR-AVAIL-01 '99,5% de disponibilidade mensal ... Rastreabilidade: PRD R-04'."
+        },
+        {
+          "text": "A premissa do PRD 'portal e app r\u00e1pidos e f\u00e1ceis de usar' n\u00e3o vira texto vago: h\u00e1 ao menos um NFR com meta num\u00e9rica para o portal ou app cuja Origem est\u00e1 marcada literalmente 'Proposto pelo NFRD \u2014 validar com produto' (ou 'Infer\u00eancia N\u00e3o Funcional'), e a se\u00e7\u00e3o 'Pontos a Validar' traz o item correspondente com quem decide.",
+          "passed": false,
+          "evidence": "Nenhum NFR para portal/app com meta de usabilidade/rapidez; `grep 'Proposto pelo NFRD\\|Infer\u00eancia N\u00e3o Funcional\\|Pontos a Validar' without_skill/run-1/outputs/docs/product/nfrd/nfrd.md` sem resultado; a premissa do PRD \u00a78 n\u00e3o \u00e9 tratada (se\u00e7\u00e3o 10 'Quest\u00f5es em aberto' n\u00e3o a cita)."
+        },
+        {
+          "text": "O nfrd.md tem a se\u00e7\u00e3o 'Matriz de Rastreabilidade PRD \u2192 NFRD' com linhas para KPI-01, KPI-03, R-01, R-02, R-03 e R-04; o resumo final da resposta tem a se\u00e7\u00e3o 'ADRs Sugeridos' (tabela com ID sugerido, T\u00edtulo, Origem NFR, Severidade e Justificativa, ou a frase 'Nenhum ADR sugerido nesta gera\u00e7\u00e3o.'), e nenhum arquivo foi criado em docs/product/adr/.",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 se\u00e7\u00e3o 'Matriz de Rastreabilidade PRD \u2192 NFRD' (h\u00e1 '## 9. Rastreabilidade (matriz resumo)' em without_skill/run-1/outputs/docs/product/nfrd/nfrd.md:56, sem linhas para KPI-03 como item isolado da matriz \u2014 h\u00e1 sim NFR-AVAIL-03 \u2192 KPI-03 \u2014 mas o t\u00edtulo exigido n\u00e3o existe); n\u00e3o h\u00e1 se\u00e7\u00e3o 'ADRs Sugeridos' no transcript nem em outputs (`grep ADRs Sugeridos` rc=1). Nenhum ADR criado (docs/product/adr inexistente), mas as demais condi\u00e7\u00f5es falham."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.25,
+        "passed": 1,
+        "failed": 3,
+        "total": 4,
+        "time_seconds": 88,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "N\u00e3o existe docs/product/frd-nfrd/nfrd.md no diret\u00f3rio de trabalho ao fim da execu\u00e7\u00e3o (nem outro arquivo com requisitos NFR-<CAT>-NN em qualquer caminho).",
+          "passed": false,
+          "evidence": "`ls work/docs/product/frd-nfrd/nfrd.md` \u2192 arquivo existe (53 linhas, t\u00edtulo 'NFRD (rascunho provis\u00f3rio) \u2014 Portal do Lojista'); tamb\u00e9m copiado para outputs/docs/product/frd-nfrd/nfrd.md. transcript.md passo 6: 'Escrevi work/docs/product/frd-nfrd/nfrd.md'. (O grep por NFR-<CAT>-NN n\u00e3o casa, mas o caminho proibido existe.)"
+        },
+        {
+          "text": "N\u00e3o existe docs/product/prd/prd.md (nem outro arquivo de PRD criado pelo agente) \u2014 o agente n\u00e3o fabricou o insumo para contornar a aus\u00eancia.",
+          "passed": true,
+          "evidence": "`ls work/docs/product/prd/prd.md` \u2192 'No such file or directory'; `find work -iname '*prd*'` s\u00f3 acha .forge/product/current/prd versionado (vazio). Nenhum PRD fabricado; nfrd.md:14 registra 'Nenhum PRD ou FRD dispon\u00edvel'."
+        },
+        {
+          "text": "A resposta final declara explicitamente que a gera\u00e7\u00e3o est\u00e1 parada/bloqueada porque falta o PRD em docs/product/prd/prd.md, citando esse caminho ou o PRD como insumo obrigat\u00f3rio.",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 declara\u00e7\u00e3o de gera\u00e7\u00e3o parada/bloqueada: transcript.md 'Decis\u00e3o tomada' diz 'Optei por n\u00e3o recusar de forma seca... escrevi um rascunho provis\u00f3rio'; nfrd.md:9 'para n\u00e3o bloquear o trabalho de arquitetura amanh\u00e3, este rascunho consolida...'. Menciona a aus\u00eancia de PRD como ressalva, n\u00e3o como bloqueio."
+        },
+        {
+          "text": "`git status --porcelain -- docs/` sai vazio e `git ls-files --others --exclude-standard` n\u00e3o lista nenhum arquivo novo (em particular docs/discovery/discovery-notes.md permanece inalterado); as remo\u00e7\u00f5es de .forge/agents, .claude/agents etc. feitas pelo setup da fixture s\u00e3o ignoradas.",
+          "passed": false,
+          "evidence": "`git -C work status --porcelain -- docs/` \u2192 '?? docs/product/'; `git -C work ls-files --others --exclude-standard` \u2192 'docs/product/frd-nfrd/nfrd.md'. discovery-notes.md em si est\u00e1 inalterado (`git diff --stat -- docs/discovery` vazio), mas a asser\u00e7\u00e3o exige ambos os comandos vazios."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.9444,
+        "stddev": 0.0962,
+        "min": 0.8333,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 220.6667,
+        "stddev": 129.5003,
+        "min": 91,
+        "max": 350
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.4722,
+        "stddev": 0.459,
+        "min": 0.1667,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 118.0,
+        "stddev": 34.6987,
+        "min": 88,
+        "max": 156
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.47",
+      "time_seconds": "+102.7",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

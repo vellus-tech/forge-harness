@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "recarga-pix-story-principal",
+  "prompt": "Vou pegar agora a STORY-02 do change 2026-09-recarga-pix (webhook de confirmação do Pix e crédito no cartão). A sessão já está longa, então antes de abrir código me monta o contexto dessa story: o que ela entrega, de quem depende, quais tasks são dela, o que não posso violar do épico e por onde eu começo. Salva em outputs/story-context.md.",
+  "assertions": [
+    "outputs/story-context.md contém a linha de cabeçalho '## Context — STORY-02' e os rótulos Goal, Status, Depends on, 'Tasks desta story', 'Invariantes críticas do épico' e 'Próxima ação' (em negrito ou não), nessa ordem.",
+    "outputs/story-context.md tem no máximo 30 linhas (wc -l <= 30).",
+    "A linha de Próxima ação cita TASK-05 (primeira task com [ ] na story) e não TASK-04 (já [X]) nem TASK-06.",
+    "A seção de invariantes reproduz ao menos duas invariantes de epic_context.md (por exemplo: não creditar saldo antes do webhook confirmado com assinatura válida; valores em centavos inteiros; idempotência por txid; CPF não logado em claro).",
+    "outputs/story-context.md não menciona TASK-01, TASK-02, TASK-03, TASK-07, TASK-08, TASK-09 nem TASK-10.",
+    "outputs/story-context.md não contém nenhum destes trechos que só existem em design.md/requirements.md/tasks.md/STORY-04: '400 dias', 'particionada', '06h15', '90 dias', 'R$ 500', 'CNAB'."
+  ]
+}

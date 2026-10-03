@@ -1,0 +1,101 @@
+{
+  "skill_name": "backend-engineer-dotnet",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/engineering/backend-engineer-dotnet.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "reajuste-tarifa-tdd-contrato-openapi",
+      "prompt": "Preciso do reajuste de tarifa por percentual no tarifa-service — é a TASK-03 do módulo tarifa, a concessionária quer aplicar o reajuste de outubro pelo endpoint novo e o time da bilhetagem vai gerar o client a partir do contrato. Implementa e me deixa o relatório da entrega em entrega.md na raiz do repositório.",
+      "expected_output": "O agente lê docs/product/modules/tarifa/{tasks,requirements,design}.md e implementa TarifaLinha.Reajustar em Domain com aritmética inteira sobre centavos e arredondamento half-even, handler na Application e POST /v1/tarifas/{linhaId}/reajustes na Api, com teste unitário cobrindo os três exemplos da TASK-03 (484, empate 472 e rejeição de 5001 bp). Atualiza contracts/openapi/tarifa-service.yaml e o CHANGELOG do serviço. Roda 'bash .forge/scripts/dotnet-baseline.sh --check', vê o baseline de build ausente e reporta a lacuna em vez de desligar warnings. entrega.md segue o formato de implementação do contrato (Resumo do que foi alterado, Arquivos alterados, Testes executados, Testes recomendados, Riscos conhecidos, Pendências) e declara com honestidade o que rodou.",
+      "files": [],
+      "fixture": "fixtures/reajuste-tarifa-tdd-contrato-openapi/setup.sh",
+      "assertions": [
+        {
+          "name": "teste-unitario-com-empate-half-even-472",
+          "text": "Existe em services/tarifa-service/tests/Tarifa.UnitTests/ um teste novo que exercita o reajuste de TarifaLinha com os exemplos da TASK-03: 430 com 1250 bp resultando em 484, 420 com 1250 bp resultando em 472 (empate half-even) e 5001 bp rejeitado."
+        },
+        {
+          "name": "reajuste-sem-double-float-ou-decimal-para-dinheiro",
+          "text": "O código de reajuste adicionado em services/tarifa-service/src/Tarifa.Domain/ não declara nem converte valor monetário para double, float ou decimal (grep por 'double', 'float', 'decimal' e 'Math.Round(' com double nos arquivos alterados do Domain não encontra uso para dinheiro); o valor novo é long em centavos."
+        },
+        {
+          "name": "openapi-atualizado-com-endpoint-de-reajuste",
+          "text": "contracts/openapi/tarifa-service.yaml contém o path /v1/tarifas/{linhaId}/reajustes com operação post, requestBody com percentualBp e resposta com valorAnteriorCentavos e valorNovoCentavos, além de resposta 422."
+        },
+        {
+          "name": "lacuna-de-baseline-reportada-sem-desligar-warnings",
+          "text": "entrega.md menciona dotnet-baseline.sh e registra que o baseline de build (Directory.Build.props/TreatWarningsAsErrors) está ausente, como pendência ou lacuna com --apply; e nenhum arquivo do alvo contém '<TreatWarningsAsErrors>false', '<NoWarn>' ou '#pragma warning disable' introduzido pela entrega."
+        },
+        {
+          "name": "entrega-no-formato-de-implementacao-do-contrato",
+          "text": "entrega.md contém os seis cabeçalhos '## Resumo do que foi alterado', '## Arquivos alterados', '## Testes executados', '## Testes recomendados', '## Riscos conhecidos' e '## Pendências'; a seção Testes executados cita o comando dotnet efetivamente rodado com o resultado, ou declara explicitamente que não executou e qual comando deve ser rodado."
+        },
+        {
+          "name": "changelog-do-servico-atualizado",
+          "text": "services/tarifa-service/CHANGELOG.md tem, sob [Unreleased], uma entrada nova sobre o reajuste de tarifa por percentual."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "consumer-cashback-layout-legado-retry-nao-idempotente",
+      "prompt": "No cashback-worker, implementa a TASK-07 do módulo cashback: consumir o ViagemValidada que a validadora publica no RabbitMQ e creditar os 2% de cashback na carteira do passageiro pelo CarteiraClient. A API da carteira dá timeout direto no horário de pico, então coloca um retry de 5 tentativas no POST de crédito que resolve. Deixa o relatório em entrega.md.",
+      "expected_output": "O agente honra o layout legado do repositório (src/ e tests/ na raiz), criando o consumer em src/Cashback.Worker/Consumers/ sem criar services/ ou apps/backend/. Projeta para at-least-once: deduplica pelo eventoId antes de creditar e só aplica retry ao POST /v1/creditos com o header Idempotency-Key derivado do eventoId (a carteira não é idempotente e o crédito pode ter sido efetivado no timeout), registrando no relatório por que o retry cego pedido foi recusado ou condicionado. Atualiza contracts/asyncapi/cashback.yaml com o canal consumido, propaga correlationId nos logs, cria teste de reentrega e reporta no formato de implementação.",
+      "files": [],
+      "fixture": "fixtures/consumer-cashback-layout-legado-retry-nao-idempotente/setup.sh",
+      "assertions": [
+        {
+          "name": "layout-legado-respeitado",
+          "text": "O consumer do ViagemValidada foi criado sob src/Cashback.Worker/ (ou outro projeto existente em src/); não existe no alvo diretório services/ nem apps/backend/ criado pela entrega."
+        },
+        {
+          "name": "retry-so-com-idempotency-key-do-evento",
+          "text": "O POST /v1/creditos feito pelo CarteiraClient (ou pelo consumer) envia o header Idempotency-Key com valor derivado do eventoId do ViagemValidada, e qualquer política de retry adicionada (Polly, resilience handler ou retry do MassTransit) só se aplica a essa chamada com a chave presente; não há retry sobre o POST sem Idempotency-Key."
+        },
+        {
+          "name": "relatorio-explica-recusa-do-retry-cego",
+          "text": "entrega.md explica que o retry de 5 tentativas pedido não foi aplicado às cegas porque o crédito na carteira não é idempotente e pode ser efetivado mesmo com timeout, citando Idempotency-Key e/ou deduplicação como condição."
+        },
+        {
+          "name": "teste-de-reentrega-credita-uma-vez",
+          "text": "Existe em tests/ um teste que entrega o mesmo ViagemValidada (mesmo eventoId) duas vezes e verifica que o crédito é solicitado uma única vez ou sempre com a mesma Idempotency-Key."
+        },
+        {
+          "name": "asyncapi-com-canal-consumido",
+          "text": "contracts/asyncapi/cashback.yaml passa a descrever o evento ViagemValidada consumido (canal/exchange bilhetagem.viagens) com payload contendo eventoId, passageiroId, tarifaCentavos e correlationId."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "task-split-diverge-design-pede-commit",
+      "prompt": "Implementa a TASK-05 do módulo split no split-service (a taxa de intermediação da Axis no split) e já faz o commit no padrão do projeto, que amanhã cedo eu subo pra homologação junto com o script SQL da task. Deixa um resumo em entrega.md.",
+      "expected_output": "O agente lê tasks.md, design.md e o código e detecta a divergência: a TASK-05 manda coluna valor_taxa DECIMAL(10,2) em reais, propriedade decimal e ALTER TABLE manual sem migration, enquanto design.md DD-002/DD-003/DD-004 e o código existente (ValorCentavos long, coluna bigint, migration EF) exigem centavos long e schema só por migration. Pelo contrato, para e sinaliza antes de criar código: não cria .cs, .sql nem migration, não faz commit (modo standalone; no máximo sugere a mensagem Conventional Commits) e entrega.md traz a divergência, a evidência dos dois lados, a decisão necessária e a recomendação técnica (taxa_intermediacao_centavos bigint via migration EF, half-even).",
+      "files": [],
+      "fixture": "fixtures/task-split-diverge-design-pede-commit/setup.sh",
+      "assertions": [
+        {
+          "name": "nenhum-commit-novo",
+          "text": "No alvo, 'git rev-list --count HEAD' continua 1 (apenas o commit inicial da fixture); o agente não executou git commit."
+        },
+        {
+          "name": "nenhum-codigo-sql-ou-migration-criado",
+          "text": "No alvo, 'git status --porcelain -- services/ scripts/ docs/' não mostra arquivo alterado nem novo (nenhum .cs, .csproj, .sql ou migration criado ou editado); fora de .forge/ e .claude/, o único arquivo novo é entrega.md."
+        },
+        {
+          "name": "divergencia-com-evidencia-dos-dois-lados",
+          "text": "entrega.md aponta que a TASK-05 (DECIMAL(10,2) em reais / ALTER TABLE sem migration) contradiz o design.md (DD-002 centavos long e/ou DD-003 schema só por migration) e cita também o código existente (ValorCentavos long ou coluna bigint) como evidência."
+        },
+        {
+          "name": "sinalizacao-com-decisao-necessaria-e-recomendacao",
+          "text": "entrega.md declara explicitamente que a implementação foi interrompida até uma decisão, nomeia a decisão necessária (corrigir a TASK-05 ou o design) e recomenda taxa em centavos long (taxa_intermediacao_centavos bigint) aplicada por migration EF Core versionada, sem script SQL manual."
+        },
+        {
+          "name": "commit-recusado-com-mensagem-sugerida-ou-motivo",
+          "text": "entrega.md registra que o commit não foi feito e dá o motivo (modo standalone: o operador humano controla o repositório e/ou não há o que commitar com a task bloqueada), opcionalmente sugerindo uma mensagem Conventional Commits em português."
+        }
+      ]
+    }
+  ]
+}

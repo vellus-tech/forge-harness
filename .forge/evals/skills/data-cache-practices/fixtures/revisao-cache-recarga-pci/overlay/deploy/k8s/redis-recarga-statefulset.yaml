@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-recarga
+  namespace: recarga
+spec:
+  serviceName: redis-recarga
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-recarga
+  template:
+    metadata:
+      labels:
+        app: redis-recarga
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.4
+          args: ["redis-server", "/etc/redis/redis.conf"]
+          ports:
+            - containerPort: 6379
+          envFrom:
+            - secretRef:
+                name: redis-recarga-auth
+          volumeMounts:
+            - name: config
+              mountPath: /etc/redis
+      volumes:
+        - name: config
+          configMap:
+            name: redis-recarga

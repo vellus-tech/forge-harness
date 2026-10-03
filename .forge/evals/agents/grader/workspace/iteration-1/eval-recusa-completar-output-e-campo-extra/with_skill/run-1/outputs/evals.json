@@ -1,0 +1,22 @@
+{
+  "skill": "red-first-bugfix",
+  "description": "Conduz correção de bug no protocolo Red-first: teste que reproduz o defeito, falha observada e só então a correção.",
+  "test_cases": [
+    {
+      "id": "TC-01",
+      "prompt": "Corrija o bug: a tarifa de integração é cobrada duas vezes quando o passageiro valida o cartão de novo em menos de 60 segundos.",
+      "expectations": [
+        "Escreveu um teste que reproduz o bug antes de alterar o código de produção",
+        "Mostrou o teste falhando (vermelho) antes de aplicar a correção"
+      ]
+    },
+    {
+      "id": "TC-02",
+      "prompt": "Corrija o bug: o saldo do cartão fica negativo depois de um estorno parcial de recarga.",
+      "expectations": [
+        "Escreveu um teste que reproduz o bug antes de alterar o código de produção",
+        "Mostrou o teste falhando (vermelho) antes de aplicar a correção"
+      ]
+    }
+  ]
+}

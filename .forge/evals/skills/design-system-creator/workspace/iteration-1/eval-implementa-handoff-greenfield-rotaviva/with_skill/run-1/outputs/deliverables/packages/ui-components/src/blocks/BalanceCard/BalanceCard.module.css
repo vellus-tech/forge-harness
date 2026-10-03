@@ -1,0 +1,14 @@
+.balance {
+  font-family: var(--font-display);
+  font-size: var(--fs-28);
+  font-weight: 700;
+  color: var(--fg);
+  margin: var(--s-2) 0 0;
+}
+
+.passName {
+  display: block;
+  font-size: var(--fs-14);
+  color: var(--fg-muted);
+  margin-bottom: var(--s-4);
+}

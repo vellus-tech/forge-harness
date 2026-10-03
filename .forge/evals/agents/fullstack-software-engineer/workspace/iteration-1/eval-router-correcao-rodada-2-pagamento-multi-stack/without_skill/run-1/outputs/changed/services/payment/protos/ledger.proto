@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package ledger.v1;
+
+option csharp_namespace = "Ledger.Contracts.V1";
+
+// Contrato consumido do bounded context Ledger (dono da fonte de verdade).
+// Payment não deve mais ler ledger.entries diretamente no banco do Ledger.
+service LedgerService {
+  rpc GetBalance (GetBalanceRequest) returns (GetBalanceResponse);
+}
+
+message GetBalanceRequest {
+  string account_id = 1;
+}
+
+message GetBalanceResponse {
+  int64 balance_cents = 1;
+}

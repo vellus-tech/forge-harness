@@ -1,0 +1,89 @@
+{
+  "reviewer": "python-reviewer",
+  "findings": [
+    {
+      "id": "PY-001",
+      "severity": "BLOCKER",
+      "category": "logic",
+      "file": "app/recargas/router.py",
+      "line": 20,
+      "title": "Chamada de rede bloqueante dentro de rota async",
+      "description": "`criar_recarga` é `async def`, mas usa `requests.post(...)` (biblioteca síncrona) sem `run_in_executor`/`asyncio.to_thread` ou um cliente async (ex.: `httpx.AsyncClient`). Isso bloqueia o event loop inteiro do Uvicorn/asyncio durante a chamada ao gateway (timeout de 10s), derrubando a capacidade de atender outras requisições concorrentes no mesmo worker — grave em endpoint de pagamento sob carga.",
+      "fix_suggested": "Trocar `requests` por `httpx.AsyncClient` com `await client.post(...)`, ou envolver a chamada em `asyncio.to_thread(requests.post, ...)` como estratégia explícita documentada.",
+      "rule_violated": ".forge/agents/code-review/python-reviewer.md § \"Não execute chamadas bloqueantes dentro de rotas assíncronas sem estratégia explícita\"",
+      "confidence": "high"
+    },
+    {
+      "id": "PY-002",
+      "severity": "HIGH",
+      "category": "security",
+      "file": "app/recargas/router.py",
+      "line": 19,
+      "title": "Segredo (gateway_api_key) em log de aplicação",
+      "description": "O `logger.info` inclui `settings.gateway_api_key` diretamente na mensagem de log. Esse valor é a credencial do gateway de pagamento e passa a existir em texto claro em qualquer agregador/log central, violando o requisito de que segredos não apareçam em logs — e é achado típico de auditoria PCI DSS (armazenamento/exposição de credenciais sensíveis).",
+      "fix_suggested": "Remover a API key da mensagem de log; se for necessário depurar, logar apenas um identificador não sensível (ex.: últimos 4 caracteres mascarados) ou nada.",
+      "rule_violated": ".forge/agents/code-review/python-reviewer.md § \"Configuração e segredos são validados no boot e não aparecem em logs\"",
+      "confidence": "high"
+    },
+    {
+      "id": "PY-003",
+      "severity": "HIGH",
+      "category": "arch",
+      "file": "alembic/versions/0002_valor_em_centavos.py",
+      "line": 11,
+      "title": "Migration destrutiva sem fase expand/migrate/contract",
+      "description": "A migration 0002 faz `drop_column(\"valor\")` e em seguida `add_column(\"valor_centavos\", ..., nullable=False)` num único passo, sem coluna nullable intermediária, sem backfill dos dados existentes (conversão de `valor` decimal para centavos) e sem plano de rollback que preserve os dados. Se a tabela `recargas` já tiver linhas, o `add_column` com `nullable=False` sem `server_default` falha (ou, se passar, produz linhas com valor perdido/zerado) — e o valor histórico em `valor` é apagado de forma irreversível pelo `drop_column` antes de qualquer migração de dado.",
+      "fix_suggested": "Dividir em migrations no padrão expand/migrate/contract: (1) expand — adicionar `valor_centavos` nullable; (2) migrate/backfill — job idempotente que popula `valor_centavos = round(valor * 100)` em lotes; (3) contract — só então tornar `valor_centavos NOT NULL` e remover `valor`, após confirmar que todos os consumidores já leem a nova coluna.",
+      "rule_violated": ".forge/rules/data/schema-evolution.md § Fluxo padrão (Expand/Migrate-backfill/Contract) e § Gate de design",
+      "confidence": "high"
+    },
+    {
+      "id": "PY-004",
+      "severity": "HIGH",
+      "category": "security",
+      "file": "app/recargas/router.py",
+      "line": 36,
+      "title": "GET /recargas/{recarga_id} sem checagem de ownership (IDOR)",
+      "description": "`obter_recarga` autentica o usuário via `usuario_atual`, mas a query (`SELECT * FROM recargas WHERE id = :id`) não filtra por `usuario_id`. Qualquer usuário autenticado pode ler a recarga de outro usuário só variando o `recarga_id` na URL — vazamento de dado financeiro de terceiro (IDOR clássico). Não há teste cobrindo esse cenário.",
+      "fix_suggested": "Adicionar `AND usuario_id = :usuario_id` na query (ou carregar e comparar `usuario_id` antes de retornar), devolvendo 404/403 quando não pertencer ao usuário autenticado; cobrir com teste de ownership (usuário A não acessa recarga do usuário B).",
+      "rule_violated": ".forge/agents/code-review/python-reviewer.md § \"Endpoints de recurso exigem teste de ownership quando aplicável\"",
+      "confidence": "high"
+    },
+    {
+      "id": "PY-005",
+      "severity": "MEDIUM",
+      "category": "quality",
+      "file": "app/recargas/router.py",
+      "line": 14,
+      "title": "Payload sem validação de schema na borda",
+      "description": "`criar_recarga` recebe `payload: dict[str, Any]` em vez de um modelo Pydantic. Não há validação de tipo/formato de `cartao_id` e `valor_centavos` (ex.: valor negativo, string em vez de inteiro, campo ausente) antes de cobrar no gateway e inserir no banco — o erro só aparece como `KeyError`/500 ou, pior, como cobrança com dado inconsistente.",
+      "fix_suggested": "Definir um `BaseModel` (ex.: `CriarRecargaRequest`) com `cartao_id: str` e `valor_centavos: int = Field(gt=0)`, e usá-lo como parâmetro do endpoint no lugar de `dict[str, Any]`.",
+      "rule_violated": ".forge/agents/code-review/python-reviewer.md § \"Type hints e validação runtime na borda\"",
+      "confidence": "high"
+    },
+    {
+      "id": "PY-006",
+      "severity": "MEDIUM",
+      "category": "logic",
+      "file": "app/recargas/router.py",
+      "line": 20,
+      "title": "Sem tratamento de erro/timeout da chamada ao gateway e sem idempotência",
+      "description": "Não há `try/except` em torno de `requests.post`: timeout, erro de rede ou resposta não-2xx do gateway propaga como exceção não tratada (500 genérico) sem rollback claro de estado, e não existe chave de idempotência enviada ao gateway — um retry do cliente após timeout pode cobrar a mesma recarga duas vezes. `resposta.json()[\"status\"]` também assume corpo sempre presente e bem-formado.",
+      "fix_suggested": "Tratar `requests.exceptions.RequestException` e status HTTP não-2xx explicitamente, devolvendo erro de domínio claro; gerar/propagar uma chave de idempotência (ex.: hash de `usuario_id`+`cartao_id`+janela de tempo, ou id gerado no cliente) para o gateway.",
+      "rule_violated": ".forge/agents/code-review/python-reviewer.md § validação de configuração/borda (extensão por analogia — tratamento de falha externa)",
+      "confidence": "medium"
+    },
+    {
+      "id": "PY-007",
+      "severity": "LOW",
+      "category": "quality",
+      "file": "tests/test_recargas.py",
+      "line": 1,
+      "title": "Cobertura de teste insuficiente para o PR",
+      "description": "Só existe um teste de sucesso para o POST. Não há teste para o GET, para o cenário de ownership (usuário lendo recarga de outro), para falha/timeout do gateway, nem para validação de payload inválido — o PR não deveria ser considerado testado apenas com este caso feliz.",
+      "fix_suggested": "Adicionar testes para: GET com sucesso, GET negado por ownership, POST com payload inválido (422), POST com gateway retornando erro/timeout.",
+      "rule_violated": ".forge/agents/code-review/python-reviewer.md § \"testes de infraestrutura pendente não contam como aprovado\"",
+      "confidence": "high"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "skill": "conciliacao-pix",
+  "cases": [
+    {
+      "id": "TC-01",
+      "prompt": "Concilie o extrato do PSP de 2026-09-24 (extrato-psp-2026-09-24.csv) com os pedidos pagos do dia e liste as divergências.",
+      "expectations": [
+        "Identificou as 3 transações sem pedido correspondente pelo endToEndId (E2E...A41, E2E...B07, E2E...C93)",
+        "Somou a divergência total em R$ 412,90",
+        "Não marcou como divergente o estorno parcial E2E...D77, que tem devolução registrada"
+      ],
+      "output_A": "Conciliação de 2026-09-24: 1.284 transações no extrato, 1.281 casadas com pedidos. Divergências (sem pedido correspondente pelo endToEndId): E2E...A41 (R$ 150,00), E2E...B07 (R$ 187,40), E2E...C93 (R$ 75,50). Total divergente: R$ 412,90. Observação: o E2E...D77 é estorno parcial com devolução registrada no pedido 88213, por isso não entra como divergência.",
+      "output_B": "Conciliação feita. Encontrei transações sem pedido: E2E...A41, E2E...B07 e E2E...C93, além do E2E...D77, cujo valor não bate com o pedido 88213. Total das divergências: R$ 389,40. Recomendo abrir chamado com o PSP para os quatro itens."
+    },
+    {
+      "id": "TC-02",
+      "prompt": "Gere o relatório de tarifas MDR do Pix por adquirente em setembro de 2026, comparando com o contratado.",
+      "expectations": [
+        "Separou as tarifas por adquirente (Cielo, Stone, Rede)",
+        "Usou a tarifa contratada de 0,99% para a Stone",
+        "Sinalizou que a Rede cobrou acima do contrato (1,45% cobrado contra 1,20% contratado)"
+      ],
+      "output_A": "Tarifas MDR Pix — setembro/2026. Cielo: 1,10% sobre R$ 2,3 mi. Stone: 1,20% sobre R$ 1,8 mi. Rede: 1,45% sobre R$ 0,9 mi. Todas as adquirentes dentro da faixa de mercado; nenhuma ação necessária.",
+      "output_B": "Tarifas MDR Pix — setembro/2026, por adquirente. Cielo: cobrado 1,10%, contratado 1,10% (ok). Stone: cobrado 0,99%, contratado 0,99% (ok). Rede: cobrado 1,45%, contratado 1,20% — ACIMA DO CONTRATO, diferença estimada de R$ 2.250,00 no mês; sugiro contestar."
+    },
+    {
+      "id": "TC-03",
+      "prompt": "Quantas transações Pix ficaram pendentes de liquidação no fechamento de 2026-09-25?",
+      "expectations": [
+        "Informou 17 transações pendentes",
+        "Informou o valor pendente de R$ 3.918,20",
+        "Listou o motivo predominante (PSP em janela de manutenção)"
+      ],
+      "output_A": "No fechamento de 2026-09-25 ficaram 17 transações pendentes de liquidação, somando R$ 3.918,20.",
+      "output_B": "Fechamento de 2026-09-25: 17 transações pendentes de liquidação, total de R$ 3.918,20."
+    }
+  ]
+}

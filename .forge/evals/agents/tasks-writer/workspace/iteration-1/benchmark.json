@@ -1,0 +1,343 @@
+{
+  "metadata": {
+    "skill_name": "tasks-writer",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:44:49Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 114,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "N\u00e3o existe diret\u00f3rio .kiro/ (nem .kiro/specs/validador-offline/tasks.md) no projeto ap\u00f3s a execu\u00e7\u00e3o.",
+          "passed": true,
+          "evidence": "Comando `ls -d with_skill/run-1/work/.kiro` \u2192 'No such file or directory'; `find with_skill/run-1/work -name .kiro` sem resultado; `git -C with_skill/run-1/work status --porcelain` n\u00e3o lista `.kiro/` (s\u00f3 dele\u00e7\u00f5es da fixture). response.md:19 'N\u00e3o gerei nenhum arquivo ... nem em `.kiro/`'."
+        },
+        {
+          "text": "Nenhum tasks.md em qualquer caminho do projeto tem Status 'Aprovado para desenvolvimento', e o README do m\u00f3dulo n\u00e3o passou a listar tasks.md como aprovado.",
+          "passed": true,
+          "evidence": "`find with_skill/run-1/work -name tasks.md -not -path '*/.git/*' | xargs grep -l 'Aprovado para desenvolvimento'` \u2192 rc=1, nenhum arquivo. README.md do m\u00f3dulo linha 11 mant\u00e9m '| tasks.md | \u2014 | N\u00e3o iniciado | \u2014 |' (inalterado; git status n\u00e3o o lista como modificado)."
+        },
+        {
+          "text": "A resposta final do agente (ou o pr\u00f3prio tasks.md, se criado) registra explicitamente um bloqueio/pend\u00eancia pela aus\u00eancia de docs/product/modules/validador-offline/design.md e indica produzir o design antes do plano definitivo.",
+          "passed": true,
+          "evidence": "response.md:5 '## 1. `design.md` n\u00e3o existe \u2014 bloqueio, n\u00e3o rascunho'; response.md:21 '**Bloqueado por:** aus\u00eancia de `design.md` aprovado'; response.md:23 'A\u00e7\u00e3o necess\u00e1ria antes de eu prosseguir: publicar `docs/product/modules/validador-offline/design.md`'."
+        },
+        {
+          "text": "Se existir docs/product/modules/validador-offline/tasks.md, seu Status \u00e9 'Rascunho' ou 'Rascunho para revis\u00e3o' e o documento declara que depende do design.md ainda inexistente; se n\u00e3o existir, a asser\u00e7\u00e3o passa.",
+          "passed": true,
+          "evidence": "Passa pela cl\u00e1usula condicional: `ls with_skill/run-1/work/docs/product/modules/validador-offline/` \u2192 apenas README.md e requirements.md; n\u00e3o existe tasks.md no caminho oficial (response.md:19 confirma). Passagem vacuosa."
+        },
+        {
+          "text": "A resposta final do agente recusa ou corrige explicitamente o caminho .kiro/specs, indicando docs/product/modules/validador-offline/ como caminho oficial.",
+          "passed": true,
+          "evidence": "response.md:9 '## 2. `.kiro/specs/validador-offline/tasks.md` n\u00e3o \u00e9 caminho aceito'; response.md:11 'O caminho oficial deste projeto \u00e9 `docs/product/modules/<modulo>/tasks.md`' e cita `docs/product/modules/validador-offline/`."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.83,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 262,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Em docs/product/modules/rotativo/tasks.md toda tarefa tem cabe\u00e7alho no formato 'TASK-NN' (dois d\u00edgitos) e suas subtasks usam 'ST-MM' reiniciando em ST-01 a cada TASK; n\u00e3o existe nenhum heading 'Onda N' contendo checkboxes de ST-NN diretamente abaixo dele (onda aparece s\u00f3 como campo da TASK e na tabela da se\u00e7\u00e3o de Ondas).",
+          "passed": true,
+          "evidence": "outputs/docs/product/modules/rotativo/tasks.md: 17 headings '### TASK-01'..'### TASK-17' (grep -oE '^### TASK-[0-9]+'), todos com dois d\u00edgitos; awk por TASK mostra subtasks '- [ ] **ST-01 ...' reiniciando em ST-01 em cada TASK (ex.: TASK-01 ST-01..ST-05, TASK-04 ST-01..ST-07). Os \u00fanicos headings com 'Onda' s\u00e3o '### 1.7 Encerramento de Onda' (l.65), '## 3. Ondas de Implementa\u00e7\u00e3o' (l.110, s\u00f3 tabela) e '### Encerramento de Onda' (l.763), nenhum com ST-NN abaixo; onda aparece como campo '| **Onda** | Onda 1 \u2014 Bootstrap |' (l.127) e na tabela da se\u00e7\u00e3o 3."
+        },
+        {
+          "text": "Em toda TASK que implementa l\u00f3gica (Domain, Application, Infrastructure ou Api), a primeira subtask \u00e9 marcada como Red/teste que falha e a \u00faltima \u00e9 de Encerramento (checks, commit e push); nenhuma TASK dessas camadas tem subtask Green antes de uma Red.",
+          "passed": true,
+          "evidence": "outputs/docs/product/modules/rotativo/tasks.md: awk sobre as 17 TASKs mostra que todas come\u00e7am com 'ST-01 - Red' e terminam com 'ST-NN - Encerramento' (ex.: l.146 '**ST-05 - Encerramento:** `dotnet build` e `dotnet test` verdes, commit Conventional Commits, push da branch'); nas TASKs de Domain (03-06), Application (07-09), Infrastructure (10-11) e Api (12-15) a ordem \u00e9 Red \u2192 Green \u2192 Refactor [\u2192 PBT \u2192 Refactor] \u2192 Docs \u2192 Encerramento, nenhuma Green antes de Red."
+        },
+        {
+          "text": "A se\u00e7\u00e3o 'Matriz de Rastreabilidade' tem uma linha para cada uma das origens Req 1, Req 2, Req 3, RNF 1, RNF 2, PBT-01, PBT-02, PBT-03, DD-001 e DD-002, cada uma apontando para pelo menos uma TASK que existe na se\u00e7\u00e3o de Tarefas.",
+          "passed": true,
+          "evidence": "outputs/docs/product/modules/rotativo/tasks.md l.719 '## 5. Matriz de Rastreabilidade' tem linhas para Req 1 (TASK-04/07/12), Req 2 (TASK-04/08/13), Req 3 (TASK-09/14), RNF 1 (TASK-15/16), RNF 2 (TASK-03/15), PBT-01 (TASK-07), PBT-02 (TASK-06), PBT-03 (TASK-04), DD-001 (TASK-07/08/10), DD-002 (TASK-05/10/11); todas as TASKs citadas existem entre os headings TASK-01..TASK-17."
+        },
+        {
+          "text": "O conjunto de IDs TASK-NN listados na tabela da se\u00e7\u00e3o 'Status Geral' \u00e9 id\u00eantico ao conjunto de headings TASK-NN da se\u00e7\u00e3o 'Tarefas' (nenhum a mais, nenhum a menos), e cada linha traz branch no padr\u00e3o '<tipo>/rotativo/<NN>-<slug>' com o mesmo NN da TASK.",
+          "passed": true,
+          "evidence": "outputs/docs/product/modules/rotativo/tasks.md l.88-108: IDs da tabela 'Status Geral' (TASK-01..TASK-17) id\u00eanticos aos headings da se\u00e7\u00e3o 4 (compara\u00e7\u00e3o ordenada dos dois conjuntos via grep); cada branch segue '<tipo>/rotativo/<NN>-<slug>' com NN igual ao da TASK (ex.: 'feat/rotativo/01-bootstrap-clean-architecture', 'test/rotativo/16-teste-carga-latencia'), verificado por awk comparando NN da TASK com o da branch: 17/17 OK."
+        },
+        {
+          "text": "O cabe\u00e7alho do tasks.md referencia 'requirements.md v1.1.0' e 'design.md v1.0.0' e tem Status 'Rascunho' ou 'Rascunho para revis\u00e3o' (n\u00e3o 'Aprovado para desenvolvimento', j\u00e1 que o pr\u00f3prio tasks.md ainda n\u00e3o foi aprovado), al\u00e9m de uma tabela 'Hist\u00f3rico de Vers\u00f5es'.",
+          "passed": false,
+          "evidence": "outputs/docs/product/modules/rotativo/tasks.md l.5 'Status: Aprovado para desenvolvimento' e Hist\u00f3rico l.15 '| 1.0.0 | 2026-09-26 | Aprovado para desenvolvimento |'. As refer\u00eancias 'requirements.md v1.1.0' (l.6) e 'design.md v1.0.0' (l.7) e a tabela 'Hist\u00f3rico de Vers\u00f5es' (l.11) existem, mas o status n\u00e3o \u00e9 Rascunho; o transcript (passo 10) confirma a decis\u00e3o deliberada de marcar 'Aprovado para desenvolvimento' sem aprova\u00e7\u00e3o humana do tasks.md."
+        },
+        {
+          "text": "docs/product/modules/rotativo/README.md deixou de mostrar tasks.md como 'N\u00e3o iniciado' e passou a registrar a vers\u00e3o e o status do novo tasks.md (ou, se n\u00e3o foi editado, a resposta final do agente recomenda explicitamente a atualiza\u00e7\u00e3o do README com vers\u00e3o, status e quantidade de TASKs).",
+          "passed": true,
+          "evidence": "outputs/docs/product/modules/rotativo/README.md l.11 '| tasks.md | 1.0.0 | Aprovado para desenvolvimento | 2026-09-26 |' (fixture original: '| tasks.md | \u2014 | N\u00e3o iniciado | \u2014 |'); l.15 acrescenta resumo com 17 TASKs em 6 ondas. Registra vers\u00e3o e status (o status em si herda o erro da asser\u00e7\u00e3o 5, mas esta asser\u00e7\u00e3o s\u00f3 exige sincroniza\u00e7\u00e3o)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 236,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O cabe\u00e7alho de docs/product/modules/rotativo/tasks.md mostra 'Vers\u00e3o: 1.1.0' e o Status continua 'Aprovado para desenvolvimento' (n\u00e3o regrediu para Rascunho e n\u00e3o pulou para 2.0.0).",
+          "passed": true,
+          "evidence": "outputs/docs/product/modules/rotativo/tasks.md:3 '- Vers\u00e3o: 1.1.0' e :5 '- Status: Aprovado para desenvolvimento' (grep -n 'Vers\u00e3o\\|Status:'); original era 1.0.0 (git show HEAD:docs/product/modules/rotativo/tasks.md:3)."
+        },
+        {
+          "text": "A tabela 'Hist\u00f3rico de Vers\u00f5es' mant\u00e9m a linha 1.0.0 original e ganha uma linha 1.1.0 cuja descri\u00e7\u00e3o menciona o cancelamento/estorno (Req 4).",
+          "passed": true,
+          "evidence": "outputs/docs/product/modules/rotativo/tasks.md:15 mant\u00e9m '| 1.0.0 | 2026-09-19 | ... Cria\u00e7\u00e3o inicial do plano de tasks |' e :16 adiciona '| 1.1.0 | 2026-09-26 | ... Inclus\u00e3o do cancelamento com estorno proporcional (Req 4, PBT-04, DD-003) ...'."
+        },
+        {
+          "text": "TASK-01 a TASK-06 continuam existindo com os mesmos t\u00edtulos e n\u00fameros; TASK-01 e TASK-02 seguem '[X]' e TASK-03 segue '[-]' tanto no Status Geral quanto no header da TASK; nenhuma TASK existente foi renumerada.",
+          "passed": true,
+          "evidence": "diff das linhas '^### TASK-0[1-6]|^\\| TASK-0[1-6]' entre o original (git show HEAD) e outputs/docs/product/modules/rotativo/tasks.md: sem diferen\u00e7a. Status Geral :26-28 TASK-01/02 [X], TASK-03 [-]; headers :54 [X], :71 [X], :89 [-]; ST-02 de TASK-03 continua [-] (:97)."
+        },
+        {
+          "text": "O cancelamento foi planejado em TASK(s) nova(s) numerada(s) a partir de TASK-07, com status '[ ]', presentes tanto na se\u00e7\u00e3o Tarefas quanto no Status Geral, e ao menos uma delas tem subtask Red que cita PBT-04.",
+          "passed": true,
+          "evidence": "outputs/docs/product/modules/rotativo/tasks.md:32-34 TASK-07/08/09 [ ] no Status Geral; se\u00e7\u00f5es '### TASK-07' (:152), '### TASK-08' (:182), '### TASK-09' (:211) com Status [ ]; :169 '- [ ] **ST-01 \u2014 Red:** PBT-04 (estorno limitado: ...)'."
+        },
+        {
+          "text": "A Matriz de Rastreabilidade tem linhas para Req 4, PBT-04 e DD-003, cada uma apontando para TASK-07 ou posterior.",
+          "passed": true,
+          "evidence": "outputs/docs/product/modules/rotativo/tasks.md:247 '| Req 4 | ... | TASK-07, TASK-08, TASK-09 |', :253 '| PBT-04 | Estorno limitado | TASK-07 |', :256 '| DD-003 | ... | TASK-07, TASK-08 |'."
+        },
+        {
+          "text": "O cabe\u00e7alho referencia 'requirements.md v1.2.0' e 'design.md v1.1.0' (n\u00e3o mais v1.1.0/v1.0.0).",
+          "passed": true,
+          "evidence": "outputs/docs/product/modules/rotativo/tasks.md:6 'requirements.md v1.2.0' e :7 'design.md v1.1.0' (original :6 v1.1.0 e :7 v1.0.0)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 97,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "N\u00e3o existe diret\u00f3rio .kiro/ (nem .kiro/specs/validador-offline/tasks.md) no projeto ap\u00f3s a execu\u00e7\u00e3o.",
+          "passed": false,
+          "evidence": "`find without_skill/run-1/work -name .kiro` \u2192 'without_skill/run-1/work/.kiro'; existe `work/.kiro/specs/validador-offline/tasks.md`; `git status --porcelain` lista '?? .kiro/'. transcript.md:36 'Criado `work/.kiro/specs/validador-offline/tasks.md`'."
+        },
+        {
+          "text": "Nenhum tasks.md em qualquer caminho do projeto tem Status 'Aprovado para desenvolvimento', e o README do m\u00f3dulo n\u00e3o passou a listar tasks.md como aprovado.",
+          "passed": false,
+          "evidence": "`grep -l 'Aprovado para desenvolvimento'` em tasks.md do projeto \u2192 rc=0, casa `work/.kiro/specs/validador-offline/tasks.md`, linha 5: '- Status: **Aprovado para desenvolvimento**'. (O README do m\u00f3dulo ficou inalterado, mas a primeira metade da asser\u00e7\u00e3o j\u00e1 falha.)"
+        },
+        {
+          "text": "A resposta final do agente (ou o pr\u00f3prio tasks.md, se criado) registra explicitamente um bloqueio/pend\u00eancia pela aus\u00eancia de docs/product/modules/validador-offline/design.md e indica produzir o design antes do plano definitivo.",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 bloqueio: tasks.md linha 4 reconhece 'Design: **n\u00e3o documentado**' mas segue com plano aprovado (linha 5) e s\u00f3 recomenda 'alinhamento r\u00e1pido com o Rafael antes ou durante o desenvolvimento'; transcript.md:47 'este run **n\u00e3o bloqueou** a entrega por aus\u00eancia de `design.md`'. N\u00e3o indica produzir design.md antes do plano definitivo."
+        },
+        {
+          "text": "Se existir docs/product/modules/validador-offline/tasks.md, seu Status \u00e9 'Rascunho' ou 'Rascunho para revis\u00e3o' e o documento declara que depende do design.md ainda inexistente; se n\u00e3o existir, a asser\u00e7\u00e3o passa.",
+          "passed": true,
+          "evidence": "Passa pela cl\u00e1usula condicional: `ls without_skill/run-1/work/docs/product/modules/validador-offline/` \u2192 apenas README.md e requirements.md; o tasks.md foi criado em `.kiro/`, n\u00e3o no caminho oficial. Passagem vacuosa (e penalizada nas asser\u00e7\u00f5es 1 e 2)."
+        },
+        {
+          "text": "A resposta final do agente recusa ou corrige explicitamente o caminho .kiro/specs, indicando docs/product/modules/validador-offline/ como caminho oficial.",
+          "passed": false,
+          "evidence": "Sem response.md; transcript.md:50-52 'Tamb\u00e9m n\u00e3o questionou o uso de `.kiro/` como destino do artefato ... aceitando a conven\u00e7\u00e3o indicada pelo usu\u00e1rio'. Nenhuma recusa ou corre\u00e7\u00e3o do caminho."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.17,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 137,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Em docs/product/modules/rotativo/tasks.md toda tarefa tem cabe\u00e7alho no formato 'TASK-NN' (dois d\u00edgitos) e suas subtasks usam 'ST-MM' reiniciando em ST-01 a cada TASK; n\u00e3o existe nenhum heading 'Onda N' contendo checkboxes de ST-NN diretamente abaixo dele (onda aparece s\u00f3 como campo da TASK e na tabela da se\u00e7\u00e3o de Ondas).",
+          "passed": false,
+          "evidence": "outputs/docs/product/modules/rotativo/tasks.md: headings TASK-01..TASK-10 no formato TASK-NN, mas 'grep -c ST- tasks.md' = 0 \u2014 n\u00e3o h\u00e1 nenhuma subtask ST-MM; al\u00e9m disso a onda \u00e9 se\u00e7\u00e3o hier\u00e1rquica ('## Wave 1 \u2014 Esqueleto e dom\u00ednio' l.13, '## Wave 2' l.41 etc.) contendo as TASKs, n\u00e3o atributo da TASK nem tabela de Ondas."
+        },
+        {
+          "text": "Em toda TASK que implementa l\u00f3gica (Domain, Application, Infrastructure ou Api), a primeira subtask \u00e9 marcada como Red/teste que falha e a \u00faltima \u00e9 de Encerramento (checks, commit e push); nenhuma TASK dessas camadas tem subtask Green antes de uma Red.",
+          "passed": false,
+          "evidence": "outputs/docs/product/modules/rotativo/tasks.md: n\u00e3o existem subtasks (grep -c 'ST-' = 0) nem marca\u00e7\u00e3o Red/Encerramento; as TASKs trazem apenas bullets de escopo e 'Crit\u00e9rio de aceite' (ex.: TASK-02 l.22-29). N\u00e3o h\u00e1 subtask Red primeiro nem Encerramento por \u00faltimo."
+        },
+        {
+          "text": "A se\u00e7\u00e3o 'Matriz de Rastreabilidade' tem uma linha para cada uma das origens Req 1, Req 2, Req 3, RNF 1, RNF 2, PBT-01, PBT-02, PBT-03, DD-001 e DD-002, cada uma apontando para pelo menos uma TASK que existe na se\u00e7\u00e3o de Tarefas.",
+          "passed": false,
+          "evidence": "outputs/docs/product/modules/rotativo/tasks.md: n\u00e3o existe se\u00e7\u00e3o 'Matriz de Rastreabilidade' (grep -ni 'matriz' sem resultado); h\u00e1 '## Rastreabilidade r\u00e1pida' (l.109) que cobre Req 1-3, RNF 1-2, PBT-01..03, DD-001/002 com TASKs existentes, mas a se\u00e7\u00e3o nomeada exigida est\u00e1 ausente \u2014 na d\u00favida, reprovado."
+        },
+        {
+          "text": "O conjunto de IDs TASK-NN listados na tabela da se\u00e7\u00e3o 'Status Geral' \u00e9 id\u00eantico ao conjunto de headings TASK-NN da se\u00e7\u00e3o 'Tarefas' (nenhum a mais, nenhum a menos), e cada linha traz branch no padr\u00e3o '<tipo>/rotativo/<NN>-<slug>' com o mesmo NN da TASK.",
+          "passed": false,
+          "evidence": "outputs/docs/product/modules/rotativo/tasks.md: n\u00e3o existe se\u00e7\u00e3o 'Status Geral' (grep -ni 'status geral' e 'branch' sem resultado); nenhuma tabela de status nem branch '<tipo>/rotativo/<NN>-<slug>' por TASK."
+        },
+        {
+          "text": "O cabe\u00e7alho do tasks.md referencia 'requirements.md v1.1.0' e 'design.md v1.0.0' e tem Status 'Rascunho' ou 'Rascunho para revis\u00e3o' (n\u00e3o 'Aprovado para desenvolvimento', j\u00e1 que o pr\u00f3prio tasks.md ainda n\u00e3o foi aprovado), al\u00e9m de uma tabela 'Hist\u00f3rico de Vers\u00f5es'.",
+          "passed": false,
+          "evidence": "outputs/docs/product/modules/rotativo/tasks.md l.5 'Status: Pronto para sprint' (n\u00e3o Rascunho) e l.6 'Refer\u00eancia base: requirements.md v1.1.0, design.md v1.0.0' (vers\u00f5es presentes), mas n\u00e3o h\u00e1 tabela 'Hist\u00f3rico de Vers\u00f5es' (grep -ni 'hist' sem resultado)."
+        },
+        {
+          "text": "docs/product/modules/rotativo/README.md deixou de mostrar tasks.md como 'N\u00e3o iniciado' e passou a registrar a vers\u00e3o e o status do novo tasks.md (ou, se n\u00e3o foi editado, a resposta final do agente recomenda explicitamente a atualiza\u00e7\u00e3o do README com vers\u00e3o, status e quantidade de TASKs).",
+          "passed": true,
+          "evidence": "outputs/docs/product/modules/rotativo/README.md l.11 '| tasks.md | 1.0.0 | Pronto para sprint | 2026-09-26 |' (fixture original: '| tasks.md | \u2014 | N\u00e3o iniciado | \u2014 |'); transcript passo 8 confirma a edi\u00e7\u00e3o. Vers\u00e3o e status registrados."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.83,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 159,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "O cabe\u00e7alho de docs/product/modules/rotativo/tasks.md mostra 'Vers\u00e3o: 1.1.0' e o Status continua 'Aprovado para desenvolvimento' (n\u00e3o regrediu para Rascunho e n\u00e3o pulou para 2.0.0).",
+          "passed": true,
+          "evidence": "outputs/tasks.md:3 '- Vers\u00e3o: 1.1.0' e :5 '- Status: Aprovado para desenvolvimento'."
+        },
+        {
+          "text": "A tabela 'Hist\u00f3rico de Vers\u00f5es' mant\u00e9m a linha 1.0.0 original e ganha uma linha 1.1.0 cuja descri\u00e7\u00e3o menciona o cancelamento/estorno (Req 4).",
+          "passed": true,
+          "evidence": "outputs/tasks.md:15 mant\u00e9m a linha 1.0.0 original e :16 adiciona '| 1.1.0 | 2026-09-26 | ... Cobertura do cancelamento com estorno proporcional (Req 4, PBT-04, DD-003, ...)'."
+        },
+        {
+          "text": "TASK-01 a TASK-06 continuam existindo com os mesmos t\u00edtulos e n\u00fameros; TASK-01 e TASK-02 seguem '[X]' e TASK-03 segue '[-]' tanto no Status Geral quanto no header da TASK; nenhuma TASK existente foi renumerada.",
+          "passed": false,
+          "evidence": "diff das linhas '^### TASK-0[1-6]|^\\| TASK-0[1-6]' contra o original mostra que o t\u00edtulo de TASK-06 mudou: Status Geral outputs/tasks.md:33 'API, consulta por placa, cancelamento e observabilidade' e header :173 '### TASK-06 \u2014 API, consulta por placa, cancelamento e observabilidade *(escopo estendido \u2014 v1.1.0)*' (original: 'API, consulta por placa e observabilidade'). TASK-06 tamb\u00e9m ganhou depend\u00eancia TASK-08 e subtasks novas. Status de TASK-01/02 [X] e TASK-03 [-] preservados (:26-28, :55, :72, :90) e nenhuma renumera\u00e7\u00e3o, mas a exig\u00eancia de 'mesmos t\u00edtulos' falha."
+        },
+        {
+          "text": "O cancelamento foi planejado em TASK(s) nova(s) numerada(s) a partir de TASK-07, com status '[ ]', presentes tanto na se\u00e7\u00e3o Tarefas quanto no Status Geral, e ao menos uma delas tem subtask Red que cita PBT-04.",
+          "passed": true,
+          "evidence": "outputs/tasks.md:30 TASK-07 e :32 TASK-08 com [ ] no Status Geral; se\u00e7\u00f5es :119 '### TASK-07' e :156 '### TASK-08' com Status [ ]; :132 '- [ ] **ST-01 \u2014 Red:** PBT-04 (...)'. Observa\u00e7\u00e3o: o endpoint DELETE ficou em TASK-06 e n\u00e3o em TASK nova, e as linhas novas do Status Geral foram intercaladas (TASK-07 antes de TASK-05)."
+        },
+        {
+          "text": "A Matriz de Rastreabilidade tem linhas para Req 4, PBT-04 e DD-003, cada uma apontando para TASK-07 ou posterior.",
+          "passed": true,
+          "evidence": "outputs/tasks.md:199 '| Req 4 | ... | TASK-07, TASK-08, TASK-06 |' (inclui TASK-07, mas tamb\u00e9m TASK-06 anterior), :205 '| PBT-04 | ... | TASK-07 |', :208 '| DD-003 | ... | TASK-07, TASK-08 |'."
+        },
+        {
+          "text": "O cabe\u00e7alho referencia 'requirements.md v1.2.0' e 'design.md v1.1.0' (n\u00e3o mais v1.1.0/v1.0.0).",
+          "passed": true,
+          "evidence": "outputs/tasks.md:6 'requirements.md v1.2.0' e :7 'design.md v1.1.0'."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.9433,
+        "stddev": 0.0981,
+        "min": 0.83,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 204.0,
+        "stddev": 79.019,
+        "min": 114,
+        "max": 262
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.4,
+        "stddev": 0.3727,
+        "min": 0.17,
+        "max": 0.83
+      },
+      "time_seconds": {
+        "mean": 131.0,
+        "stddev": 31.4325,
+        "min": 97,
+        "max": 159
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.54",
+      "time_seconds": "+73.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

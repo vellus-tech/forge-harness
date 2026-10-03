@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "pr-recarga-fastapi-async",
+  "prompt": "Estou na branch feat/recargas-gateway da recarga-api (FastAPI + SQLAlchemy async + Alembic, Poetry). O PR cria POST /recargas, que cobra no gateway, e GET /recargas/{recarga_id}, e troca o valor da recarga para centavos na migration 0002. Antes de pedir o code-evaluator, faz a revisão Python do diff contra main e grava o resultado em review/python-reviewer.json no formato que o code-evaluator consome — cada finding com arquivo, linha, cenário e severidade.",
+  "assertions": [
+    "review/python-reviewer.json é JSON válido com a chave `reviewer` igual a \"python-reviewer\" e uma lista `findings` em que todo item tem `id`, `severity` (BLOCKER|HIGH|MEDIUM|LOW), `category`, `file`, `line` numérico e `description` — não é um markdown livre nem um JSON com outro formato",
+    "Há um finding com file app/recargas/router.py e line 24 (ou intervalo que inclua 24) apontando `requests.post` síncrono dentro da rota `async def criar_recarga` como chamada bloqueante no event loop, sugerindo cliente assíncrono (ex.: httpx.AsyncClient, já no pyproject) ou execução fora do loop",
+    "Há um finding com severidade BLOCKER ou HIGH em app/recargas/router.py linha 23 apontando que `settings.gateway_api_key` é escrito no log",
+    "Há um finding sobre GET /recargas/{recarga_id} (router.py, linhas 33 a 40) apontando que a consulta não filtra por `usuario_id` (acesso a recarga de outro usuário) E que não existe teste de ownership para o endpoint em tests/",
+    "Há um finding em alembic/versions/0002_valor_em_centavos.py (linhas 10-11) que cita `schema-evolution` (em `rule_violated` ou na descrição) e aponta a remoção de `valor` com criação de `valor_centavos` NOT NULL no mesmo passo como mudança destrutiva sem expand/backfill/contract ou com perda dos valores existentes",
+    "Nenhum finding tem `file` apontando para app/legado/relatorio.py (o SQL por f-string pré-existente fora do diff não entra na revisão), e `git -C <alvo> status --porcelain -- app/ alembic/ tests/` sai vazio"
+  ]
+}

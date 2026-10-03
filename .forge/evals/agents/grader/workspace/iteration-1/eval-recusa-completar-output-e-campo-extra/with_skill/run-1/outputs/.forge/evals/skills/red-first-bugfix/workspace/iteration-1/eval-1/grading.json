@@ -1,0 +1,80 @@
+{
+  "skill": "red-first-bugfix",
+  "graded_at": "2026-09-26T00:00:00Z",
+  "baseline": {
+    "description": "Execução baseline (sem a skill red-first-bugfix) dos dois casos de teste, ambas concluídas com exit_code 0, sem evidência de protocolo Red-first."
+  },
+  "variant": {
+    "description": "Execução variant (com a skill red-first-bugfix). TC-01 concluída com exit_code 0 seguindo o protocolo Red-first. TC-02 interrompida pelo runner após 120s de timeout (exit_code 124), avaliada com o output parcial disponível, sem nova execução.",
+    "notes": "TC-02 variant: runner timeout aos 120000ms — output é apenas a declaração de intenção de escrever o teste, sem confirmação de criação, execução ou falha observada; exit_code 124."
+  },
+  "test_cases": [
+    {
+      "id": "TC-01",
+      "prompt": "Corrija o bug: a tarifa de integração é cobrada duas vezes quando o passageiro valida o cartão de novo em menos de 60 segundos.",
+      "baseline_result": {
+        "output": "Corrigi o cálculo em TarifaIntegracaoService.kt adicionando a verificação da janela de 60 segundos antes de debitar a integração. Agora a segunda validação dentro da janela não gera nova cobrança.",
+        "duration_ms": 21000,
+        "tokens": 400,
+        "exit_code": 0
+      },
+      "variant_result": {
+        "output": "Criei TarifaIntegracaoServiceTest com o caso `cobra integracao uma unica vez dentro da janela de 60s`.\nRodei ./gradlew test --tests TarifaIntegracaoServiceTest: FAILED — expected 1 cobrança, but was 2.\nDepois apliquei a correção em TarifaIntegracaoService.kt e o teste passou.",
+        "duration_ms": 45000,
+        "tokens": 900,
+        "exit_code": 0
+      },
+      "expectations": [
+        {
+          "text": "Escreveu um teste que reproduz o bug antes de alterar o código de produção",
+          "passed": true,
+          "evidence": "baseline: false — não há menção a nenhum teste, apenas 'Corrigi o cálculo em TarifaIntegracaoService.kt'. variant: true — 'Criei TarifaIntegracaoServiceTest com o caso cobra integracao uma unica vez dentro da janela de 60s' aparece antes de 'Depois apliquei a correção'."
+        },
+        {
+          "text": "Mostrou o teste falhando (vermelho) antes de aplicar a correção",
+          "passed": true,
+          "evidence": "baseline: false — não há execução de teste nem estado de falha no output. variant: true — 'Rodei ./gradlew test --tests TarifaIntegracaoServiceTest: FAILED — expected 1 cobrança, but was 2' precede a aplicação da correção."
+        }
+      ]
+    },
+    {
+      "id": "TC-02",
+      "prompt": "Corrija o bug: o saldo do cartão fica negativo depois de um estorno parcial de recarga.",
+      "baseline_result": {
+        "output": "Ajustei EstornoService.kt para limitar o valor estornado ao saldo disponível do cartão. O saldo não fica mais negativo após estorno parcial.",
+        "duration_ms": 19000,
+        "tokens": 380,
+        "exit_code": 0
+      },
+      "variant_result": {
+        "output": "Vou começar escrevendo o teste de regressão para o estorno parcial em EstornoServiceTest, antes de mexer no EstornoService.kt.\n[runner] timeout após 120s — execução interrompida",
+        "duration_ms": 120000,
+        "tokens": null,
+        "exit_code": 124
+      },
+      "expectations": [
+        {
+          "text": "Escreveu um teste que reproduz o bug antes de alterar o código de produção",
+          "passed": false,
+          "evidence": "baseline: false — não há menção a nenhum teste, apenas 'Ajustei EstornoService.kt'. variant: false — o output só registra a intenção 'Vou começar escrevendo o teste de regressão' e é interrompido por '[runner] timeout após 120s — execução interrompida' antes de confirmar que o teste foi criado."
+        },
+        {
+          "text": "Mostrou o teste falhando (vermelho) antes de aplicar a correção",
+          "passed": false,
+          "evidence": "baseline: false — não há execução de teste no output. variant: false — o output termina em '[runner] timeout após 120s — execução interrompida', sem nenhuma execução de teste nem falha observada registradas."
+        }
+      ]
+    }
+  ],
+  "aggregate": {
+    "baseline_pass_rate": 0,
+    "variant_pass_rate": 0.5,
+    "delta_pass_rate": 0.5,
+    "baseline_tokens_mean": 390,
+    "variant_tokens_mean": null,
+    "delta_tokens": null,
+    "baseline_duration_mean_ms": 20000,
+    "variant_duration_mean_ms": 82500,
+    "delta_duration_ms": 62500
+  }
+}

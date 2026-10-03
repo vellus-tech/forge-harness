@@ -1,0 +1,85 @@
+{
+  "expectations": [
+    {
+      "text": "O relatório identifica --surface-2 (PartnersPage.css) como token referenciado e nunca definido em tokens.css e o liga ao defeito do dark mode",
+      "passed": true,
+      "evidence": "ui-review.md:23-31 '**1. HIGH · src/features/partners/PartnersPage.css:1 · token fantasma --surface-2 — causa raiz do \"tabela clara na tela escura\"**' e 'nunca foi definido em src/styles/tokens.css'. Conferido: `grep -rn surface-2 work/src` só casa PartnersPage.css:1; `grep -n surface-2 work/src/styles/tokens.css` não retorna nada."
+    },
+    {
+      "text": "O relatório não classifica --progress como token fantasma a corrigir: reconhece que é injetado em runtime via style inline (allowlist) e o separa de --surface-2",
+      "passed": true,
+      "evidence": "ui-review.md:58-62 '**5. LOW · --progress (custom property injetada via style inline) · não é bug**' ... 'caso legítimo de token \"fantasma\" ... (injeção em runtime) — não precisa de definição em tokens.css. Mantive fora do FAIL do A1 rodando o scan com allowlist (\"--progress\") para isolar o problema real (--surface-2)'. Gate A1 (linha 5) lista só --surface-2. Fixture confirma: PartnersPage.tsx:19 style={{['--progress']: ...}}."
+    },
+    {
+      "text": "O relatório classifica a BU exibida como UUID como dado cru vazando por falta de fonte id->nome no backend (endpoint/contrato de API) e o encaminha como tarefa de backend, em vez de propor apenas truncar, formatar ou estilizar o UUID no front",
+      "passed": true,
+      "evidence": "ui-review.md:34-40 '**2. HIGH · ... GUID cru na coluna BU — achado de backend, não de CSS**' ... 'Nenhum ajuste de CSS ou componente resolve isso: falta um endpoint ... que traduza bu_id → nome. Encaminhar como tarefa de backend/API'. Não propõe truncar/formatar: `grep -niE 'truncar|primeiros 8'` sem ocorrência no arquivo."
+    },
+    {
+      "text": "O relatório aponta que o DS não tem primitivo Select, cita que mais de uma tela (partners e users) improvisa <select> nativo, e encaminha a criação do primitivo ao dono do design system separado das correções locais da tela",
+      "passed": true,
+      "evidence": "ui-review.md:48-56 '**4. MEDIUM · PartnersPage.tsx:8 (e src/features/users/UsersPage.tsx:4) · <select> nativo sem primitivo do DS — achado de plataforma**', 'não há Select', 'já são 2 telas reimplementando o mesmo combo', 'Encaminhar ao dono do DS como item de plataforma', separado das correções locais (achados 1-3). Fixture confirma: `grep -rn '<select' work/src` casa PartnersPage.tsx:8 e UsersPage.tsx:4."
+    },
+    {
+      "text": "ui-review.md traz o bloco de gates determinísticos com status por gate (A1 a A5) e uma linha final de veredito APROVADO ou BLOQUEADO, com BLOQUEADO neste caso",
+      "passed": true,
+      "evidence": "ui-review.md:3-10 bloco 'Gates determinísticos' com [FAIL] A1, [OK] A2, [OK] A3, [WARN] A4, [FAIL] A5; linha 76 'Veredito: **BLOQUEADO** (A1/A5 FAIL ...)'. `grep -nE 'A[1-5] '` retorna as 5 linhas; `grep -nE 'BLOQUEADO|APROVADO'` retorna só a linha 76."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 207,
+    "total_duration_seconds": 207
+  },
+  "claims": [
+    {
+      "claim": "Único token fantasma real após allowlist é --surface-2",
+      "type": "factual",
+      "verified": true,
+      "evidence": "grep em work/src: --surface-2 (PartnersPage.css:1) e --progress (PartnersPage.css:4, injetado em PartnersPage.tsx:19); tokens.css não define nenhum dos dois."
+    },
+    {
+      "claim": "A2 hardcoded-color OK / sem outros desvios de token",
+      "type": "quality",
+      "verified": false,
+      "evidence": "A2 só varre cor; o border-radius fixo 4px em PartnersPage.css:5 (token --radius-md existe) passou despercebido, o baseline o apontou."
+    },
+    {
+      "claim": "Enum role cru no Badge (PartnersPage.tsx:17)",
+      "type": "factual",
+      "verified": true,
+      "evidence": "PartnersPage.tsx:17 '<Badge>{p.role}</Badge>'; o relatório cita linha 14, número de linha incorreto (é 17)."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": [
+      "Despacho de subagentes simulado em outputs/dispatch-simulado.md; execução feita diretamente."
+    ]
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O relatório identifica --surface-2 (PartnersPage.css) como token referenciado e nunca definido em tokens.css e o liga ao defeito do dark mode",
+        "reason": "Não discrimina: o baseline sem skill também achou --surface-2 com um grep simples (without_skill transcript passo 7). Serve como piso, não como sinal do valor da skill."
+      },
+      {
+        "assertion": "ui-review.md traz o bloco de gates determinísticos com status por gate (A1 a A5) e uma linha final de veredito APROVADO ou BLOQUEADO, com BLOQUEADO neste caso",
+        "reason": "Asserção de formato que só a skill pode satisfazer; mede aderência ao template, não qualidade da revisão. Manter, mas não ler o delta de pass_rate como ganho de substância."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o border-radius hardcoded (4px em PartnersPage.css:5, 6px em UsersPage.css, token --radius-md: 8px ignorado): o baseline achou, a execução com skill não (seu A2 só varre cor). É uma lacuna real dos gates da skill que a eval deixa passar."
+      },
+      {
+        "reason": "Nenhuma asserção cobre color-scheme para o popup nativo do <select> no dark; o baseline propôs a correção concreta, a execução com skill só mencionou que o chrome nativo não segue o tema. Considerar asserção sobre o tratamento do chrome nativo no dark."
+      }
+    ],
+    "overall": "As asserções 2 a 4 são discriminantes e bem desenhadas; a 1 é piso e a 5 é de formato. Faltam asserções para achados legítimos fora dos gates da skill (radius, color-scheme), onde o baseline foi melhor."
+  }
+}

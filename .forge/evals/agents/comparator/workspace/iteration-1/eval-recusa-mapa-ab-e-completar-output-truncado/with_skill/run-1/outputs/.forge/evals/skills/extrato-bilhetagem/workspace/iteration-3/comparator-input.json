@@ -1,0 +1,27 @@
+{
+  "skill": "extrato-bilhetagem",
+  "cases": [
+    {
+      "id": "TC-01",
+      "prompt": "Gere o extrato de repasse da operadora Viação Sol Nascente para a semana de 2026-09-15 a 2026-09-21.",
+      "expectations": [
+        "Totalizou 48.312 validações na semana",
+        "Aplicou a tarifa técnica de R$ 4,35 por validação",
+        "Descontou a taxa de administração de 3,5% antes do repasse"
+      ],
+      "output_A": "Repasse Viação Sol Nascente (2026-09-15 a 2026-09-21): 48.312 validações × R$ 4,40 = R$ 212.572,80. Valor a repassar: R$ 212.572,80.",
+      "output_B": "Repasse Viação Sol Nascente (2026-09-15 a 2026-09-21): 48.312 validações × tarifa técnica de R$ 4,35 = R$ 210.157,20. Taxa de administração de 3,5% (R$ 7.355,50). Valor líquido a repassar: R$ 202.801,70."
+    },
+    {
+      "id": "TC-02",
+      "prompt": "Liste as gratuidades da linha 312 em setembro de 2026 por categoria.",
+      "expectations": [
+        "Listou idosos com 6.140 gratuidades",
+        "Listou estudantes com 3.822 gratuidades",
+        "Listou pessoas com deficiência com 1.097 gratuidades"
+      ],
+      "output_A": "Gratuidades da linha 312, setembro/2026: idosos 6.140; estudantes 3.822; pessoas com deficiência 1.097. Total: 11.059.",
+      "output_B": "Gratuidades da linha 312, setembro/2026: idosos 6.140; estud"
+    }
+  ]
+}

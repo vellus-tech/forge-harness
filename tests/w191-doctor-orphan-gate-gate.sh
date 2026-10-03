@@ -27,7 +27,40 @@
 #   [7] contador de controle: universo de check-*.sh vazio REPROVA o cenário, não aprova
 #   [8] mutação: apagar a consulta a runtime.gates faz [2] e [3] reprovarem; restaurar volta a
 #       passar, com cmp verificado
+#
+# Issue #153 — cópia de `.forge` de outro consumidor é upgrade parcial disfarçado. Estende este
+# MESMO gate (não cria um novo) com dois checks novos do doctor: lib órfã em scripts/lib/ e
+# divergência entre forge.yaml:template_version e o cabeçalho do machinery.lock.
+#
+#   [9] consumidor recém-criado por `init` (cópia integral de template/.forge/scripts): ZERO
+#       linhas de lib órfã — controle contra falso-positivo em api-surface.mjs/pbt.mjs/transports
+#   [10] lib sem invocador (positiva): o doctor nomeia o arquivo
+#   [11] contrafactual: lib sourceada por um script legítimo NÃO é nomeada, e o script que a
+#        sourceia entra na contagem de "examinados" só pelo lado do universo, não como invocador
+#        de si mesmo
+#   [12] versão divergente entre forge.yaml e machinery.lock: o doctor nomeia as DUAS versões
+#   [13] versão idêntica: sem linha de divergência (contrafactual do 12)
+#
+# LDG-0153 — o doctor não informa divergência do `_common.sh` (e demais transportes) contra o
+# template. `.forge/cache/machinery.lock` já grava o sha256 por caminho da última aplicação
+# (`bin/forge.mjs:361`), e `bin/forge.mjs:617-643` já faz essa comparação para o WARN de drift do
+# `update` — o doctor não fazia o equivalente, e o consumidor só descobria o `_common.sh`
+# divergente quando um push já tinha destruído o hub de liaison. Estende este MESMO gate.
+#
+#   [14] divergência de _common.sh contra o machinery.lock (positiva): o doctor nomeia o arquivo
+#        e os DOIS shas (local e do lock)
+#   [15] contrafactual do 14, na MESMA fixture: fs.sh, que não mudou e tem entrada no lock, não
+#        gera linha nenhuma — prova que o check distingue arquivo a arquivo, não avisa em bloco
+#   [16] sem machinery.lock: "não medido: sem machinery.lock", nunca ✓ (não medido != medido e
+#        igual)
+#   [17] exceção viva declarada em machinery-exceptions.txt: a linha nomeia a exceção e a razão
+#        registrada, e o aviso '!' de divergência crua desaparece
+#   [18] mutação: neutralizar a consulta ao machinery.lock faz [14] deixar de acusar a divergência
+#        (dar zero); restaurar volta a passar, com cmp verificado
 set -uo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
+# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DOC_SRC="$WS/template/.forge/scripts/doctor.sh"
@@ -198,5 +231,162 @@ cmp -s "$D2/.forge/scripts/doctor.sh" "$T/doctor.orig" || { echo "FAIL [8]: rest
 _mut_ok || { echo "FAIL [8]: recontrole — depois da restauração [2]/[3] não voltaram a passar"; exit 1; }
 rm -f "$MUT"
 echo "OK [8] — mutou, reprovou, restaurou (cmp ok), voltou a passar"
+
+# ── issue #153 — mkfull: cópia INTEGRAL de template/.forge/scripts (+ hooks), como um `init` de
+# verdade entregaria a um consumidor novo. mkfix acima copia só 3 libs (as que o cruzamento de
+# gate precisa) — insuficiente para o controle [9], que precisa do UNIVERSO real de scripts/lib
+# (as 79+ libs do template, incluindo api-surface.mjs/pbt.mjs/transports) para provar que a
+# isenção declarada no doctor não deixa passar falso-positivo em produção.
+mkfull() { # mkfull <nome>
+  local name="$1"
+  local d="$T/$name"
+  mkdir -p "$d"
+  cp -R "$WS/template/.forge" "$d/.forge"
+  git init -q "$d"; git -C "$d" config user.email t@t; git -C "$d" config user.name t
+  printf '# %s\n' "$name" > "$d/AGENTS.md"
+  ( cd "$d" && ln -sf AGENTS.md CLAUDE.md )
+  git -C "$d" config core.hooksPath "$d/.forge/hooks/git"
+  printf '%s\n' "$d"
+}
+
+echo "[9] consumidor recém-criado por init (cópia integral de scripts/lib): zero linhas de lib órfã"
+D9="$(mkfull init-limpo)"
+out9="$(roda "$D9")"
+grep -qE "harness: libs: [0-9]+ arquivo\(s\) em scripts/lib/ examinado\(s\), 0 órfã" <<<"$out9" \
+  || { echo "FAIL [9]: consumidor recém-criado por init acusou lib órfã — falso-positivo em api-surface.mjs/pbt.mjs/transports não foi resolvido. Saída:"; grep "harness: libs" <<<"$out9"; exit 1; }
+grep -qE '^\s*!\s*harness: libs:' <<<"$out9" \
+  && { echo "FAIL [9]: linha de lib órfã (marcador '!') presente num consumidor recém-criado. Saída:"; grep "harness: libs" <<<"$out9"; exit 1; }
+echo "OK [9] — $(grep -E 'harness: libs:' <<<"$out9")"
+
+echo "[10] lib sem invocador (positiva): o doctor nomeia o arquivo"
+D10="$(mkfix libs-orfas "$GB_VAZIO")"
+printf '#!/usr/bin/env bash\necho zz\n' > "$D10/.forge/scripts/lib/zz-orfa.sh"
+out10="$(roda "$D10")"
+grep -qE '^\s*!\s*harness: libs:.*zz-orfa\.sh' <<<"$out10" \
+  || { echo "FAIL [10]: o doctor não nomeou 'zz-orfa.sh' como lib órfã. Saída:"; grep "harness: libs" <<<"$out10"; exit 1; }
+echo "OK [10] — $(grep -E 'harness: libs:' <<<"$out10")"
+
+echo "[11] contrafactual: lib sourceada por um script legítimo não é nomeada"
+D11="$(mkfix libs-usadas "$GB_VAZIO")"
+printf '#!/usr/bin/env bash\n. "$(dirname "$0")/lib/zz-usada.sh"\n' > "$D11/.forge/scripts/zz-user.sh"
+printf '#!/usr/bin/env bash\necho usada\n' > "$D11/.forge/scripts/lib/zz-usada.sh"
+out11="$(roda "$D11")"
+grep -qE 'harness: libs:.*zz-usada\.sh' <<<"$out11" \
+  && { echo "FAIL [11]: lib SOURCEADA por script legítimo foi nomeada como órfã ('zz-usada.sh'). Saída:"; grep "harness: libs" <<<"$out11"; exit 1; }
+grep -qE "harness: libs: [0-9]+ arquivo\(s\)" <<<"$out11" \
+  || { echo "FAIL [11]: sem o contador — asserção negativa sem sinal positivo não prova nada. Saída:"; echo "$out11"; exit 1; }
+echo "OK [11] — $(grep -E 'harness: libs:' <<<"$out11")"
+
+echo "[12] versão divergente entre forge.yaml e machinery.lock: o doctor nomeia as duas"
+D12="$(mkfix versao-divergente "$GB_VAZIO")"
+mkdir -p "$D12/.forge/cache"
+printf '# forge machinery.lock — sha256 dos arquivos do template v0.9.0 (última aplicação).\n' \
+  > "$D12/.forge/cache/machinery.lock"
+out12="$(roda "$D12")"
+tv_yaml_v="$(grep -m1 -E '^\s*template_version:' "$D12/.forge/forge.yaml" | sed -E 's/^[^:]*:[[:space:]]*"?([^"[:space:]]*)"?.*/\1/')"
+[ -n "$tv_yaml_v" ] || { echo "FAIL [12]: fixture sem template_version em forge.yaml — precondição quebrada"; exit 1; }
+grep -qE "harness: versão:.*$tv_yaml_v.*0\.9\.0|harness: versão:.*0\.9\.0.*$tv_yaml_v" <<<"$out12" \
+  || { echo "FAIL [12]: o doctor não nomeou as duas versões (forge.yaml=$tv_yaml_v, lock=0.9.0). Saída:"; grep "harness: versão" <<<"$out12"; exit 1; }
+grep -qE '^\s*!\s*harness: versão:' <<<"$out12" \
+  || { echo "FAIL [12]: divergência de versão não gerou linha de aviso ('!'). Saída:"; grep "harness: versão" <<<"$out12"; exit 1; }
+echo "OK [12] — $(grep -E 'harness: versão:' <<<"$out12")"
+
+echo "[13] versão idêntica: sem linha de divergência (contrafactual do 12)"
+D13="$(mkfix versao-igual "$GB_VAZIO")"
+mkdir -p "$D13/.forge/cache"
+printf '# forge machinery.lock — sha256 dos arquivos do template v%s (última aplicação).\n' "$tv_yaml_v" \
+  > "$D13/.forge/cache/machinery.lock"
+out13="$(roda "$D13")"
+grep -qE '^\s*!\s*harness: versão:' <<<"$out13" \
+  && { echo "FAIL [13]: versão idêntica entre forge.yaml e machinery.lock gerou aviso de divergência indevido. Saída:"; grep "harness: versão" <<<"$out13"; exit 1; }
+grep -qE '^\s*✓\s*harness: versão:' <<<"$out13" \
+  || { echo "FAIL [13]: sem o contrafactual positivo (✓) confirmando que o cruzamento rodou e concluiu igualdade. Saída:"; grep "harness: versão" <<<"$out13"; exit 1; }
+echo "OK [13] — $(grep -E 'harness: versão:' <<<"$out13")"
+
+sha_of() { # sha_of <arquivo> — portável, mesmo helper que o doctor usa
+  if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" 2>/dev/null | awk '{print $1}'
+  elif command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" 2>/dev/null | awk '{print $1}'
+  fi
+}
+
+echo "[14] divergência de _common.sh contra o machinery.lock: o doctor nomeia o arquivo e os dois shas"
+D14="$(mkfull transports-divergente)"
+sha_common_lock="$(sha_of "$D14/.forge/scripts/lib/transports/_common.sh")"
+sha_fs_lock="$(sha_of "$D14/.forge/scripts/lib/transports/fs.sh")"
+[ -n "$sha_common_lock" ] && [ -n "$sha_fs_lock" ] || { echo "FAIL [14]: precondição — não consegui calcular sha256 (nem shasum nem sha256sum disponível)"; exit 1; }
+mkdir -p "$D14/.forge/cache"
+printf '# forge machinery.lock — sha256 dos arquivos do template v0.15.0 (última aplicação).\n%s  scripts/lib/transports/_common.sh\n%s  scripts/lib/transports/fs.sh\n' \
+  "$sha_common_lock" "$sha_fs_lock" > "$D14/.forge/cache/machinery.lock"
+printf '\n# deriva local, deliberada\n' >> "$D14/.forge/scripts/lib/transports/_common.sh"
+sha_common_local="$(sha_of "$D14/.forge/scripts/lib/transports/_common.sh")"
+out14="$(roda "$D14")"
+grep -qE '^\s*!\s*harness: transports:.*_common\.sh.*diverge' <<<"$out14" \
+  || { echo "FAIL [14]: o doctor não nomeou _common.sh como divergente do machinery.lock. Saída:"; grep -i transports <<<"$out14"; exit 1; }
+grep -qF "$sha_common_local" <<<"$out14" \
+  || { echo "FAIL [14]: o sha LOCAL não apareceu na linha de divergência. Saída:"; grep -i transports <<<"$out14"; exit 1; }
+grep -qF "$sha_common_lock" <<<"$out14" \
+  || { echo "FAIL [14]: o sha do LOCK não apareceu na linha de divergência. Saída:"; grep -i transports <<<"$out14"; exit 1; }
+echo "OK [14] — $(grep -E 'harness: transports:.*_common' <<<"$out14")"
+
+echo "[15] contrafactual do 14 (mesma fixture): fs.sh idêntico ao lock não gera linha"
+grep -qi 'fs\.sh' <<<"$(grep -i transports <<<"$out14")" \
+  && { echo "FAIL [15]: fs.sh, idêntico ao lock, apareceu numa linha do check de transports. Saída:"; grep -i transports <<<"$out14"; exit 1; }
+echo "OK [15] — fs.sh idêntico ao lock, sem linha (só _common.sh divergente apareceu)"
+
+echo "[16] sem machinery.lock: 'não medido', nunca ✓ (não medido != medido e igual)"
+D16="$(mkfull transports-sem-lock)"
+rm -f "$D16/.forge/cache/machinery.lock"
+out16="$(roda "$D16")"
+grep -qE '^\s*·\s*harness: transports: não medido: sem machinery\.lock' <<<"$out16" \
+  || { echo "FAIL [16]: sem machinery.lock o doctor não declarou 'não medido'. Saída:"; grep -i transports <<<"$out16"; exit 1; }
+grep -qE '^\s*✓\s*harness: transports:' <<<"$out16" \
+  && { echo "FAIL [16]: sem machinery.lock o doctor imprimiu ✓ — nunca deveria (não medido é um terceiro estado, não 'igual')"; exit 1; }
+echo "OK [16] — $(grep -E 'harness: transports:' <<<"$out16")"
+
+echo "[17] exceção viva declarada: a linha nomeia a exceção e a razão, e o '!' de divergência crua some"
+D17="$(mkfull transports-excecao)"
+sha_common17="$(sha_of "$D17/.forge/scripts/lib/transports/_common.sh")"
+mkdir -p "$D17/.forge/cache"
+printf '# forge machinery.lock — sha256 dos arquivos do template v0.15.0 (última aplicação).\n%s  scripts/lib/transports/_common.sh\n' \
+  "$sha_common17" > "$D17/.forge/cache/machinery.lock"
+printf '\n# correcao local\n' >> "$D17/.forge/scripts/lib/transports/_common.sh"
+printf '%s  scripts/lib/transports/_common.sh  # correcao local deliberada, aguardando upstream\n' \
+  "$sha_common17" > "$D17/.forge/machinery-exceptions.txt"
+out17="$(roda "$D17")"
+grep -qE '^\s*!\s*harness: transports:.*_common\.sh.*diverge' <<<"$out17" \
+  && { echo "FAIL [17]: exceção declarada, mas o doctor ainda emitiu o '!' cru de divergência. Saída:"; grep -i transports <<<"$out17"; exit 1; }
+grep -qF "correcao local deliberada, aguardando upstream" <<<"$out17" \
+  || { echo "FAIL [17]: a linha não nomeou a razão declarada em machinery-exceptions.txt. Saída:"; grep -i transports <<<"$out17"; exit 1; }
+grep -qE 'harness: transports:.*_common\.sh' <<<"$out17" \
+  || { echo "FAIL [17]: nenhuma linha nomeou _common.sh com a exceção declarada. Saída:"; echo "$out17"; exit 1; }
+echo "OK [17] — $(grep -E 'harness: transports:' <<<"$out17")"
+
+echo "[18] mutação — neutralizar a consulta ao machinery.lock faz [14] reprovar (dar zero divergências)"
+NEEDLE_TP='${tp_rel}\$" "$tp_lock" 2>/dev/null'
+cp "$D14/.forge/scripts/doctor.sh" "$T/doctor.orig.tp"
+_mut_ok_tp() { grep -qE '^\s*!\s*harness: transports:.*_common\.sh.*diverge' <<<"$(roda "$D14")"; }
+_mut_ok_tp || { echo "FAIL [18]: pré-condição — [14] não passa antes da mutação"; exit 1; }
+python3 - "$D14/.forge/scripts/doctor.sh" "$NEEDLE_TP" <<'PY'
+import sys, pathlib
+p, needle = pathlib.Path(sys.argv[1]), sys.argv[2]
+s = p.read_text()
+n = s.count(needle)
+if n != 1:
+    print(f"FAIL [18]: needle apareceu {n} vez(es), esperado exatamente 1 — ponto de mutação mudou de forma")
+    sys.exit(1)
+p.write_text(s.replace(needle, 'MUTADO_NUNCA_CASA' + needle, 1))
+PY
+cmp -s "$D14/.forge/scripts/doctor.sh" "$T/doctor.orig.tp" && { echo "FAIL [18]: a mutação não alterou o doctor — o ponto de mutação mudou de nome"; exit 1; }
+if _mut_ok_tp; then
+  echo "FAIL [18]: com a consulta ao machinery.lock neutralizada, [14] continuou acusando a divergência — a consulta não é o que decide"
+  exit 1
+fi
+out18_mut="$(roda "$D14")"
+grep -qE '^\s*!\s*harness: transports:' <<<"$out18_mut" \
+  && { echo "FAIL [18]: mutação neutralizou a consulta mas ainda assim alguma linha '!' de transports apareceu"; exit 1; }
+cp "$T/doctor.orig.tp" "$D14/.forge/scripts/doctor.sh"
+cmp -s "$D14/.forge/scripts/doctor.sh" "$T/doctor.orig.tp" || { echo "FAIL [18]: restauração não bateu byte a byte (cmp)"; exit 1; }
+_mut_ok_tp || { echo "FAIL [18]: recontrole — depois da restauração [14] não voltou a passar"; exit 1; }
+echo "OK [18] — mutou, reprovou (zero divergências), restaurou (cmp ok), voltou a passar"
 
 echo "PASS w191-doctor-orphan-gate"

@@ -1,0 +1,9 @@
+which mvn: mvn not found
+not found
+which gradle: /opt/homebrew/bin/gradle
+mvnw present: no
+gradlew present: no
+
+mvn -B verify output:
+(eval):7: command not found: mvn
+exit=127

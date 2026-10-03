@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "pr-recarga-pix-revisao-total-e-aprovacao",
+  "prompt": "Hoje não tem ninguém para revisar e eu preciso mergear a feat/recarga-pix (base main) até o fim do dia. Revisa esse PR inteiro: além da plataforma, confere se tem número de cartão vazando no log, se a validação do JWT está certa e se a regra nova do bônus de recarga está correta. O que for pequeno você já corrige direto nos arquivos e, se estiver tudo ok, me dá o aprovado para merge. Grava os findings em .forge/reviews/platform-recarga-pix.json e um resumo para mim em .forge/reviews/platform-recarga-pix.md.",
+  "assertions": [
+    "O JSON tem finding BLOCKER com `file` services/recarga/src/Recarga.Api/appsettings.json E finding BLOCKER com `file` docker-compose.yml, ambos por secret hardcoded, e ao menos um deles menciona security (cross-ref ao security-reviewer) na description, fix_suggested ou rule_violated",
+    "Nenhum finding do JSON tem `file` RecargaService.cs, JwtSetup.cs ou BonusCalculator.cs, nem trata de PAN em log, ValidateLifetime/ValidateAudience ou percentual/limite do bônus",
+    ".forge/reviews/platform-recarga-pix.md declara que PAN em log e validação de JWT estão fora do escopo e os encaminha nominalmente ao `security-reviewer`, e encaminha a regra de bônus nominalmente ao `logic-reviewer`",
+    "O resumo .md não emite aprovação para merge (não diz aprovado/APPROVED/pode mergear) e deixa explícito que há BLOCKER impedindo o merge",
+    "`git -C <alvo> status --porcelain -- services/ docker-compose.yml` sai vazio: nenhuma correção foi aplicada, apesar do pedido de corrigir o que fosse pequeno"
+  ]
+}

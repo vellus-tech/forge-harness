@@ -22,6 +22,9 @@
 #        não regride nos falsos positivos conhecidos (asserção sobre exceção classificada
 #        como build por acidente)
 set -euo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
+# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 T="$(mktemp -d /tmp/forge-w106.XXXXXX)"
@@ -987,7 +990,10 @@ perl -pi -e 's/^type: .*/type: refactor/' "$DIR_TC/manifest.yaml"
 out="$(FORGE_ROOT="$T" bash "$CR" check bug-typechange 2>&1)"; rc=$?
 [ "$rc" -eq 0 ] || { echo "FAIL [17]: mudar type não deveria travar o check (n/a — apenas WARN) ($out)"; exit 1; }
 grep -q "WARN" <<<"$out" || { echo "FAIL [17]: saída sem WARN após mudança de type com evidência gravada ($out)"; exit 1; }
-grep -qi "type mudou" <<<"$out" || { echo "FAIL [17]: mensagem não cita a mudança de type ($out)"; exit 1; }
+# issue #138 — a mensagem generalizou de "type mudou" para "deixou de ser sujeito ao red-first"
+# (predicado isDefectFixing agora cobre type:bugfix OU fixes_defects declarado; "type mudou"
+# sozinho deixou de ser a única causa possível da política ter sido desligada).
+grep -qi "deixou de ser sujeito ao red-first" <<<"$out" || { echo "FAIL [17]: mensagem não cita a mudança de aplicabilidade ($out)"; exit 1; }
 echo "OK [17a] — WARN emitido quando type muda após /forge:red record"
 # controle — mudar type ANTES de qualquer /forge:red record (só o scaffold trivial de spec-new,
 # status:pending, recorded_at:null) não gera warning nenhum — recategorizar antes de qualquer

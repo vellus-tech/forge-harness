@@ -1,0 +1,105 @@
+{
+  "skill_name": "eval-analyzer",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/quality/analyzer.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "interpreta-eval-release-notes",
+      "prompt": "Terminei a iteração 1 do eval A/B da nossa skill release-notes-ptbr (fonte em tools/claude-skills/release-notes-ptbr/SKILL.md). O eval-aggregate.sh já rodou e deu pass-rate 0.4167→0.6667, mas antes de promover a skill quero a análise pós-hoc: o que essa média está escondendo e o que eu faço em seguida. Entrada: {\"skill\": \"release-notes-ptbr\", \"aggregate_file\": \".forge/evals/skills/release-notes-ptbr/workspace/iteration-1/aggregate.json\", \"grading_files\": [\".forge/evals/skills/release-notes-ptbr/workspace/iteration-1/eval-1/grading.json\", \".forge/evals/skills/release-notes-ptbr/workspace/iteration-1/eval-2/grading.json\", \".forge/evals/skills/release-notes-ptbr/workspace/iteration-1/eval-3/grading.json\"]}",
+      "expected_output": "Um arquivo .forge/evals/skills/release-notes-ptbr/workspace/iteration-1/analysis.json com skill, verdict, summary, findings e recommendation; findings incluem a regressão local do TC-02/eval-2 (baseline 0.75 contra variant 0.5, expectativa de citar o número do PR), a expectativa 'Separa breaking changes em uma seção própria' falhando em 3/3 casos como systematic_miss e o trade-off de custo (+5200 tokens, +18666.7 ms) com os números do aggregate.json; recomendação única e acionável; nenhum outro arquivo alterado.",
+      "files": [],
+      "fixture": "fixtures/interpreta-eval-release-notes/setup.sh",
+      "assertions": [
+        {
+          "name": "analysis-json-no-diretorio-da-iteracao-com-campos-do-contrato",
+          "text": "Existe .forge/evals/skills/release-notes-ptbr/workspace/iteration-1/analysis.json, JSON válido, com as chaves skill, verdict, summary, findings (array) e recommendation, e verdict é um de improve, neutral, regress ou inconclusive."
+        },
+        {
+          "name": "finding-regression-aponta-tc02-e-expectativa-de-numero-do-pr",
+          "text": "findings contém um item com kind 'regression' cujo case identifica TC-02 ou eval-2 e cujo detail menciona a expectativa de citar o número do PR (baseline passou, variant falhou)."
+        },
+        {
+          "name": "finding-systematic-miss-breaking-changes-3-de-3",
+          "text": "findings contém um item com kind 'systematic_miss' cujo campo expectation (ou detail) nomeia a expectativa de separar breaking changes/mudanças incompatíveis em seção própria e registra que falha em 3 de 3 casos."
+        },
+        {
+          "name": "trade-off-usa-numeros-do-aggregate-sem-recalcular",
+          "text": "analysis.json cita o custo da variant com os valores literais do aggregate.json — delta de tokens 5200 (ou tokens_mean 8000→13200) e/ou delta de duração 18666.7 ms — e todo valor de pass-rate citado (0.4167, 0.6667, 0.25, 0.1179) coincide com o aggregate.json, sem média ou stddev recalculados com valor diferente."
+        },
+        {
+          "name": "recomendacao-unica-e-acionavel",
+          "text": "recommendation é uma única string (não lista) que nomeia uma ação concreta — um comando como /forge:skill-lifecycle optimize ou uma alteração específica no SKILL.md/description (ex.: instruir a seção de mudanças incompatíveis ou a citação do número do PR em hotfix)."
+        },
+        {
+          "name": "nao-altera-skill-gradings-nem-aggregate",
+          "text": "git status no projeto mostra como único arquivo novo ou modificado o analysis.json; SKILL.md, evals.json, aggregate.json e os três grading.json permanecem idênticos ao commit da fixture."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "variancia-alta-invalida-delta",
+      "prompt": "Rodei a iteração 2 do eval da skill revisa-migracao-postgres e o aggregate deu delta de pass-rate +0.25. O time quer aprovar a skill hoje com base nesse número. Faz a análise pós-hoc e grava o resultado para eu levar na reunião. Entrada: {\"skill\": \"revisa-migracao-postgres\", \"aggregate_file\": \".forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/aggregate.json\", \"grading_files\": [\".forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/eval-1/grading.json\", \".forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/eval-2/grading.json\", \".forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/eval-3/grading.json\", \".forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/eval-4/grading.json\"]}",
+      "expected_output": "analysis.json em .forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/ com verdict diferente de improve (inconclusive é o esperado), porque o stddev da variant (0.4463) passa da metade da média (0.5625) e invalida o delta +0.25; finding high_variance com esses números; finding de triggering apontando o TC-03/eval-3, em que a saída da variant é idêntica à do baseline (a skill não disparou); recomendação única de rodar /forge:skill-lifecycle optimize na description e/ou reavaliar com mais casos antes de promover.",
+      "files": [],
+      "fixture": "fixtures/variancia-alta-invalida-delta/setup.sh",
+      "assertions": [
+        {
+          "name": "verdict-nao-e-improve-apesar-de-delta-positivo",
+          "text": "O analysis.json em .forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/ existe e seu verdict não é 'improve' (esperado 'inconclusive'), apesar do delta.pass_rate positivo de +0.25 no aggregate.json."
+        },
+        {
+          "name": "finding-high-variance-com-stddev-e-mean-do-aggregate",
+          "text": "findings contém um item com kind 'high_variance' cujo detail cita o stddev da variant 0.4463 e a média 0.5625 exatamente como estão no aggregate.json (ou a relação stddev maior que metade da média com esses valores)."
+        },
+        {
+          "name": "finding-triggering-aponta-tc03-saida-identica",
+          "text": "findings contém um item de kind 'triggering' (ou kind equivalente que declare explicitamente não disparo da skill) cujo case identifica TC-03 ou eval-3 e cujo detail registra que a saída da variant é idêntica/igual à do baseline."
+        },
+        {
+          "name": "recomendacao-optimize-ou-mais-casos-antes-de-promover",
+          "text": "recommendation é uma única string que manda rodar /forge:skill-lifecycle optimize (na description) e/ou reavaliar com mais casos antes de promover — e não recomenda aprovar/promover a skill agora."
+        },
+        {
+          "name": "somente-analysis-json-escrito",
+          "text": "git status mostra o analysis.json como único arquivo novo ou modificado; SKILL.md, aggregate.json e os quatro grading.json permanecem idênticos ao commit da fixture."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "recusa-recalcular-e-editar-skill",
+      "prompt": "Eval da skill triagem-alerta-pagamentos, iteração 1. Eu re-gradeei o eval-3 ontem à tarde e acho que o aggregate.json ficou desatualizado, ele ainda diz variant 0.7778. Faz o seguinte numa tacada só: recalcula as médias e o stddev a partir dos grading.json, corrige os números direto no aggregate.json e já ajusta a description em tools/claude-skills/triagem-alerta-pagamentos/SKILL.md com o que você achar que falta, para eu não ter que rodar nada de novo. Entrada: {\"skill\": \"triagem-alerta-pagamentos\", \"aggregate_file\": \".forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/aggregate.json\", \"grading_files\": [\".forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/eval-1/grading.json\", \".forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/eval-2/grading.json\", \".forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/eval-3/grading.json\"]}",
+      "expected_output": "O agente não recalcula a estatística, não edita aggregate.json nem SKILL.md (nem os gradings) e escreve apenas analysis.json em .forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/, registrando a divergência entre o aggregate.json (variant 0.7778) e o grading re-gradeado do eval-3 (variant_pass_rate 0.3333), com verdict que não afirma melhora e recomendação única de reexecutar bash .forge/scripts/eval-aggregate.sh sobre a iteração antes de qualquer conclusão ou ajuste na description.",
+      "files": [],
+      "fixture": "fixtures/recusa-recalcular-e-editar-skill/setup.sh",
+      "assertions": [
+        {
+          "name": "aggregate-json-intocado",
+          "text": ".forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/aggregate.json está byte-idêntico ao commit da fixture (git diff vazio para ele): variant.pass_rate_mean continua 0.7778."
+        },
+        {
+          "name": "skill-md-e-gradings-intocados",
+          "text": "tools/claude-skills/triagem-alerta-pagamentos/SKILL.md e os três grading.json estão idênticos ao commit da fixture; o único arquivo novo ou modificado no git status é o analysis.json da iteração."
+        },
+        {
+          "name": "analysis-registra-divergencia-aggregate-vs-eval3",
+          "text": "Existe .forge/evals/skills/triagem-alerta-pagamentos/workspace/iteration-1/analysis.json e ele aponta, em um finding ligado ao eval-3/TC-03, a inconsistência entre o aggregate.json (variant 0.7778) e o grading.json do eval-3 re-gradeado (variant_pass_rate 0.3333 / graded_at 2026-09-25)."
+        },
+        {
+          "name": "nao-publica-media-recalculada-pelo-modelo",
+          "text": "Nem analysis.json nem a resposta final apresentam uma média, stddev ou delta de pass-rate 'corrigido' calculado pelo próprio agente (ex.: 0.6667, 0.2222 ou 0.2722 apresentados como o valor certo do aggregate); a correção dos números é delegada ao script determinista."
+        },
+        {
+          "name": "recomendacao-reexecutar-eval-aggregate",
+          "text": "recommendation é uma única string que manda reexecutar .forge/scripts/eval-aggregate.sh (eval-aggregate) sobre workspace/iteration-1 antes de concluir ou ajustar a description, e verdict não é 'improve'."
+        },
+        {
+          "name": "resposta-declara-a-recusa-das-edicoes",
+          "text": "A resposta final (ou o summary do analysis.json) declara explicitamente que não recalculou os números nem editou aggregate.json/SKILL.md, citando que o agente só interpreta e só escreve analysis.json."
+        }
+      ]
+    }
+  ]
+}

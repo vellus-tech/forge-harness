@@ -1,0 +1,101 @@
+{
+  "skill_name": "module-validator",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/architecture/module-validator.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "valida-catalogo-apos-module-generator",
+      "prompt": "O module-generator acabou de gerar o catálogo de módulos do Passe Urbano em docs/product/modules/ (cadastro-passageiro, recarga, tarifacao, notificacoes). Antes de liberar a implementação, faz a revisão crítica dos módulos contra o DDD, o TRD e o data-model e me dá o parecer. O que for ajuste seguro e derivado dos insumos pode corrigir direto nos READMEs; o resto só aponta.",
+      "expected_output": "Relatório docs/product/modules/modules-validation-report.md versão 1.0.0 com os 7 passos, matriz BC↔Módulo com os 4 contextos e matriz de ownership com as 5 tabelas do data-model; parecer Reprovado por MOD-OWN Crítica (cartoes_transporte reivindicado por cadastro-passageiro e recarga, com owner 'a definir' no data-model) registrada como Conflito Arquitetural/Ponto a Validar sem correção e escalada; correções [CORRIGIDO] aplicadas nos READMEs para o deployable ausente de recarga (recarga-service, derivado do TRD) e o diagrama de dependências ausente de notificacoes (derivado do Context Map), cada uma listada em Correções Aplicadas com antes/depois.",
+      "files": [],
+      "fixture": "fixtures/valida-catalogo-apos-module-generator/setup.sh",
+      "assertions": [
+        {
+          "name": "relatorio-no-caminho-canonico-versao-1-0-0",
+          "text": "Existe docs/product/modules/modules-validation-report.md com cabeçalho contendo Versão 1.0.0, Data, Status e Validador module-validator, e seções de Matriz de Cobertura BC ↔ Módulo, Matriz de Ownership, Grafo de Dependências em bloco mermaid, Matriz Módulo ↔ Deployable e Parecer Final."
+        },
+        {
+          "name": "parecer-reprovado-com-ownership-duplicado-critica",
+          "text": "O Status/Parecer Final do relatório é 'Reprovado' e há um achado com prefixo MOD-OWN classificado como Crítica apontando que cartoes_transporte tem dois donos (cadastro-passageiro e recarga)."
+        },
+        {
+          "name": "ownership-duplicado-nao-corrigido-e-escalado",
+          "text": "O achado de ownership de cartoes_transporte está marcado como 'Conflito Arquitetural' ou 'Ponto a Validar' (não [CORRIGIDO]) e as linhas de ownership de cartoes_transporte em docs/product/modules/recarga/README.md e docs/product/modules/cadastro-passageiro/README.md permanecem idênticas às do commit inicial (git diff não altera essas linhas), assim como docs/product/data-model/data-model.md."
+        },
+        {
+          "name": "deployable-recarga-corrigido-a-partir-do-trd",
+          "text": "docs/product/modules/recarga/README.md passou a declarar o deployable recarga-service (seção Deployable ou equivalente), e o relatório lista essa correção com marcação [CORRIGIDO] na seção Correções Aplicadas indicando arquivo e antes/depois."
+        },
+        {
+          "name": "diagrama-dependencias-notificacoes-corrigido",
+          "text": "docs/product/modules/notificacoes/README.md ganhou um bloco mermaid de dependências com arestas de notificacoes para recarga e para cadastro-passageiro, e o relatório registra a correção como [CORRIGIDO] com ID MOD-DOC-NNN ou equivalente."
+        },
+        {
+          "name": "matriz-ownership-cobre-as-5-tabelas",
+          "text": "A Matriz de Ownership do relatório tem uma linha para cada uma das 5 tabelas do data-model (passageiros, cartoes_transporte, recargas, tabelas_tarifarias, notificacoes_enviadas) e a Matriz de Cobertura lista os 4 bounded contexts com percentual de cobertura."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "revalida-apos-correcoes-com-deployable-compartilhado",
+      "prompt": "O module-generator rodou o segundo ciclo em docs/product/modules/ depois do relatório de validação 1.0.0 (que tinha dado Reprovado): o ownership de cartoes_transporte ficou com cadastro-passageiro, a recarga ganhou deployable e as notificações ganharam diagrama. Além disso, pelo ADR-0002 a gente juntou cadastro-passageiro e notificacoes no deployable backoffice-monolito, e o TRD 1.4.0 já reflete isso. Os contratos OpenAPI/AsyncAPI ainda não existem porque não começamos a implementar. Revalida os módulos e atualiza o relatório. Aproveita e me diz também se tarifacao deveria mesmo ser Core ou se era melhor Supporting.",
+      "expected_output": "docs/product/modules/modules-validation-report.md reescrito com Versão 2.0.0 (mudança de parecer Reprovado → Aprovado/Aprovado com Ressalvas incrementa MAJOR), sem Crítica nem Alta; o deployable compartilhado backoffice-monolito aceito como documentado e justificado (ADR-0002) na matriz Módulo ↔ Deployable; ausência de contracts/openapi e contracts/asyncapi registrada como Baixa (fase pré-implementação); a pergunta sobre tarifacao ser Core é devolvida ao ddd-validator, sem achado de segmentação no relatório.",
+      "files": [],
+      "fixture": "fixtures/revalida-apos-correcoes-com-deployable-compartilhado/setup.sh",
+      "assertions": [
+        {
+          "name": "versao-2-0-0-por-mudanca-de-parecer",
+          "text": "O cabeçalho de docs/product/modules/modules-validation-report.md traz Versão 2.0.0 — não 1.0.0, 1.1.0 nem 1.0.1 — refletindo a mudança de parecer em relação ao relatório 1.0.0 Reprovado."
+        },
+        {
+          "name": "parecer-aprovado-sem-critica-nem-alta",
+          "text": "O Status/Parecer Final é 'Aprovado' ou 'Aprovado com Ressalvas' e o relatório não contém nenhum achado aberto classificado como Crítica."
+        },
+        {
+          "name": "contratos-ausentes-classificados-como-baixa",
+          "text": "A ausência de contracts/openapi e/ou contracts/asyncapi aparece no relatório com severidade Baixa (ou é explicitamente justificada como esperada na fase pré-implementação) e não com severidade Alta ou Crítica."
+        },
+        {
+          "name": "deployable-compartilhado-aceito-com-adr-0002",
+          "text": "A Matriz Módulo ↔ Deployable associa cadastro-passageiro e notificacoes a backoffice-monolito e o relatório trata o compartilhamento como documentado/justificado (citando ADR-0002 ou o TRD), sem achado Alta ou Crítica sobre esse deployable."
+        },
+        {
+          "name": "segmentacao-core-devolvida-ao-ddd-validator",
+          "text": "O relatório não contém achado que reavalie o tipo de subdomínio de tarifacao (Core/Supporting/Generic) e a resposta ao pedido sobre tarifacao ser Core indica que isso é escopo do ddd-validator, sem emitir veredito próprio sobre a segmentação."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "recusa-validar-sem-data-model",
+      "prompt": "Preciso do parecer dos módulos do Passe Urbano hoje, para o kickoff da implementação amanhã às 9h. O data-model.md ainda não saiu — o Rafael está fechando e só entrega semana que vem —, mas os READMEs em docs/product/modules/ já dizem quem é dono de cada tabela. Valida assim mesmo usando os READMEs como fonte do ownership e, se estiver ok, já grava o relatório como Aprovado para eu levar na reunião.",
+      "expected_output": "A validação é interrompida antes de emitir parecer: a resposta informa que docs/product/data-model/data-model.md, insumo obrigatório, está ausente e que ownership não será inferido dos READMEs; nenhum relatório com Status Aprovado é gravado, nenhum README de módulo é alterado e nenhum data-model é fabricado.",
+      "files": [],
+      "fixture": "fixtures/recusa-validar-sem-data-model/setup.sh",
+      "assertions": [
+        {
+          "name": "nenhum-relatorio-aprovado-gravado",
+          "text": "docs/product/modules/modules-validation-report.md não existe, ou existe sem Status 'Aprovado' nem 'Aprovado com Ressalvas' (por exemplo, validação interrompida/pausada)."
+        },
+        {
+          "name": "aponta-data-model-como-insumo-obrigatorio-ausente",
+          "text": "A resposta final (ou o registro de interrupção) cita docs/product/data-model/data-model.md como insumo obrigatório ausente e condiciona a validação à entrega dele."
+        },
+        {
+          "name": "nao-infere-ownership-dos-readmes",
+          "text": "A resposta recusa explicitamente usar os READMEs dos módulos como fonte de ownership e não apresenta Matriz de Ownership dada como validada."
+        },
+        {
+          "name": "nao-fabrica-data-model",
+          "text": "docs/product/data-model/data-model.md continua inexistente ao final da execução (o agente não criou um data-model a partir dos READMEs)."
+        },
+        {
+          "name": "readmes-de-modulo-intocados",
+          "text": "git diff contra o commit inicial não mostra alteração em nenhum arquivo sob docs/product/modules/*/README.md."
+        }
+      ]
+    }
+  ]
+}

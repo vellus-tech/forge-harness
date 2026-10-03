@@ -1,0 +1,67 @@
+{
+  "expectations": [
+    {
+      "text": "Existem os seis READMEs de subdomínio de §1.2, inclusive os não relacionados ao Pix: subdomains/core/fare-validation, subdomains/core/fare-integration, subdomains/supporting/card-wallet, subdomains/supporting/operator-clearing, subdomains/generic/notification e subdomains/generic/identity-access (cada um com README.md; slug em kebab-case, variação só de separador é aceitável)",
+      "passed": false,
+      "evidence": "find without_skill/run-1/work/docs/product/ddd -type f lista só subdomains/core/fare-validation/README.md (herdado da fixture); os outros cinco não existem. Transcript linhas 34-35: 'Não toquei em Fare Validation, Fare Integration, Operator Clearing, Notification nem Identity Access'."
+    },
+    {
+      "text": "Existem docs/product/ddd/bounded-contexts/fare-validation, card-wallet, operator-clearing e identity-access, cada um com README.md contendo as seções do Bounded Context Canvas (stub com TBD é aceitável)",
+      "passed": false,
+      "evidence": "bounded-contexts contém apenas fare-validation e legacy-ticketing (ambos herdados; git status só marca ddd-segmentation.md como M). card-wallet, operator-clearing e identity-access ausentes; transcript linha 52: 'Bounded context canvas do Card Wallet não existe'."
+    },
+    {
+      "text": "Não existe docs/product/ddd/bounded-contexts/trip-reporting (BC-03 riscado como removido) nem docs/product/ddd/bounded-contexts/notification (BC-05 com decisão 'Consolidar com outro contexto'), e a resposta final menciona explicitamente que BC-03 foi pulado por estar removido",
+      "passed": false,
+      "evidence": "As pastas trip-reporting e notification não existem, mas por omissão geral, não por decisão de varredura. grep -n -i 'BC-03\\|trip' outputs/transcript.md → sem ocorrências; a resposta final não menciona que BC-03 foi pulado por estar removido (a única ocorrência é a linha 28 da tabela herdada em ddd-segmentation.md). Parte obrigatória não cumprida."
+    },
+    {
+      "text": "docs/product/ddd/bounded-contexts/legacy-ticketing/README.md continua existindo com o conteúdo original (não foi apagado nem reescrito) e a resposta final o aponta como excedente sem correspondência na matriz, a higienizar",
+      "passed": true,
+      "evidence": "git -C without_skill/run-1/work diff --quiet HEAD -- docs/product/ddd/bounded-contexts/legacy-ticketing → LEGACY_INALTERADO. Transcript linhas 53-55: legacy-ticketing 'parece um rascunho órfão, anterior à segmentação v1.0, e não está referenciado em ddd-segmentation.md — vale confirmar se deve ser removido', equivalente a excedente sem correspondência na matriz a higienizar."
+    },
+    {
+      "text": "Existem os quatro artefatos do context map (README.md, relations.md, patterns.md, diagram.md) e os quatro de diagramas (c4-level-1-system-context.md, c4-level-2-containers.md, c4-level-3-components.md, index.html) em docs/product/ddd, embora nenhum existisse na fixture e o pedido tenha sido 'só o que mudou'",
+      "passed": false,
+      "evidence": "work/docs/product/ddd contém só bounded-contexts, ddd-segmentation.md e subdomains; context-map/ e diagrams/ não existem. Transcript linha 45: 'Não alterei nenhuma outra linha/seção do documento'."
+    },
+    {
+      "text": "A resposta final (ou um arquivo de saída) traz a tabela de inventário com as colunas Esperado, Encontrado e Faltando para Subdomínios Core, Supporting, Generic e Bounded Contexts com decisão Confirmar, com Faltando vazio/zero em todas as linhas, e a tabela de artefatos estruturais obrigatórios com Presente? = Sim",
+      "passed": false,
+      "evidence": "grep -n -i 'Esperado\\|Presente' em outputs/transcript.md e outputs/docs/product/ddd/ddd-segmentation.md → sem ocorrências; não há tabela de inventário matriz × filesystem nem de artefatos estruturais."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 5,
+    "total": 6,
+    "pass_rate": 0.17
+  },
+  "timing": {
+    "executor_duration_seconds": 197,
+    "total_duration_seconds": 197
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Existem docs/product/ddd/bounded-contexts/fare-validation, card-wallet, operator-clearing e identity-access, cada um com README.md contendo as seções do Bounded Context Canvas (stub com TBD é aceitável)",
+        "reason": "A checagem de seções do canvas é satisfeita por um stub com 15 cabeçalhos e TBD; não discrimina conteúdo derivado dos insumos (por exemplo, o ACL do webhook Pix no canvas de card-wallet)."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que a divergência entre o pedido literal ('só o que mudou') e a varredura integral foi comunicada ao usuário; o with_skill comunicou (transcript linha 50), mas uma execução que regenerasse tudo em silêncio passaria igual."
+      },
+      {
+        "reason": "Nenhuma asserção cobre a substância do delta do Pix (FR-10 na evidência de Card Wallet, ponto a validar sobre idempotência do webhook); as duas configurações acertaram isso, então o caso mede só o protocolo de varredura, não a qualidade da modelagem."
+      }
+    ],
+    "overall": "Asserções discriminam bem o protocolo de varredura idempotente (6/6 contra 1/6); a fraqueza é serem majoritariamente de presença de arquivo."
+  },
+  "claims": [
+    {
+      "claim": "Não alterei nenhuma outra linha/seção do documento",
+      "type": "process",
+      "verified": true,
+      "evidence": "git status só marca ddd-segmentation.md como M; outputs/ddd-segmentation.diff presente"
+    }
+  ]
+}

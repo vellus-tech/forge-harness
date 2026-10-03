@@ -1,0 +1,18 @@
+INFO data-relational-practices motor=rg raizes=1 universo=sql codigo iac
+OK R-03 [alto] nenhuma ocorrência
+OK R-04 [aviso] nenhuma ocorrência
+FOUND R-06 [aviso] 1 ocorrência(s) — paginação por OFFSET profundo computa e descarta linhas e duplica ou omite com inserção concorrente; prefira keyset
+  <worktree-do-eval>/.forge/evals/agents/data-relational/workspace/iteration-1/eval-revisao-acesso-dados-java-pool-e-governanca/with_skill/run-1/work/services/cadastro-operador/src/main/java/br/example/cadastro/operador/OperadorRepository.java:10: @Query(value = "SELECT * FROM operador WHERE tenant_id = :tenant ORDER BY id LIMIT 50 OFFSET :offset", nativeQuery = true)
+OK R-10 [alto] nenhuma ocorrência
+FOUND R-12 [aviso] 1 ocorrência(s) — estado de sessão com pool: SET de GUC sem LOCAL, set_config(..., false), search_path, LISTEN e advisory lock de sessão vazam entre requisições (tenant da RLS inclusive) ou quebram atrás de PgBouncer em modo transaction
+  <worktree-do-eval>/.forge/evals/agents/data-relational/workspace/iteration-1/eval-revisao-acesso-dados-java-pool-e-governanca/with_skill/run-1/work/services/cadastro-operador/src/main/java/br/example/cadastro/config/TenantConnectionInterceptor.java:20: st.execute("SET app.tenant_id = '" + TenantContext.current() + "'");
+OK R-13 [alto] nenhuma ocorrência
+FOUND R-14 [aviso] 1 ocorrência(s) — SELECT * em código de aplicação acopla ao schema e traz colunas que ninguém lê
+  <worktree-do-eval>/.forge/evals/agents/data-relational/workspace/iteration-1/eval-revisao-acesso-dados-java-pool-e-governanca/with_skill/run-1/work/services/cadastro-operador/src/main/java/br/example/cadastro/operador/OperadorRepository.java:10: @Query(value = "SELECT * FROM operador WHERE tenant_id = :tenant ORDER BY id LIMIT 50 OFFSET :offset", nativeQuery = true)
+OK R-17 [aviso] nenhuma ocorrência
+OK R-18 [aviso] nenhuma ocorrência
+OK R-19 [aviso] nenhuma ocorrência
+OK R-20 [aviso] nenhuma ocorrência
+OK R-21 [aviso] nenhuma ocorrência
+OK R-22 [aviso] nenhuma ocorrência
+ARQUIVOS-VARRIDOS 7

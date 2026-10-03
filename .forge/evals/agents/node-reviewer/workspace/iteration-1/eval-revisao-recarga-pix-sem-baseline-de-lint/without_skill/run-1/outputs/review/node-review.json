@@ -1,0 +1,91 @@
+{
+  "findings": [
+    {
+      "file": "src/recargas/repository.ts",
+      "line": 8,
+      "severity": "critical",
+      "category": "security",
+      "summary": "SQL injection via interpolação de string na query INSERT",
+      "detail": "cartaoId e valorCentavos são concatenados diretamente na string SQL em vez de usar parâmetros ($1, $2) do driver pg. Um cartaoId controlado por request body permite injeção de SQL arbitrária.",
+      "recommendation": "Usar query parametrizada: db.query('INSERT INTO recargas (cartao_id, valor_centavos, status) VALUES ($1, $2, ...) RETURNING *', [cartaoId, valorCentavos])."
+    },
+    {
+      "file": "src/recargas/repository.ts",
+      "line": 7,
+      "severity": "high",
+      "category": "correctness",
+      "summary": "Novo Pool criado a cada chamada em vez de reutilizar o pool compartilhado",
+      "detail": "inserirRecarga instancia 'new Pool(...)' a cada invocação, ignorando o pool já configurado em src/db/pool.ts (com max e ssl.ca). Isso vaza conexões ao banco sob carga e não respeita o limite max=10 definido no pool central.",
+      "recommendation": "Importar e usar o 'pool' exportado de ../db/pool.js em vez de criar uma nova instância de Pool."
+    },
+    {
+      "file": "src/recargas/routes.ts",
+      "line": 7,
+      "severity": "high",
+      "category": "correctness",
+      "summary": "Corpo da requisição não validado antes de uso",
+      "detail": "req.body é desestruturado sem validação de schema (o projeto já depende de zod, usado em src/config/load.ts, mas não é aplicado aqui). cartaoId e valorCentavos podem vir ausentes, com tipo errado ou valores negativos/não numéricos, propagando direto para o INSERT.",
+      "recommendation": "Validar o body com um schema zod (tipo, obrigatoriedade, valorCentavos inteiro positivo) e responder 400 em caso de falha antes de chamar o service."
+    },
+    {
+      "file": "src/recargas/routes.ts",
+      "line": 6,
+      "severity": "medium",
+      "category": "correctness",
+      "summary": "Handler assíncrono sem tratamento de erro",
+      "detail": "O handler não está envolvido em try/catch nem usa um wrapper de erro assíncrono. Uma rejeição em criarRecargaPix (ex.: falha de banco ou de rede na notificação) não é capturada e pode derrubar o processo ou deixar a requisição pendurada, dependendo do framework/middleware de erro configurado.",
+      "recommendation": "Envolver a chamada em try/catch e responder 500 com log apropriado, ou usar um middleware de captura de erros assíncronos do Express."
+    },
+    {
+      "file": "src/recargas/service.ts",
+      "line": 5,
+      "severity": "medium",
+      "category": "correctness",
+      "summary": "Chamada fire-and-forget sem tratamento de rejeição",
+      "detail": "notificarAntifraude(recarga.id).then(() => undefined) descarta o retorno mas não trata rejeição. Se o fetch falhar (rede, timeout, URL indisponível), a Promise rejeitada não tem .catch e pode gerar um unhandledRejection, além de a falha de notificação antifraude passar despercebida silenciosamente.",
+      "recommendation": "Adicionar .catch com log estruturado, ou aguardar a notificação (await) se for parte do fluxo crítico da recarga, decidindo explicitamente a semântica desejada."
+    },
+    {
+      "file": "src/recargas/service.ts",
+      "line": 9,
+      "severity": "medium",
+      "category": "reliability",
+      "summary": "fetch sem timeout e sem tratamento de status HTTP",
+      "detail": "A chamada a fetch para ANTIFRAUDE_URL não define timeout/AbortController nem verifica response.ok. Uma resposta de erro HTTP (4xx/5xx) é tratada como sucesso silenciosamente, e uma URL fora do ar pode travar a promise indefinidamente.",
+      "recommendation": "Adicionar AbortController com timeout e checar response.ok, logando/tratando falhas de notificação."
+    },
+    {
+      "file": "src/recargas/repository.ts",
+      "line": 6,
+      "severity": "low",
+      "category": "types",
+      "summary": "Tipo de retorno 'any' em função pública",
+      "detail": "inserirRecarga declara Promise<any> apesar de o tipo Recarga já existir no mesmo arquivo. Isso enfraquece a checagem estática em todo consumidor da função (service.ts acessa recarga.id sem garantia de tipo).",
+      "recommendation": "Trocar Promise<any> por Promise<Recarga> e tipar o retorno de rows[0] adequadamente."
+    },
+    {
+      "file": "src/db/pool.ts",
+      "line": 4,
+      "severity": "low",
+      "category": "observability",
+      "summary": "Pool sem listener de erro",
+      "detail": "A instância de Pool não registra pool.on('error', ...). Erros assíncronos de conexões ociosas no pool do node-postgres, se não tratados, podem derrubar o processo Node (comportamento documentado do driver 'pg').",
+      "recommendation": "Adicionar pool.on('error', (err) => logger.error(err)) logo após a criação do pool."
+    },
+    {
+      "file": "src/recargas/repository.ts",
+      "line": 1,
+      "severity": "info",
+      "category": "test-coverage",
+      "summary": "Nenhum teste novo para o fluxo de recarga Pix",
+      "detail": "A mudança adiciona rota, service e repository novos (POST /recargas/pix) sem nenhum teste unitário ou de integração correspondente no diff revisado.",
+      "recommendation": "Adicionar testes cobrindo: validação de payload inválido, injeção de SQL (regressão), e o caminho feliz com pool mockado."
+    }
+  ],
+  "summary": {
+    "total_findings": 9,
+    "by_severity": { "critical": 1, "high": 2, "medium": 3, "low": 2, "info": 1 },
+    "blocking": true,
+    "blocking_reason": "SQL injection crítica em repository.ts impede aprovação do PR."
+  }
+}

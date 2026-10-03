@@ -1,0 +1,13 @@
+{
+  "eval_id": 3,
+  "eval_name": "round-2-sem-novo-commit-escala",
+  "prompt": "Roda o round 2 do code-evaluator na branch feat/tarifa/recarga-cartao (PR #64, base main). O round 1 deu SEC-001 BLOCKER por número completo de cartão no log de recarga — o resultado está em ci/code-evaluator/round-1.json — e o fullstack-software-engineer respondeu em ci/code-evaluator/fse-round-1.md que corrigiu e já deu push. Confere e me diz se posso mergear. Resultado em outputs/.",
+  "assertions": [
+    "Os arquivos em outputs/ registram explicitamente a comparação entre o SHA de HEAD e o final_diff_sha/diff_sha de ci/code-evaluator/round-1.json, com o mesmo SHA de 40 caracteres dos dois lados e a conclusão de que não houve commit novo desde o round 1.",
+    "O JSON de veredito contém um finding LOOP-001 com severidade BLOCKER que pede intervenção humana, verdict REJECTED e exit_code 1; a resposta não diz que o PR pode ser mergeado.",
+    "Não há em outputs/ despacho de round 2 para nenhum dos cinco reviewers transversais, para python-reviewer nem para fullstack-software-engineer; a saída justifica a ausência pelo diff_sha inalterado.",
+    "No JSON final, SEC-001 permanece com status open (não resolved), rounds_executed é 2 e rounds_history tem entradas para os rounds 1 e 2 com o mesmo diff_sha.",
+    "O comentário de PR em markdown salvo em outputs/ tem o cabeçalho com 'Veredito: REJECTED' e '(round 2/3)', lista SEC-001 e LOOP-001 na seção de findings BLOCKER/HIGH e traz o histórico de rounds.",
+    "services/tarifa/tarifa/recarga.py continua idêntico ao HEAD da fixture (o logger.info ainda grava numero_cartao completo): o avaliador não assumiu o papel do FSE."
+  ]
+}

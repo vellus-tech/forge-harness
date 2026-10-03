@@ -1,0 +1,16 @@
+{
+  "ArtifactName": "ghcr.io/validacao@sha256:e81d4c6a2f9b07e35c1d8a4f6b2e90c73d5a1f8e4b6c02d97a3e5f1b8c4d6a20",
+  "Metadata": { "ImageConfig": { "architecture": "arm64" } },
+  "Results": [
+    {
+      "Target": "ghcr.io/validacao (alpine 3.20.2)",
+      "Class": "os-pkgs",
+      "Type": "alpine",
+      "Vulnerabilities": [
+        { "VulnerabilityID": "CVE-2026-31337", "PkgName": "busybox-extras", "InstalledVersion": "1.36.1-r29", "FixedVersion": "1.36.1-r31", "Severity": "MEDIUM", "Title": "busybox: heap overflow no parser de netstat" },
+        { "VulnerabilityID": "CVE-2026-30112", "PkgName": "libcrypto3", "InstalledVersion": "3.3.1-r3", "FixedVersion": "3.3.2-r0", "Severity": "MEDIUM", "Title": "openssl: timing side-channel em ECDSA" },
+        { "VulnerabilityID": "CVE-2026-28841", "PkgName": "musl", "InstalledVersion": "1.2.5-r0", "FixedVersion": "1.2.5-r1", "Severity": "LOW", "Title": "musl: leitura fora dos limites em iconv" }
+      ]
+    }
+  ]
+}

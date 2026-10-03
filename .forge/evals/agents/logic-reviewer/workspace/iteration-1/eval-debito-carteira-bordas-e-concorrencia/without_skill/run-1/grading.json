@@ -1,0 +1,45 @@
+{
+  "expectations": [
+    {
+      "text": "O arquivo .forge/reviews/logic-debito-carteira.json é JSON válido sem prosa nem cercas markdown, com reviewer igual a 'logic-reviewer' e array findings; todo finding tem id, severity, category, file, line, title, description, fix_suggested, rule_violated e confidence, com ids LGC-NNN sequenciais a partir de LGC-001.",
+      "passed": false,
+      "evidence": "JSON válido (jq -e . → VALID, sem cercas, grep -c '```' → 0), mas fora do contrato: chaves de topo [base, branch, commit_reviewed, concurrency_and_edge_case_focus, findings, review, summary, tests_that_dont_test_what_they_say, verdict] — não há 'reviewer'. Findings usam ids F1..F5 (não LGC-NNN) e não têm category, file, line, fix_suggested, rule_violated nem confidence (jq de chaves faltantes lista F1..F5; usam location/recommendation/requirement). Além disso a revisão foi gravada também em outputs/logic-debito-carteira.json (cópia idêntica de work/.forge/reviews/)."
+    },
+    {
+      "text": "Existe finding em services/carteira/src/Carteira.Domain/CarteiraPrePaga.cs com line entre 15 e 20 apontando que Debitar não rejeita valor negativo (ou zero), com cenário concreto em que um débito negativo aumenta o saldo, e severity HIGH ou BLOCKER.",
+      "passed": false,
+      "evidence": "F1 acerta a substância (location 'services/carteira/src/Carteira.Domain/CarteiraPrePaga.cs:15-21'; failure_scenario 'TarifaEmCentavos = -1000 [...] a carteira do passageiro é creditada em R$ 10,00'), mas severity='critical', fora da escala HIGH/BLOCKER exigida, e não há campo line (só location textual). Falha pela letra da asserção."
+    },
+    {
+      "text": "Existe finding com severity HIGH ou BLOCKER apontando DebitarTarifaHandler.cs ou CarteiraPrePaga.cs pela ausência de concurrency token/versão/lock no ciclo ObterAsync → Debitar → AtualizarAsync, descrevendo dois validadores debitando a mesma carteira ao mesmo tempo com débito perdido ou saldo negativo, e citando REQ-8.",
+      "passed": false,
+      "evidence": "F2 acerta a substância (location DebitarTarifaHandler.cs:13-18 e ICarteiraRepository.cs; 'Não há campo de versão/ETag [...] nem lock pessimista'; cenário 'Validador A (catraca) e Validador B (ônibus alimentador) [...] um dos R$ 3,00 de tarifa nunca foi cobrado'; requirement='REQ-8'), mas severity='critical', fora da escala HIGH/BLOCKER exigida."
+    },
+    {
+      "text": "Existe finding em services/carteira/src/Carteira.Application/Embarques/DebitarTarifaHandler.cs com line 15 ou 16 apontando que ObterAsync pode devolver null e o operador ! gera NullReferenceException em vez da CarteiraNaoEncontradaException exigida pelo REQ-9.",
+      "passed": true,
+      "evidence": "F3: location 'services/carteira/src/Carteira.Application/Embarques/DebitarTarifaHandler.cs:15-16'; description: 'O handler usa o operador null-forgiving carteira!.Debitar(...) sobre o retorno de ObterAsync, que é tipado como Task<CarteiraPrePaga?> [...] a execução real lança NullReferenceException'; título 'CarteiraNaoEncontradaException exigida pelo REQ-9 não existe'. Sem campo line, mas a localização aponta exatamente as linhas 15-16 exigidas."
+    },
+    {
+      "text": "Existe finding com severity HIGH ou BLOCKER em services/carteira/tests/Carteira.Tests/CarteiraPrePagaTests.cs (line entre 8 e 13) dizendo que Debitar_SaldoInsuficiente_LancaExcecao exercita saldo suficiente e não verifica a exceção.",
+      "passed": true,
+      "evidence": "F4: severity='high' (equivale a HIGH); location 'services/carteira/tests/Carteira.Tests/CarteiraPrePagaTests.cs:8-14' (começa na linha 8, dentro do intervalo); description: 'cria carteira com saldo 1000, debita 440 (saldo mais que suficiente) [...] sem nenhum Assert.Throws'."
+    },
+    {
+      "text": "Nenhum finding aponta SaldoFormatter.cs como violação de money-as-cents.md ou por uso de decimal; a conversão para decimal na camada de apresentação não aparece como defeito.",
+      "passed": true,
+      "evidence": "grep -n -i 'SaldoFormatter\\|decimal' work/.forge/reviews/logic-debito-carteira.json → sem ocorrências. F5 cita money-as-cents.md, mas pelo uso de long cru no domínio (CarteiraPrePaga.cs:6,15 e DebitarTarifaHandler.cs:5), não por SaldoFormatter nem por decimal."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 146000,
+    "total_duration_seconds": 146
+  }
+}

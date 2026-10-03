@@ -20,7 +20,18 @@ function parseArgs(args) {
     const a = args[i];
     if (a === '--command') out.commands.push(args[++i] || '');
     else if (a === '--set') out.set.push(args[++i] || '');
-    else if (a.startsWith('--')) out[a.slice(2).replace(/-/g, '_')] = args[++i] || '';
+    else if (a.startsWith('--')) {
+      const key = a.slice(2).replace(/-/g, '_');
+      const value = args[++i] || '';
+      // Chave escalar repetida com valores DIFERENTES é recusada — a última ocorrência
+      // vencendo em silêncio era como o --root interno do wrapper descartava o --root do
+      // chamador (#128). Repetição com o MESMO valor é inofensiva e continua aceita.
+      if (Object.prototype.hasOwnProperty.call(out, key) && out[key] !== value) {
+        console.log(`FAIL: --${a.slice(2)} informado duas vezes com valores diferentes`);
+        process.exit(1);
+      }
+      out[key] = value;
+    }
     else usage();
   }
   return out;

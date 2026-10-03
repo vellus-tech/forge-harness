@@ -1,0 +1,53 @@
+{
+  "expectations": [
+    {
+      "text": "revisao/quality-reviewer.json é JSON válido com reviewer igual a 'quality-reviewer' e um array findings em que todo item tem id no padrão QLT-NNN (três dígitos), severity em {BLOCKER, HIGH, MEDIUM, LOW}, file, title, fix_suggested e rule_violated apontando um arquivo de .forge/rules/ ou .commitlintrc.json.",
+      "passed": true,
+      "evidence": "jq em outputs/revisao/quality-reviewer.json (cmp idêntico a work/revisao/): .reviewer='quality-reviewer' (linha 2); 8 findings QLT-001..QLT-008 casam ^QLT-[0-9]{3}$; severities BLOCKER/HIGH/MEDIUM; todos têm file, title, fix_suggested e rule_violated, e todo rule_violated começa com .forge/rules/ ou é .commitlintrc.json. Ressalvas: QLT-007 usa SHA de commit como file; QLT-001 aponta file SingleTopUp.cs para um problema de mensagem de commit."
+    },
+    {
+      "text": "Existe um finding de severidade BLOCKER sobre o trailer 'Co-Authored-By: Claude' do commit 'feat(recarga): adicionar recarga avulsa no domínio' (atribuição de autoria a IA), e não apenas uma observação em texto livre.",
+      "passed": true,
+      "evidence": "outputs/revisao/quality-reviewer.json linhas 7-13: QLT-001 severity BLOCKER, 'O commit fde48f1 (feat(recarga): adicionar recarga avulsa no domínio) traz o trailer Co-Authored-By: Claude <noreply@anthropic.com>'. Confirmado por git -C work log --format='%(trailers:key=Co-Authored-By,valueonly)': fde48f1 -> Claude <noreply@anthropic.com>. Ressalva: rule_violated é conventional-commits.md, não no-ai-attribution.md."
+    },
+    {
+      "text": "Existe um finding de severidade HIGH apontando que o scope 'recarga' do commit feat(recarga) não está na lista canônica de scopes do .commitlintrc.json.",
+      "passed": true,
+      "evidence": "outputs/revisao/quality-reviewer.json linhas 79-86: QLT-007 HIGH, rule_violated .commitlintrc.json, 'O scope recarga não consta em scope-enum'. Confirmado: jq '.rules[\"scope-enum\"]' em work/.commitlintrc.json não contém 'recarga'."
+    },
+    {
+      "text": "Há um finding BLOCKER no arquivo 20260920120000_AddSingleTopUps.cs sobre tabela/colunas em PascalCase (SingleTopUps, CardNumber etc.) exigindo snake_case, e um finding HIGH (separado ou explícito no mesmo arquivo) sobre a coluna monetária Amount sem o sufixo _cents.",
+      "passed": false,
+      "evidence": "Metade BLOCKER atendida: outputs/revisao/quality-reviewer.json linhas 19-22, QLT-002 BLOCKER na migration 20260920120000_AddSingleTopUps.cs sobre SingleTopUps/CardNumber/Amount/Confirmed em PascalCase. Metade HIGH não atendida: nenhum finding HIGH tem file = migration nem trata a coluna Amount como objeto; '_cents' só aparece de passagem na description de QLT-006 (linha 73), cujo file é SingleTopUp.cs e cujo objeto é ValorEmReais; QLT-002 ainda sugere renomear para 'amount', sem _cents. Na dúvida, false."
+    },
+    {
+      "text": "Há um finding BLOCKER para docs/recarga-avulsa-implementation-summary.md citando a proibição de arquivos de resumo (no-summary-files.md).",
+      "passed": true,
+      "evidence": "outputs/revisao/quality-reviewer.json linhas 31-37: QLT-003 BLOCKER, file docs/recarga-avulsa-implementation-summary.md, rule_violated .forge/rules/conventions/no-summary-files.md, cita o padrão '*-implementation-summary.md'."
+    },
+    {
+      "text": "Há finding HIGH em services/recarga/src/Recarga.Domain/SingleTopUp.cs para os identificadores em pt-BR (ProcessarRecarga e/ou ValorEmReais) citando language-policy.md, e finding HIGH para a classe de domínio nova SingleTopUp sem SingleTopUpTests.cs correspondente no diff.",
+      "passed": false,
+      "evidence": "Metade de idioma atendida: outputs/revisao/quality-reviewer.json linhas 55-58, QLT-005 HIGH em SingleTopUp.cs citando ProcessarRecarga/ValorEmReais e language-policy.md. Metade de teste com severidade errada: o único finding sobre falta de SingleTopUpTests.cs é QLT-004 (linhas 43-46) com severity BLOCKER, não HIGH, ancorado em tdd.md. Não existe finding HIGH de teste ausente."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 2,
+    "total": 6,
+    "pass_rate": 0.67
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Há um finding BLOCKER no arquivo 20260920120000_AddSingleTopUps.cs sobre tabela/colunas em PascalCase (SingleTopUps, CardNumber etc.) exigindo snake_case, e um finding HIGH (separado ou explícito no mesmo arquivo) sobre a coluna monetária Amount sem o sufixo _cents.",
+        "reason": "'separado ou explícito no mesmo arquivo' é ambíguo: um finding HIGH em outro arquivo que menciona Amount sem _cents de passagem (QLT-006 do with_skill) fica em zona cinzenta. Fixar file = migration e objeto = coluna Amount."
+      },
+      {
+        "assertion": "Há finding HIGH em services/recarga/src/Recarga.Domain/SingleTopUp.cs para os identificadores em pt-BR (ProcessarRecarga e/ou ValorEmReais) citando language-policy.md, e finding HIGH para a classe de domínio nova SingleTopUp sem SingleTopUpTests.cs correspondente no diff.",
+        "reason": "Exigir HIGH para teste ausente penaliza BLOCKER (mais severo e defensável em código monetário). Considerar 'HIGH ou BLOCKER'."
+      }
+    ],
+    "overall": "Asserções discriminam bem contrato de saída e scope; severidade exata em 4 e 6 decide o resultado mais do que a substância."
+  }
+}

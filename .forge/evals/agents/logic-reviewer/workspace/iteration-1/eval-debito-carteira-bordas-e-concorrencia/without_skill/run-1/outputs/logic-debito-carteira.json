@@ -1,0 +1,72 @@
+{
+  "review": "logic-debito-carteira",
+  "branch": "feature/debito-carteira",
+  "base": "develop",
+  "commit_reviewed": "afa65d8",
+  "verdict": "REPROVADO",
+  "summary": "Os testes passam e o diff é pequeno, mas a implementação tem três falhas de lógica que tocam dinheiro real do passageiro: nenhuma validação de entrada para o valor da tarifa (REQ-7), nenhuma proteção contra concorrência entre validadores (REQ-8), e a exceção de carteira inexistente exigida pelo REQ-9 não existe no código — o caminho realmente executado é um NullReferenceException. Além disso, o único teste com nome ligado a saldo insuficiente não exercita esse caminho.",
+  "findings": [
+    {
+      "id": "F1",
+      "requirement": "REQ-7",
+      "severity": "critical",
+      "title": "TarifaEmCentavos negativo ou zero não é rejeitado — débito negativo vira crédito",
+      "location": "services/carteira/src/Carteira.Domain/CarteiraPrePaga.cs:15-21",
+      "description": "Debitar(long valorEmCentavos) só verifica 'SaldoEmCentavos - valorEmCentavos < 0'. Se valorEmCentavos for negativo (ex.: -500, por bug de integração, replay de mensagem malformada ou payload adulterado do validador), a subtração vira soma: o saldo AUMENTA e a checagem de saldo insuficiente nunca dispara (SaldoEmCentavos - (-500) é sempre >= 0). O REQ-9/REQ-7 dizem explicitamente que a tarifa é 'sempre um valor positivo, em centavos', mas nada no código impõe isso — nem o Value Object (não existe, é long cru, o que já diverge da diretriz 3 de money-as-cents.md), nem uma guarda explícita. Zero ou valor negativo deveriam lançar ArgumentOutOfRangeException (ou equivalente de domínio) antes de tocar o saldo.",
+      "failure_scenario": "DebitarTarifaCommand com TarifaEmCentavos = -1000 chega (bug de serialização, ou payload forjado de um validador comprometido) e a carteira do passageiro é creditada em R$ 10,00 sem qualquer débito real de tarifa — criação de dinheiro do nada.",
+      "recommendation": "Adicionar guarda no início de Debitar: if (valorEmCentavos <= 0) throw new ArgumentOutOfRangeException(nameof(valorEmCentavos), \"Tarifa deve ser positiva.\"). Cobrir com teste que hoje não existe."
+    },
+    {
+      "id": "F2",
+      "requirement": "REQ-8",
+      "severity": "critical",
+      "title": "Nenhum controle de concorrência entre leitura e escrita — condição de corrida permite saldo negativo ou perda de débito",
+      "location": "services/carteira/src/Carteira.Application/Embarques/DebitarTarifaHandler.cs:13-18; services/carteira/src/Carteira.Application/Abstractions/ICarteiraRepository.cs:5-9",
+      "description": "O fluxo é: ObterAsync (lê snapshot em memória) → Debitar (calcula em memória) → AtualizarAsync (grava o objeto inteiro, sobrescrevendo). Não há campo de versão/ETag na entidade, nem parâmetro de concorrência otimista na interface ICarteiraRepository, nem qualquer lock pessimista ou transação com isolamento serializável mencionados. REQ-8 descreve exatamente dois validadores debitando a mesma carteira quase simultaneamente. Nesse cenário, ambas as chamadas de Handle podem executar ObterAsync antes de qualquer AtualizarAsync ser persistido — cada uma vê o mesmo SaldoEmCentavos original, cada uma calcula 'saldo suficiente' de forma independente e correta, e a segunda escrita (AtualizarAsync) sobrescreve a primeira: last-write-wins. Resultado possível: um dos dois débitos é perdido (o passageiro embarcou de graça em um dos veículos) OU, se o AtualizarAsync persistir apenas o campo de saldo sem transação, o saldo final fica negativo — exatamente o que REQ-8 proíbe explicitamente ('Nenhum débito pode ser perdido e o saldo não pode ficar negativo por causa da concorrência').",
+      "failure_scenario": "Carteira com saldo 500. Validador A (catraca) e Validador B (ônibus alimentador) chamam Handle quase ao mesmo tempo, cada um debitando 300. Ambos leem saldo=500, ambos passam a checagem (500-300=200 >= 0) e ambos calculam SaldoEmCentavos=200 a partir do mesmo snapshot. Se A grava por último, o saldo final é 200 (deveria ser -100, ou seja, o segundo débito deveria ter sido recusado) e um dos R$ 3,00 de tarifa nunca foi cobrado — prejuízo direto para a operadora, ou, dependendo da ordem de escrita, para o passageiro.",
+      "recommendation": "Introduzir concorrência otimista: adicionar RowVersion/ETag à entidade e a um parâmetro esperado em AtualizarAsync, retornando falha/exceção de conflito de concorrência quando o versionamento não bate; o handler deve then re-ler e reprocessar (ou o repositório deve fazer um UPDATE condicional atômico 'SET saldo = saldo - @valor WHERE saldo >= @valor AND versao = @versao'). Alternativa: mover o cálculo para o banco via UPDATE atômico condicional em vez de read-modify-write em memória."
+    },
+    {
+      "id": "F3",
+      "requirement": "REQ-9",
+      "severity": "critical",
+      "title": "CarteiraNaoEncontradaException exigida pelo REQ-9 não existe — o caminho real é NullReferenceException",
+      "location": "services/carteira/src/Carteira.Application/Embarques/DebitarTarifaHandler.cs:15-16",
+      "description": "REQ-9 exige: 'Débito para carteira inexistente é recusado com CarteiraNaoEncontradaException, sem efeito colateral.' Essa classe de exceção não existe em nenhum arquivo do serviço (busca por 'CarteiraNaoEncontradaException' e por qualquer arquivo '*Exception*' em services/carteira retorna apenas SaldoInsuficienteException.cs). O handler usa o operador null-forgiving 'carteira!.Debitar(...)' sobre o retorno de ObterAsync, que é tipado como Task<CarteiraPrePaga?> — ou seja, o autor sabia que o resultado pode ser null e silenciou o aviso do compilador em vez de tratá-lo. Quando a carteira não existe, a execução real lança NullReferenceException, uma exceção de infraestrutura sem semântica de negócio, não capturável de forma específica por quem consome o handler, e sem garantia formal de 'sem efeito colateral' documentada no comportamento contratual.",
+      "failure_scenario": "Um QR code de bilhete fraudado ou uma carteira excluída/nunca provisionada gera um DebitarTarifaCommand com CarteiraId que não existe na base. O sistema lança NullReferenceException, que provavelmente sobe como erro 500 genérico em vez do 404/erro de negócio esperado pelo REQ-9 — impacto em monitoramento (alarme genérico em vez de métrica de negócio) e em qualquer client que espere capturar CarteiraNaoEncontradaException especificamente.",
+      "recommendation": "No handler: if (carteira is null) throw new CarteiraNaoEncontradaException(comando.CarteiraId); antes de chamar Debitar, e remover o operador '!'. Criar a classe CarteiraNaoEncontradaException análoga a SaldoInsuficienteException. Adicionar teste cobrindo esse caminho (hoje inexistente)."
+    },
+    {
+      "id": "F4",
+      "requirement": "REQ-7 (qualidade de teste)",
+      "severity": "high",
+      "title": "Teste 'Debitar_SaldoInsuficiente_LancaExcecao' não testa saldo insuficiente nem exceção alguma",
+      "location": "services/carteira/tests/Carteira.Tests/CarteiraPrePagaTests.cs:8-14",
+      "description": "O nome do teste promete verificar o caminho de saldo insuficiente lançando SaldoInsuficienteException. O corpo faz o oposto: cria carteira com saldo 1000, debita 440 (saldo mais que suficiente) e apenas confere que o saldo final é 560 — um teste de caminho feliz de subtração básica, sem nenhum Assert.Throws. Não existe, em todo o arquivo de testes, um teste que efetivamente force SaldoEmCentavos - valorEmCentavos < 0 e verifique SaldoInsuficienteException. REQ-7 (a regra central de não deixar saldo negativo) está, na prática, sem cobertura nenhuma, apesar da suíte estar 'verde' — o verde aqui é enganoso.",
+      "failure_scenario": "Um regressor futuro remove ou quebra a guarda 'if (SaldoEmCentavos - valorEmCentavos < 0) throw ...' (por exemplo, trocando '<' por '<=' incorretamente ou removendo a linha durante um refactor). A suíte inteira continua verde porque nenhum teste exercita esse ramo — o bug de saldo negativo chega em produção sem ser pego pelo CI.",
+      "recommendation": "Renomear o teste existente para algo como Debitar_SaldoSuficiente_AbateDoSaldo, e adicionar um teste novo real: carteira com saldo 100, Debitar(200) deve lançar Assert.Throws<SaldoInsuficienteException>, e o saldo deve permanecer 100 após a tentativa (sem efeito colateral)."
+    },
+    {
+      "id": "F5",
+      "requirement": "money-as-cents.md (diretriz 3)",
+      "severity": "medium",
+      "title": "Domínio manipula long cru em vez do Value Object Money exigido pela rule",
+      "location": "services/carteira/src/Carteira.Domain/CarteiraPrePaga.cs:6,15; services/carteira/src/Carteira.Application/Embarques/DebitarTarifaHandler.cs:5",
+      "description": "A rule .forge/rules/domain/money-as-cents.md, diretriz 3, exige: 'todo código de domínio manipula Money (objeto de valor), nunca long diretamente'. SaldoEmCentavos e o parâmetro de Debitar são long puro, assim como TarifaEmCentavos no command. Isso é uma dívida pré-existente (o construtor já usava long antes deste diff) mas o diff a estende ao adicionar Debitar(long) e o novo command, em vez de introduzir o Value Object — perdendo a chance de a própria tipagem impedir o problema de F1 (Money.Of poderia validar positividade na construção).",
+      "failure_scenario": "Sem tipo próprio, é fácil trocar a ordem de dois parâmetros long em uma chamada futura (ex.: Debitar(tarifa, saldo) por engano) sem erro de compilação — Money(valor) tornaria isso um erro de tipo.",
+      "recommendation": "Não bloqueia este PR isoladamente (é padrão herdado do módulo), mas registrar como dívida técnica: introduzir Money value object no domínio de carteira, o que resolveria F5 e endureceria F1."
+    }
+  ],
+  "concurrency_and_edge_case_focus": {
+    "boundary_inputs_checked": [
+      "TarifaEmCentavos negativo — NÃO rejeitado (F1)",
+      "TarifaEmCentavos = 0 — NÃO rejeitado, resulta em débito de valor zero silencioso (mesma guarda de F1 resolveria)",
+      "Débito exatamente igual ao saldo (saldo zera) — OK, 'SaldoEmCentavos - valorEmCentavos < 0' permite saldo == 0",
+      "CarteiraId inexistente — tratado incorretamente, vira NullReferenceException em vez de CarteiraNaoEncontradaException (F3)"
+    ],
+    "concurrency_between_validators": "Sem mecanismo de concorrência otimista/pessimista identificado em nenhuma camada revisada (domínio, aplicação, interface de repositório); REQ-8 não está satisfeito pelo código atual (F2)."
+  },
+  "tests_that_dont_test_what_they_say": [
+    "Debitar_SaldoInsuficiente_LancaExcecao (CarteiraPrePagaTests.cs:9) — nome promete exceção de saldo insuficiente, corpo testa débito bem-sucedido sem nenhum Assert.Throws (F4)"
+  ]
+}

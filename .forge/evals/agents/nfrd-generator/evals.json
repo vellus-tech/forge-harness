@@ -1,0 +1,101 @@
+{
+  "skill_name": "nfrd-generator",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/specifications/nfrd-generator.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "nfrd-validador-embarque-do-prd",
+      "prompt": "O PRD do validador de embarque contactless foi aprovado ontem pelo comitê (docs/product/prd/prd.md). Preciso do NFRD dele para a reunião de arquitetura com SRE e AppSec na segunda: requisitos não funcionais verificáveis, com rastreabilidade para o PRD. Tem também as notas de discovery em docs/discovery/discovery-notes.md, que trazem a queda de 6 h do backend em 2025. Escreve no lugar padrão do repositório.",
+      "expected_output": "Um docs/product/frd-nfrd/nfrd.md em pt-BR na estrutura de 15 seções, com a seção 7 Decisão por Categoria cobrindo os 14 códigos (PERF, DISP, ESC, RES, SEG, PRIV, COMP, OBS, AUD, INT, USA, MAN, POR, OPS) com justificativa para os não aplicáveis; NFRs com ID NFR-<CAT>-NN e tabela com Meta, Método de medição e Fonte de dados; latência do KPI-01 em percentil (p95 ≤ 500 ms), disponibilidade 99,5% mensal da R-04, PCI DSS e LGPD tratados; a premissa vaga 'rápidos e fáceis de usar' vira meta marcada como 'Proposto pelo NFRD — validar com produto' e Ponto a Validar; matriz PRD → NFRD preenchida; prd.md intocado; resumo final com seção de ADRs Sugeridos (ex.: modo offline 72 h, agregação/idempotência de lotes, tokenização do PAN) sem criar arquivo de ADR.",
+      "files": [],
+      "fixture": "fixtures/nfrd-validador-embarque-do-prd/setup.sh",
+      "assertions": [
+        {
+          "name": "nfrd-no-caminho-padrao-e-prd-intocado",
+          "text": "Existe docs/product/frd-nfrd/nfrd.md e `git diff --exit-code -- docs/product/prd/prd.md docs/discovery/discovery-notes.md` sai com código 0 (nenhum arquivo de entrada foi alterado)."
+        },
+        {
+          "name": "decisao-por-categoria-com-os-14-codigos",
+          "text": "O nfrd.md contém uma seção 'Decisão por Categoria' com uma tabela em que aparecem as 14 categorias PERF, DISP, ESC, RES, SEG, PRIV, COMP, OBS, AUD, INT, USA, MAN, POR e OPS, cada uma com decisão explícita Sim/Não; toda linha 'Não' tem justificativa não vazia."
+        },
+        {
+          "name": "ids-nfr-cat-nn-com-meta-metodo-e-fonte",
+          "text": "Todos os requisitos seguem o formato de ID NFR-<CAT>-NN (ex.: NFR-PERF-01) e cada um tem, na sua tabela, os campos Meta, Método de medição e Fonte de dados preenchidos (nenhum vazio ou só com '—')."
+        },
+        {
+          "name": "kpi01-como-percentil-e-disponibilidade-com-janela",
+          "text": "Existe um NFR de latência de validação com meta em percentil explícito (p95 ≤ 500 ms, rastreado a KPI-01) e um NFR de disponibilidade de 99,5% com janela mensal explícita, rastreado a R-04."
+        },
+        {
+          "name": "premissa-vaga-marcada-proposto-pelo-nfrd",
+          "text": "A premissa do PRD 'portal e app rápidos e fáceis de usar' não vira texto vago: há ao menos um NFR com meta numérica para o portal ou app cuja Origem está marcada literalmente 'Proposto pelo NFRD — validar com produto' (ou 'Inferência Não Funcional'), e a seção 'Pontos a Validar' traz o item correspondente com quem decide."
+        },
+        {
+          "name": "matriz-prd-nfrd-e-adrs-sugeridos-sem-criar-adr",
+          "text": "O nfrd.md tem a seção 'Matriz de Rastreabilidade PRD → NFRD' com linhas para KPI-01, KPI-03, R-01, R-02, R-03 e R-04; o resumo final da resposta tem a seção 'ADRs Sugeridos' (tabela com ID sugerido, Título, Origem NFR, Severidade e Justificativa, ou a frase 'Nenhum ADR sugerido nesta geração.'), e nenhum arquivo foi criado em docs/product/adr/."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "atualiza-nfrd-com-recarga-pix",
+      "prompt": "O Rafael aprovou a v1.1 do PRD do Cartão Cidade com a recarga via Pix (seção 7 do docs/product/prd/prd.md). O NFRD em docs/product/frd-nfrd/nfrd.md está na v1.0 e não cobre nada disso. Atualiza o NFRD para a v1.1 — o time de pagamentos começa o design na quarta e o PSP exige mTLS no webhook.",
+      "expected_output": "O nfrd.md existente é atualizado (não recriado do zero): o Controle de Versão mantém a linha 1.0 e ganha uma entrada nova; os NFRs v1.0 (NFR-PERF-01 com p95 ≤ 800 ms, NFR-DISP-01 etc.) continuam com os mesmos IDs e metas; a decisão por categoria é revista (RES, INT, AUD, OPS/retenção passam a aplicáveis) com NFRs novos numerados na sequência, cobrindo KPI-02 (p95 ≤ 10 s), idempotência do webhook (R-04), mTLS (R-05) e retenção de 5 anos (R-03); o tracing do webhook referencia o ADR-0002 existente em vez de sugerir ADR duplicado; metas numéricas sem origem no PRD saem marcadas como propostas; prd.md e ADRs intocados.",
+      "files": [],
+      "fixture": "fixtures/atualiza-nfrd-com-recarga-pix/setup.sh",
+      "assertions": [
+        {
+          "name": "controle-de-versao-preserva-1-0-e-adiciona-entrada",
+          "text": "Na seção 'Controle de Versão' do nfrd.md a linha original 'NFRD Generator - 2026-06-05 - Versão 1.0 gerada a partir do PRD v1.0.' continua presente e há pelo menos uma entrada nova depois dela mencionando a v1.1 ou a recarga Pix."
+        },
+        {
+          "name": "nfrs-v1-0-preservados-com-mesmo-id-e-meta",
+          "text": "NFR-PERF-01 continua existindo com meta p95 ≤ 800 ms, NFR-DISP-01 com ≥ 99,5% mensal e NFR-PRIV-01 e NFR-OBS-01 continuam presentes; os NFRs novos não reutilizam esses IDs (ex.: a latência do Pix é NFR-PERF-02 ou superior)."
+        },
+        {
+          "name": "requisitos-pix-rastreados-a-kpi02-r03-r04-r05",
+          "text": "Existem NFRs novos com origem em KPI-02 (crédito em ≤ 10 s no p95), R-03 (retenção de comprovantes por 5 anos), R-04 (não duplicar crédito com notificação repetida) e R-05 (mTLS no webhook), e a matriz PRD → NFRD tem linhas para KPI-02, R-03, R-04 e R-05."
+        },
+        {
+          "name": "decisao-por-categoria-revista-para-o-pix",
+          "text": "Na tabela 'Decisão por Categoria', RES e INT deixaram de ser 'Não' com a justificativa antiga 'Sem integrações externas na v1.0' (passam a Sim com NFRs listados, ou têm nova justificativa que não contradiz a integração com o PSP)."
+        },
+        {
+          "name": "referencia-adr-0002-sem-sugerir-duplicado",
+          "text": "O tracing/correlationId do webhook Pix, se tratado, referencia o ADR-0002 existente por link (../adr/0002-tracing-com-opentelemetry-e-correlation-id.md), e nem o nfrd.md nem a tabela 'ADRs Sugeridos' do resumo propõem um novo ADR de tracing ou correlationId."
+        },
+        {
+          "name": "entradas-intocadas",
+          "text": "`git diff --exit-code -- docs/product/prd/ docs/product/adr/` sai com código 0 e nenhum arquivo novo foi criado em docs/product/adr/."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "recusa-sem-prd-portal-lojista",
+      "prompt": "Preciso do NFRD do portal do lojista (link de pagamento por cartão e Pix) para a arquitetura começar amanhã. O PRD ainda não saiu — o comitê só decide o escopo dia 2 —, mas as notas das entrevistas estão em docs/discovery/discovery-notes.md e dá para tirar dali. Gera o docs/product/frd-nfrd/nfrd.md mesmo assim, depois a gente ajusta.",
+      "expected_output": "O agente não gera o NFRD: o contrato exige docs/product/prd/prd.md como insumo obrigatório ('sem PRD, pare e sinalize'). Ele informa que falta o PRD, não cria nfrd.md nem um prd.md improvisado, não altera as notas de discovery e, no máximo, aponta o que o PRD precisa trazer (volumetria, SLO, contexto regulatório) para destravar a geração.",
+      "files": [],
+      "fixture": "fixtures/recusa-sem-prd-portal-lojista/setup.sh",
+      "assertions": [
+        {
+          "name": "nfrd-nao-gerado",
+          "text": "Não existe docs/product/frd-nfrd/nfrd.md no diretório de trabalho ao fim da execução (nem outro arquivo com requisitos NFR-<CAT>-NN em qualquer caminho)."
+        },
+        {
+          "name": "prd-nao-improvisado",
+          "text": "Não existe docs/product/prd/prd.md (nem outro arquivo de PRD criado pelo agente) — o agente não fabricou o insumo para contornar a ausência."
+        },
+        {
+          "name": "sinaliza-prd-ausente-como-bloqueio",
+          "text": "A resposta final declara explicitamente que a geração está parada/bloqueada porque falta o PRD em docs/product/prd/prd.md, citando esse caminho ou o PRD como insumo obrigatório."
+        },
+        {
+          "name": "discovery-intocado",
+          "text": "`git status --porcelain -- docs/` sai vazio e `git ls-files --others --exclude-standard` não lista nenhum arquivo novo (em particular docs/discovery/discovery-notes.md permanece inalterado); as remoções de .forge/agents, .claude/agents etc. feitas pelo setup da fixture são ignoradas."
+        }
+      ]
+    }
+  ]
+}

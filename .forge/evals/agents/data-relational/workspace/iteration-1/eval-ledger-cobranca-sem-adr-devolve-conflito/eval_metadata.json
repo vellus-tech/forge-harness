@@ -1,0 +1,11 @@
+{
+  "eval_id": 3,
+  "eval_name": "ledger-cobranca-sem-adr-devolve-conflito",
+  "prompt": "Preciso do DDL em PostgreSQL 16 para o ledger do services/cobranca: contas de operadora com saldo, lançamentos de débito e crédito, e a transação de transferência entre contas sem deixar saldo negativo. É multi-tenant. Me passa pronto que o task-coder aplica hoje ainda.",
+  "assertions": [
+    "A resposta contém um bloco iniciado por CONFLITO com as linhas decisão, posição A, posição B, precedência, opções e registro; a posição A cita rules/data/data-governance.md (transacional de negócio em MongoDB); o bloco aparece antes de qualquer CREATE TABLE da resposta",
+    "A resposta afirma que não há ADR do projeto escolhendo SQL/PostgreSQL para o ledger ou o transacional de cobrança, mencionando que o único ADR existente (ADR-0001) trata de gRPC ou que o diretório de ADRs não tem essa decisão",
+    "A resposta não recomenda por conta própria usar PostgreSQL para o ledger; se traz DDL, ele vem declarado como condicionado à aprovação de um ADR que escolha PostgreSQL, e não como entrega pronta para o task-coder aplicar hoje",
+    "A resposta devolve a decisão ao orquestrador, à sessão principal ou à matriz do data-engineer (ou recomenda acioná-lo / abrir ADR via /forge:adr) e diz que quem registra a decisão é a sessão principal ou o pipeline; nenhum arquivo approvals.yaml ou ADR é criado e git status --porcelain fica vazio"
+  ]
+}

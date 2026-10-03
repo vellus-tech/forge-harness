@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "wave-ultima-estorno-sem-proxima",
+  "prompt": "Acabamos a STORY-05 e a STORY-06 do change 2026-09-estorno-tarifa-duplicada (notificação push e relatório de estornos para o operador), que eram as últimas da W2. Avança as waves desse change: fecha a W2 e abre a próxima. O DEFER-02 do texto do push a UX já aprovou ontem. Grava a linha de resultado em wave-advance.txt na raiz.",
+  "assertions": [
+    "O transcript mostra `deferral-ops.sh status 2026-09-estorno-tarifa-duplicada` executado ANTES da invocação de `wave-ops.sh close 2026-09-estorno-tarifa-duplicada W2`",
+    "Em waves.json do change, W2 tem status `closed` e gate_result começando com `executed:`; o transcript mostra o close sem argumento `--gate`",
+    "waves.json continua com exatamente três waves (W0, W1, W2), todas `closed`; o transcript não contém `wave-ops.sh open` bem-sucedido nem `wave-ops.sh plan`",
+    "wave-advance.txt contém uma única linha não vazia, exatamente `Todas as waves fechadas — pronto para /forge:close (verifique deferrals).`",
+    "O diretório .forge/specs/active/2026-09-estorno-tarifa-duplicada/ ainda existe (nada movido para specs/archived/) e deferrals.json está idêntico ao da fixture (DEFER-02 continua `resolved`, não foi promovido a `tested` pelo agente)"
+  ]
+}

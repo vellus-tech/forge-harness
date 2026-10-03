@@ -1,0 +1,75 @@
+# Gateway REST interno -> PaymentService (gRPC), exposto externamente ao parceiro.
+# Substitui a exposição direta do gRPC (que não deve atravessar a borda da rede).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: conciliacao-status-gateway
+  namespace: pagamentos
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: conciliacao-status-gateway
+  template:
+    metadata:
+      labels:
+        app: conciliacao-status-gateway
+    spec:
+      containers:
+        - name: gateway
+          image: registry.internal/pagamentos/conciliacao-status-gateway:1.0.0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PAYMENT_SERVICE_GRPC_ADDR
+              value: payment-service.pagamentos.svc.cluster.local:50051
+            - name: PARTNER_AUTH_MODE
+              value: mtls-client-cert
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: conciliacao-status-gateway
+  namespace: pagamentos
+spec:
+  type: ClusterIP
+  selector:
+    app: conciliacao-status-gateway
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: conciliacao-status-gateway
+  namespace: pagamentos
+  annotations:
+    nginx.ingress.kubernetes.io/auth-tls-verify-client: "on"
+    nginx.ingress.kubernetes.io/auth-tls-secret: "pagamentos/parceiro-client-ca"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  tls:
+    - hosts:
+        - conciliacao-parceiro.pagamentos.exemplo.com
+      secretName: conciliacao-status-gateway-tls
+  rules:
+    - host: conciliacao-parceiro.pagamentos.exemplo.com
+      http:
+        paths:
+          - path: /v1/transacoes/status
+            pathType: Prefix
+            backend:
+              service:
+                name: conciliacao-status-gateway
+                port:
+                  number: 8080
+
+# Notas de decisão (ver outputs/resposta-ao-parceiro.md para o racional completo):
+# - PaymentService (gRPC) permanece ClusterIP, sem Ingress: é malha interna (CLAUDE.md
+#   do usuário e boa prática geral proíbem expor gRPC a terceiros).
+# - A superfície externa é REST, autenticada por mTLS de cliente (certificado do parceiro),
+#   expondo apenas GetStatus por transaction_id — não Authorize.
+# - Rate limiting e WAF devem ser adicionados pela camada de Ingress/API gateway já em uso
+#   pela empresa (não modelado aqui por falta de contexto do cluster real).

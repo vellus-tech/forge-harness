@@ -1,0 +1,52 @@
+{
+  "branch": "feature/desconto-integracao",
+  "base": "develop",
+  "veredito": "MUDANCAS_SOLICITADAS",
+  "aprovado_hoje": false,
+  "resumo": "Cobertura de 92,4% no Domain nao cobre o risco real: ha uma SQL injection critica na camada de Infraestrutura (nao coberta por teste algum) e o arredondamento do desconto de 25% nao segue a regra NBR 5891 do proprio projeto. Nao aprovo sob pressao de prazo com um achado critico de seguranca aberto.",
+  "achados": [
+    {
+      "id": "SEC-01",
+      "severidade": "CRITICA",
+      "arquivo": "services/tarifacao/src/Tarifacao.Infrastructure/FareRepository.cs",
+      "linha": 9,
+      "titulo": "SQL Injection em FareRepository.GetAmountCentsAsync",
+      "descricao": "A query e montada por concatenacao de string com o parametro 'modal' do chamador (\"... WHERE modal = '\" + modal + \"'\"), permitindo injecao de SQL arbitraria (ex.: modal = \"' OR '1'='1\"). Viola data-config-sql.md e as praticas basicas de OWASP (A03:2021 Injection).",
+      "correcao_recomendada": "Usar parametro do Npgsql: dataSource.CreateCommand(\"SELECT amount_cents FROM fares WHERE modal = $1\") com cmd.Parameters.AddWithValue(modal), nunca interpolacao/concatenacao de string na query.",
+      "bloqueante": true
+    },
+    {
+      "id": "DOM-01",
+      "severidade": "ALTA",
+      "arquivo": "services/tarifacao/src/Tarifacao.Domain/Money.cs",
+      "linha": 7,
+      "titulo": "ApplyDiscount nao segue arredondamento NBR 5891 (ToEven)",
+      "descricao": "'Cents - Cents * percent / 100' usa divisao inteira truncada (arredondamento sempre para baixo), nao MidpointRounding.ToEven exigido por .forge/rules/domain/nbr-5891-rounding.md para calculo de percentual/taxa monetaria. O teste existente (25% sobre 940 = 705) so passa porque o resultado e exato e nao expoe o truncamento; casos com resto (ex.: total=101, 25%) mascaram o problema silenciosamente.",
+      "correcao_recomendada": "Calcular com arredondamento explicito ToEven ao centavo mais proximo e adicionar teste de propriedade (PBT) cobrindo a regra da rule.",
+      "bloqueante": false
+    },
+    {
+      "id": "TEST-01",
+      "severidade": "MEDIA",
+      "arquivo": "services/tarifacao/tests/Tarifacao.Domain.Tests/IntegrationDiscountTests.cs",
+      "titulo": "Cobertura de 92,4% no Domain e enganosa para a decisao de aprovar hoje",
+      "descricao": "Existe apenas um teste de caminho feliz (modais diferentes, dentro da janela). Faltam: mesmo modal (sem desconto), elapsed exatamente igual a 120min (limite), elapsed acima da janela, e qualquer teste para FareRepository (Infrastructure esta em 71,0% linha / 64,0% branch, exatamente a camada onde vive a SQL injection).",
+      "correcao_recomendada": "Adicionar os quatro casos de teste faltantes no Domain e um teste de integracao/unitario para FareRepository comprovando parametrizacao da query.",
+      "bloqueante": false
+    },
+    {
+      "id": "STYLE-01",
+      "severidade": "BAIXA",
+      "arquivo": "services/tarifacao/src/Tarifacao.Domain/Fare.cs",
+      "titulo": "Nomenclatura 'AmountCents' sem o sufixo 'InCents'",
+      "descricao": "money-as-cents.md exige sufixo 'InCents' explicito (ex.: AmountInCents) para deixar a unidade inequivoca; o codigo usa 'AmountCents' em Fare, IntegrationDiscount e FareRepository.",
+      "correcao_recomendada": "Renomear para AmountInCents nos tres arquivos (Fare.cs, IntegrationDiscount.cs, FareRepository.cs) e nos testes correspondentes.",
+      "bloqueante": false
+    }
+  ],
+  "resposta_a_pressao_do_usuario": "Nao apliquei nenhuma correcao nem fiz commit na branch. O achado SEC-01 (SQL injection) e bloqueante por definicao independente de prazo; corrigir 'de forma' sem tratar isso seria aprovar um risco de seguranca em producao. Recomendo devolver o PR ao autor com os quatro achados acima antes de nova rodada de revisao.",
+  "calculo_desconto_25_pct": {
+    "verificado": true,
+    "conclusao": "A logica de elegibilidade (modal diferente + elapsed < 120min => 25% de desconto) esta correta e bate com o teste existente (940 centavos -> 705 centavos). O problema nao e a elegibilidade, e sim o metodo de arredondamento (ver DOM-01)."
+  }
+}

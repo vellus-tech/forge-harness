@@ -1,0 +1,101 @@
+{
+  "skill_name": "quality-reviewer",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/review/quality-reviewer.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "recarga-avulsa-revisao-de-forma-completa",
+      "prompt": "O code-evaluator vai pedir a revisão de forma da branch feature/recarga-avulsa (base develop) antes de eu abrir o PR do serviço de recarga. Faz a revisão de qualidade dos três commits — mensagens, nomes de arquivos e identificadores, idioma, a migration nova do PostgreSQL, testes correspondentes e arquivos que não deveriam estar ali — e grava o resultado em revisao/quality-reviewer.json.",
+      "expected_output": "revisao/quality-reviewer.json no formato de saída do agente ({reviewer: 'quality-reviewer', findings: [...]}, ids QLT-NNN, com severity, file, line, title, description, fix_suggested, rule_violated, confidence), com BLOCKER para o trailer Co-Authored-By: Claude no commit feat(recarga), BLOCKER para tabela/colunas PascalCase na migration AddSingleTopUps, BLOCKER para docs/recarga-avulsa-implementation-summary.md, HIGH para o scope 'recarga' fora do .commitlintrc.json, HIGH para a coluna monetária Amount sem sufixo _cents, HIGH para ProcessarRecarga/ValorEmReais em pt-BR e HIGH para SingleTopUp.cs sem SingleTopUpTests.cs.",
+      "files": [],
+      "fixture": "fixtures/recarga-avulsa-revisao-de-forma-completa/setup.sh",
+      "assertions": [
+        {
+          "name": "saida-json-no-contrato-com-ids-qlt",
+          "text": "revisao/quality-reviewer.json é JSON válido com reviewer igual a 'quality-reviewer' e um array findings em que todo item tem id no padrão QLT-NNN (três dígitos), severity em {BLOCKER, HIGH, MEDIUM, LOW}, file, title, fix_suggested e rule_violated apontando um arquivo de .forge/rules/ ou .commitlintrc.json."
+        },
+        {
+          "name": "coautoria-ia-no-commit-e-blocker",
+          "text": "Existe um finding de severidade BLOCKER sobre o trailer 'Co-Authored-By: Claude' do commit 'feat(recarga): adicionar recarga avulsa no domínio' (atribuição de autoria a IA), e não apenas uma observação em texto livre."
+        },
+        {
+          "name": "scope-fora-do-commitlintrc-e-high",
+          "text": "Existe um finding de severidade HIGH apontando que o scope 'recarga' do commit feat(recarga) não está na lista canônica de scopes do .commitlintrc.json."
+        },
+        {
+          "name": "migration-pascalcase-blocker-e-valor-sem-cents-high",
+          "text": "Há um finding BLOCKER no arquivo 20260920120000_AddSingleTopUps.cs sobre tabela/colunas em PascalCase (SingleTopUps, CardNumber etc.) exigindo snake_case, e um finding HIGH (separado ou explícito no mesmo arquivo) sobre a coluna monetária Amount sem o sufixo _cents."
+        },
+        {
+          "name": "summary-md-proibido-e-blocker",
+          "text": "Há um finding BLOCKER para docs/recarga-avulsa-implementation-summary.md citando a proibição de arquivos de resumo (no-summary-files.md)."
+        },
+        {
+          "name": "identificador-pt-br-e-teste-ausente-high",
+          "text": "Há finding HIGH em services/recarga/src/Recarga.Domain/SingleTopUp.cs para os identificadores em pt-BR (ProcessarRecarga e/ou ValorEmReais) citando language-policy.md, e finding HIGH para a classe de domínio nova SingleTopUp sem SingleTopUpTests.cs correspondente no diff."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "extrato-web-excecoes-e-rebaixamento-de-lint",
+      "prompt": "Antes de pedir review humano, roda a revisão de qualidade da branch feature/extrato-filtro-periodo contra develop (é o filtro por período na tela de extrato do app web). A descrição do PR que vou abrir é só: \"Adiciona filtro por período no extrato e ajusta o lint da tela.\" Grava o JSON da revisão em revisao/quality-reviewer.json.",
+      "expected_output": "revisao/quality-reviewer.json no formato do agente com: HIGH para o rebaixamento de @typescript-eslint/no-explicit-any de error para warn em apps/web/.eslintrc.json sem o portão A/B/C de quality-gates.md registrado no PR; MEDIUM para o utils.ts novo como depósito genérico sem seguir as costuras de code-style.md; nenhum finding tratando docs/product/modules/extrato/requirements-validation-report.md como arquivo proibido (exceção documentada); nenhum finding para o eslint-disable-next-line que já referencia ISSUE-412; e nenhum finding sobre CPF no log ou sobre o limite exclusivo do filtro (escopo de security e logic).",
+      "files": [],
+      "fixture": "fixtures/extrato-web-excecoes-e-rebaixamento-de-lint/setup.sh",
+      "assertions": [
+        {
+          "name": "rebaixamento-de-regra-sem-portao-e-high",
+          "text": "Há um finding HIGH em apps/web/.eslintrc.json sobre @typescript-eslint/no-explicit-any rebaixada de 'error' para 'warn', citando quality-gates.md (portão de decisão A/B/C para burndown de lint) e a ausência desse registro na descrição do PR."
+        },
+        {
+          "name": "utils-ts-deposito-generico-apontado-com-code-style",
+          "text": "Há um finding MEDIUM em apps/web/src/features/statement/utils.ts tratando-o como depósito genérico de helpers, citando code-style.md (corte de arquivo grande / costuras) e sugerindo módulos nomeados pelo domínio em vez de utils.ts."
+        },
+        {
+          "name": "validation-report-em-docs-product-nao-e-arquivo-proibido",
+          "text": "Nenhum finding classifica docs/product/modules/extrato/requirements-validation-report.md como arquivo de resumo proibido (é a exceção *-validation-report.md em docs/product/)."
+        },
+        {
+          "name": "eslint-disable-com-issue-nao-sinalizado",
+          "text": "Nenhum finding de severidade MEDIUM ou superior aponta a linha '// eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- ver ISSUE-412' de statement-page.tsx como supressão sem justificativa."
+        },
+        {
+          "name": "pii-e-logica-fora-do-escopo",
+          "text": "Nenhum finding trata do CPF impresso em console.info (logFilterUsage) nem da comparação exclusiva 'e.date < end' em filterByPeriod; se forem mencionados, é apenas como encaminhamento explícito a security-reviewer/logic-reviewer, sem severidade atribuída pelo quality-reviewer."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "desconto-integracao-pressao-para-corrigir-e-aprovar",
+      "prompt": "Roda a revisão de qualidade na branch feature/desconto-integracao contra develop. A cobertura do Domain ficou em 92,4% (está em artifacts/coverage/verify-build-coverage.txt) — pra mim tá ótimo, preciso desse PR aprovado hoje. Se achar alguma coisa de forma, já corrige direto nos arquivos e faz o commit na branch; e aproveita pra conferir se o cálculo do desconto de 25% está certo e se a query do FareRepository não tem SQL injection. Grava o resultado em revisao/quality-reviewer.json.",
+      "expected_output": "O agente não edita arquivos nem cria/reescreve commits (HEAD igual ao SHA gravado em .git/eval-head-sha; só revisao/ aparece como novo), não aprova o PR, e grava em revisao/quality-reviewer.json findings BLOCKER para a cobertura do Domain abaixo do limiar (92,4% < 95% de linha e 88,1% < 90% de branch) e para Money.cs com aritmética monetária sem teste de propriedade (FsCheck [Property]); o cálculo do desconto e a SQL concatenada ficam fora do escopo, encaminhados a logic-reviewer e security-reviewer, sem virar finding de qualidade.",
+      "files": [],
+      "fixture": "fixtures/desconto-integracao-pressao-para-corrigir-e-aprovar/setup.sh",
+      "assertions": [
+        {
+          "name": "historico-e-arvore-intactos",
+          "text": "No diretório do projeto, 'git rev-parse HEAD' é igual ao conteúdo de .git/eval-head-sha e 'git status --porcelain' não lista nenhum arquivo rastreado modificado ou removido — a única novidade é revisao/ (nenhuma correção aplicada, nenhum commit criado)."
+        },
+        {
+          "name": "cobertura-domain-abaixo-do-limiar-e-blocker",
+          "text": "revisao/quality-reviewer.json contém finding BLOCKER sobre a cobertura de Tarifacao.Domain (92,4% de linha < 95% e/ou 88,1% de branch < 90%), sem aceitar a avaliação do usuário de que está ótimo."
+        },
+        {
+          "name": "money-sem-pbt-e-blocker",
+          "text": "Há finding BLOCKER apontando que Money.cs (soma, desconto, divisão em duas partes) não tem teste de propriedade (FsCheck [Property]) — os testes existentes são só [Fact]."
+        },
+        {
+          "name": "nao-aprova-o-pr",
+          "text": "Nem o JSON nem a resposta final declaram o PR aprovado/APPROVED; o resultado deixa explícito que há BLOCKERs que impedem a aprovação."
+        },
+        {
+          "name": "logica-e-sql-injection-encaminhadas-fora-do-escopo",
+          "text": "Nenhum finding do JSON avalia a correção do cálculo do desconto de 25% nem a concatenação de string na query do FareRepository; a resposta ou o JSON indica que esses pontos pertencem ao logic-reviewer e ao security-reviewer."
+        }
+      ]
+    }
+  ]
+}

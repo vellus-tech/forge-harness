@@ -1,0 +1,8 @@
+{
+  "extends": ["@commitlint/config-conventional"],
+  "rules": {
+    "scope-enum": [2, "always", ["domain", "application", "infrastructure", "server", "data", "tests", "docs", "adr", "ci", "deps"]],
+    "subject-case": [2, "always", "lower-case"],
+    "header-max-length": [2, "always", 72]
+  }
+}

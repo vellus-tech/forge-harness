@@ -1,0 +1,21 @@
+* 0138a4b chore(specs): TASK-12 — falha no teste de conciliação do estorno
+* 16410c6 chore(specs): TASK-11 — concluída
+* 9c5f67b feat(recarga): TASK-11 — devolução Pix via PSP
+* 528f852 chore(specs): TASK-10 — concluída
+* 8de7f1e feat(recarga): TASK-10 — regra de elegibilidade de 7 dias
+* 1f19d81 chore(specs): TASK-09 — concluída
+* 61cb4b1 feat(recarga): TASK-09 — modelo de solicitação de estorno
+* 62bac9c docs(specs): recarga wave 2 — mergeada (#58)
+*   0758c1c Merge pull request #58 from axis-mobfintech/feat/recarga/wave-2
+|\  
+| * 3141c4d chore(specs): recarga onda 2 — 4/4 TASKs concluídas
+| * 4a7dd07 chore(specs): TASK-08 — concluída
+| * 3c70e95 feat(recarga): TASK-08 — expirar cobrança Pix após 30 minutos
+| * 241d41e chore(specs): TASK-07 — concluída
+| * 598fbe6 feat(recarga): TASK-07 — creditar saldo após confirmação do PSP
+| * b60de85 chore(specs): TASK-06 — concluída
+| * cd5f313 feat(recarga): TASK-06 — webhook do PSP idempotente por txid
+| * ed251b1 chore(specs): TASK-05 — concluída
+| * ad7cfe5 feat(recarga): TASK-05 — gerar cobrança Pix dinâmica com txid único
+|/  
+* bf57d45 feat(recarga): onda 1 — cadastro de cartão e consulta de saldo (#41)

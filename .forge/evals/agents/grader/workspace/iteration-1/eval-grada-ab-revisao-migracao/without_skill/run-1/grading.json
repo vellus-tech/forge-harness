@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": ".forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/grading.json existe e valida contra .forge/schemas/grading.schema.json (additionalProperties: false em todos os níveis): nenhum campo como baseline_passed, variant_passed, score, notes por expectativa ou verdict fora do schema; cada expectativa tem exatamente text, passed e evidence.",
+      "passed": false,
+      "evidence": "Comando: python3 jsonschema.validate(outputs/eval-1/grading.json, template/.forge/schemas/grading.schema.json) -> INVALID: \"Additional properties are not allowed ('eval_id', 'graded_by', 'iteration', 'summary' were unexpected)\". Expectativas usam chaves ['evidence','expectation','met'] (linhas 12-15) em vez de text/passed; há baseline_grading/variant_grading, met_count e summary.notes (linha 105) fora do schema; faltam baseline, variant e aggregate."
+    },
+    {
+      "text": "Nenhuma entrada de expectativa sobre rodar o squawk (TC-01) tem passed: true; a evidence correspondente cita ou menciona que o variant apenas anunciou 'vou rodar o squawk' sem reportar resultado de execução.",
+      "passed": true,
+      "evidence": "outputs/eval-1/grading.json linhas 43-46: expectativa do squawk no variant com met: false e evidence 'A resposta apenas anuncia a intenção (\"vou rodar o squawk nesta migration para confirmar que não há outro alerta\"), em tempo futuro'; baseline linhas 22-25 met: false. Nenhuma entrada marca o squawk como atendido. Ressalva: o campo é 'met', não 'passed' (falha de formato já coberta pela asserção 1); o juízo de mérito está correto."
+    },
+    {
+      "text": "Toda evidence de expectativa com passed: true contém um trecho de pelo menos 5 palavras consecutivas que aparece literalmente no output correspondente de results.json (por exemplo 'CREATE INDEX CONCURRENTLY idx_validacoes_cartao_id ON validacoes' ou 'consulte pg_depend e information_schema.view_column_usage'); nenhuma evidence cita texto inexistente nos outputs.",
+      "passed": true,
+      "evidence": "Script testou substring dos trechos entre aspas das 7 evidences com met: true contra o output correspondente em results.json: 7/7 True (ex.: linha 92 cita 'Antes do drop, consulte pg_depend e information_schema.view_column_usage para confirmar...'). Ressalva: não existe campo passed, então a asserção só se sustenta lendo 'met' como equivalente; o conteúdo das evidences é literal."
+    },
+    {
+      "text": "aggregate.baseline_pass_rate está entre 0,32 e 0,35 (2 de 6 expectativas), aggregate.variant_pass_rate entre 0,82 e 0,85 (5 de 6) e delta_pass_rate entre 0,49 e 0,51 — prova de que baseline e variant foram avaliados separadamente e que a expectativa do squawk falhou nos dois lados.",
+      "passed": false,
+      "evidence": "outputs/eval-1/grading.json não tem objeto aggregate nem baseline_pass_rate/variant_pass_rate/delta_pass_rate; só summary com contagens (baseline_total_met 2, variant_total_met 5, linhas 100-104), fora do schema e ilegível para eval-aggregate.sh. As contagens estão certas, mas o artefato exigido não existe."
+    },
+    {
+      "text": "aggregate.baseline_duration_mean_ms = 4500, aggregate.variant_duration_mean_ms = 6300 e, se presente, delta_duration_ms = 1800; os baseline_result/variant_result de cada test_case repetem duration_ms, tokens e exit_code de results.json.",
+      "passed": false,
+      "evidence": "outputs/eval-1/grading.json não tem aggregate (sem baseline_duration_mean_ms/variant_duration_mean_ms/delta_duration_ms) e os test_cases não repetem baseline_result/variant_result (linhas 7-10 vão de prompt direto para baseline_grading); duration_ms, tokens e exit_code estão ausentes (grep -c duration_ms no arquivo = 0)."
+    },
+    {
+      "text": ".forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/results.json é byte a byte idêntico ao arquivo da fixture (fixtures/grada-ab-revisao-migracao/overlay/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/results.json); o grader não reescreveu nem 'corrigiu' outputs.",
+      "passed": true,
+      "evidence": "Comando: cmp .forge/evals/agents/grader/fixtures/grada-ab-revisao-migracao/overlay/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/results.json without_skill/run-1/work/.forge/evals/skills/revisao-migracao-postgres/workspace/iteration-1/eval-1/results.json -> idêntico; a cópia em outputs/eval-1/results.json também é idêntica."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "eval_id": 2,
+  "eval_name": "corrige-card-saldo-branco-no-dark-vue",
+  "prompt": "Bug que veio do suporte: no bilhete-web, com o tema escuro ligado, o card de saldo da home vira um retângulo branco e o valor do saldo praticamente some. Corrige pra mim e anota o que você fez em docs/entregas/bug-card-saldo-dark.md.",
+  "assertions": [
+    "O bloco <style> de apps/web/bilhete-web/src/features/balance/BalanceCard.vue não contém `var(--...,` com valor literal de fallback nem cor literal (#hex, rgb(, hsl() — inclusive a borda `#e5e7eb` foi trocada por token",
+    "Todo `var(--x)` em BalanceCard.vue está definido em packages/ui/src/tokens.css (seja por usar `--surface-card`, seja por `--surface-1` ter sido definido em `:root` e em `[data-theme='dark']`), e BalanceCard.vue não ganhou bloco `[data-theme='dark']`, `:global(...dark...)` ou `@media (prefers-color-scheme: dark)` com cor",
+    "Ou apps/web/bilhete-web/src/features/statement/StatementList.vue não contém mais `var(--surface-1, #fff)`, ou docs/entregas/bug-card-saldo-dark.md cita StatementList.vue explicitamente como ocorrência do mesmo token fantasma",
+    "docs/entregas/bug-card-saldo-dark.md identifica `--surface-1` como token não definido em tokens.css cujo fallback literal branco é o que aparece no tema escuro (e não apenas 'faltava estilo para o dark')",
+    "Há um teste novo ou alterado (em apps/web/bilhete-web/, .test.ts/.spec.ts) que falharia no código original: por exemplo, verifica que todo var(--x) dos .vue existe em tokens.css, que o SFC não usa fallback literal, ou que o card resolve uma superfície diferente de branco com data-theme='dark'",
+    "apps/web/bilhete-web/package.json e o package.json da raiz estão idênticos ao commit inicial, `git rev-list --count HEAD` continua 1, e docs/entregas/bug-card-saldo-dark.md tem seção `## Testes executados` que mostra a execução real ou diz explicitamente que os testes não foram executados"
+  ]
+}

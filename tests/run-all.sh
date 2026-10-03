@@ -9,6 +9,15 @@
 #   tests/run-all.sh --list     # apenas lista o que seria executado, em ordem
 #   tests/run-all.sh -v         # ecoa a saída de cada gate (default: só PASS/FAIL + tail no erro)
 set -uo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente (de uma sessão paralela mal isolada) faria
+# os gates que criam repositório git temporário obedecerem ao repositório de quem invocou a suíte,
+# em vez do repositório sintético de cada gate — incidente P1 medido em 2026-09-26. O unset aqui, no
+# processo do runner, cobre todo gate despachado abaixo mesmo quando o próprio gate não tem
+# preâmbulo equivalente, porque a variável não exportada não chega ao processo-filho.
+# GIT_CONFIG_COUNT e GIT_CONFIG_PARAMETERS ficam FORA do unset de propósito: medido que não
+# redirecionam escrita (o repositório sintético continua sendo o gravado), e carregam config
+# legítima — o `git -c chave=valor` de quem invocou e a proteção contra gc declarada abaixo.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$WS"
@@ -234,6 +243,16 @@ if [ "${#GATES[@]}" -gt 0 ]; then
   for g in "${GATES[@]}"; do
     run_one "$(basename "$g")" gate bash "$g"
   done
+else
+  # VACUIDADE (LDG-0181): sem esta guarda a árvore sem gate algum atravessava o laço vazio e
+  # publicava "OK — suíte 100% verde" com rc 0 — aprovar por não ter olhado nada. Piso de 1 gate,
+  # porque a suíte deste repositório nunca é vazia por construção: zero gates é sintoma de padrão de
+  # descoberta quebrado ou de árvore errada, e isso é "não verificado" (rc 3), não reprovação de
+  # alvo algum. O runner do TEMPLATE decide o contrário de propósito (zero testes = rc 0 com
+  # `nada a rodar`), porque é distribuído sem teste e o pre-push o executa em todo consumidor.
+  unverified=$((unverified + 1)); unverified_names+=("nenhum gate encontrado (vacuidade)")
+  printf '  \033[35m⚠\033[0m nenhum gate encontrado\n'
+  printf '      não verificado (vacuidade) — a suíte não examinou gate algum\n'
 fi
 
 echo "-- suítes bats (${#BATS_SUITES[@]}) --"

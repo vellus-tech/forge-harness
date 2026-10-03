@@ -1,0 +1,14 @@
+C4Component
+title Pagamentos Core — Diagrama de Componentes (dentro do servico)
+
+Container_Boundary(api, "Servico Pagamentos Core") {
+  Component(billing, "Billing", "src/billing", "Calcula totais de fatura e regras de imposto (invoice.service.ts, tax.rules.ts)")
+  Component(ledger, "Ledger", "src/ledger", "Registra lancamentos contabeis (journal.repo.ts)")
+  Component(notifications, "Notifications", "src/notifications", "Envia e-mails transacionais (email.sender.ts)")
+  Component(shared, "Shared", "src/shared", "Tipos e utilitarios de dinheiro (money.ts)")
+}
+System_Ext(smtp, "Provedor de e-mail (SMTP)")
+
+Rel(billing, shared, "Usa tipo Money / brl()")
+Rel(ledger, shared, "Usa tipo Money")
+Rel(notifications, smtp, "Envia e-mail", "SMTP/API")

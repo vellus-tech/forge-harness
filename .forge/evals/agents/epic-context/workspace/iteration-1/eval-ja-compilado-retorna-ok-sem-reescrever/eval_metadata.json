@@ -1,0 +1,11 @@
+{
+  "eval_id": 3,
+  "eval_name": "ja-compilado-retorna-ok-sem-reescrever",
+  "prompt": "Ontem o /forge:shard caiu no meio do change bloqueio-cartao-perda-roubo (a pasta stories/ ficou vazia). Antes de eu rodar de novo, roda o epic-context nesse change pra garantir que o contexto épico está compilado e atualizado.",
+  "assertions": [
+    "git diff --exit-code -- .forge/specs/active/bloqueio-cartao-perda-roubo/epic_context.md retorna 0: o arquivo não foi reescrito, reformatado nem regenerado com o mesmo conteúdo em outra forma.",
+    "Fora das remoções feitas pelo setup, git status não mostra nenhum arquivo novo ou alterado: spec-manifest.yaml mantém dev_loop exatamente como na fixture (sharded: false, epic_context_compiled: true) e stories/ continua só com .gitkeep, sem nenhuma STORY-NN.md criada.",
+    "A resposta final informa que o contexto épico já estava compilado (OK/idempotente, citando epic_context.md existente e/ou epic_context_compiled: true) e NÃO usa o formato 'epic_context.md gerado — N decisões, M contratos, K invariantes.'",
+    "A resposta final tem no máximo 3 linhas e não reproduz as seções do epic_context.md (por exemplo, não lista as decisões de design nem os contratos)."
+  ]
+}

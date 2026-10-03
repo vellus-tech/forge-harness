@@ -1,0 +1,79 @@
+{
+  "expectations": [
+    {
+      "text": "Em parecer-validador.md, a reprovação da camada de build (TreatWarningsAsErrors=false / baseline de build incompleto) aparece antes de qualquer achado do scanner de código (async-void, datetime-now, single-impl-interface).",
+      "passed": false,
+      "evidence": "without_skill/run-1/outputs/parecer-validador.md: TreatWarningsAsErrors só aparece no item '### 5.' (linha 25, 'severidade: baixa'), depois de DateTime.Now (item 2, linha 13, que é achado de código). O resumo executivo (linha 5) não menciona a camada de build como reprovada; ao contrário, diz que a regra de nomenclatura 'é real e está funcionando'."
+    },
+    {
+      "text": "parecer-validador.md explica que a severidade declarada em dotnet_naming_rule.*.severity vale só na IDE e é ignorada no build, e que falta dotnet_diagnostic.IDE1006.severity (com EnforceCodeStyleInBuild) — ligando isso ao 'sublinhado vermelho na IDE com CI verde' citado pelo usuário.",
+      "passed": false,
+      "evidence": "Contradiz a asserção. Linha 5: 'reforçada pelo .editorconfig com severidade error — por isso a IDE sublinha em vermelho ... Isso é real e está funcionando'. grep -n 'IDE1006\\|EnforceCodeStyleInBuild' no parecer: zero ocorrências."
+    },
+    {
+      "text": "parecer-validador.md não afirma que rodar dotnet-baseline.sh --apply resolve tudo: deixa claro que Directory.Build.props e .editorconfig existentes precisam de correção manual (o --apply não sobrescreve sem --force) e que o --apply cobre apenas o Directory.Packages.props ausente.",
+      "passed": false,
+      "evidence": "grep -n -- '--apply\\|dotnet-baseline\\|Directory.Packages.props' no parecer: zero ocorrências. Não promete o --apply, mas a asserção exige também deixar claro que os arquivos existentes pedem correção manual e que o --apply só cobre o Directory.Packages.props ausente; nada disso está no parecer."
+    },
+    {
+      "text": "parecer-validador.md classifica o async void btnSincronizar_Click em UI/MainForm.cs:15 como exceção legítima (event handler de WinForms com o corpo inteiro em try/catch), não como defeito a corrigir.",
+      "passed": true,
+      "evidence": "Linha 32, em '## Falsos alarmes': '**async void no handler do botão** ... para manipuladores de evento do WinForms é a única assinatura válida ... Não é dívida técnica'; linha 31 trata o catch(Exception) do mesmo handler como fronteira correta. O item 4 (linha 23, reentrância/clique duplo) não pede para trocar o async void, então não conflita."
+    },
+    {
+      "text": "parecer-validador.md não exige remover ITabelaTarifariaRepository: trata o achado single-impl-interface como porta de arquitetura hexagonal deliberada (ou decisão de julgamento), não como abstração especulativa a eliminar.",
+      "passed": false,
+      "evidence": "grep -n 'hexagonal\\|single-impl\\|porta' no parecer: zero ocorrências. ITabelaTarifariaRepository só aparece na linha 11, dentro do achado sobre o stub SQLite; o parecer nunca avalia a interface como porta deliberada. Não exige remoção, mas também não faz o julgamento que a asserção pede; na dúvida, falha."
+    },
+    {
+      "text": "parecer-validador.md aponta DateTime.Now em Domain/TabelaTarifaria.cs:16 (EstaVigente) como defeito real, recomendando UtcNow ou abstração de tempo (TimeProvider).",
+      "passed": true,
+      "evidence": "Linha 15: 'src/Validador.Desktop/Domain/TabelaTarifaria.cs:16 chama DateTime.Now dentro da entidade de domínio', título na linha 13 cita 'TabelaTarifaria.EstaVigente()', aponta 'hora local da máquina em vez de DateTime.UtcNow' e 'relógio global não injetável'. Não cita TimeProvider pelo nome, mas a asserção aceita UtcNow OU abstração de tempo."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6,
+    "pass_rate": 0.33
+  },
+  "timing": {
+    "executor_duration_seconds": 119
+  },
+  "claims": [
+    {
+      "claim": "O .editorconfig com severidade error faz a regra de nomenclatura funcionar",
+      "type": "factual",
+      "verified": false,
+      "evidence": "work/.editorconfig:9 usa dotnet_naming_rule...severity = error sem dotnet_diagnostic.IDE1006.severity e sem EnforceCodeStyleInBuild em Directory.Build.props: vale só na IDE."
+    },
+    {
+      "claim": "SqliteTabelaTarifariaRepository é stub sem SQLite",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Achado real, não coberto por nenhuma asserção; o parecer cita Task.FromResult com valor fixo."
+    },
+    {
+      "claim": "TarifaBase decimal contraria 'money as integer cents' do AGENTS.md",
+      "type": "factual",
+      "verified": null,
+      "evidence": "Não verificado pelo grader; achado extra fora das asserções."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "parecer-validador.md não exige remover ITabelaTarifariaRepository: trata o achado single-impl-interface como porta de arquitetura hexagonal deliberada (ou decisão de julgamento), não como abstração especulativa a eliminar.",
+        "reason": "O fixture é inconsistente com o veredito esperado: o comentário de ITabelaTarifariaRepository promete um dublê em memória nos testes que não existe na árvore. A with_skill notou isso (verificado por grep) e reprovou a porta; a asserção a pune por ler o fixture corretamente. Ou adicione o dublê de teste ao fixture, ou aceite 'decisão de julgamento' que não exija remoção."
+      },
+      {
+        "assertion": "parecer-validador.md não afirma que rodar dotnet-baseline.sh --apply resolve tudo: deixa claro que Directory.Build.props e .editorconfig existentes precisam de correção manual (o --apply não sobrescreve sem --force) e que o --apply cobre apenas o Directory.Packages.props ausente.",
+        "reason": "Asserção bem discriminante: pegou a with_skill prometendo o --apply apesar de o script dizer o contrário. Mas a without_skill falha só por omissão; considere separar 'não promete --apply' de 'explica a correção manual'."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o stub SqliteTabelaTarifariaRepository (sem SQLite, Task.FromResult fixo), achado real que só a without_skill trouxe."
+      }
+    ],
+    "overall": "Asserções 1-3 discriminam bem a camada de build; a 5 depende de um fixture que contradiz o próprio comentário."
+  }
+}

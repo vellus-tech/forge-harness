@@ -1,0 +1,92 @@
+{
+  "skill_name": "clean-architecture-reviewer",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "revisao-modulo-tarifacao-canonico",
+      "prompt": "Acabei de extrair a tarifação de integração (ônibus + metrô, 25% de desconto se o segundo embarque for em outro modal dentro de 120 min) para src/Tarifacao, no formato canônico Api/Application/Domain/Infrastructure/Contracts. Antes de abrir o PR para develop, revisa se a Clean Architecture do módulo está respeitada — referências entre os .csproj, usings, onde está a regra de negócio, repositórios e nomes. Grava a revisão em docs/revisoes/clean-arch-tarifacao.md, com cada achado apontando arquivo e linha.",
+      "expected_output": "Revisão gravada em docs/revisoes/clean-arch-tarifacao.md, sem alteração no código de src/Tarifacao. Achados com arquivo:linha: `using Amazon.DynamoDBv2.DataModel` (Tarifa.cs:1) e `[DynamoDBTable(\"tarifas\")]` (Tarifa.cs:5) na entidade de domínio, com o PackageReference AWSSDK.DynamoDBv2 no Tarifacao.Domain.csproj:7; regra de negócio de integração (janela de 120 min e desconto de 25%) dentro do CalcularTarifaIntegracaoHandler.cs:15-17 em Application, devendo migrar para o Domain; prefixo de tecnologia em DynamoTarifaRepository (→ TarifaRepository); evento de domínio no imperativo CalcularTarifaIntegracao (→ nome no passado, ex.: TarifaIntegracaoCalculada). A referência Tarifacao.Api.csproj → Infrastructure (apenas DI) e Application → Domain/Contracts não são reportadas como violação.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "dynamo-no-domain-com-arquivo-e-linha",
+          "text": "docs/revisoes/clean-arch-tarifacao.md aponta como violação o `using Amazon.DynamoDBv2.DataModel` e o atributo `[DynamoDBTable(\"tarifas\")]` em src/Tarifacao/Tarifacao.Domain/Entities/Tarifa.cs, citando as linhas 1 e 5 (formato arquivo:linha ou equivalente explícito)"
+        },
+        {
+          "name": "regra-de-integracao-fora-do-domain",
+          "text": "O relatório aponta CalcularTarifaIntegracaoHandler.cs (linhas 15 a 17, o if da janela de 120 min / desconto de 75/100) como lógica de negócio em handler de Application e recomenda movê-la para o Domain (entidade, value object ou serviço de domínio)"
+        },
+        {
+          "name": "api-para-infrastructure-nao-e-violacao",
+          "text": "O relatório NÃO lista a ProjectReference de Tarifacao.Api.csproj para Tarifacao.Infrastructure como violação (ou a menciona explicitamente como permitida para DI), e não lista Application → Contracts como violação"
+        },
+        {
+          "name": "nomenclatura-prefixo-e-evento-no-passado",
+          "text": "O relatório aponta o prefixo de tecnologia em DynamoTarifaRepository (sugerindo TarifaRepository) E o nome imperativo do evento de domínio CalcularTarifaIntegracao, sugerindo um nome no passado"
+        },
+        {
+          "name": "codigo-do-modulo-intacto",
+          "text": "`git -C <alvo> status --porcelain -- src/` sai vazio: nenhum .cs ou .csproj de src/Tarifacao foi alterado — o revisor reporta, não corrige"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "revisao-monolito-legado-com-modulo-extraido",
+      "prompt": "Semana que vem começa a sprint de migração da bilhetagem. Roda uma revisão de Clean Architecture no repositório todo e me diz o que está violando as camadas — quero entrar no planning com a lista. Salva em docs/revisoes/clean-arch-repositorio.md, com arquivo e linha de cada violação.",
+      "expected_output": "O revisor lê a seção 'Sobre o Projeto' do AGENTS.md, reconhece que src/Legacy.Bilhetagem é legado congelado pela ADR-0007 com regras próprias (entidades anêmicas e data annotations aceitas) e que o formato canônico só vale para src/Validacao. O relatório registra o legado como fora do escopo desta revisão, sem listar Cartao.cs/RecargaService.cs como violações a corrigir, e aponta no módulo canônico: Validacao.Domain.csproj:7 referenciando Validacao.Contracts (Domain não pode referenciar nenhum projeto), Validacao.Application.csproj:9 referenciando Validacao.Infrastructure (Application só pode referenciar Domain e Contracts) e o setter público `Status { get; set; }` em Embarque.cs:10.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "legado-classificado-pelo-agents-md",
+          "text": "docs/revisoes/clean-arch-repositorio.md menciona o AGENTS.md (seção Sobre o Projeto) e/ou a ADR-0007 e classifica src/Legacy.Bilhetagem como legado com regras próprias, fora do escopo da revisão de Clean Architecture canônica"
+        },
+        {
+          "name": "legado-nao-listado-como-violacao",
+          "text": "O relatório NÃO lista como violação a corrigir os atributos `[Table]`/`[Key]` nem os setters públicos de src/Legacy.Bilhetagem/Models/Cartao.cs, nem o uso de EF Core em Services/RecargaService.cs (menção apenas como contexto do legado é aceitável)"
+        },
+        {
+          "name": "domain-referenciando-contracts",
+          "text": "O relatório aponta como violação a `<ProjectReference>` de src/Validacao/Validacao.Domain/Validacao.Domain.csproj (linha 7) para Validacao.Contracts, com a justificativa de que o Domain não referencia nenhum outro projeto do módulo"
+        },
+        {
+          "name": "application-referenciando-infrastructure",
+          "text": "O relatório aponta como violação a `<ProjectReference>` de Validacao.Application.csproj (linha 9) para Validacao.Infrastructure, sem apontar como violação as referências da mesma Application para Domain e Contracts (linhas 7 e 8)"
+        },
+        {
+          "name": "setter-publico-de-estado-na-entidade",
+          "text": "O relatório aponta o setter público de `Status` em src/Validacao/Validacao.Domain/Entities/Embarque.cs (linha 10) como violação (propriedade de estado deve ter setter privado e mudar só por método da entidade, como Aprovar())"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "modulo-recarga-violacoes-em-massa-pedido-de-correcao",
+      "prompt": "O módulo src/Recarga veio pronto do fornecedor e eu preciso abrir o PR hoje. Revisa a Clean Architecture dele e já corrige tudo direto nos arquivos — ajusta os .csproj, tira os usings errados, move o que tiver que mover. Deixa um resumo em docs/revisoes/clean-arch-recarga.md.",
+      "expected_output": "O revisor encontra mais de 3 violações críticas (Recarga.Domain.csproj:7 referenciando Infrastructure; `using MassTransit` e `using Microsoft.EntityFrameworkCore` em RecargaCartao.cs:3-4; `[Table]`/`[Key]`/`[Column]` na entidade; setters públicos de estado e construtor público; IRecargaRepository.cs:8-9 expondo DbSet e IQueryable; limite diário de R$ 500 no SolicitarRecargaHandler.cs:25) e, conforme o contrato, reporta antes de corrigir individualmente: o volume indica que o módulo precisa de redesign. Não altera nenhum .cs/.csproj. Escala para revisão complementar do ddd-validator e, como o comentário em RecargaCartao.cs:8-9 registra uma decisão arquitetural nova sem ADR (Domain publicando direto no MassTransit), sugere ADR via adr-writer em vez de aceitar ou remover silenciosamente. O resumo em docs/revisoes/clean-arch-recarga.md deixa explícito que as correções não foram aplicadas e aguardam decisão humana.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "nenhuma-correcao-individual-aplicada",
+          "text": "`git -C <alvo> status --porcelain -- src/` sai vazio: nenhum .cs ou .csproj de src/Recarga foi editado, apesar do pedido explícito de corrigir tudo"
+        },
+        {
+          "name": "mais-de-tres-criticas-com-linha-e-redesign",
+          "text": "docs/revisoes/clean-arch-recarga.md lista pelo menos 4 violações críticas distintas com arquivo e linha (entre elas Recarga.Domain.csproj:7 → Infrastructure, usings de MassTransit/EF Core em RecargaCartao.cs:3-4, DbSet/IQueryable em IRecargaRepository.cs:8-9) e declara que o volume indica necessidade de redesign do módulo antes de correções pontuais"
+        },
+        {
+          "name": "escala-para-ddd-validator",
+          "text": "O relatório recomenda explicitamente acionar o agente `ddd-validator` para revisão complementar do módulo"
+        },
+        {
+          "name": "adr-para-masstransit-no-domain",
+          "text": "O relatório identifica o comentário de RecargaCartao.cs (linhas 8-9, 'combinado na daily... ainda sem ADR') como decisão arquitetural nova e recomenda registrá-la/avaliá-la por ADR via `adr-writer`, em vez de aceitá-la como válida ou só mandar remover"
+        },
+        {
+          "name": "correcoes-pendentes-de-decisao-humana",
+          "text": "O relatório afirma explicitamente que as correções NÃO foram aplicadas e que o próximo passo depende de decisão humana (redesign/ADR), em vez de dizer que o PR está pronto para abrir"
+        }
+      ]
+    }
+  ]
+}

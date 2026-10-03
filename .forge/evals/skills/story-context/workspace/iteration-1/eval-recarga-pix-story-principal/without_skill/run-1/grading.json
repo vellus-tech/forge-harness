@@ -1,0 +1,84 @@
+{
+  "expectations": [
+    {
+      "text": "outputs/story-context.md contém a linha de cabeçalho '## Context — STORY-02' e os rótulos Goal, Status, Depends on, 'Tasks desta story', 'Invariantes críticas do épico' e 'Próxima ação' (em negrito ou não), nessa ordem.",
+      "passed": false,
+      "evidence": "l.1 é '# Contexto — STORY-02: Confirmação do Pix por webhook e crédito no cartão'; grep -nE '^## Context — STORY-02$' outputs/story-context.md → sem ocorrência; grep -nE 'Goal|Status|Depends on|Tasks desta story|Invariantes críticas do épico|Próxima ação' → sem ocorrência (usa seções livres 'O que a story entrega', 'De quem ela depende', 'Por onde começar')."
+    },
+    {
+      "text": "outputs/story-context.md tem no máximo 30 linhas (wc -l <= 30).",
+      "passed": false,
+      "evidence": "wc -l < outputs/story-context.md = 56 (> 30)."
+    },
+    {
+      "text": "A linha de Próxima ação cita TASK-05 (primeira task com [ ] na story) e não TASK-04 (já [X]) nem TASK-06.",
+      "passed": false,
+      "evidence": "Não há linha de Próxima ação (grep 'Próxima ação' vazio). 'Por onde começar' (l.41-46) abre com reler webhook-signature.ts (entregável da TASK-04) e lista TASK-05 e TASK-06 como passos 2 e 3; não aponta uma única próxima ação."
+    },
+    {
+      "text": "A seção de invariantes reproduz ao menos duas invariantes de epic_context.md (por exemplo: não creditar saldo antes do webhook confirmado com assinatura válida; valores em centavos inteiros; idempotência por txid; CPF não logado em claro).",
+      "passed": true,
+      "evidence": "l.28 '## O que não pode violar do épico (invariantes críticas, `epic_context.md`)' e l.30-33 reproduzem as quatro invariantes de epic_context.md (crédito só após webhook confirmado e assinado; centavos inteiros; idempotência por txid; CPF não logado em claro)."
+    },
+    {
+      "text": "outputs/story-context.md não menciona TASK-01, TASK-02, TASK-03, TASK-07, TASK-08, TASK-09 nem TASK-10.",
+      "passed": true,
+      "evidence": "grep -nE 'TASK-(01|02|03|07|08|09|10)' outputs/story-context.md → sem ocorrência."
+    },
+    {
+      "text": "outputs/story-context.md não contém nenhum destes trechos que só existem em design.md/requirements.md/tasks.md/STORY-04: '400 dias', 'particionada', '06h15', '90 dias', 'R$ 500', 'CNAB'.",
+      "passed": false,
+      "evidence": "grep -nE '400 dias|particionada|06h15|90 dias|R\\$ 500|CNAB' outputs/story-context.md → l.39 '- Persistência: `recharge_ledger` particionada por mês, ...' (conteúdo de design.md §2, que o transcript passo 6 confirma ter lido)."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6,
+    "pass_rate": 0.33
+  },
+  "timing": {
+    "executor_duration_seconds": 164.0,
+    "total_duration_seconds": 164.0
+  },
+  "claims": [
+    {
+      "claim": "Leu tasks.md completo, requirements.md, design.md, as quatro stories e código-fonte",
+      "type": "process",
+      "verified": true,
+      "evidence": "Transcript passos 6-9 e seção 'Fontes lidas' (l.48-56); confirmado pelo vazamento de 'particionada' (design.md) e REQ-02/§3 na l.7."
+    },
+    {
+      "claim": "Copiou o entregável para work/outputs/story-context.md",
+      "type": "process",
+      "verified": true,
+      "evidence": "diff outputs/story-context.md work/outputs/story-context.md → idênticos."
+    },
+    {
+      "claim": "Limitou a leitura ao necessário",
+      "type": "quality",
+      "verified": false,
+      "evidence": "Leu tasks.md completo, design.md, requirements.md e as outras três stories, exatamente o que o prompt ('sessão já está longa') e a expected_output pedem evitar."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "outputs/story-context.md não menciona TASK-01, TASK-02, TASK-03, TASK-07, TASK-08, TASK-09 nem TASK-10.",
+        "reason": "Passa também no baseline sem skill (grep vazio nas duas saídas): nenhuma das duas configurações vazou TASK de outra story, então a asserção não discrimina neste caso; o vazamento real do baseline veio por conteúdo de design.md, pego só pela asserção de trechos proibidos."
+      },
+      {
+        "reason": "Nenhuma asserção confere os VALORES dos campos do contrato: Status = in-progress, Depends on = STORY-01 e paths das três tasks. Uma saída com os rótulos certos e valores errados passaria na asserção de formato."
+      },
+      {
+        "reason": "A asserção de trechos proibidos cobre só seis literais; 'rotação a cada 90 dias' foi coberto, mas a proibição de ler tasks.md/design.md completos é verificável só pelo transcript, que é autorrelato. Considere um literal-canário adicional por artefato proibido (requirements.md e STORY-03 inclusive) para tornar a violação detectável pela saída."
+      }
+    ],
+    "overall": "Asserções de formato, tamanho, próxima ação e vazamento discriminam bem (6/6 vs 2/6); a de tasks de outras stories é fraca neste caso e falta checar os valores dos campos."
+  }
+}

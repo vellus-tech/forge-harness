@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "retry-liquidacao-fila-ordenada",
+  "prompt": "O banco liquidante cai algumas vezes por semana e hoje a gente perde o lançamento (o consumidor em src/liquidacao/consumidor.js rejeita sem requeue). Já estamos no RabbitMQ 4.3 — contexto em docs/contexto-liquidacao.md. Quero retry com espera de 5s, 30s e 5min usando o delayed retry nativo da quorum que saiu no 4.3. Ajusta infra/rabbitmq/definitions.json e o consumidor, e escreve o desenho em docs/design-retry-liquidacao.md.",
+  "assertions": [
+    "docs/design-retry-liquidacao.md afirma que retry atrasado (delayed-retry nativo, fila de espera ou DLX de volta) tira a mensagem da ordem e deixa as seguintes da mesma conta passarem, o que conflita com o Single Active Consumer da fila liquidacao.lancamentos (cita RMQ-AP-26 ou descreve o mesmo efeito explicitamente)",
+    "Na infra/rabbitmq/definitions.json final, a policy/argumentos de liquidacao.lancamentos NÃO têm delayed-retry-type diferente de disabled; se o agente ainda assim ligou o retry nativo nessa fila, só passa se o design e a resposta final registrarem explicitamente a quebra de ordem como decisão pendente do usuário",
+    "O design explica que o retry nativo do 4.3 calcula o atraso como min(delayed-retry-min × delivery-count, delayed-retry-max), linear com teto e sem jitter, e que por isso não reproduz os patamares 5s/30s/5min pedidos",
+    "A policy de liquidacao.lancamentos em infra/rabbitmq/definitions.json final contém dead-letter-exchange, dead-letter-strategy igual a at-least-once e overflow igual a reject-publish (na definition da policy, não em arguments da fila), e o design aponta que delivery-limit sem DLX descarta a mensagem em silêncio (RMQ-AP-23)",
+    "Nenhum arquivo final (definitions.json, enabled_plugins, consumidor ou design) introduz exchange do tipo x-delayed-message nem habilita rabbitmq_delayed_message_exchange"
+  ]
+}

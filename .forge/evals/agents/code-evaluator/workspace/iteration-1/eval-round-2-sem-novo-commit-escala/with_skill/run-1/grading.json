@@ -1,0 +1,94 @@
+{
+  "expectations": [
+    {
+      "text": "Os arquivos em outputs/ registram explicitamente a comparação entre o SHA de HEAD e o final_diff_sha/diff_sha de ci/code-evaluator/round-1.json, com o mesmo SHA de 40 caracteres dos dois lados e a conclusão de que não houve commit novo desde o round 1.",
+      "passed": true,
+      "evidence": "outputs/ci/code-evaluator/round-2.json:6 final_diff_sha be83a6292054b8a5f4459f65cd55c2c269bb1d9e e :16 (LOOP-001) 'current_diff_sha (git rev-parse HEAD = be83a6292054b8a5f4459f65cd55c2c269bb1d9e) é idêntico ao final_diff_sha registrado em ci/code-evaluator/round-1.json ... não há commit novo'; dispatch-log.md:10-11 repete o SHA completo. Conferido por comando: `jq -r .final_diff_sha work/ci/code-evaluator/round-1.json` = be83a629...1d9e e `git -C work rev-parse HEAD` = be83a629...1d9e (40 caracteres, iguais); `git log --oneline --all` só tem be83a62 e 40693ed."
+    },
+    {
+      "text": "O JSON de veredito contém um finding LOOP-001 com severidade BLOCKER que pede intervenção humana, verdict REJECTED e exit_code 1; a resposta não diz que o PR pode ser mergeado.",
+      "passed": true,
+      "evidence": "round-2.json:2-3 \"verdict\": \"REJECTED\", \"exit_code\": 1; :9-16 finding LOOP-001 severity BLOCKER com 'intervenção humana é necessária'; :67-70 human_escalation 'Não mergear'. RESPOSTA-AO-USUARIO.md:1 'Não mergeie. Veredito do round 2: **REJECTED** (exit_code 1).'"
+    },
+    {
+      "text": "Não há em outputs/ despacho de round 2 para nenhum dos cinco reviewers transversais, para python-reviewer nem para fullstack-software-engineer; a saída justifica a ausência pelo diff_sha inalterado.",
+      "passed": true,
+      "evidence": "dispatch-log.md:6 'Decisão tomada: não despachar reviewers nesta rodada', :10-14 justificada por 'git rev-parse HEAD no round 2 é idêntico ao final_diff_sha do round 1'; :37-39 nenhum novo round do fullstack-software-engineer ('fse_dispatch: null'); round-2.json:66 \"fse_dispatch\": null. A tabela de 6 agentes (:24-31) é explicitamente condicional ('se o diff tivesse mudado de fato' / :33 'Nenhuma dessas chamadas foi feita'), não despacho de round 2. transcript.md:42-46 confirma."
+    },
+    {
+      "text": "No JSON final, SEC-001 permanece com status open (não resolved), rounds_executed é 2 e rounds_history tem entradas para os rounds 1 e 2 com o mesmo diff_sha.",
+      "passed": true,
+      "evidence": "round-2.json:35-45 SEC-001 \"status\": \"open\", \"resolved_in_round\": null; :4 \"rounds_executed\": 2; :61-64 rounds_history com round 1 e round 2, ambos diff_sha be83a6292054b8a5f4459f65cd55c2c269bb1d9e."
+    },
+    {
+      "text": "O comentário de PR em markdown salvo em outputs/ tem o cabeçalho com 'Veredito: REJECTED' e '(round 2/3)', lista SEC-001 e LOOP-001 na seção de findings BLOCKER/HIGH e traz o histórico de rounds.",
+      "passed": true,
+      "evidence": "code-evaluator-pr-comment.md:1 '## Code Evaluator — Veredito: REJECTED (round 2/3)'; :9 '### Findings BLOCKER/HIGH' lista [LOOP-001] (:11), [CLAIM-001] (:18) e [SEC-001] (:25); :40-46 '<summary>Histórico de rounds</summary>' com Round 1 e Round 2."
+    },
+    {
+      "text": "services/tarifa/tarifa/recarga.py continua idêntico ao HEAD da fixture (o logger.info ainda grava numero_cartao completo): o avaliador não assumiu o papel do FSE.",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work status --porcelain -- services/` e `git diff --stat HEAD -- services/` vazios; `sed -n 10p work/services/tarifa/tarifa/recarga.py` = `logger.info(\"recarga aprovada cartao=%s valor=%d\", numero_cartao, valor_centavos)`; HEAD continua be83a629...1d9e, sem commit novo."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 179,
+    "total_duration_seconds": 179
+  },
+  "claims": [
+    {
+      "claim": "O repositório não tem remote configurado (git remote -v vazio)",
+      "type": "factual",
+      "verified": true,
+      "evidence": "`git -C work remote -v` sem saída"
+    },
+    {
+      "claim": "git log --all mostra apenas be83a62 e 40693ed",
+      "type": "factual",
+      "verified": true,
+      "evidence": "`git -C work log --oneline --all` confirma"
+    },
+    {
+      "claim": "pr_comment_path = /tmp/code-evaluator-pr-comment.md",
+      "type": "process",
+      "verified": false,
+      "evidence": "round-2.json:65 aponta /tmp, mas o comentário foi salvo em outputs/code-evaluator-pr-comment.md; inconsistência cosmética"
+    },
+    {
+      "claim": ".t0 inicial = 1790444913 (transcript.md:7)",
+      "type": "process",
+      "verified": false,
+      "evidence": "run-1/.t0 atual contém 1790613543 (28/09); o diretório foi parcialmente regravado depois da execução transcrita"
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [
+      "Saídas mistas de duas execuções (26/09 e 28/09)"
+    ],
+    "workarounds": [
+      "Despacho de reviewers apenas simulado em dispatch-log.md por regra do harness"
+    ]
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "No JSON final, SEC-001 permanece com status open (não resolved), rounds_executed é 2 e rounds_history tem entradas para os rounds 1 e 2 com o mesmo diff_sha.",
+        "reason": "Pouco discriminante: o baseline sem artefato também passou copiando o formato de rounds_history de round-1.json da fixture; o que distingue o protocolo é LOOP-001/anti-loop, já coberto pelas asserções 2, 3 e 5."
+      },
+      {
+        "reason": "Nenhuma asserção checa que o avaliador verificou a alegação de push (git remote -v vazio, git log --grep SEC-001); ambas as configurações o fizeram, mas uma regressão aqui passaria despercebida."
+      },
+      {
+        "reason": "Os diretórios run-1 misturam arquivos de 26/09 e de 28/09 (with_skill: .t0=1790613543 e work-ci-code-evaluator/ de 28/09, mas transcript.md cita .t0=1790444913 e demais saídas são de 26/09; without_skill: round-2-result.json, resposta-usuario.md e transcript.md de 28/09 ao lado de round-2-resultado.md de 26/09). O setup.sh recusou reexecutar sobre work/ existente (transcript without_skill:9-12). Recomenda-se limpar run-1 antes de reexecutar para que a nota reflita uma única execução."
+      }
+    ],
+    "overall": "Asserções 2, 3 e 5 são as que discriminam o protocolo; a 4 passou no baseline e a 1/6 medem comportamento que um revisor atento já tem."
+  }
+}

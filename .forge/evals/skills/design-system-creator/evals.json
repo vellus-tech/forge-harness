@@ -1,0 +1,102 @@
+{
+  "skill_name": "design-system-creator",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "implementa-handoff-greenfield-rotaviva",
+      "prompt": "Baixe este arquivo de design, leia o arquivo readme e implemente os aspectos relevantes do design. https://api.anthropic.com/v1/design/h/rV7kQ2mXa9Lp — Implemente: os designs neste projeto. Obs.: neste ambiente a rede para api.anthropic.com está bloqueada, então eu já baixei esse link e extraí o bundle exatamente como veio em ./design-handoff/rotaviva-design-system/ — use essa cópia. O monorepo ainda está vazio (só o package.json raiz e o pnpm-workspace.yaml). Se algum comando de verificação não puder rodar aqui, me diga qual e por quê.",
+      "expected_output": "Num branch feat/design-system/rotaviva-ui-kit, sem commit, o agente materializa packages/design-tokens (tokens.css espelho do colors_and_type.css com o @import do Google Fonts como primeira regra e --brand #0F9D8A, a cor final dos transcripts, não o roxo inicial), packages/icons (Icon sobre lucide com escala 16/20/24/32/40/48 e mark via PNG real), packages/ui-components em CSS Modules tokens-only (primitivos, blocos do ui_kit, padrões só no Storybook, storySort Fundamentos→Componentes→Blocos→Padrões, coverage 80/75/80) e os quatro docs versionados em docs/product/design-system/, declarando que não há camada dark e registrando o caveat de contraste ~3.4:1 da marca sobre branco. Reporta pacotes, contagens, coverage e status do storybook:build, ou diz com precisão quais verificações não rodaram e por quê.",
+      "files": [
+        "fixtures/implementa-handoff-greenfield-rotaviva/setup.sh"
+      ],
+      "assertions": [
+        {
+          "name": "branch-de-feature-sem-commit",
+          "text": "No projeto de saída, `git branch --show-current` retorna feat/design-system/rotaviva-ui-kit e tanto main quanto o branch de feature têm exatamente 1 commit (o inicial da fixture): o trabalho ficou não-commitado e main não recebeu nada."
+        },
+        {
+          "name": "tokens-css-import-primeiro-e-cor-dos-transcripts",
+          "text": "packages/design-tokens/src/css/tokens.css existe, sua primeira regra CSS (ignorando comentários e linhas em branco) é o @import de fonts.googleapis.com com Sora e Manrope, define --brand: #0F9D8A, e nem ele nem nenhum outro arquivo sob packages/ contém #7A3CF0 (roxo descartado no chat) ou #FF4000 (marca do exemplo da skill)."
+        },
+        {
+          "name": "stack-css-modules-sem-tailwind-radix-nem-hex",
+          "text": "Nenhum package.json (raiz ou packages/*) declara tailwindcss, @radix-ui/*, styled-components ou @emotion/*; cada primitivo em packages/ui-components/src/components/<Nome>/ tem <Nome>.module.css, e nenhum arquivo *.module.css sob packages/ui-components contém literal de cor hexadecimal (grep -E '#[0-9a-fA-F]{3,8}\\b' vazio)."
+        },
+        {
+          "name": "icons-escala-restrita-e-mark-png",
+          "text": "packages/icons/src/Icon.tsx declara IconSize exatamente como a união 16 | 20 | 24 | 32 | 40 | 48; o componente de mark da marca referencia um PNG via new URL('../assets/...png', import.meta.url) e não contém <svg> nem <path>; packages/icons/assets/ contém os PNGs rotaviva-mark-* copiados do handoff."
+        },
+        {
+          "name": "storybook-ordem-coverage-e-padroes-privados",
+          "text": "packages/ui-components/.storybook/preview.tsx importa @rotaviva/design-tokens/css e define storySort na ordem Fundamentos, Componentes, Blocos, Padrões; packages/ui-components/vite.config.ts fixa thresholds de coverage lines 80, branches 75, functions 80; e packages/ui-components/src/index.ts não exporta nada de patterns/."
+        },
+        {
+          "name": "docs-versionados-dark-honesto-e-caveat-contraste",
+          "text": "Existem os quatro arquivos docs/product/design-system/{design-system,tokens,components,accessibility}.md, cada um com Versão, Data, Status e Histórico de Versões; design-system.md afirma explicitamente que a stack não usa Tailwind nem Radix e que não há camada/modo dark nos tokens; accessibility.md registra o contraste da marca sobre branco (~3.4:1) como limite para texto normal, reservando-a a CTA curto/texto grande/ícone."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "brownfield-tokens-existentes-completa-so-o-faltante",
+      "prompt": "Fetch this design file, read its readme, and implement the relevant aspects of the design. https://api.anthropic.com/v1/design/h/rV7kQ2mXa9Lp — Implement: the designs in this project. Network to api.anthropic.com is blocked in this sandbox, so I already downloaded that link and extracted the bundle as-is into ./design-handoff/rotaviva-design-system/ — use that copy. This repo already has some of our stuff under packages/ and docs/, so take a look before you start.",
+      "expected_output": "O agente detecta que packages/design-tokens (v1.2.0) e docs/product/design-system/tokens.md já existem e batem com o handoff, não os recria nem reescreve, e completa só o que falta: packages/icons, packages/ui-components com os cinco blocos do ui_kit (AppHeader, BalanceCard, TripRow, ShortcutGrid, BottomNav) com story Blocos/ e teste com runA11y, as telas HomeScreen/RechargeScreen como padrões só no Storybook, e os três docs ausentes versionados — tudo num branch feat/design-system/rotaviva-ui-kit sem commit.",
+      "files": [
+        "fixtures/brownfield-tokens-existentes-completa-so-o-faltante/setup.sh"
+      ],
+      "assertions": [
+        {
+          "name": "tokens-existentes-intactos",
+          "text": "packages/design-tokens/src/css/tokens.css é byte a byte idêntico ao da fixture (fixtures/brownfield-tokens-existentes-completa-so-o-faltante/overlay/packages/design-tokens/src/css/tokens.css), inclusive o comentário 'rotaviva-tokens: ... fonte canônica v1.2.0', e packages/design-tokens/package.json continua com \"version\": \"1.2.0\" (git diff vazio para esses dois arquivos)."
+        },
+        {
+          "name": "tokens-md-nao-reescrito",
+          "text": "docs/product/design-system/tokens.md mantém a linha de Histórico de Versões '1.2.0 | 2026-09-10' e a frase 'O pacote `@rotaviva/design-tokens` vence em caso de divergência'; qualquer mudança é apenas acréscimo (git diff do arquivo sem linhas removidas)."
+        },
+        {
+          "name": "cinco-blocos-do-ui-kit-com-a11y",
+          "text": "packages/ui-components/src/blocks/ contém AppHeader, BalanceCard, TripRow, ShortcutGrid e BottomNav, cada um com <Nome>.tsx, <Nome>.module.css, <Nome>.stories.tsx cujo title começa com 'Blocos/' e <Nome>.test.tsx que chama runA11y."
+        },
+        {
+          "name": "telas-como-padroes-privados",
+          "text": "HomeScreen e RechargeScreen existem como stories sob packages/ui-components/src/patterns/ com title começando por 'Padrões/', há um componente PhoneFrame em patterns/, e packages/ui-components/src/index.ts não importa nem reexporta nada de patterns/."
+        },
+        {
+          "name": "docs-faltantes-criados-e-branch",
+          "text": "docs/product/design-system/design-system.md, components.md e accessibility.md foram criados com Versão, Data, Status e Histórico de Versões, components.md cita os cinco blocos; o branch atual é feat/design-system/rotaviva-ui-kit e main continua com 1 commit só."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "sem-link-pede-handoff-e-recusa-tailwind-main",
+      "prompt": "Cria o design system do Rotaviva aqui no monorepo a partir do que eu desenhei no Claude Design semana passada — aquele verde-petróleo, você deve lembrar. Usa Tailwind com Radix, que o time já conhece, e pode commitar direto na main pra eu já ver no deploy de preview.",
+      "expected_output": "Sem o link de handoff (https://api.anthropic.com/v1/design/h/<id>), o agente para antes de começar e pede o link, sem inventar tokens a partir de 'verde-petróleo'. Na mesma resposta sinaliza que a stack do design system é CSS Modules + tokens, sem Tailwind/Radix, e que não trabalha nem commita na main (usará feat/design-system/rotaviva-ui-kit). Nenhum arquivo é criado e o git fica intocado.",
+      "files": [
+        "fixtures/sem-link-pede-handoff-e-recusa-tailwind-main/setup.sh"
+      ],
+      "assertions": [
+        {
+          "name": "nada-materializado",
+          "text": "O projeto de saída não tem diretório packages/, nem docs/product/design-system/, nem tailwind.config.* ou postcss.config.*, e o package.json raiz é idêntico ao da fixture (git status --porcelain vazio, desconsiderando arquivos do próprio runner)."
+        },
+        {
+          "name": "git-intocado",
+          "text": "main segue com exatamente 1 commit, não foi criado nenhum branch novo (git branch lista só main) e não houve push."
+        },
+        {
+          "name": "pede-link-do-handoff",
+          "text": "A resposta final pede o link de handoff do Claude Design no formato https://api.anthropic.com/v1/design/h/<id> (ou o bundle exportado de claude.ai/design) como pré-requisito para começar, em vez de derivar cores de memória ou chutar um hex para 'verde-petróleo'."
+        },
+        {
+          "name": "sinaliza-stack-sem-tailwind-radix",
+          "text": "A resposta final diz explicitamente que o design system é feito em CSS Modules + tokens (CSS custom properties), sem Tailwind e sem Radix, ou pede decisão explícita sobre esse conflito — não aceita Tailwind/Radix em silêncio."
+        },
+        {
+          "name": "recusa-trabalhar-na-main",
+          "text": "A resposta final recusa trabalhar/commitar na main e indica o branch de feature feat/design-system/rotaviva-ui-kit (ou equivalente feat/design-system/<slug>-ui-kit) como destino."
+        }
+      ]
+    }
+  ]
+}

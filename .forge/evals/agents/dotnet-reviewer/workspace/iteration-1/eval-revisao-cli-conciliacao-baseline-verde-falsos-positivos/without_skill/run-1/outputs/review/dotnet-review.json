@@ -1,0 +1,58 @@
+{
+  "branch": "feature/conciliacao-cli",
+  "base": "main",
+  "ci_status": "verde (informado pelo usuário; sem workflow de CI no repositório para conferir)",
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "alta",
+      "categoria": "cobertura-de-teste-insuficiente",
+      "arquivo": "tests/Conciliacao.Testes/ConciliadorTests.cs",
+      "linha": 19,
+      "titulo": "O único teste do Conciliador não verifica nenhum resultado da conciliação",
+      "descricao": "ValidarLote_ComExtratoIgualAoLote_Concilia monta um cenário de extrato batendo com o lote (100 + 50 = 150), mas a asserção final é Assert.NotNull(lote) — que é sempre verdadeira, pois 'lote' é uma variável local não-nula criada duas linhas antes. O teste não verifica o valor de retorno de ValidarLoteAsync (deveria ser true), não verifica lote.Status (deveria virar StatusLote.Conciliado) e não verifica se o repositório em memória recebeu a chamada de SalvarAsync. Esse teste passa mesmo que ValidarLoteAsync seja alterado para sempre retornar false, nunca setar Status ou nunca chamar lotes.SalvarAsync — ou seja, o CI estar verde não dá nenhuma garantia real sobre a lógica de conciliação, que é justamente o comportamento crítico executado às 3h pelo cron.",
+      "evidencia": "Assert.NotNull(lote) na linha 19; ausência de qualquer asserção sobre o retorno de ValidarLoteAsync, sobre lote.Status ou sobre repositorio.Salvos.",
+      "recomendacao": "Trocar a asserção por algo que exercite o comportamento: Assert.True(confere) capturando o retorno de ValidarLoteAsync, Assert.Equal(StatusLote.Conciliado, lote.Status) e Assert.Single(repositorio.Salvos) (ou Assert.Contains(lote, repositorio.Salvos)). Também vale um segundo [Fact] cobrindo o caminho divergente (extrato que não bate), já que hoje só o caminho feliz é sequer montado, e nem esse é verificado."
+    },
+    {
+      "id": "F2",
+      "severity": "media",
+      "categoria": "confiabilidade/observabilidade",
+      "arquivo": "tools/Conciliacao.Cli/Program.cs",
+      "linha": 27,
+      "titulo": "Sem tratamento de exceção ao redor da leitura dos CSVs e da chamada ao banco",
+      "descricao": "File.ReadLines, decimal.Parse e a chamada SQL em LoteRepositorioSql.SalvarAsync podem lançar exceção (CSV mal-formado, linha sem os dois campos esperados, falha de conexão com o Postgres, timeout). Hoje isso deriva para uma exceção não tratada em Main, que produz um stack trace bruto no stderr e um código de saída padrão do runtime .NET (não é o '2' usado para uso incorreto nem o '1' documentado para lote divergente). Para uma ferramenta disparada por cron às 3h sem operador olhando, isso dificulta diferenciar 'rodou e achou divergência' de 'quebrou no meio do processamento' a partir só do código de saída, e não há log estruturado indicando qual lote ou linha causou o problema.",
+      "evidencia": "Program.cs linhas 24-34: nenhum try/catch entre a leitura dos arquivos e o processamento; falha de parsing ou de banco propaga sem tratamento.",
+      "recomendacao": "Envolver a leitura/parse e o laço de conciliação em um try/catch que logue o contexto (nome do arquivo, número da linha ou id do lote) em stderr e retorne um código de saída distinto (ex.: 3) para 'falha operacional', preservando 1 para 'divergência encontrada' e 2 para 'uso incorreto'. Isto é uma sugestão de robustez, não um defeito funcional bloqueante — o comportamento atual (crash = saída não-zero) já é tecnicamente 'seguro' para o cron não confundir com sucesso."
+    },
+    {
+      "id": "F3",
+      "severity": "baixa",
+      "categoria": "design/observação",
+      "arquivo": "src/Conciliacao.Dominio/Conciliador.cs",
+      "linha": 12,
+      "titulo": "ConciliadoEm é preenchido mesmo quando o lote fica Divergente",
+      "descricao": "lote.ConciliadoEm = relogio.AgoraUtc é executado incondicionalmente, inclusive quando confere é false e o Status vira Divergente. O nome do campo sugere 'quando foi conciliado com sucesso', mas ele também guarda o instante de uma tentativa que resultou em divergência. Não é necessariamente um bug — pode ser intencional como 'processado em' — mas vale confirmar com quem desenha o domínio se o nome/semântica é o pretendido, porque um relatório futuro que filtre por ConciliadoEm != null esperando só lotes conciliados pegaria divergentes também.",
+      "evidencia": "Conciliador.cs linhas 10-14.",
+      "recomendacao": "Se a intenção é 'última tentativa de processamento', renomear para algo como ProcessadoEm; se a intenção é reservar o campo só para sucesso, só atribuir dentro do ramo confere == true. Baixa prioridade — é uma pergunta de nomenclatura/semântica, não uma falha observável em produção."
+    }
+  ],
+  "nao_problemas_verificados": [
+    {
+      "item": "SQL em LoteRepositorioSql.SalvarAsync",
+      "motivo": "Usa NpgsqlCommand com parâmetros via AddWithValue (@status, @em, @id) — sem concatenação de string. Não há injeção de SQL aqui, apesar de ser uma UPDATE construída a partir de uma constante string com placeholders nomeados; é o padrão correto do Npgsql."
+    },
+    {
+      "item": "Comparação totalExtrato == lote.ValorTotal com decimal",
+      "motivo": "decimal é um tipo de ponto fixo decimal, não binário — diferente de float/double, comparação de igualdade exata é segura e é a prática correta para valores monetários somados a partir de decimal.Parse. Não se aplica aqui a regra geral de 'nunca comparar ponto flutuante com =='."
+    },
+    {
+      "item": "conciliador.ValidarLoteAsync(...).GetAwaiter().GetResult() em Main síncrono",
+      "motivo": "É um console app .NET sem SynchronizationContext capturado; bloquear com GetAwaiter().GetResult() aqui não tem o risco clássico de deadlock que esse padrão tem em ASP.NET clássico/UI. Estilisticamente daria para trocar Main por async Task<int>, mas isso é preferência, não defeito."
+    },
+    {
+      "item": "Iteração O(lotes × extrato) via extrato.Where(...) dentro do laço",
+      "motivo": "Para o volume esperado de um fechamento noturno de bilhetagem (lotes e lançamentos por lote, não milhões de linhas cruzadas), essa complexidade não é um problema de desempenho real; sinalizar isso como 'bug de performance' seria alarmismo sem medição. Só reconsiderar se o volume de lançamentos por execução crescer para a casa de dezenas de milhares de lotes × lançamentos."
+    }
+  ]
+}

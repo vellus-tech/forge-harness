@@ -1,0 +1,62 @@
+{
+  "expectations": [
+    {
+      "text": "review/security-reviewer.json tem finding com severity BLOCKER cujo file termina em Fixtures/TestSigningKey.cs, apontando a chave privada (PEM) versionada; severidade HIGH/MEDIUM/LOW ou ausência reprova",
+      "passed": true,
+      "evidence": "outputs/review/security-reviewer.json:5-8 SEC-001 severity \"BLOCKER\", file services/notificacoes/tests/Notificacoes.Tests/Fixtures/TestSigningKey.cs; linha 11 descreve o bloco '-----BEGIN RSA PRIVATE-KEY-----(redigido p/ secret-scan)' versionado e o comentário 'copiada do ambiente de dev do auth-service' (confirmado por `jq -c '.findings[] | {id, sev:(.severity//.severidade), file:(.file//.arquivo)}' outputs/review/security-reviewer.json`)."
+    },
+    {
+      "text": "Nenhum finding tem file terminando em .env.example (o arquivo só tem placeholders e o .env real está no .gitignore)",
+      "passed": true,
+      "evidence": "`jq -c '.findings[] | {id, sev:(.severity//.severidade), file:(.file//.arquivo)}' outputs/review/security-reviewer.json` lista apenas TestSigningKey.cs e Program.cs; nenhum file termina em .env.example."
+    },
+    {
+      "text": "Nenhum finding com severity BLOCKER ou HIGH tem file terminando em JwtKeys.cs tratando do fallback RSA.Create(2048) para EnvironmentName Test/Testing",
+      "passed": true,
+      "evidence": "Nenhum finding em JwtKeys.cs (`jq -c '.findings[] | {id, sev:(.severity//.severidade), file:(.file//.arquivo)}' outputs/review/security-reviewer.json`); o fallback RSA.Create(2048) aparece só em not_findings_reviewed_and_cleared (outputs/review/security-reviewer.json:41-43), fora de findings."
+    },
+    {
+      "text": "Nenhum finding com severity BLOCKER ou HIGH trata do ClockSkew = TimeSpan.FromSeconds(30) em Program.cs (ADR-0012 com Status: Aceito o justifica; LOW/observação citando o ADR é aceitável)",
+      "passed": true,
+      "evidence": "`jq -r '.findings[]|tostring' outputs/review/security-reviewer.json | grep -ci clockskew` = 0; o único HIGH (SEC-002, outputs/review/security-reviewer.json:17-26) trata de validação de input em Program.cs:26, não do ClockSkew, que está em not_findings_reviewed_and_cleared (outputs/review/security-reviewer.json:31-33) citando o ADR-0012."
+    },
+    {
+      "text": "Nenhum finding tem file terminando em Dockerfile nem trata de imagem :latest ou USER, e nenhum finding cita PCI DSS, CDE, PAN ou tokenização em title, description ou rule_violated",
+      "passed": true,
+      "evidence": "Nenhum finding em Dockerfile (`jq -c '.findings[] | {id, sev:(.severity//.severidade), file:(.file//.arquivo)}' outputs/review/security-reviewer.json`) e grep -oiE 'PCI|CDE|\\bPAN\\b|tokeniza|:latest|\\bUSER\\b' sobre title/description/rule_violated dos findings retornou vazio; Dockerfile e PCI/CDE aparecem apenas em not_findings_reviewed_and_cleared (outputs/review/security-reviewer.json:35-39, 50-53)."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Nenhum finding com severity BLOCKER ou HIGH tem file terminando em JwtKeys.cs tratando do fallback RSA.Create(2048) para EnvironmentName Test/Testing",
+        "reason": "Passa mesmo quando o fallback é sinalizado como LOW (SEC-3 'baixa' no without_skill); se a intenção é 'não sinalizar o padrão da rule', exigir ausência de qualquer finding sobre o fallback discrimina melhor."
+      },
+      {
+        "assertion": "review/security-reviewer.json tem finding com severity BLOCKER cujo file termina em Fixtures/TestSigningKey.cs, apontando a chave privada (PEM) versionada; severidade HIGH/MEDIUM/LOW ou ausência reprova",
+        "reason": "O without_skill usa schema próprio (severidade/arquivo em pt-BR); falta uma asserção de conformidade ao schema de saída do security-reviewer (severity, file, rule_violated)."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o expected_output 'log só com UserId e correlationId, sem PII' nem penaliza findings espúrios (ex.: SEC-002 HIGH de input validation no with_skill); considerar asserção de ausência de falso positivo de PII."
+      },
+      {
+        "reason": "Proveniência: nas duas configurações work/review/security-reviewer.json tem mtime 26/set 14:55, anterior ao .t0 de 28/set 13:42 (stat -f '%Sm'); o with_skill admite ter reaproveitado a saída de uma materialização anterior (transcript.md:11 e :52) e o without_skill afirma ter materializado e escrito (transcript.md:9 e :34), o que o mtime contradiz. O harness deveria exigir work/ limpo ou --force para que a saída seja produto da execução medida."
+      }
+    ],
+    "overall": "Asserções 1 e 5 discriminam; 2, 3 e 4 passam nas duas configurações. O resultado fica sob ressalva de proveniência: as duas saídas antecedem o início das execuções medidas."
+  },
+  "claims": [
+    {
+      "claim": "outputs/review/security-reviewer.json foi validado linha a linha nesta sessão, mas já existia em work/ de materialização anterior",
+      "type": "process",
+      "verified": false,
+      "evidence": "transcript.md:11 e :52 admitem o reaproveitamento; stat mostra work/review/security-reviewer.json em Sep 26 14:55:30, antes de .t0 (Sep 28 13:42:41). A autoria pela execução medida não é verificável."
+    }
+  ]
+}

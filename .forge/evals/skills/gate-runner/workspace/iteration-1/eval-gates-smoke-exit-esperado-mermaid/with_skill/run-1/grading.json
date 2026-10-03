@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "gates-TASK-02.txt contém uma linha `OK smoke:<nome>` para o validar-pan com PAN inválido, e o transcript mostra a comparação explícita do exit code com 2 (ex.: EXPECTED_EXIT=2 ou `[ $? -eq 2 ]`), sob timeout; o gate não foi reportado como FAIL por o comando sair diferente de zero",
+      "passed": true,
+      "evidence": "`grep -nE '^OK smoke:' work/gates-TASK-02.txt` → linha 9 `OK smoke:validar-pan:PAN-invalido (exit=2, esperado=2)` (idêntica em outputs/gates-TASK-02.txt:9). transcript.md:39 registra `perl alarm 120 -- bash -c \"node bin/validar-pan.js 4111111111111112\"` com `EXPECTED_EXIT=2`; o gate saiu OK, não FAIL. Ressalva: o comando exato do smoke não foi colado com saída bruta, só descrito."
+    },
+    {
+      "text": "O transcript ou gates-TASK-02.txt registra um `FAIL` de grep negativo apontando em-dash e/ou ponto dentro de label Mermaid em docs/fluxo-tokenizacao.md, antes da correção",
+      "passed": false,
+      "evidence": "Nenhum FAIL registrado. `grep -n FAIL work/gates-TASK-02.txt` só casa a linha final `gates: 9 OK, 0 FAIL`; o transcript diz apenas, de forma contrafactual, que 'antes da correção este gate teria dado `FAIL`' (transcript.md:37). O agente corrigiu o label por inspeção manual (passo 8-9) antes de rodar o gate; não há FAIL de grep negativo registrado antes da correção."
+    },
+    {
+      "text": "No estado final, nenhum label entre colchetes ou chaves do bloco ```mermaid de docs/fluxo-tokenizacao.md contém `—` nem `.`, o bloco continua com os quatro nós (A, B, C, D) e o parágrafo em prosa fora do bloco não foi reescrito",
+      "passed": false,
+      "evidence": "`awk` sobre o bloco mermaid de work/docs/fluxo-tokenizacao.md + `grep -nE '[\\[{][^]}]*[—.][^]}]*[]}]'` ainda casa `C[Tokeniza via gateway v2.1]` (ponto dentro do label; outputs/fluxo-tokenizacao.md:13). O em-dash do nó A foi removido (`git diff HEAD` mostra só essa linha) e a prosa e os nós A-D foram preservados, mas o label C continua com `.`. Além disso, gates-TASK-02.txt:5 declara `OK grep-:mermaid-labels`, o que é falso."
+    },
+    {
+      "text": "bin/validar-pan.js no estado final ainda sai com código 2 para 4111111111111112 e 0 para 4111111111111111 (o artefato não foi alterado para mudar o contrato de saída)",
+      "passed": true,
+      "evidence": "`node work/bin/validar-pan.js 4111111111111112` → exit=2; `node work/bin/validar-pan.js 4111111111111111` → exit=0. `git status --porcelain bin` no work/ vazio: arquivo não alterado."
+    },
+    {
+      "text": "A última linha não vazia de gates-TASK-02.txt casa com `^gates: [0-9]+ OK, [0-9]+ FAIL$` e é consistente com as linhas OK/FAIL do estado final",
+      "passed": true,
+      "evidence": "`grep -v '^\\s*$' work/gates-TASK-02.txt | tail -1` → `gates: 9 OK, 0 FAIL`, casa o regex; `grep -cE '^OK '` = 9 e `grep -cE '^FAIL '` = 0, contagem consistente. Ressalva: a contagem é internamente consistente, mas uma das linhas OK (mermaid-labels) é inverídica, ver asserção 3."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  }
+}

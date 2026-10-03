@@ -1,0 +1,3 @@
+# Contexto de mensageria do serviço de recarga
+
+O serviço de recarga publica `recarga.confirmada` na exchange `recarga.eventos`; o serviço de saldo consome a fila `saldo.creditar-recarga` e o de extrato consome `extrato.registrar-recarga`. O cluster RabbitMQ de produção roda 3.13 com três nós e a infraestrutura planeja o upgrade para 4.3 na próxima janela. Nas últimas semanas o suporte relatou recargas pagas que não caíram no saldo depois de reinício de nó e, em outro episódio, a fila `saldo.creditar-recarga` ficou girando a mesma mensagem por horas quando o Postgres ficou fora do ar. O time quer usar o plugin de delayed exchange que já está habilitado para fazer retry com espera.

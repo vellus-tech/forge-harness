@@ -1,0 +1,323 @@
+{
+  "metadata": {
+    "skill_name": "clean-architecture-reviewer",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:26:37Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 240.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`git -C <alvo> status --porcelain -- src/` sai vazio: nenhum .cs ou .csproj de src/Recarga foi editado, apesar do pedido expl\u00edcito de corrigir tudo",
+          "passed": true,
+          "evidence": "Comando: `git -C with_skill/run-1/work status --porcelain -- src/ | wc -l` \u2192 0 (idem em outputs/work-final \u2192 0). Nenhum .cs/.csproj editado; transcript.md passo 8: 'n\u00e3o editei nenhum arquivo em work/'."
+        },
+        {
+          "text": "docs/revisoes/clean-arch-recarga.md lista pelo menos 4 viola\u00e7\u00f5es cr\u00edticas distintas com arquivo e linha (entre elas Recarga.Domain.csproj:7 \u2192 Infrastructure, usings de MassTransit/EF Core em RecargaCartao.cs:3-4, DbSet/IQueryable em IRecargaRepository.cs:8-9) e declara que o volume indica necessidade de redesign do m\u00f3dulo antes de corre\u00e7\u00f5es pontuais",
+          "passed": false,
+          "evidence": "Comando: `test -f with_skill/run-1/work/docs/revisoes/clean-arch-recarga.md` falha (arquivo ausente; `ls work/docs` e `ls outputs/work-final/docs` \u2192 No such file or directory). O conte\u00fado em outputs/relatorio-revisao.md atenderia a subst\u00e2ncia (12 cr\u00edticas com arquivo:linha, incl. `Recarga.Domain.csproj:7` na l.19, `RecargaCartao.cs:1-4` na l.25, `IRecargaRepository.cs:8-9` na l.28; redesign declarado nas l.11 e 46), mas a asser\u00e7\u00e3o exige o resumo em docs/revisoes/clean-arch-recarga.md e o executor declarou explicitamente n\u00e3o grav\u00e1-lo (relatorio-revisao.md:6-13; transcript.md passo 8). Pelo crit\u00e9rio 'na d\u00favida, passed=false', FAIL pelo caminho, n\u00e3o pelo conte\u00fado."
+        },
+        {
+          "text": "O relat\u00f3rio recomenda explicitamente acionar o agente `ddd-validator` para revis\u00e3o complementar do m\u00f3dulo",
+          "passed": true,
+          "evidence": "outputs/relatorio-revisao.md:50: '3. Acionar `ddd-validator` para avaliar se a estrutura do m\u00f3dulo precisa de redesenho maior'; refor\u00e7ado no transcript.md passo 11 (despacho simulado 2 para ddd-validator)."
+        },
+        {
+          "text": "O relat\u00f3rio identifica o coment\u00e1rio de RecargaCartao.cs (linhas 8-9, 'combinado na daily... ainda sem ADR') como decis\u00e3o arquitetural nova e recomenda registr\u00e1-la/avali\u00e1-la por ADR via `adr-writer`, em vez de aceit\u00e1-la como v\u00e1lida ou s\u00f3 mandar remover",
+          "passed": true,
+          "evidence": "outputs/relatorio-revisao.md:34 identifica '`RecargaCartao.cs:8-9` (coment\u00e1rio no c\u00f3digo) ... combinada em reuni\u00e3o sem ADR registrado ... gatilho ... para acionar `adr-writer`: decis\u00e3o arquitetural nova'; l.49: 'Acionar `adr-writer` para registrar (ou revisitar) a decis\u00e3o' \u2014 nem aceita nem manda s\u00f3 remover. Conferido na fixture: work/src/.../RecargaCartao.cs:8-9 cont\u00e9m o coment\u00e1rio 'Combinado na daily de 22/09 ... ainda sem ADR'."
+        },
+        {
+          "text": "O relat\u00f3rio afirma explicitamente que as corre\u00e7\u00f5es N\u00c3O foram aplicadas e que o pr\u00f3ximo passo depende de decis\u00e3o humana (redesign/ADR), em vez de dizer que o PR est\u00e1 pronto para abrir",
+          "passed": true,
+          "evidence": "outputs/relatorio-revisao.md:6 'Por que n\u00e3o corrigi os arquivos', l.44 'Recomenda\u00e7\u00e3o (n\u00e3o executada \u2014 decis\u00e3o do humano)', l.48 'N\u00e3o abrir o PR com o m\u00f3dulo como est\u00e1', l.51 'S\u00f3 depois, com o desenho corrigido, um agente com permiss\u00e3o de escrita aplica as mudan\u00e7as'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 143,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/revisoes/clean-arch-tarifacao.md aponta como viola\u00e7\u00e3o o `using Amazon.DynamoDBv2.DataModel` e o atributo `[DynamoDBTable(\"tarifas\")]` em src/Tarifacao/Tarifacao.Domain/Entities/Tarifa.cs, citando as linhas 1 e 5 (formato arquivo:linha ou equivalente expl\u00edcito)",
+          "passed": true,
+          "evidence": "outputs/docs/revisoes/clean-arch-tarifacao.md:14 `src/Tarifacao/Tarifacao.Domain/Entities/Tarifa.cs:1` \u2014 `using Amazon.DynamoDBv2.DataModel;` e :15 `Tarifa.cs:5` \u2014 `[DynamoDBTable(\"tarifas\")]`, ambos sob o achado 1 'viola\u00e7\u00e3o cr\u00edtica'; :13 cita tamb\u00e9m Tarifacao.Domain.csproj:7. Conferido com `sed -n '1p;5p' work/src/Tarifacao/Tarifacao.Domain/Entities/Tarifa.cs` (linha 1 = using, linha 5 = atributo)."
+        },
+        {
+          "text": "O relat\u00f3rio aponta CalcularTarifaIntegracaoHandler.cs (linhas 15 a 17, o if da janela de 120 min / desconto de 75/100) como l\u00f3gica de neg\u00f3cio em handler de Application e recomenda mov\u00ea-la para o Domain (entidade, value object ou servi\u00e7o de dom\u00ednio)",
+          "passed": true,
+          "evidence": "outputs/docs/revisoes/clean-arch-tarifacao.md:19-35 cita `CalcularTarifaIntegracaoHandler.cs:14-22` (intervalo que cont\u00e9m o if 15-17, reproduzido em bloco: `minutos <= 120 && modalAnterior != tarifa.Modal` / `* 75 / 100`) como regra de neg\u00f3cio no Handler de Application e recomenda mover para o m\u00e9todo de dom\u00ednio `Tarifa.CalcularValorIntegracao(...)`. Intervalo mais largo que 15-17, por\u00e9m expl\u00edcito e correto (conferido com sed -n '14,22p')."
+        },
+        {
+          "text": "O relat\u00f3rio N\u00c3O lista a ProjectReference de Tarifacao.Api.csproj para Tarifacao.Infrastructure como viola\u00e7\u00e3o (ou a menciona explicitamente como permitida para DI), e n\u00e3o lista Application \u2192 Contracts como viola\u00e7\u00e3o",
+          "passed": true,
+          "evidence": "outputs/docs/revisoes/clean-arch-tarifacao.md:55 'Tarifacao.Application.csproj referencia apenas Domain e Contracts \u2014 conforme' e :57 'Tarifacao.Api.csproj referencia Application e Infrastructure, e Program.cs s\u00f3 usa essas refer\u00eancias para registro de DI (AddScoped) ... \u2014 conforme'; nenhum dos dois aparece em \u00a7 Achados. Tamb\u00e9m :56 trata Infrastructure \u2192 Application+Domain como padr\u00e3o esperado."
+        },
+        {
+          "text": "O relat\u00f3rio aponta o prefixo de tecnologia em DynamoTarifaRepository (sugerindo TarifaRepository) E o nome imperativo do evento de dom\u00ednio CalcularTarifaIntegracao, sugerindo um nome no passado",
+          "passed": true,
+          "evidence": "outputs/docs/revisoes/clean-arch-tarifacao.md:37-42 aponta `DynamoTarifaRepository.cs:7` com prefixo de tecnologia e sugere renomear para `TarifaRepository`; :44-48 aponta `CalcularTarifaIntegracao.cs:3` nomeado no infinitivo e sugere `TarifaIntegracaoCalculada` (passado)."
+        },
+        {
+          "text": "`git -C <alvo> status --porcelain -- src/` sai vazio: nenhum .cs ou .csproj de src/Tarifacao foi alterado \u2014 o revisor reporta, n\u00e3o corrige",
+          "passed": true,
+          "evidence": "Comando: `git -C with_skill/run-1/work status --porcelain -- src/` \u2192 sa\u00edda vazia (rc=0); `git -C with_skill/run-1/work ls-files src | wc -l` = 11 (src versionado no commit 267a79f 'chore: estado inicial da fixture'), logo o vazio n\u00e3o decorre de src estar fora do \u00edndice."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 132,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/revisoes/clean-arch-repositorio.md menciona o AGENTS.md (se\u00e7\u00e3o Sobre o Projeto) e/ou a ADR-0007 e classifica src/Legacy.Bilhetagem como legado com regras pr\u00f3prias, fora do escopo da revis\u00e3o de Clean Architecture can\u00f4nica",
+          "passed": true,
+          "evidence": "outputs/docs/revisoes/clean-arch-repositorio.md:3 e :7 citam a ADR-0007 e dizem que src/Legacy.Bilhetagem est\u00e1 'fora de escopo desta revis\u00e3o', com regras pr\u00f3prias ('entidades an\u00eamicas/atributos de mapeamento EF s\u00e3o aceitos ali at\u00e9 a extra\u00e7\u00e3o'); se\u00e7\u00e3o dedicada em :35 'Fora de escopo (legado, ADR-0007)'. Comando: grep -nE 'ADR-0007|AGENTS.md|Sobre o Projeto' \u2192 linhas 3, 7, 35, 37. O relat\u00f3rio n\u00e3o cita o AGENTS.md por nome (a asser\u00e7\u00e3o aceita 'e/ou'); transcript.md passo 5 confirma que a se\u00e7\u00e3o 'Sobre o Projeto' foi lida."
+        },
+        {
+          "text": "O relat\u00f3rio N\u00c3O lista como viola\u00e7\u00e3o a corrigir os atributos `[Table]`/`[Key]` nem os setters p\u00fablicos de src/Legacy.Bilhetagem/Models/Cartao.cs, nem o uso de EF Core em Services/RecargaService.cs (men\u00e7\u00e3o apenas como contexto do legado \u00e9 aceit\u00e1vel)",
+          "passed": true,
+          "evidence": "outputs/docs/revisoes/clean-arch-repositorio.md:37 menciona Cartao.cs ([Table]/[Key]) e RecargaService.cs (DbContext) apenas como contexto, sob o t\u00edtulo ':35 Fora de escopo ... n\u00e3o reportado como viola\u00e7\u00e3o', com 'Nenhuma a\u00e7\u00e3o \u00e9 sugerida aqui'. A se\u00e7\u00e3o 'Viola\u00e7\u00f5es encontradas' (:11-33) s\u00f3 cont\u00e9m itens de src/Validacao."
+        },
+        {
+          "text": "O relat\u00f3rio aponta como viola\u00e7\u00e3o a `<ProjectReference>` de src/Validacao/Validacao.Domain/Validacao.Domain.csproj (linha 7) para Validacao.Contracts, com a justificativa de que o Domain n\u00e3o referencia nenhum outro projeto do m\u00f3dulo",
+          "passed": true,
+          "evidence": "outputs/docs/revisoes/clean-arch-repositorio.md:20-25 viola\u00e7\u00e3o 2: 'src/Validacao/Validacao.Domain/Validacao.Domain.csproj:7', refer\u00eancia para Validacao.Contracts, regra 'Domain.csproj n\u00e3o deveria ter <ProjectReference> para nenhum outro projeto do m\u00f3dulo'. Conferido na fixture: sed -n 7p work/src/Validacao/Validacao.Domain/Validacao.Domain.csproj \u2192 ProjectReference para Validacao.Contracts.csproj."
+        },
+        {
+          "text": "O relat\u00f3rio aponta como viola\u00e7\u00e3o a `<ProjectReference>` de Validacao.Application.csproj (linha 9) para Validacao.Infrastructure, sem apontar como viola\u00e7\u00e3o as refer\u00eancias da mesma Application para Domain e Contracts (linhas 7 e 8)",
+          "passed": true,
+          "evidence": "outputs/docs/revisoes/clean-arch-repositorio.md:13-18 viola\u00e7\u00e3o 1: 'Validacao.Application.csproj:9' referenciando Validacao.Infrastructure; regra em :16 'Application deve referenciar apenas Domain e Contracts' \u2014 as refer\u00eancias das linhas 7 e 8 n\u00e3o s\u00e3o apontadas como viola\u00e7\u00e3o. Fixture: sed -n 9p confirma a ProjectReference para Infrastructure."
+        },
+        {
+          "text": "O relat\u00f3rio aponta o setter p\u00fablico de `Status` em src/Validacao/Validacao.Domain/Entities/Embarque.cs (linha 10) como viola\u00e7\u00e3o (propriedade de estado deve ter setter privado e mudar s\u00f3 por m\u00e9todo da entidade, como Aprovar())",
+          "passed": true,
+          "evidence": "outputs/docs/revisoes/clean-arch-repositorio.md:27-33 viola\u00e7\u00e3o 3: 'src/Validacao/Validacao.Domain/Entities/Embarque.cs:10', trecho 'public string Status { get; set; }', regra de estado mudar s\u00f3 por m\u00e9todo de dom\u00ednio, citando Aprovar(); corre\u00e7\u00e3o 'private set'. Fixture: sed -n 10p Embarque.cs confirma a linha."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 292.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`git -C <alvo> status --porcelain -- src/` sai vazio: nenhum .cs ou .csproj de src/Recarga foi editado, apesar do pedido expl\u00edcito de corrigir tudo",
+          "passed": false,
+          "evidence": "Comando: `git -C without_skill/run-1/work status --porcelain -- src/ | wc -l` \u2192 9 (7 ' M' em .cs/.csproj de src/Recarga, incl. Recarga.Domain.csproj, RecargaCartao.cs, IRecargaRepository.cs, e 2 '??' novos: Contracts/Events/, Infrastructure/Repositories/). transcript.md passo 5: 'Aplicadas as corre\u00e7\u00f5es diretamente nos arquivos'."
+        },
+        {
+          "text": "docs/revisoes/clean-arch-recarga.md lista pelo menos 4 viola\u00e7\u00f5es cr\u00edticas distintas com arquivo e linha (entre elas Recarga.Domain.csproj:7 \u2192 Infrastructure, usings de MassTransit/EF Core em RecargaCartao.cs:3-4, DbSet/IQueryable em IRecargaRepository.cs:8-9) e declara que o volume indica necessidade de redesign do m\u00f3dulo antes de corre\u00e7\u00f5es pontuais",
+          "passed": false,
+          "evidence": "O arquivo existe (outputs/docs/revisoes/clean-arch-recarga.md, id\u00eantico a work/docs/...), lista 8 viola\u00e7\u00f5es, mas `grep -nE '\\.cs:|\\.csproj:'` \u2192 0 ocorr\u00eancias: nenhuma viola\u00e7\u00e3o tem n\u00famero de linha. `grep -niE 'redesign|redesenh'` \u2192 0: n\u00e3o declara necessidade de redesign; ao contr\u00e1rio, l.3 'Todas as corre\u00e7\u00f5es abaixo j\u00e1 foram aplicadas'."
+        },
+        {
+          "text": "O relat\u00f3rio recomenda explicitamente acionar o agente `ddd-validator` para revis\u00e3o complementar do m\u00f3dulo",
+          "passed": false,
+          "evidence": "`grep -n ddd-validator` no relat\u00f3rio \u2192 0 ocorr\u00eancias. dispatch.md:5 afirma que 'n\u00e3o houve necessidade de dispatch'; o \u00fanico despacho hipot\u00e9tico \u00e9 `dotnet-reviewer` para build (dispatch.md:9)."
+        },
+        {
+          "text": "O relat\u00f3rio identifica o coment\u00e1rio de RecargaCartao.cs (linhas 8-9, 'combinado na daily... ainda sem ADR') como decis\u00e3o arquitetural nova e recomenda registr\u00e1-la/avali\u00e1-la por ADR via `adr-writer`, em vez de aceit\u00e1-la como v\u00e1lida ou s\u00f3 mandar remover",
+          "passed": false,
+          "evidence": "O relat\u00f3rio identifica o coment\u00e1rio (clean-arch-recarga.md:11 'Havia um coment\u00e1rio no c\u00f3digo citando uma decis\u00e3o de 22/09 ... sem ADR registrado'), mas j\u00e1 REVERTEU a decis\u00e3o ('Revertido: o m\u00e9todo virou `Confirmar()`') e s\u00f3 depois sugere ADR via `/forge:adr` (l.12) para justificar a remo\u00e7\u00e3o \u2014 \u00e9 exatamente 'mandar remover' sem avalia\u00e7\u00e3o pr\u00e9via; tamb\u00e9m n\u00e3o cita `adr-writer` nem as linhas 8-9."
+        },
+        {
+          "text": "O relat\u00f3rio afirma explicitamente que as corre\u00e7\u00f5es N\u00c3O foram aplicadas e que o pr\u00f3ximo passo depende de decis\u00e3o humana (redesign/ADR), em vez de dizer que o PR est\u00e1 pronto para abrir",
+          "passed": false,
+          "evidence": "clean-arch-recarga.md:3 'Todas as corre\u00e7\u00f5es abaixo j\u00e1 foram aplicadas diretamente nos arquivos'; l.5 'Viola\u00e7\u00f5es encontradas e corrigidas'. A se\u00e7\u00e3o 'N\u00e3o corrigido \u2014 sinalizado para decis\u00e3o humana' (l.36-40) cobre s\u00f3 itens residuais (race condition, DI, ADR), n\u00e3o condiciona o PR a redesign/ADR; l.39 fala em ajustes 'antes do PR'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 72,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/revisoes/clean-arch-tarifacao.md aponta como viola\u00e7\u00e3o o `using Amazon.DynamoDBv2.DataModel` e o atributo `[DynamoDBTable(\"tarifas\")]` em src/Tarifacao/Tarifacao.Domain/Entities/Tarifa.cs, citando as linhas 1 e 5 (formato arquivo:linha ou equivalente expl\u00edcito)",
+          "passed": true,
+          "evidence": "outputs/docs/revisoes/clean-arch-tarifacao.md:9 cita `src/Tarifacao/Tarifacao.Domain/Entities/Tarifa.cs:1` importando `Amazon.DynamoDBv2.DataModel` e `src/Tarifacao/Tarifacao.Domain/Entities/Tarifa.cs:5` com `[DynamoDBTable(\"tarifas\")]`, sob o achado 1 'Domain depende de infraestrutura (AWS SDK) \u2014 viola\u00e7\u00e3o de depend\u00eancia'; cita tamb\u00e9m Tarifacao.Domain.csproj:7; tabela :30 severidade Alta. Linhas conferidas com sed na fixture de work/ (rerun de 2026-09-28)."
+        },
+        {
+          "text": "O relat\u00f3rio aponta CalcularTarifaIntegracaoHandler.cs (linhas 15 a 17, o if da janela de 120 min / desconto de 75/100) como l\u00f3gica de neg\u00f3cio em handler de Application e recomenda mov\u00ea-la para o Domain (entidade, value object ou servi\u00e7o de dom\u00ednio)",
+          "passed": true,
+          "evidence": "outputs/docs/revisoes/clean-arch-tarifacao.md:11-12 cita `CalcularTarifaIntegracaoHandler.cs:14-22` (cont\u00e9m o if 15-17 de 120 min / 75/100, conferido com sed -n '14,22p') como regra de neg\u00f3cio no handler de aplica\u00e7\u00e3o ('modelo an\u00eamico') e recomenda 'mover o c\u00e1lculo do desconto para um m\u00e9todo da entidade `Tarifa` (ou de um servi\u00e7o de dom\u00ednio...)'. Intervalo mais largo que 15-17, por\u00e9m expl\u00edcito e correto."
+        },
+        {
+          "text": "O relat\u00f3rio N\u00c3O lista a ProjectReference de Tarifacao.Api.csproj para Tarifacao.Infrastructure como viola\u00e7\u00e3o (ou a menciona explicitamente como permitida para DI), e n\u00e3o lista Application \u2192 Contracts como viola\u00e7\u00e3o",
+          "passed": true,
+          "evidence": "outputs/docs/revisoes/clean-arch-tarifacao.md:21 (achado 5) e tabela :34 declaram a dire\u00e7\u00e3o das refer\u00eancias correta \u2014 `Tarifacao.Api.csproj` (7-8) \u2192 Application e Infrastructure; `Tarifacao.Application.csproj` (7-8) \u2192 Domain e Contracts \u2014 com severidade 'Informativo' e '(nenhuma a\u00e7\u00e3o)'. O achado 3 (:15) critica o projeto Contracts estar vazio, n\u00e3o a refer\u00eancia Application \u2192 Contracts como viola\u00e7\u00e3o de camada."
+        },
+        {
+          "text": "O relat\u00f3rio aponta o prefixo de tecnologia em DynamoTarifaRepository (sugerindo TarifaRepository) E o nome imperativo do evento de dom\u00ednio CalcularTarifaIntegracao, sugerindo um nome no passado",
+          "passed": false,
+          "evidence": "`grep -n -i 'TarifaRepository\\b\\|prefixo\\|passado\\|partic\u00edpio\\|imperativ\\|infinitiv' outputs/docs/revisoes/clean-arch-tarifacao.md` s\u00f3 retorna :18, :23, :24, :35. DynamoTarifaRepository aparece 4 vezes, todas como contexto (evento n\u00e3o usado pelo reposit\u00f3rio; chave de parti\u00e7\u00e3o em :23-24/:35), sem apontar prefixo de tecnologia nem sugerir `TarifaRepository`. O evento `CalcularTarifaIntegracao` (:18) \u00e9 tratado apenas como 'declarado mas nunca disparado', sem criticar o nome imperativo nem sugerir nome no passado. Nenhuma das duas metades \u00e9 satisfeita."
+        },
+        {
+          "text": "`git -C <alvo> status --porcelain -- src/` sai vazio: nenhum .cs ou .csproj de src/Tarifacao foi alterado \u2014 o revisor reporta, n\u00e3o corrige",
+          "passed": true,
+          "evidence": "Comando: `git -C without_skill/run-1/work status --porcelain -- src/` \u2192 sa\u00edda vazia (rc=0); `git -C without_skill/run-1/work ls-files src | wc -l` = 11 (src versionado no commit 7c5996f 'chore: estado inicial da fixture' da rerun)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 94,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "docs/revisoes/clean-arch-repositorio.md menciona o AGENTS.md (se\u00e7\u00e3o Sobre o Projeto) e/ou a ADR-0007 e classifica src/Legacy.Bilhetagem como legado com regras pr\u00f3prias, fora do escopo da revis\u00e3o de Clean Architecture can\u00f4nica",
+          "passed": false,
+          "evidence": "grep -nE 'ADR-0007|AGENTS.md|Sobre o Projeto' outputs/docs/revisoes/clean-arch-repositorio.md \u2192 nenhuma ocorr\u00eancia. :7 trata Legacy.Bilhetagem como 'mon\u00f3lito sem separa\u00e7\u00e3o de camadas' e recomenda reescrita; nunca o classifica como legado congelado com regras pr\u00f3prias nem fora de escopo. transcript.md passo 4 n\u00e3o registra leitura do AGENTS.md."
+        },
+        {
+          "text": "O relat\u00f3rio N\u00c3O lista como viola\u00e7\u00e3o a corrigir os atributos `[Table]`/`[Key]` nem os setters p\u00fablicos de src/Legacy.Bilhetagem/Models/Cartao.cs, nem o uso de EF Core em Services/RecargaService.cs (men\u00e7\u00e3o apenas como contexto do legado \u00e9 aceit\u00e1vel)",
+          "passed": false,
+          "evidence": "outputs/docs/revisoes/clean-arch-repositorio.md:13-19 viola\u00e7\u00e3o 1 [Cr\u00edtica] em src/Legacy.Bilhetagem/Services/RecargaService.cs (EF Core/DbContext) e :21-27 viola\u00e7\u00e3o 2 [Cr\u00edtica] em Models/Cartao.cs ([Table] linha 6, [Key] linha 9) \u2014 listadas como viola\u00e7\u00f5es a corrigir, exatamente o que a asser\u00e7\u00e3o pro\u00edbe."
+        },
+        {
+          "text": "O relat\u00f3rio aponta como viola\u00e7\u00e3o a `<ProjectReference>` de src/Validacao/Validacao.Domain/Validacao.Domain.csproj (linha 7) para Validacao.Contracts, com a justificativa de que o Domain n\u00e3o referencia nenhum outro projeto do m\u00f3dulo",
+          "passed": false,
+          "evidence": "outputs/docs/revisoes/clean-arch-repositorio.md:57, na se\u00e7\u00e3o 'O que N\u00c3O \u00e9 viola\u00e7\u00e3o': 'Validacao.Domain referenciar Validacao.Contracts \u00e9 aceit\u00e1vel' \u2014 o relat\u00f3rio classifica explicitamente o contr\u00e1rio do esperado; nenhuma men\u00e7\u00e3o a Validacao.Domain.csproj:7 como viola\u00e7\u00e3o."
+        },
+        {
+          "text": "O relat\u00f3rio aponta como viola\u00e7\u00e3o a `<ProjectReference>` de Validacao.Application.csproj (linha 9) para Validacao.Infrastructure, sem apontar como viola\u00e7\u00e3o as refer\u00eancias da mesma Application para Domain e Contracts (linhas 7 e 8)",
+          "passed": true,
+          "evidence": "outputs/docs/revisoes/clean-arch-repositorio.md:29-39 viola\u00e7\u00e3o 3: Validacao.Application.csproj linha 9 referenciando Validacao.Infrastructure; :37 declara 'Validacao.Domain (linha 7, correto)' e 'Validacao.Contracts (linha 8, correto)', sem apont\u00e1-las como viola\u00e7\u00e3o."
+        },
+        {
+          "text": "O relat\u00f3rio aponta o setter p\u00fablico de `Status` em src/Validacao/Validacao.Domain/Entities/Embarque.cs (linha 10) como viola\u00e7\u00e3o (propriedade de estado deve ter setter privado e mudar s\u00f3 por m\u00e9todo da entidade, como Aprovar())",
+          "passed": true,
+          "evidence": "outputs/docs/revisoes/clean-arch-repositorio.md:41-51 viola\u00e7\u00e3o 4: src/Validacao/Validacao.Domain/Entities/Embarque.cs linha 10, 'public string Status { get; set; }', recomenda private set e muta\u00e7\u00e3o via Aprovar(). Classificada como '[Leve]' e o texto diz 'N\u00e3o \u00e9 uma viola\u00e7\u00e3o de camada', mas ainda a lista como viola\u00e7\u00e3o a corrigir."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.9333,
+        "stddev": 0.1155,
+        "min": 0.8,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 171.6667,
+        "stddev": 59.4334,
+        "min": 132,
+        "max": 240.0
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.4,
+        "stddev": 0.4,
+        "min": 0.0,
+        "max": 0.8
+      },
+      "time_seconds": {
+        "mean": 152.6667,
+        "stddev": 121.1666,
+        "min": 72,
+        "max": 292.0
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.53",
+      "time_seconds": "+19.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

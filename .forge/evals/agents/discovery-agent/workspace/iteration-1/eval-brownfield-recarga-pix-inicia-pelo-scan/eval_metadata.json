@@ -1,0 +1,12 @@
+{
+  "eval_id": 1,
+  "eval_name": "brownfield-recarga-pix-inicia-pelo-scan",
+  "prompt": "Quero começar o discovery de uma nova feature no recarga-api: recarga do cartão de transporte via Pix pelo app do passageiro, sem precisar ir ao posto de venda. O repositório já tem README, ADR e o OpenAPI do serviço. Pode começar — essa sessão é só para eu ver por onde você começa, respondo as perguntas depois.",
+  "assertions": [
+    "Existe docs/discovery/discovery-notes.md (caminho oficial), e não apenas um discovery-notes.md na raiz; o arquivo começa com '# Discovery Notes' e tem os campos de cabeçalho Tipo de iniciativa, Data e Status com Status = 'Em discovery'.",
+    "A seção '## 0. Workspace Scan' contém a tabela 0.1 com colunas Caminho | Tipo | Contexto Oferecido listando ao menos três caminhos que existem na fixture (entre README.md, docs/product/adr/, openapi.yaml, src/Recarga.Api/, docker-compose.yml), além das subseções 0.2 Resumo do Contexto Existente e 0.3 Lacunas Identificadas com conteúdo.",
+    "A resposta final do agente contém exatamente um ponto de interrogação de pergunta dirigida ao usuário, e essa pergunta é a Q1 (qual problema a feature resolve); não pergunta sobre usuário, integrações, monetização, stack ou plataforma nesta mensagem.",
+    "Em docs/discovery/discovery-notes.md, as subseções 1.1 a 5.2 (Problema, Usuário Principal, Referências, Pitch, Core Features, Integrações, Modelo, Planos, Stack, Plataforma, Referências Visuais, Notas Adicionais) estão vazias ou só com placeholder; em particular 4.1 Stack não registra .NET/PostgreSQL como decisão, apesar de o workspace os revelar.",
+    "git status no alvo, desconsiderando as remoções feitas pelo setup em .forge/ e .claude/, mostra apenas arquivos novos sob docs/discovery/; nenhum PRD/FRD/NFRD/TRD/ADR novo, nenhum arquivo em src/ e nenhum arquivo versionado alterado."
+  ]
+}

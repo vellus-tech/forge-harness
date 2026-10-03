@@ -1,0 +1,30 @@
+{
+  "expectations": [
+    {
+      "text": "git diff --exit-code -- .forge/specs/active/bloqueio-cartao-perda-roubo/epic_context.md retorna 0: o arquivo não foi reescrito, reformatado nem regenerado com o mesmo conteúdo em outra forma.",
+      "passed": true,
+      "evidence": "Comando `git -C with_skill/run-1/work diff --exit-code -- .forge/specs/active/bloqueio-cartao-perda-roubo/epic_context.md` retornou rc=0 (arquivo idêntico ao commit da fixture)."
+    },
+    {
+      "text": "Fora das remoções feitas pelo setup, git status não mostra nenhum arquivo novo ou alterado: spec-manifest.yaml mantém dev_loop exatamente como na fixture (sharded: false, epic_context_compiled: true) e stories/ continua só com .gitkeep, sem nenhuma STORY-NN.md criada.",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work status --porcelain -uall | grep -vc '^ D'` = 0: só há as remoções ' D' de .forge/skills, .forge/agents, .claude/skills e .claude/agents feitas pelo setup.sh (linha 14, rm -rf); nenhum '??' nem ' M'. spec-manifest.yaml linhas 18-21: dev_loop com sharded: false, stories_path: stories/, epic_context_compiled: true. `ls -la stories/` mostra só .gitkeep (0 bytes)."
+    },
+    {
+      "text": "A resposta final informa que o contexto épico já estava compilado (OK/idempotente, citando epic_context.md existente e/ou epic_context_compiled: true) e NÃO usa o formato 'epic_context.md gerado — N decisões, M contratos, K invariantes.'",
+      "passed": false,
+      "evidence": "outputs/agent-response.md linha 1: 'epic_context.md gerado — 3 decisões, 3 contratos, 2 invariantes.' — usa exatamente o formato proibido (grep -c 'gerado —' = 1). A linha 3 explica entre parênteses que nada foi reescrito, mas a asserção exige que o formato NÃO seja usado; a resposta é contraditória (diz 'gerado' sem ter gerado). transcript.md Passo 5 confirma a escolha deliberada do template de saída."
+    },
+    {
+      "text": "A resposta final tem no máximo 3 linhas e não reproduz as seções do epic_context.md (por exemplo, não lista as decisões de design nem os contratos).",
+      "passed": true,
+      "evidence": "`wc -l outputs/agent-response.md` = 3 (linha 1 de contagem, linha 2 em branco, linha 3 parêntese de idempotência). Só contagens agregadas (3/3/2); não lista decisões, contratos nem invariantes do epic_context.md."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 1,
+    "total": 4,
+    "pass_rate": 0.75
+  }
+}

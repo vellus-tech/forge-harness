@@ -1,0 +1,44 @@
+{
+  "reviewer": "java-reviewer",
+  "branch": "feat/tarifa-integracao",
+  "base": "develop",
+  "scope": "services/tarifa-api",
+  "findings": [
+    {
+      "file": "services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaRepository.java",
+      "line": 23,
+      "scenario": "porLinhaEModal monta a cláusula WHERE por concatenação de string diretamente nos parâmetros linha/modal (DSL.condition(\"linha = '\" + linha + \"' ...\")). Um valor como linha = \"' OR '1'='1\" injeta SQL arbitrário na consulta jOOQ, já que o texto não passa por bind parameter.",
+      "severity": "critical",
+      "category": "sql-injection"
+    },
+    {
+      "file": "services/tarifa-api/src/main/resources/db/changelog/002-valor-integracao.yaml",
+      "line": 6,
+      "scenario": "addColumn cria valor_integracao_centavos como NOT NULL sem defaultValueNumeric nem changeSet de backfill anterior. Se a tabela tarifa já tiver linhas (ambiente com o changelog 001 aplicado e dados carregados), o Liquibase falha ao aplicar a migration por violar a constraint NOT NULL nas linhas existentes.",
+      "severity": "high",
+      "category": "migration-safety"
+    },
+    {
+      "file": "services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaService.java",
+      "line": 17,
+      "scenario": "tarifasIntegradas não valida nem sanitiza linha/modal antes de repassar ao repositório; a camada de serviço deveria ser a barreira contra o input malicioso antes de chegar ao SQL concatenado (agrava o finding de SQL injection acima, pois não há nenhuma validação intermediária).",
+      "severity": "medium",
+      "category": "input-validation"
+    },
+    {
+      "file": "services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaService.java",
+      "line": 16,
+      "scenario": "@Transactional aplicado a um método puramente de leitura (tarifasIntegradas apenas delega para um SELECT). Não é incorreto, mas abre transação de escrita desnecessária; o ideal é @Transactional(readOnly = true) ou nenhuma anotação, dependendo da política de isolation do serviço.",
+      "severity": "low",
+      "category": "transaction-scope"
+    },
+    {
+      "file": "services/tarifa-api/src/main/java/br/com/axis/tarifa/TarifaRepository.java",
+      "line": 20,
+      "scenario": "Não há nenhum teste (unitário ou com Testcontainers, já presente como dependência testImplementation) cobrindo TarifaRepository.porLinhaEModal nem TarifaService.tarifasIntegradas para os dois arquivos novos deste PR — nenhuma verificação de regressão para a nova coluna valor_integracao_centavos.",
+      "severity": "medium",
+      "category": "test-coverage"
+    }
+  ],
+  "stack_suggestion": "Trocar DSL.condition(String) por campos tipados do jOOQ (ex.: TARIFA.LINHA.eq(linha).and(TARIFA.MODAL.eq(modal)) usando as classes geradas pelo plugin nu.studer.jooq, já presente no build.gradle.kts) elimina a classe inteira de bugs de SQL injection por concatenação e recupera o check de tipos em tempo de compilação."
+}

@@ -1,0 +1,92 @@
+{
+  "skill_name": "node-quality-scan",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "revisao-pacote-pedidos",
+      "prompt": "Estou na branch feat/listagem-pedidos do nosso monorepo da loja. Mexi só no packages/pedidos (listagem por status e a rota da nota fiscal). Antes de abrir a PR, faz um code review de qualidade das minhas mudanças e salva o relatório em outputs/revisao-pedidos.md.",
+      "expected_output": "O agente limita o escopo a packages/pedidos (o que o diff main...HEAD tocou), roda o node-baseline --check antes e informa o resultado, roda scripts/scan.sh sobre o escopo e entrega em outputs/revisao-pedidos.md um relatório com uma linha por regra do scanner (as 11, inclusive as OK), cada achado com arquivo:linha, destacando a interpolação de SQL em src/rotas.ts:15 e o readFileSync em rota HTTP (src/rotas.ts:20) como BLOCKER, sem trazer as violações pré-existentes de packages/notificacoes.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "relatorio-lista-as-onze-regras-inclusive-ok",
+          "text": "outputs/revisao-pedidos.md contém uma linha para cada uma das 11 regras do scanner (empty-catch, floating-promise, sync-fs-blocking, sql-interpolation, new-pg-client, process-env-direct, date-now, explicit-any, generic-name, mutable-module-state, single-impl-interface), incluindo as que não acharam nada marcadas como OK/limpas."
+        },
+        {
+          "name": "baseline-de-lint-reportado-antes-do-scan",
+          "text": "O relatório informa o resultado do node-baseline.sh --check (PASS/OK ou FAIL, com a origem: config na raiz do monorepo) em posição anterior à lista de regras do scan."
+        },
+        {
+          "name": "escopo-restrito-ao-pacote-alterado",
+          "text": "Nenhum achado do relatório aponta para packages/notificacoes (EmailManager.ts tem empty-catch, floating-promise, sync-fs, any, generic-name e export let pré-existentes em main, fora do diff)."
+        },
+        {
+          "name": "sql-interpolation-com-arquivo-linha",
+          "text": "O relatório aponta sql-interpolation como defeito em packages/pedidos/src/rotas.ts:15 (ou src/rotas.ts:15), com recomendação de placeholder parametrizado ($1)."
+        },
+        {
+          "name": "todo-achado-com-arquivo-linha",
+          "text": "Todo achado FOUND listado no relatório (sync-fs-blocking, sql-interpolation, empty-catch, process-env-direct, generic-name) vem acompanhado de arquivo:linha; nenhum achado aparece só com descrição genérica."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "triagem-achados-cobranca",
+      "prompt": "Rodaram um scan de qualidade no servico-cobranca e veio FAIL com uns cinco achados (pool do pg, readFileSync, interface com uma implementação só, um .then e uma query). O tech lead quer tudo corrigido antes do release de sexta. Revisa o serviço e me diz, achado por achado, o que é defeito de verdade e o que dá pra deixar como está, com o porquê. Salva em outputs/triagem-cobranca.md. Não altera código ainda.",
+      "expected_output": "O agente começa dizendo que a camada de lint está ausente (node-baseline --check reprova: não há eslint.config.* com forge-quality/*), roda o scan e julga cada FOUND lendo o arquivo: new Pool em src/db/bootstrap.ts é o bootstrap legítimo; readFileSync em src/boot.ts roda uma vez antes do listen; CobrancaRepository é porta hexagonal (o fake em test/fakes.ts é a segunda implementação); o .then em src/jobs/lembrete.ts:4 tem .catch na linha seguinte (falso positivo da heurística de uma linha); apenas a interpolação de SQL em src/infra/PgCobrancaRepository.ts:13 é defeito real e BLOCKER. Nenhum código é alterado.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "baseline-de-lint-ausente-dito-primeiro",
+          "text": "outputs/triagem-cobranca.md informa, antes da triagem dos achados, que o node-baseline --check reprova / não há eslint.config.* com as regras forge-quality/* no serviço."
+        },
+        {
+          "name": "pool-no-bootstrap-nao-e-defeito",
+          "text": "O achado new-pg-client em src/db/bootstrap.ts é classificado como exceção legítima (módulo de bootstrap de conexão), não como defeito a corrigir."
+        },
+        {
+          "name": "readfilesync-no-boot-nao-e-defeito",
+          "text": "O achado sync-fs-blocking em src/boot.ts é classificado como aceitável por rodar uma vez no boot, antes de o servidor aceitar conexões."
+        },
+        {
+          "name": "porta-hexagonal-preservada",
+          "text": "O achado single-impl-interface (CobrancaRepository) é tratado como porta de domínio deliberada, sem recomendar remover a interface."
+        },
+        {
+          "name": "floating-promise-reconhecido-como-falso-positivo",
+          "text": "O achado floating-promise em src/jobs/lembrete.ts é reconhecido como falso positivo porque o .catch() está na linha seguinte da cadeia."
+        },
+        {
+          "name": "unico-defeito-real-e-a-sql",
+          "text": "A interpolação de SQL em src/infra/PgCobrancaRepository.ts:13 é o único achado classificado como defeito real (BLOCKER/injeção de SQL), com arquivo:linha, e nenhum arquivo em src/ foi modificado (git status limpo no alvo)."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "recusa-stack-python",
+      "prompt": "O checklist de PR aqui exige a evidência do node-quality-scan. Roda ele no servico-conciliacao e escreve em outputs/evidencia-pr.md o bloco de qualidade pra eu colar na descrição da PR.",
+      "expected_output": "O agente identifica que o servico-conciliacao é Python (pyproject.toml, FastAPI, psycopg) e que o node-quality-scan não se aplica a stack que não seja Node/TypeScript; não apresenta o PASS de 0 achados do scanner (verde por ausência de alvo) como evidência de qualidade e aponta o caminho adequado para Python (python-reviewer / capability backend-python-relational), podendo sinalizar o SQL por f-string e o except vazio em app/repositorio.py como risco que o scanner Node não enxerga.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "identifica-stack-python-e-inaplicabilidade",
+          "text": "A saída (outputs/evidencia-pr.md ou a resposta final) afirma que o projeto é Python e que o node-quality-scan não se aplica a stack não Node/TypeScript."
+        },
+        {
+          "name": "nao-emite-pass-como-evidencia",
+          "text": "outputs/evidencia-pr.md, se existir, não contém um bloco de qualidade aprovado pelo node-quality-scan (nenhum 'PASS', '0 achados' ou lista de regras OK apresentada como evidência de que o serviço está limpo)."
+        },
+        {
+          "name": "aponta-caminho-python",
+          "text": "A saída indica a revisão adequada para Python (python-reviewer, capability backend-python-relational, ruff ou equivalente) em vez do scanner Node."
+        },
+        {
+          "name": "nao-fabrica-regra-node-sobre-python",
+          "text": "A saída não apresenta achados rotulados com ids de regra do node-quality-scan (sql-interpolation, empty-catch etc.) como se o scanner os tivesse detectado em arquivos .py."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+verify-build — cobertura por camada (coverlet, cobertura format)
+Tarifacao.Domain          line 92.4%   branch 88.1%
+Tarifacao.Infrastructure  line 71.0%   branch 64.0%

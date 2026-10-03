@@ -14,11 +14,29 @@
 # append-only não há de onde restaurar.
 #
 # A primeira correção usou PREFIXO ESTRITO de linhas, e ela recusava DOIS fatos diferentes como se
-# fossem um só. Não são, e os remédios são opostos:
+# fossem um só. Não são, e os remédios são opostos. Tabela de desfechos (a decisão real é tomada em
+# `_dir_push`, mais abaixo — este helper só classifica):
 #
-#   behind   — o hub tem um `msg_id` que esta réplica NÃO tem. Publicar apaga uma mensagem que só
-#              existe lá. É a issue #101, e recusar é a única saída — inclusive sob reparo.
-#   diverged — o hub tem conteúdo DIFERENTE num `msg_id` que esta réplica TAMBÉM tem.
+#   desfecho   | quando                                                            | ação
+#   -----------|--------------------------------------------------------------------|----------
+#   ff         | hub é subconjunto estrito do local (local tem tudo do hub e mais)  | une
+#   equal      | hub e local têm exatamente os mesmos pares (msg_id, content_sha)   | une (no-op)
+#   behind     | hub tem um `msg_id` que este local NÃO tem                         | une
+#   diverged   | hub tem conteúdo DIFERENTE num `msg_id` que este local TAMBÉM tem  | recusa*
+#
+#   * recusa, exceto sob reparo declarado (`--repair-own-log`, caso 2 em `_dir_push`).
+#
+#   `ff` e `equal` chegam ao mesmo stdout ("ff", rc 0): `_dir_push_classify` não os distingue, porque
+#   ambos deixam as listas `behind` e `diverged` vazias — e a união (`_dir_push_union`) trata os dois
+#   de forma idêntica; para `equal` o resultado é um no-op de fato, já que unir um log com ele mesmo
+#   não produz conteúdo novo.
+#
+#   `behind` é exatamente a issue #101 — mas o remédio é a UNIÃO, não a recusa: recusar sempre que o
+#   hub tiver algo que este local não tem tornaria toda réplica atrasada num push que reprova, e
+#   réplica atrasada é o estado NORMAL de uma máquina com múltiplos worktrees (`_dir_pull` nunca traz
+#   o próprio log de volta, por desenho — não há "sincronizar primeiro" que o participante possa
+#   executar sozinho). A recusa fica reservada à bifurcação real, `diverged`, que é ambígua por
+#   construção — ver a seguir.
 #
 # Por que `diverged` não pode ser aceito automaticamente, e a medição que fecha o argumento. O
 # caso é AMBÍGUO por construção: ou um terceiro reescreveu a história (e o dono é a única

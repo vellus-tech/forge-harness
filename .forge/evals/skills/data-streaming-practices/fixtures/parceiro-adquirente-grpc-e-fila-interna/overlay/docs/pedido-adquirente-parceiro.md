@@ -1,0 +1,3 @@
+# Pedido do adquirente parceiro (resumo da reunião de 2026-09-24)
+
+O adquirente parceiro quer integrar a conciliação dele com a nossa plataforma até o fim do mês. Pedidos, nas palavras do time técnico deles: (1) acesso ao nosso RabbitMQ de produção com um usuário com permissão total no vhost `pagamentos`, para eles criarem as próprias filas e lerem `transacao.autorizada` direto da exchange `pagamentos.eventos`; (2) acesso ao `PaymentService` gRPC que já existe, publicado num Ingress com TLS, porque eles já têm cliente gRPC pronto e querem chamar `GetStatus`; (3) o PAN completo no evento `TransacaoAutorizada`, porque o sistema de conciliação deles casa pelo número do cartão.

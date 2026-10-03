@@ -38,12 +38,16 @@ esac
 # motivo pelo qual .forge/templates/ já é excluído da varredura. Nunca é o projeto que o autor
 # pretendia checar. Com FORGE_ROOT setado, `FORGE_ROOT=<repo> bash template/.forge/scripts/
 # doctor.sh --report` aponta para o projeto de verdade.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -n "${FORGE_ROOT:-}" ]; then
   ROOT="$(cd "$FORGE_ROOT" && pwd)"
 else
   ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 fi
 cd "$ROOT"
+
+# shellcheck disable=SC1091
+. "$SCRIPT_DIR/lib/scan-exclude.sh"
 
 # ── helpers ────────────────────────────────────────────────────────────────
 if [ -t 1 ]; then GREEN=$'\033[32m'; RED=$'\033[31m'; YEL=$'\033[33m'; DIM=$'\033[2m'; RST=$'\033[0m'
@@ -58,10 +62,14 @@ info()  { printf "  %s·%s %s\n" "$YEL" "$RST" "$1"; }
 warn()  { printf "  %s!%s %s\n" "$YEL" "$RST" "$1"; }
 hint()  { printf "      %s↳ %s%s\n" "$DIM" "$1" "$RST"; }
 
-# Detecta stacks por marcadores no repo (ignora node_modules/bin/obj/.git).
+# Detecta stacks por marcadores no repo. Poda a lista compartilhada de scan-exclude.sh (issue
+# #149: a lib existia mas não tinha invocador) mais `bin/`, específico deste detector para evitar
+# falso marcador dentro de artefato de build (ex.: bin/ do .NET) — `obj` já vem na lista
+# compartilhada.
 find_marker() {
-  find . \( -path ./node_modules -o -path ./.git -o -name bin -o -name obj -o -path ./dist \) -prune \
-       -o -name "$1" -print 2>/dev/null | head -1
+  local prune=()
+  forge_find_prune_args prune
+  find . "${prune[@]}" -name bin -prune -o -name "$1" -print 2>/dev/null | head -1
 }
 
 # ── Forge harness (§19.1) — roda mesmo sem stack detectada ──────────────────
@@ -106,21 +114,50 @@ check_harness() {
   check_link qwen QWEN.md
   check_link gemini GEMINI.md
 
-  # the leak check guards MIGRATED CONTENT (agents/rules/skills + the 8 legacy commands);
-  # the machinery (adapters/, scripts/, hooks/) and the harness meta-commands legitimately name
-  # the generated .claude/ dir, so they are excluded. USER DATA dirs are also excluded: their
-  # content is authored by the user (spec text may quote the generated dir; deploy files under
-  # worktrees may carry the app's own PROJECT-style tokens) and is not the canonical harness source.
-  USER_DATA='/(specs|worktrees|product|evals|custom)/'
-  # `.forge/cache/template-pendente/` guarda a versão nova do template de arquivos preservados por deriva local (revisão da DH-1): é cache, não fonte canônica, e fica fora das duas varreduras.
-  PENDING_CACHE='/cache/template-pendente/'
-  leaks="$(grep -rl '\.claude/' "$ROOT/.forge" 2>/dev/null | grep -vE "/(adapters|scripts|hooks)/|/commands/harness/|$USER_DATA|$PENDING_CACHE" | wc -l | tr -d ' ')"
-  if [ "$leaks" -eq 0 ]; then ok "harness: fonte canônica sem refs .claude/"
-  else miss "harness: $leaks arquivo(s) da fonte canônica com refs .claude/"; MISSING_DIAG=1; fi
+  # As duas checagens abaixo varriam "$ROOT/.forge" inteiro com `grep -rl` e filtravam só a
+  # SAÍDA (denylist) — em repositório com worktrees cada worktree é uma cópia completa da árvore
+  # (issue #127: 458933 de 465115 arquivos, 98,7% do universo), então o CUSTO da varredura era
+  # pago mesmo com o resultado correto, a ponto de o `grep` nunca terminar. Consertar só o custo
+  # não bastava: o mesmo modelo de denylist deixava `.forge/liaison/` e `.forge/ledger/` (dado de
+  # runtime onde agentes CONVERSAM SOBRE o diretório `.claude/`, não configuração) contarem como
+  # vazamento, e cada diretório de dado novo repetiria a mesma classe de falso positivo.
+  #
+  # Desenho: universo por INCLUSÃO explícita da fonte canônica — as pastas `rules/`, `agents/`,
+  # `skills/`, `commands/`, `templates/` e os arquivos que ficam diretamente no topo de
+  # `.forge/` (FORGE.md, forge.yaml, constitution.md, context.md, ...). `worktrees/`, `liaison/`,
+  # `ledger/`, `specs/`, `product/`, `evals/`, `custom/`, `cache/` e qualquer outro diretório de
+  # dado nunca entram no universo, então o `grep` nunca desce lá — não é um filtro de saída mais
+  # amplo, é a ausência do caminho na lista de entrada. Alternativa descartada (ampliar a
+  # denylist com `liaison|ledger|worktrees`): continua pagando a descida quando o filtro é de
+  # saída, e deixa entrar o próximo diretório de dados que alguém criar.
+  CANON_SCAN_DIRS="rules agents skills commands templates"
+  canon_scan_scope() {
+    find "$ROOT/.forge" -maxdepth 1 -type f -print0 2>/dev/null
+    for d in $CANON_SCAN_DIRS; do
+      [ -d "$ROOT/.forge/$d" ] && find "$ROOT/.forge/$d" -type f -print0 2>/dev/null
+    done
+  }
+  scan_n="$(canon_scan_scope | tr -cd '\0' | wc -c | tr -d ' ')"
 
-  orphans="$(grep -rl '<PROJECT_[A-Z_]*>' "$ROOT/.forge" 2>/dev/null | grep -vE "/templates/|$USER_DATA|$PENDING_CACHE" | wc -l | tr -d ' ')"
-  if [ "$orphans" -eq 0 ]; then ok "harness: sem placeholders <PROJECT_*> órfãos"
-  else miss "harness: $orphans arquivo(s) com placeholders <PROJECT_*> não preenchidos"; MISSING_DIAG=1; fi
+  if [ "$scan_n" -eq 0 ]; then
+    # Terceiro estado: universo vazio não é "sem refs" nem "N refs" — é a checagem não tendo
+    # rodado (projeto sem rules/agents/skills/commands/templates nem arquivo de topo é anômalo).
+    miss "harness: universo de varredura da fonte canônica vazio (rules/agents/skills/commands/templates e topo de .forge/ ausentes) — refs .claude/ e placeholders <PROJECT_*> não verificados"
+    MISSING_DIAG=1
+  else
+    # /(adapters|scripts|hooks)/ em qualquer profundidade (inclusive scripts/ dentro de uma
+    # skill, ex. skills/*/scripts/scan.sh) e commands/harness/ são os meta-comandos e os scripts
+    # de tooling do próprio harness, que legitimamente nomeiam o diretório .claude/ gerado como
+    # exemplo de caminho/documentação de mecanismo — não é migração pendente.
+    leaks="$(canon_scan_scope | xargs -0 grep -l '\.claude/' 2>/dev/null | grep -vE '/(adapters|scripts|hooks)/|/commands/harness/' | grep -c . || true)"
+    if [ "$leaks" -eq 0 ]; then ok "harness: fonte canônica sem refs .claude/ ($scan_n arquivo(s) examinado(s))"
+    else miss "harness: $leaks arquivo(s) da fonte canônica com refs .claude/ ($scan_n arquivo(s) examinado(s))"; MISSING_DIAG=1; fi
+
+    # templates/ é o scaffold que /forge:init copia — <PROJECT_*> ali é por desenho, não órfão.
+    orphans="$(canon_scan_scope | xargs -0 grep -l '<PROJECT_[A-Z_]*>' 2>/dev/null | grep -vE '/templates/' | grep -c . || true)"
+    if [ "$orphans" -eq 0 ]; then ok "harness: sem placeholders <PROJECT_*> órfãos"
+    else miss "harness: $orphans arquivo(s) com placeholders <PROJECT_*> não preenchidos"; MISSING_DIAG=1; fi
+  fi
 
   # Versão nova do template pendente de reconciliação (revisão da DH-1): o `update` preserva a maquinaria em deriva local e grava a versão do template em .forge/cache/template-pendente/<rel>. A linha nomeia o que ainda difere do arquivo local (contagem + primeiros caminhos) até alguém reconciliar: declarar a exceção, incorporar a versão à mão ou aceitar com --overwrite-drift. É aviso, não diagnóstico faltante: não muda o rc do doctor.
   # Caminho já declarado em .forge/machinery-exceptions.txt (qualquer sha: viva ou expirada, o update preserva por exceção e não grava mais pendente) sai da lista na hora — a decisão humana está registrada, e cobrar até o próximo update seria ruído. Mesma leitura do parser do update: corte no primeiro `#`, exatamente dois tokens, sha hexadecimal minúsculo com pelo menos 32 dígitos, prefixos `./` e `.forge/` normalizados.
@@ -418,9 +455,18 @@ EOF_CHG
   fi
 
   if [ -d "$ROOT/.forge/liaison" ] && [ -f "$ROOT/.forge/scripts/liaison-ops.sh" ]; then
-    liaison_line="$(FORGE_ROOT="$ROOT" bash "$ROOT/.forge/scripts/liaison-ops.sh" status 2>/dev/null || true)"
-    if [ -n "$liaison_line" ] && [ "$liaison_line" != "LIAISON: não inicializado" ]; then
-      info "harness: ${liaison_line}"
+    # issue #108: `2>/dev/null || true` engolia rc≠0 do `status` E o estado de erro — a seção de
+    # liaison inteira sumia do doctor sem dizer que a leitura falhou, indistinguível de "nada a
+    # reportar". Agora rc≠0 nomeia a falha com `✗` (sinaliza que o PRÓPRIO diagnóstico quebrou,
+    # não o estado do canal — por isso não toca MISSING_DIAG, que continua reservado à maquinaria
+    # do harness em si).
+    liaison_out="$(FORGE_ROOT="$ROOT" bash "$ROOT/.forge/scripts/liaison-ops.sh" status 2>&1)"
+    liaison_rc=$?
+    if [ "$liaison_rc" -ne 0 ]; then
+      liaison_first_err="$(printf '%s\n' "$liaison_out" | head -n1)"
+      miss "harness: LIAISON: status falhou — ${liaison_first_err:-erro desconhecido (rc $liaison_rc)}"
+    elif [ -n "$liaison_out" ] && [ "$liaison_out" != "LIAISON: não inicializado" ]; then
+      info "harness: ${liaison_out}"
       conflicts="$(find "$ROOT/.forge/liaison" -mindepth 3 -maxdepth 3 -path '*/conflicts/*' -name '*.json' 2>/dev/null | wc -l | tr -d ' ')"
       if [ "${conflicts:-0}" -gt 0 ]; then
         info "harness: liaison — $conflicts conflito(s) registrado(s) em conflicts/ (decisão humana; ver /forge:liaison)"
@@ -711,6 +757,169 @@ $og_name
       || info "harness: gates: rodam SÓ por runtime.gates (nenhum hook os invoca):$og_so_declarados"
     if [ -z "$og_declarados" ]; then
       info "harness: runtime.gates vazio em todas as fases — nenhum gate declarado (informativo; não reprova, LDG-0013)"
+    fi
+  fi
+
+  # ── lib órfã: scripts/lib/*.{sh,mjs} que nenhum script, hook ou outra lib menciona (issue #153) ──
+  # Copiar `.forge` de outro consumidor é upgrade parcial disfarçado: o alvo herda libs que o
+  # ORIGEM usava — e cujo script/hook invocador nunca veio junto. O check de check-*.sh órfão
+  # (acima) não cobre isso: cobre gate de NOME FIXO, não biblioteca de propósito geral.
+  #
+  # INFORMATIVO POR CONSTRUÇÃO: usa `warn` e NUNCA toca MISSING_DIAG — uma lib sem invocador hoje
+  # pode ser deliberada (API que o projeto ainda vai usar), e reprovar o doctor por isso ensinaria
+  # o operador a ignorá-lo, exatamente o motivo pelo qual `check-*.sh` órfão acima também é `!`.
+  #
+  # Invocador = menção LITERAL (grep -F, texto puro, NUNCA regex — "git.sh" como regex casa
+  # "git show" por acidente, medido) do nome-base do arquivo em qualquer outro arquivo de
+  # `scripts/**` ou `hooks/**`. Hooks são extensionless (`hooks/git/post-merge`), por isso a busca
+  # não filtra por extensão. Fonte única: é a mesma prova textual que `check-*.sh` órfão já usa
+  # contra hooks — um segundo critério (import estático, AST) inventaria um segundo contrato para
+  # a mesma pergunta.
+  #
+  # Duas isenções DECLARADAS — nunca uma allowlist textual nova, e nunca um achado silenciado:
+  #   - `lib/transports/*.sh` (exceto `_common.sh`, que os outros transportes sourceiam por nome
+  #     literal): dispachados por NOME DINÂMICO em `liaison-ops.sh` ($LIBDIR/transports/
+  #     $LIAISON_T_KIND.sh) — nenhuma menção literal do basename existe por desenho. Este script
+  #     não decide o transporte ativo nem toca `liaison-ops.sh` (issue #108 trata do liaison).
+  #   - `api-surface.mjs` e `pbt.mjs`: API zero-dependência que o harness expõe para os PRÓPRIOS
+  #     gates de desenvolvimento (`tests/*.sh`, que não são copiados para o consumidor) e para
+  #     gates customizados que o projeto adotante venha a escrever. Investigado, não ignorado:
+  #     nenhum script de produção em `template/.forge/scripts` os importa hoje; a issue #153
+  #     decidiu declarar a isenção em vez de forjar um invocador artificial.
+  if [ -d "$ROOT/.forge/scripts/lib" ]; then
+    ol_total=0; ol_orfaos=""
+    while IFS= read -r ol_f; do
+      [ -n "$ol_f" ] || continue
+      ol_total=$((ol_total + 1))
+      ol_base="$(basename "$ol_f")"
+      case "$ol_f" in
+        */lib/transports/*.sh) [ "$ol_base" = "_common.sh" ] || continue ;;
+      esac
+      case "$ol_base" in
+        api-surface.mjs|pbt.mjs) continue ;;
+      esac
+      if grep -rlF -- "$ol_base" "$ROOT/.forge/scripts" "$ROOT/.forge/hooks" 2>/dev/null \
+           | grep -vxF "$ol_f" | grep -q .; then
+        continue
+      fi
+      ol_orfaos="$ol_orfaos $ol_base"
+    done <<EOF_OL
+$(find "$ROOT/.forge/scripts/lib" -type f \( -name '*.sh' -o -name '*.mjs' \) 2>/dev/null | sort)
+EOF_OL
+    ol_n=0
+    for ol_x in $ol_orfaos; do ol_n=$((ol_n + 1)); done
+    # Contador de controle SEMPRE, pelo mesmo motivo do bloco de check-*.sh órfão acima: sem ele,
+    # "examinei e estava limpo" e "não examinei nada" terminam no mesmo silêncio.
+    if [ "$ol_total" -eq 0 ]; then
+      info "harness: libs: 0 arquivo(s) em scripts/lib/ examinado(s) — nenhuma lib instalada"
+    elif [ "$ol_n" -eq 0 ]; then
+      ok "harness: libs: $ol_total arquivo(s) em scripts/lib/ examinado(s), 0 órfã(s)"
+    else
+      warn "harness: libs: $ol_total arquivo(s) em scripts/lib/ examinado(s), $ol_n órfã(s) — nenhum script, hook ou outra lib menciona:$ol_orfaos"
+      hint "cópia de .forge de outro consumidor traz lib sem o script que a usava lá — decida um invocador ou remova (ver /forge:upgrade)"
+    fi
+  fi
+
+  # ── divergência de versão: forge.yaml template_version × machinery.lock (issue #153) ──────────
+  # Copiar `.forge` de outro consumidor troca o `forge.yaml` (com o `template_version` de quem
+  # gerou a cópia) mas deixa o `machinery.lock` velho do destino — ou vice-versa. Nenhum dos dois
+  # sozinho denuncia: `forge.yaml` não sabe qual versão aplicou por último, e `machinery.lock` não
+  # sabe o que o `forge.yaml` declara. O doctor é o único ponto que lê os dois.
+  #
+  # INFORMATIVO POR CONSTRUÇÃO: `warn`, nunca `MISSING_DIAG` — o lock só é reescrito por um
+  # `update` bem-sucedido, então um consumidor recém-clonado ou que ainda não rodou `update` desde
+  # o último bump manual de `forge.yaml` tem divergência LEGÍTIMA, não corrompida.
+  tv_yaml="$ROOT/.forge/forge.yaml"
+  tv_lock="$ROOT/.forge/cache/machinery.lock"
+  if [ -f "$tv_yaml" ]; then
+    tv_declared="$(grep -m1 -E '^[[:space:]]*template_version:' "$tv_yaml" 2>/dev/null \
+      | sed -E 's/^[^:]*:[[:space:]]*"?([^"[:space:]]*)"?[[:space:]]*$/\1/')"
+    if [ -z "$tv_declared" ]; then
+      info "harness: versão: forge.yaml sem template_version — nada a comparar contra machinery.lock"
+    elif [ ! -f "$tv_lock" ]; then
+      info "harness: versão: sem machinery.lock (consumidor nunca rodou update, ou cache foi limpo) — forge.yaml declara $tv_declared, não comparado"
+    else
+      tv_locked="$(head -1 "$tv_lock" 2>/dev/null | sed -E 's/.*template v([^[:space:]]*).*/\1/')"
+      if [ -z "$tv_locked" ] || [ "$tv_locked" = "$(head -1 "$tv_lock" 2>/dev/null)" ]; then
+        info "harness: versão: machinery.lock com cabeçalho ilegível — não comparado contra forge.yaml ($tv_declared)"
+      elif [ "$tv_declared" = "$tv_locked" ]; then
+        ok "harness: versão: forge.yaml template_version ($tv_declared) confere com machinery.lock"
+      else
+        warn "harness: versão: forge.yaml declara template_version $tv_declared, machinery.lock registra $tv_locked da última aplicação"
+        hint "cópia parcial de .forge de outro consumidor, ou forge.yaml editado à mão sem rodar update — confira com: npx forge-harness update"
+      fi
+    fi
+  fi
+
+  # ── divergência de _common.sh (e demais transportes) contra machinery.lock (LDG-0153) ──────────
+  # `.forge/cache/machinery.lock` já grava o sha256 de todo arquivo de maquinaria na versão
+  # aplicada por último (bin/forge.mjs:361, `writeMachineryLock`), e `bin/forge.mjs:617-643` já usa
+  # essa mesma comparação para o WARN de drift do `update`. O doctor nunca fazia a leitura
+  # equivalente para `scripts/lib/transports/_common.sh` e os demais transportes — o consumidor só
+  # descobria o `_common.sh` divergente quando um push já tinha destruído o hub de liaison, porque
+  # ninguém tinha rodado `update` para reconciliar (ou a deriva local nunca foi declarada).
+  #
+  # INFORMATIVO POR CONSTRUÇÃO: `warn` nomeando o arquivo, nunca `MISSING_DIAG` — o mesmo padrão
+  # dos dois checks acima (libs órfã, versão), pelo mesmo motivo: a divergência pode ser legítima
+  # (consumidor que ainda não rodou `update`, ou correção local deliberada sem exceção declarada
+  # ainda). Sem `machinery.lock` não há como provar nada, e a linha diz exatamente isso — nunca um
+  # `✓`, porque "não medido" e "medido e igual" são estados diferentes (mesmo motivo do contador de
+  # controle acima: colapsar os dois ensinaria o operador a confiar num silêncio que não mediu
+  # nada). Arquivo idêntico ao lock não emite linha nenhuma (contrafactual: medir e concluir
+  # igualdade não é notícia neste check, ao contrário do check de "versão" acima, que tem ✓
+  # próprio — a diferença é intencional, ver seção LDG-0153 do plano).
+  #
+  # Exceção viva declarada em `.forge/machinery-exceptions.txt` (mecanismo da #101/#131) troca a
+  # linha de divergência pelo nome do arquivo e a razão registrada — decisão humana já feita, cobrar
+  # de novo a cada `doctor` seria ruído. Mesma leitura de formato do bloco de TEMPLATE-PENDENTE
+  # acima: corte no primeiro `#`, exatamente dois tokens antes dele, sha hex minúsculo com pelo
+  # menos 32 dígitos, prefixos `./` e `.forge/` normalizados — só a razão (texto após o `#`) é nova
+  # aqui, porque os outros consumidores desse arquivo descartam o comentário.
+  tp_dir="$ROOT/.forge/scripts/lib/transports"
+  if [ -d "$tp_dir" ]; then
+    tp_lock="$ROOT/.forge/cache/machinery.lock"
+    if [ ! -f "$tp_lock" ]; then
+      info "harness: transports: não medido: sem machinery.lock"
+    else
+      tp_sha() {
+        if have shasum; then shasum -a 256 "$1" 2>/dev/null | awk '{print $1}'
+        elif have sha256sum; then sha256sum "$1" 2>/dev/null | awk '{print $1}'
+        else echo ""
+        fi
+      }
+      while IFS= read -r tp_f; do
+        [ -n "$tp_f" ] || continue
+        tp_rel="scripts/lib/transports/$(basename "$tp_f")"
+        tp_lock_sha="$(grep -E "^[0-9a-f]{64}  ${tp_rel}\$" "$tp_lock" 2>/dev/null | awk '{print $1}' | tail -1)"
+        [ -n "$tp_lock_sha" ] || continue  # sem entrada no lock para este caminho: nada a comparar
+        tp_local_sha="$(tp_sha "$tp_f")"
+        [ -n "$tp_local_sha" ] || continue
+        [ "$tp_local_sha" = "$tp_lock_sha" ] && continue  # idêntico: sem linha (contrafactual)
+        tp_reason=""
+        if [ -f "$ROOT/.forge/machinery-exceptions.txt" ]; then
+          while IFS= read -r exc_line || [ -n "$exc_line" ]; do
+            exc_reason="${exc_line#*#}"
+            [ "$exc_reason" = "$exc_line" ] && exc_reason=""
+            exc_body="${exc_line%%#*}"
+            exc_body="${exc_body//$'\r'/}"
+            read -r exc_sha exc_rel exc_resto <<<"$exc_body" || true
+            [ -n "${exc_rel:-}" ] && [ -z "${exc_resto:-}" ] || continue
+            [[ "$exc_sha" =~ ^[0-9a-f]{32,}$ ]] || continue
+            while [ "${exc_rel#./}" != "$exc_rel" ]; do exc_rel="${exc_rel#./}"; done
+            exc_rel="${exc_rel#.forge/}"
+            if [ "$exc_rel" = "$tp_rel" ]; then
+              tp_reason="$(printf '%s' "$exc_reason" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+              break
+            fi
+          done < "$ROOT/.forge/machinery-exceptions.txt"
+        fi
+        if [ -n "$tp_reason" ]; then
+          info "harness: transports: $tp_rel diverge do machinery.lock — exceção declarada: $tp_reason"
+        else
+          warn "harness: transports: $tp_rel diverge do machinery.lock (local $tp_local_sha, lock $tp_lock_sha)"
+          hint "declare em .forge/machinery-exceptions.txt se a deriva é deliberada, ou rode npx forge-harness update"
+        fi
+      done < <(find "$tp_dir" -maxdepth 1 -type f -name '*.sh' 2>/dev/null | sort)
     fi
   fi
 

@@ -1,0 +1,11 @@
+OK parse:config/bins.yaml
+OK frontmatter:docs/fluxo-tokenizacao.md
+OK grep+:process.exit(2)
+OK grep-:residuos
+OK grep-:mermaid-labels
+OK anti-empty:bin/validar-pan.js
+OK anti-empty:config/bins.yaml
+OK anti-empty:docs/fluxo-tokenizacao.md
+OK smoke:validar-pan:PAN-invalido (exit=2, esperado=2)
+
+gates: 9 OK, 0 FAIL

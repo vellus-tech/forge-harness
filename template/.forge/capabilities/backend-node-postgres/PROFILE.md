@@ -32,3 +32,5 @@ Um arquivo na raiz faz essa conversão. Audite com `bash .forge/scripts/node-bas
 ## Verificação
 
 Comece pela camada barata e determinística, nesta ordem: `bash .forge/scripts/node-baseline.sh --check` (a configuração está no lugar?), `bash .forge/skills/node-quality-scan/scripts/scan.sh` (o que o lint não pega), e só então o lint/build/test reais do projeto. Revisar `console.log` e import direto de banco à mão num repositório sem `forge-quality/*` cableado é gastar julgamento onde faltava lint.
+
+Persistência relacional: o catálogo de antipatterns e a varredura estática da skill `data-relational-practices` (`bash .forge/skills/data-relational-practices/scripts/scan.sh --root <path>`, uma linha por regra, achado com `arquivo:linha`) cobrem migração bloqueante, tipos, OFFSET profundo, NOLOCK, dinheiro em `NUMERIC` e tabela multi-tenant sem RLS; decisão de desenho de dados (modelo, store, chave, isolamento) vai ao agente `data-engineer`, que delega ao `data-relational`.

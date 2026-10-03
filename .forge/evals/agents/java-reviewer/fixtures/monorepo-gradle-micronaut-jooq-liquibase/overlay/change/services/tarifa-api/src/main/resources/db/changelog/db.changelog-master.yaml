@@ -1,0 +1,5 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/001-cria-tarifa.yaml
+  - include:
+      file: db/changelog/002-valor-integracao.yaml

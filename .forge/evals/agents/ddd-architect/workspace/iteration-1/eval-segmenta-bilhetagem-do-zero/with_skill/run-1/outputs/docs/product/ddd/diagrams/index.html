@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Diagramas C4 — Tarifa Viva</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 24px; background: #fafafa; color: #222; }
+    header { border-bottom: 1px solid #ddd; padding-bottom: 12px; margin-bottom: 16px; }
+    nav button { padding: 8px 16px; border: 1px solid #ccc; background: #fff; cursor: pointer; margin-right: 4px; border-radius: 4px; font-size: 0.95em; }
+    nav button.active { background: #0b67d6; color: #fff; border-color: #0b67d6; }
+    .panel { display: none; background: #fff; border: 1px solid #ddd; padding: 16px; border-radius: 6px; }
+    .panel.active { display: block; }
+    .meta { color: #666; font-size: 0.9em; }
+    .bcs { color: #444; font-size: 0.9em; margin-top: 4px; }
+    .bcs strong { color: #0b67d6; }
+    footer { margin-top: 16px; color: #999; font-size: 0.85em; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Diagramas C4 — Tarifa Viva</h1>
+    <p class="meta">Gerado em 2026-09-26 · Segmentação v1.0 · Status: Confirmar (primeira segmentação, do zero)</p>
+    <p class="bcs"><strong>Bounded Contexts:</strong> Fare Collection (Core) · Passenger Wallet (Core) · Settlement (Core) · Recharge (Supporting) · Identity and Access (Generic) · Notification (Generic)</p>
+  </header>
+  <nav>
+    <button data-tab="l1" class="active">Level 1 — System Context</button>
+    <button data-tab="l2">Level 2 — Containers</button>
+    <button data-tab="l3">Level 3 — Components</button>
+  </nav>
+  <section id="l1" class="panel active">
+    <div class="mermaid">
+flowchart TB
+    Passenger[Passageiro] --> TarifaViva[Sistema Tarifa Viva]
+    Manager[Gestor do Consorcio] --> TarifaViva
+    TarifaViva --> ValidaBus[Firmware ValidaBus]
+    TarifaViva --> Acquirer[Adquirente de Cartao]
+    TarifaViva --> PixPsp[PSP de Pix]
+    TarifaViva --> PosNetwork[Ponto de Venda Credenciado]
+    TarifaViva --> Fcm[Firebase Cloud Messaging]
+    TarifaViva --> Operators[Operadoras do Consorcio]
+    </div>
+  </section>
+  <section id="l2" class="panel">
+    <div class="mermaid">
+flowchart TB
+    Passenger[Passageiro] --> PassengerApp[Passenger App]
+    Manager[Gestor do Consorcio] --> BackofficeWeb[Consortium Backoffice Web]
+
+    PassengerApp -->|REST| IdentityService[identity-service]
+    PassengerApp -->|REST| RechargeService[recharge-service]
+    PassengerApp -->|REST| WalletService[passenger-wallet-service]
+    PassengerApp -->|REST| FareService[fare-collection-service]
+
+    BackofficeWeb -->|REST| WalletService
+    BackofficeWeb -->|REST| SettlementService[settlement-service]
+
+    ValidaBus[Firmware ValidaBus] -->|Protocolo proprietario| FareService
+    FareService -->|gRPC interno| WalletService
+    FareService -->|gRPC interno| SettlementService
+    RechargeService -->|gRPC interno| WalletService
+    WalletService -->|Fila RabbitMQ| NotificationWorker[notification-worker]
+
+    RechargeService -->|REST| Acquirer[Adquirente de Cartao]
+    RechargeService -->|REST| PixPsp[PSP de Pix]
+    PosNetwork[Ponto de Venda Credenciado] -->|REST| RechargeService
+
+    SettlementService -->|Arquivo/REST| Operators[Operadoras do Consorcio]
+    NotificationWorker -->|REST| Fcm[Firebase Cloud Messaging]
+
+    FareService --> FareDb[(PostgreSQL fare-collection)]
+    WalletService --> WalletDb[(PostgreSQL passenger-wallet)]
+    RechargeService --> RechargeDb[(PostgreSQL recharge)]
+    SettlementService --> SettlementDb[(PostgreSQL settlement)]
+    IdentityService --> IdentityDb[(PostgreSQL identity)]
+    </div>
+  </section>
+  <section id="l3" class="panel">
+    <div class="mermaid">
+flowchart TB
+    ValidaBus[Firmware ValidaBus] -->|Lote proprietario| Translator[ValidaBusBatchTranslator]
+    Translator --> BatchRepo[BoardingBatchRepository]
+    Translator --> RecordUseCase[RecordBoardingUseCase]
+    RecordUseCase --> TariffPolicy[Tariff and Transfer Discount Policy]
+    RecordUseCase --> BoardingRepo[BoardingRepository]
+    RecordUseCase --> Publisher[Domain Event Publisher]
+    Publisher -->|FareCharged / BoardingRejected| EventBus[(RabbitMQ)]
+    HistoryQuery[BoardingHistoryQuery] --> BoardingRepo
+    PassengerApp[Passenger App] -->|REST GET boardings history| HistoryQuery
+    WalletSnapshot[Blocklist Snapshot Consumer] -->|GET blocklist-snapshot| PassengerWalletApi[passenger-wallet-service]
+    RecordUseCase --> WalletSnapshot
+    </div>
+  </section>
+  <footer>Fonte: docs/product/ddd/diagrams/c4-level-{1,2,3}-*.md · Gerado por ddd-architect a partir de PRD v1.0, FRD v1.2, NFRD v1.1, TRD.</footer>
+  <script>
+    mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    document.querySelectorAll('nav button').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('nav button').forEach(function (b) { b.classList.remove('active'); });
+        document.querySelectorAll('.panel').forEach(function (p) { p.classList.remove('active'); });
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>

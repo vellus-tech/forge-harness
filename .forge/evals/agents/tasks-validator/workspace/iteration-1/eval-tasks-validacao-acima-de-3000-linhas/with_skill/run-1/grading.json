@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta final (ou o relatório salvo em outputs/) informa que o tasks.md tem mais de 3.000 linhas (citando uma contagem acima de 3.000, por exemplo 3.966, ou declarando explicitamente o limite de 3.000 ultrapassado) e a tabela 'Checks Executados' tem a linha 'Tamanho até 3.000 linhas' com resultado 'Falhou'.",
+      "passed": true,
+      "evidence": "Dois relatórios em outputs/ (validacao-tasks.md, gravado na re-execução de 28/09, e parecer-tasks-validator.md). validacao-tasks.md:15 '3.966 linhas ... acima do limite de 3.000 linhas'; :42-46 tabela 'Checks Executados' com '| Tamanho até 3.000 linhas | Falhou (3.966 linhas) |'. parecer-tasks-validator.md:15 e :48 idem. `wc -l work/docs/product/modules/validacao/tasks.md` → 3966, confirma a contagem."
+    },
+    {
+      "text": "A resposta tem 'Status: Reprovado', um achado '[BLOCKER-NN]' cujo título ou problema é o tamanho do tasks.md acima de 3.000 linhas, e a seção 'Decisão para o Pipeline' tem 'Pode seguir para execução: Não'.",
+      "passed": true,
+      "evidence": "validacao-tasks.md:5 'Status: Reprovado'; :19 '### [BLOCKER-01] tasks.md acima de 3.000 linhas — revisão detalhada bloqueada'; :72-74 '## Decisão para o Pipeline' / '- Pode seguir para execução: Não'. parecer-tasks-validator.md:5, :21 e :74-76 idem."
+    },
+    {
+      "text": "A correção recomendada manda o tasks-writer decompor o plano em arquivos por onda sob docs/product/modules/validacao/tasks/ citando pelo menos três nomes no padrão wave-NN-<foco>.md do contrato (wave-01-bootstrap.md, wave-02-domain.md, wave-03-application.md, wave-04-infrastructure.md, wave-05-api-contracts.md, wave-06-hardening.md) e diz que o tasks.md principal permanece como índice e matriz de rastreabilidade.",
+      "passed": true,
+      "evidence": "validacao-tasks.md:24 'decompor o plano, mantendo `tasks.md` como índice e matriz de rastreabilidade, com o detalhamento em arquivos auxiliares por onda' e :27-33 listam docs/product/modules/validacao/tasks/wave-01-bootstrap.md até wave-06-hardening.md (os seis nomes do contrato); :68 reforça. parecer-tasks-validator.md:26-36 e :70 idem."
+    },
+    {
+      "text": "A resposta NÃO apresenta achados de conteúdo das TASKs (nenhum achado sobre subtask de implementação antes do teste, PBT-01 ou RNF 1 sem TASK, Status Geral ausente, worktree ausente, coverage gates 'Não aplicável' ou TASKs individuais como TASK-001/TASK-137), e nenhuma linha da tabela 'Checks Executados' além da de tamanho está marcada como 'OK'.",
+      "passed": true,
+      "evidence": "Único achado é [BLOCKER-01] (validacao-tasks.md:8-11: 1 BLOCKER, 0 HIGH/MEDIUM/LOW). `grep -n '| OK\\|PBT-01\\|TASK-137\\|TASK-001\\|Não aplicável' outputs/*.md` → só parecer-tasks-validator.md:38, que cita 'TASK-001..TASK-280' como faixa ao recomendar redução de granularidade (consequência do tamanho), não como achado sobre TASK individual. Checks: validacao-tasks.md:47-64 e parecer:49-66 todos 'Não verificado', zero 'OK'. Menções a Status Geral/TDD-first/coverage gates (validacao-tasks.md:15, :70) aparecem só como checks bloqueados, não como achados. Ressalva: a recomendação de trocar 'uma TASK por linha' por TASK parametrizada (:36, :69) é observação estrutural explicitamente rotulada como não-achado de conteúdo."
+    },
+    {
+      "text": "No diretório do projeto, `git status --porcelain -- docs/` está vazio: não existe docs/product/modules/validacao/tasks/ e o tasks.md não foi alterado; o validador recomendou a decomposição em vez de executá-la.",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work status --porcelain -- docs/` → saída vazia (rc=0); `ls work/docs/product/modules/validacao/` → design.md README.md requirements.md tasks.md (sem diretório tasks/); tasks.md com 3966 linhas e único commit 'fixture: estado inicial'. validacao-tasks.md:24-33 recomenda a decomposição sem executá-la."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  }
+}

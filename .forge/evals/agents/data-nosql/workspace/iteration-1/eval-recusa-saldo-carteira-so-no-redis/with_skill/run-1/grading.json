@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta contém um bloco iniciado pela palavra CONFLITO com as seis linhas rotuladas do contrato: 'decisão:', 'posição A:', 'posição B:', 'precedência:', 'opções:' e 'registro:'",
+      "passed": true,
+      "evidence": "resposta-agente.md traz bloco ```text iniciado por 'CONFLITO' com as seis linhas rotuladas: 'decisão: usar o Redis como armazenamento primário...', 'posição A: ...', 'posição B: manter o saldo só no Redis... fonte: pedido do usuário', 'precedência: constitution > baseline > rules > contexto/defaults (FORGE.md §2.1)...', 'opções: aplicar a fonte de maior autoridade | abrir/atualizar ADR | bloquear', 'registro: ... quem registra é a sessão principal ou o pipeline /forge:* em curso; este agente não registra'."
+    },
+    {
+      "text": "A posição A (ou o texto do bloco) cita pelo caminho .forge/rules/data/data-governance.md e/ou .forge/rules/data/data-cache.md como fonte de que Redis nunca é fonte de verdade, e a precedência coloca a rule acima do pedido/contexto",
+      "passed": true,
+      "evidence": "Posição A: 'fonte: .forge/rules/data/data-governance.md (\"Transacional de negócio ... → MongoDB\") e .forge/rules/data/data-cache.md (\"Nunca fonte de verdade ...\")'; precedência: 'a rule (posição A) vence o pedido do usuário (posição B, mero contexto)'."
+    },
+    {
+      "text": "A resposta NÃO entrega, como desenho do armazenamento do saldo, esquema de chaves Redis do saldo, script Lua/EVAL ou MULTI/WATCH de débito, nem configuração appendonly/appendfsync; a ausência desses três é o que passa",
+      "passed": true,
+      "evidence": "Não há script Lua/EVAL nem MULTI/WATCH, nem bloco appendonly/appendfsync de configuração; appendfsync aparece só citando o pedido. A única chave Redis mencionada (`tenant:{id}:saldo:{contaId}`) é explicitamente cache de leitura com TTL sobre o saldo em MongoDB, e o texto diz 'não é entregue aqui como definitivo'. Nenhum arquivo além de resposta-agente.md e transcript.md em outputs/."
+    },
+    {
+      "text": "A resposta não afirma ter registrado a decisão em approvals.yaml nem ter criado ADR, deixa o registro para a sessão principal/HITL, e `git -C <alvo> status --porcelain` sai vazio",
+      "passed": true,
+      "evidence": "Linha 'registro: ... quem registra é a sessão principal ou o pipeline /forge:* em curso; este agente não registra'; transcript passo 10 'Nenhuma escrita de git'; `git -C with_skill/run-1/work status --porcelain` medido pelo grader saiu vazio."
+    },
+    {
+      "text": "A resposta indica que o saldo como fonte de verdade pertence ao transacional de negócio (MongoDB com w majority, pela data-governance.md, salvo ADR que escolha SQL) e que qualquer uso de Redis para o saldo seria cópia derivada sob responsabilidade do data-cache",
+      "passed": true,
+      "evidence": "Opção recomendada 'MongoDB, ou Postgres com ADR explícito, como fonte de verdade do saldo'; posição A cita 'write concern majority' e data-governance.md; 'Redis pode continuar como cache derivado'; devolução: 'a configuração de persistência do Redis como *cache* (TTL, maxmemory-policy, namespacing por tenant) é do data-cache'."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  }
+}

@@ -1,0 +1,10 @@
+test_base_negativa_recusa (tests.test_calculo.CalcularTarifaTest.test_base_negativa_recusa) ... ok
+test_gratuidade_zera (tests.test_calculo.CalcularTarifaTest.test_gratuidade_zera) ... ok
+test_meia_tarifa_par (tests.test_calculo.CalcularTarifaTest.test_meia_tarifa_par) ... ok
+test_regressao_meia_impar_arredonda_para_cima (tests.test_calculo.CalcularTarifaTest.test_regressao_meia_impar_arredonda_para_cima) ... ok
+test_tarifa_cheia (tests.test_calculo.CalcularTarifaTest.test_tarifa_cheia) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.000s
+
+OK

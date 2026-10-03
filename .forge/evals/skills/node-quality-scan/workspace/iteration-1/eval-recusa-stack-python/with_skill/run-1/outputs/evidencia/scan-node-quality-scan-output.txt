@@ -1,0 +1,13 @@
+INFO node-quality-scan root=<worktree-do-eval>/.forge/evals/skills/node-quality-scan/workspace/iteration-1/eval-recusa-stack-python/with_skill/run-1/work engine=rg
+OK empty-catch [HIGH] nenhuma ocorrência
+OK floating-promise [HIGH] nenhuma ocorrência
+OK sync-fs-blocking [BLOCKER] nenhuma ocorrência
+OK sql-interpolation [BLOCKER] nenhuma ocorrência
+OK new-pg-client [HIGH] nenhuma ocorrência
+OK process-env-direct [MEDIUM] nenhuma ocorrência
+OK date-now [MEDIUM] nenhuma ocorrência
+OK explicit-any [MEDIUM] nenhuma ocorrência
+OK generic-name [MEDIUM] nenhuma ocorrência
+OK mutable-module-state [HIGH] nenhuma ocorrência
+OK single-impl-interface [MEDIUM] nenhuma ocorrência
+PASS node-quality-scan (0 achados)

@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "O analysis.json em .forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/ existe e seu verdict não é 'improve' (esperado 'inconclusive'), apesar do delta.pass_rate positivo de +0.25 no aggregate.json.",
+      "passed": false,
+      "evidence": "Comando: find without_skill/run-1/work -name analysis.json → vazio; ls work/.forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/ → aggregate.json, eval-1..eval-4. A execução gravou só outputs/analise-pos-hoc.md (Markdown), que recomenda não aprovar mas não tem verdict estruturado."
+    },
+    {
+      "text": "findings contém um item com kind 'high_variance' cujo detail cita o stddev da variant 0.4463 e a média 0.5625 exatamente como estão no aggregate.json (ou a relação stddev maior que metade da média com esses valores).",
+      "passed": false,
+      "evidence": "Sem analysis.json nem findings. analise-pos-hoc.md linha 9 compara o stddev 0.4463 com o delta 0.25 (não com a média 0.5625); grep '5625\\|metade' só casa 'metade dos casos' (linha 9). Não há item de kind 'high_variance'."
+    },
+    {
+      "text": "findings contém um item de kind 'triggering' (ou kind equivalente que declare explicitamente não disparo da skill) cujo case identifica TC-03 ou eval-3 e cujo detail registra que a saída da variant é idêntica/igual à do baseline.",
+      "passed": false,
+      "evidence": "Sem analysis.json/findings. O conteúdo existe em prosa (analise-pos-hoc.md linha 17: TC-03 com 'mesma saída, palavra por palavra'; linha 9: skill 'pode nem ter sido efetivamente acionada'), mas a asserção exige item em findings com kind e case."
+    },
+    {
+      "text": "recommendation é uma única string que manda rodar /forge:skill-lifecycle optimize (na description) e/ou reavaliar com mais casos antes de promover — e não recomenda aprovar/promover a skill agora.",
+      "passed": false,
+      "evidence": "Sem campo recommendation. A seção '## Recomendação' de analise-pos-hoc.md (linhas 36-42) é lista de 3 itens, não string única, e grep 'optimize\\|skill-lifecycle' → nenhuma ocorrência; pede mais casos e investigar TC-03 e não recomenda aprovar, mas o contrato não é atendido."
+    },
+    {
+      "text": "git status mostra o analysis.json como único arquivo novo ou modificado; SKILL.md, aggregate.json e os quatro grading.json permanecem idênticos ao commit da fixture.",
+      "passed": false,
+      "evidence": "Comando: git -C without_skill/run-1/work status --porcelain --untracked-files=all | wc -l → 0. Nenhum analysis.json criado; a asserção exige o analysis.json como arquivo novo (os arquivos da fixture de fato ficaram intactos)."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0.0
+  },
+  "claims": [
+    {
+      "claim": "Delta não significativo por teste t pareado (t ≈ 1.7–2.0 < 3.18)",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Deltas [0.5,0.5,0,0]: média 0.25, sd amostral 0.2887, EP 0.1443, t≈1.73; conclusão correta."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Análise em prosa de boa qualidade, porém sem o artefato estruturado exigido."
+  }
+}

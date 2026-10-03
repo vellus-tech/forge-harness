@@ -1,0 +1,11 @@
+C4Context
+title Pagamentos Core — Diagrama de Contexto
+
+Person(operador, "Operador financeiro", "Time interno que emite cobrancas e concilia lancamentos")
+System(pagamentosCore, "Pagamentos Core", "Nucleo de cobranca, razao contabil e notificacoes (TypeScript)")
+System_Ext(adquirente, "Adquirente de pagamentos", "Processa transacoes de cartao e repassa liquidacao")
+System_Ext(smtp, "Provedor de e-mail (SMTP)", "Entrega notificacoes transacionais")
+
+Rel(operador, pagamentosCore, "Consulta faturas e lancamentos", "HTTPS")
+Rel(pagamentosCore, adquirente, "Envia cobrancas e recebe confirmacao", "REST/Webhook")
+Rel(pagamentosCore, smtp, "Envia e-mails de notificacao", "SMTP/API")

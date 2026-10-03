@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta identifica o achado como O-01, cita infra/storage/comprovantes.tf com número de linha (7, 8, 9 ou 10) e corrige colocando as quatro chaves do Block Public Access em true.",
+      "passed": false,
+      "evidence": "review.md achado 1 descreve o Block Public Access desligado e a correção põe os quatro campos em true (outputs/correcoes/comprovantes.tf), mas não usa o id O-01 em lugar algum e cita só o arquivo/recurso, sem número de linha (7-10). Duas das três exigências faltam."
+    },
+    {
+      "text": "A resposta identifica o achado como O-08 (SSE-KMS sem Bucket Key), cita infra/storage/comprovantes.tf:24 ou a linha do sse_algorithm aws:kms, e a correção inclui bucket_key_enabled = true.",
+      "passed": false,
+      "evidence": "Nenhuma menção a O-08, a Bucket Key ou a bucket_key_enabled em review.md nem em outputs/correcoes/comprovantes.tf (grep sem ocorrência); o achado 5 trata de enable_key_rotation, que é outro assunto."
+    },
+    {
+      "text": "A resposta identifica O-02 em src/comprovantes/emitir-link.ts:9, reduz a expiração para minutos (no máximo 3600 s) e reprova o envio do link por e-mail ao parceiro, propondo que o parceiro obtenha a URL por endpoint REST autenticado do produto, com log de emissão (ou por API REST do produto).",
+      "passed": false,
+      "evidence": "Achado 2 cita emitir-link.ts sem id O-02 e sem linha 9; app a 15 min, mas para o parceiro mantém envio do link por e-mail: 'gerar o link dedicado no momento do envio do fechamento diário ... (ex.: algumas horas, não dias)', com EXPIRACAO_PARCEIRO_SEGUNDOS de 4h em correcoes/emitir-link.ts (acima de 3600 s). Não reprova o e-mail nem propõe endpoint REST autenticado."
+    },
+    {
+      "text": "A resposta identifica O-11 em deploy/k8s/minio.yaml (linha 18) e diz que o repositório/edição comunitária do MinIO foi arquivado ou está sem correção de segurança, recomendando migração para alternativa mantida ou suporte comercial — não basta só fixar a tag no lugar de latest.",
+      "passed": false,
+      "evidence": "Achado 3 cita deploy/k8s/minio.yaml sem id O-11 e sem linha 18; trata a imagem só como 'tag não fixada' e a correção fixa uma tag de release. Não diz que a edição comunitária foi arquivada/sem correção de segurança nem recomenda migração ou suporte comercial — exatamente o 'não basta fixar a tag' da asserção."
+    },
+    {
+      "text": "A resposta aponta a falta de regra de ciclo de vida no bucket e propõe AbortIncompleteMultipartUpload e NoncurrentVersionExpiration (expiração de versões não correntes), citando O-03 e/ou O-04.",
+      "passed": false,
+      "evidence": "Achado 8 aponta ausência de lifecycle apenas como retenção fiscal/LGPD e declara 'não incluí correção pronta'; não propõe AbortIncompleteMultipartUpload nem NoncurrentVersionExpiration e não cita O-03/O-04 (grep por abort/noncurrent em correcoes/ sem ocorrência)."
+    },
+    {
+      "text": "Após a execução, git status --porcelain no diretório do projeto está vazio: as correções vêm como trechos na resposta, e nenhum arquivo do repositório foi criado ou alterado.",
+      "passed": true,
+      "evidence": "git -C without_skill/run-1/work status --porcelain executado pelo grader: saída vazia; log só com 'fixture: estado inicial'. As correções foram escritas em outputs/correcoes/, fora da árvore do projeto."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 5,
+    "total": 6,
+    "pass_rate": 0.1667
+  }
+}

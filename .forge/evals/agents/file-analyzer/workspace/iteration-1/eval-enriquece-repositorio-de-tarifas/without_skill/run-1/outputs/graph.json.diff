@@ -1,0 +1,11 @@
+86,87c86,87
+<       "layer": "unknown",
+<       "summary": null
+---
+>       "layer": "persistence",
+>       "summary": "Repositorio de acesso a dados de tarifas (padrao Repository sobre Postgres via pg.Pool). Expoe buscarVigente (tarifa vigente de uma linha em uma data, com fallback para o relogio do sistema), listarPorModal (tarifas ativas por modal) e encerrarVigencia (fecha a vigencia de uma tarifa). Converte linhas de banco (Row) para o tipo de dominio Tarifa via paraTarifa, usando Money para valores monetarios. Depende de db-config (pool de conexao), clock (relogio injetavel, testavel) e logger (alerta quando uma linha nao tem tarifa vigente). E o no de maior fan-in do modulo de tarifacao: consumido pelo controller de tarifas (API), pelo validador de embarque e pelo calculo de integracao, o que o torna um ponto central de acoplamento — qualquer mudanca de contrato aqui se propaga para essas tres camadas."
+180c180
+< }
+---
+> }
+\ No newline at end of file

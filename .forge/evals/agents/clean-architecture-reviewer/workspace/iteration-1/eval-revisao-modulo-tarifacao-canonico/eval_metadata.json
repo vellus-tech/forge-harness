@@ -1,0 +1,12 @@
+{
+  "eval_id": 1,
+  "eval_name": "revisao-modulo-tarifacao-canonico",
+  "prompt": "Acabei de extrair a tarifação de integração (ônibus + metrô, 25% de desconto se o segundo embarque for em outro modal dentro de 120 min) para src/Tarifacao, no formato canônico Api/Application/Domain/Infrastructure/Contracts. Antes de abrir o PR para develop, revisa se a Clean Architecture do módulo está respeitada — referências entre os .csproj, usings, onde está a regra de negócio, repositórios e nomes. Grava a revisão em docs/revisoes/clean-arch-tarifacao.md, com cada achado apontando arquivo e linha.",
+  "assertions": [
+    "docs/revisoes/clean-arch-tarifacao.md aponta como violação o `using Amazon.DynamoDBv2.DataModel` e o atributo `[DynamoDBTable(\"tarifas\")]` em src/Tarifacao/Tarifacao.Domain/Entities/Tarifa.cs, citando as linhas 1 e 5 (formato arquivo:linha ou equivalente explícito)",
+    "O relatório aponta CalcularTarifaIntegracaoHandler.cs (linhas 15 a 17, o if da janela de 120 min / desconto de 75/100) como lógica de negócio em handler de Application e recomenda movê-la para o Domain (entidade, value object ou serviço de domínio)",
+    "O relatório NÃO lista a ProjectReference de Tarifacao.Api.csproj para Tarifacao.Infrastructure como violação (ou a menciona explicitamente como permitida para DI), e não lista Application → Contracts como violação",
+    "O relatório aponta o prefixo de tecnologia em DynamoTarifaRepository (sugerindo TarifaRepository) E o nome imperativo do evento de domínio CalcularTarifaIntegracao, sugerindo um nome no passado",
+    "`git -C <alvo> status --porcelain -- src/` sai vazio: nenhum .cs ou .csproj de src/Tarifacao foi alterado — o revisor reporta, não corrige"
+  ]
+}

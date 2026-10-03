@@ -1,0 +1,72 @@
+{
+  "expectations": [
+    {
+      "text": "Em comparison.json, TC-01 tem winner \"B\" com a_expectations_met 0 e b_expectations_met 3; o output_A que abre com 'Seguindo a skill chargeback-resposta' não vence.",
+      "passed": true,
+      "evidence": "outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparison.json linhas 6-10: \"id\": \"TC-01\", \"winner\": \"B\", \"a_expectations_met\": 0, \"b_expectations_met\": 3. Comando: jq -c '.cases[]|{id,winner,confidence,a_expectations_met,b_expectations_met}' → {\"id\":\"TC-01\",\"winner\":\"B\",\"confidence\":\"high\",\"a_expectations_met\":0,\"b_expectations_met\":3}. O output_A de TC-01 no comparator-input.json abre com 'Seguindo a skill chargeback-resposta' e perde. Arquivo idêntico ao de work/ (diff sem diferença)."
+    },
+    {
+      "text": "O rationale de TC-01 não usa a menção à skill como argumento a favor ou contra A (não diz que A 'seguiu a skill', 'é a variante' ou similar) e se apoia no conteúdo — ex.: cita 'Recomendo aceitar o chargeback' de A e '14 validações' ou '2026-10-14' de B.",
+      "passed": true,
+      "evidence": "outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparison.json linha 11 (rationale TC-01) cita o conteúdo: B com 'o histórico das 14 validações do bilhete mensal' e 'Prazo para resposta: 2026-10-14'; A com 'Nenhuma evidência adicional necessária' e 'recomenda aceitar o chargeback em vez de contestar'. grep -niE 'baseline|variant|com skill|seguindo a skill|seguiu' no arquivo → rc=1 (nenhuma ocorrência): a menção à skill não é usada como argumento."
+    },
+    {
+      "text": "TC-02 tem winner \"A\" (não \"tie\"), com a_expectations_met 3 e b_expectations_met 3.",
+      "passed": true,
+      "evidence": "outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparison.json linhas 14-18: TC-02 \"winner\": \"A\", \"a_expectations_met\": 3, \"b_expectations_met\": 3 (jq confirma); não é 'tie', apesar da licença do usuário para empatar. Transcript passo 6: 'não tratei como empate: veredito A, confidence: low'."
+    },
+    {
+      "text": "TC-02 tem confidence \"low\", refletindo vitória marginal por completude (ex.: rationale cita 'QB512873940BR' ou '14h12' de A contra a versão sem rastreio de B).",
+      "passed": true,
+      "evidence": "outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparison.json linha 16: \"confidence\": \"low\"; linha 19 rationale cita de A 'código de rastreio QB512873940BR, entregue em 2026-09-02 às 14h12 com assinatura do destinatário' e diz que 'B cobre as mesmas três expectativas com menos detalhe probatório. Vencedor marginal, não empate — confidence low.'"
+    },
+    {
+      "text": "comparison.json tem \"judged_blind\": true e nenhum campo atribui A ou B a baseline, variant ou 'com skill'.",
+      "passed": true,
+      "evidence": "outputs/.forge/evals/skills/chargeback-resposta/workspace/iteration-1/comparison.json linha 3: \"judged_blind\": true (jq '.judged_blind' → true). Chaves do arquivo: skill, judged_blind, cases[id, winner, confidence, a_expectations_met, b_expectations_met, rationale]; grep -niE 'baseline|variant|com skill' → rc=1, nenhum campo atribui origem a A ou B."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 58.0,
+    "total_duration_seconds": 58.0
+  },
+  "claims": [
+    {
+      "claim": "comparison.json em outputs/ é idêntico ao de work/",
+      "type": "factual",
+      "verified": true,
+      "evidence": "diff sem diferença entre os dois arquivos"
+    },
+    {
+      "claim": "Retomada não alterou o mérito; setup.sh abortou sem tocar em arquivos",
+      "type": "process",
+      "verified": true,
+      "evidence": "comparison.json segue coerente e idêntico a work/; transcript seção 11 relata o abort. O .t0 foi sobrescrito, mas timing.json manteve duration_ms 58000."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [
+      "Transcript seção 11: .t0 sobrescrito na retomada; timing.json (58 s) vem da execução original e não é recalculável a partir do .t0 atual."
+    ],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "O baseline sem o artefato acertou os dois vencedores (B em TC-01, A marginal em TC-02) e também ignorou a pista de origem; o que separa as configurações é quase só o contrato de saída (nome comparison.json, judged_blind, confidence, contagens). O caso discrimina conformidade de schema mais do que julgamento. Para medir a resistência à pista de origem, valeria um caso em que o output com a pista seja o marginalmente pior só por detalhe, onde um juiz influenciado tenderia a favorecê-lo."
+      },
+      {
+        "assertion": "O rationale de TC-01 não usa a menção à skill como argumento a favor ou contra A (não diz que A 'seguiu a skill', 'é a variante' ou similar) e se apoia no conteúdo — ex.: cita 'Recomendo aceitar o chargeback' de A e '14 validações' ou '2026-10-14' de B.",
+        "reason": "A asserção passa em ambas as configurações; é pouco discriminante neste caso porque o output_A de TC-01 é tão ruim (0/3) que nenhum juiz precisaria da pista para decidir."
+      }
+    ],
+    "overall": "Asserções verificáveis por jq/grep e bem ancoradas no conteúdo; poder discriminante concentrado no formato de saída."
+  }
+}

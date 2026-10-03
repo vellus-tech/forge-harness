@@ -1,0 +1,77 @@
+{
+  "expectations": [
+    {
+      "text": "docs/arquitetura/analise-tarifacao.md NÃO lista src/domain/tarifa.ts → src/infrastructure/postgres-tarifa-repository.ts (nem qualquer domain → infrastructure) como violação, e declara explicitamente que o grafo não contém essa dependência",
+      "passed": true,
+      "evidence": "outputs/docs/arquitetura/analise-tarifacao.md (idêntico a work/docs/...) linha 23: 'não confirmado. O grafo `.forge/graph/graph.json` não contém nenhuma aresta `src/domain/tarifa.ts → src/infrastructure/postgres-tarifa-repository.ts`'; linha 50: '`domain/tarifa.ts` depende apenas de outro artefato de domínio'. Nenhuma aresta domain → infrastructure é listada como violação."
+    },
+    {
+      "text": "O relatório fundamenta a negativa no grafo — cita o resultado de `graph.sh path` (NO PATH) ou `graph.sh query`, ou as edges do graph.json de src/domain/tarifa.ts (apenas → src/domain/tabela-tarifaria.ts) — e não apenas em leitura do arquivo-fonte",
+      "passed": true,
+      "evidence": "Relatório linha 23 fundamenta a negativa primeiro no grafo ('O grafo `.forge/graph/graph.json` não contém nenhuma aresta ...'), linha 4 declara graph.json como fonte e a tabela (linha 12) mostra `src/domain/tarifa.ts` dependendo só de `domain/tabela-tarifaria.ts`; transcript passo 6 conferiu as 6 edges. A afirmação confere com `jq -c '.edges[]'` em without_skill/run-1/work. Ressalva: `grep -c 'NO PATH'` no relatório → 0 e nenhum uso de graph.sh; a leitura do fonte (transcript passo 4) veio antes do grafo e tem peso igual. Passa só porque a asserção aceita 'as edges do graph.json'."
+    },
+    {
+      "text": "O relatório identifica que a origem da alegação é o comentário TODO em src/domain/tarifa.ts e o trata como intenção/comentário, não como relação de dependência existente",
+      "passed": true,
+      "evidence": "Relatório linhas 39-46: 'existe um comentário `TODO` em `src/domain/tarifa.ts` que descreve uma *intenção futura*' ... 'Isso provavelmente foi o que o tech lead viu ... Hoje é apenas um comentário — não há import nem chamada correspondente'; linha 51: 'A causa provável do mal-entendido é o comentário TODO'."
+    },
+    {
+      "text": "O relatório aponta como violação candidata a aresta src/application/calcular-tarifa.ts → src/infrastructure/postgres-tarifa-repository.ts, citando .forge/rules/architecture/camadas-tarifacao.md (application não importa infrastructure diretamente)",
+      "passed": false,
+      "evidence": "Falha. O relatório menciona a aresta `calcular-tarifa.ts` → `postgres-tarifa-repository.ts` (linhas 11 e 25-35), mas a declara correta: linha 37 'Essa é exatamente a inversão de dependência esperada' e linha 50 '- Não há violação de camadas hoje'. `grep -c camadas-tarifacao outputs/docs/arquitetura/analise-tarifacao.md` → 0: a regra do projeto nunca foi consultada, e ela proíbe exatamente essa aresta (camadas-tarifacao.md linha 16, regra 2). O relatório levaria à retro a conclusão errada."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain -- src/` sai vazio: o comentário e os imports não foram editados",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work status --porcelain -- src/` → saída vazia; `git -C ... log --oneline` → só '88de5bf chore: estado inicial da fixture'; work/src/domain/tarifa.ts linha 1 mantém o import e linhas 3-4 o TODO."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "execution_metrics": {
+    "output_chars": 4722,
+    "transcript_chars": 2821
+  },
+  "timing": {
+    "executor_duration_seconds": 76,
+    "total_duration_seconds": 76
+  },
+  "claims": [
+    {
+      "claim": "'Não há violação de camadas hoje' (relatório linha 50)",
+      "type": "factual",
+      "verified": false,
+      "evidence": "camadas-tarifacao.md regra 2 (linha 16) proíbe application → infrastructure, e a aresta existe no graph.json."
+    },
+    {
+      "claim": "Fluxo main → api → application → {domain, infrastructure} é 'o sentido correto' (linha 17)",
+      "type": "quality",
+      "verified": false,
+      "evidence": "Contradiz a regra do projeto; julgamento feito por convenção genérica, não pela regra local."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "O executor with_skill leu evals.json do próprio caso (transcript passo 5: 'Também li `evals.json` ... para entender o contrato de aceite'). As conclusões foram reproduzidas por comando (graph.sh path, jq, git status), então as asserções passam por substância, mas o delta A/B está contaminado: o harness de execução deveria bloquear leitura de .forge/evals/ pelo executor, ou a run deveria ser refeita."
+      },
+      {
+        "assertion": "O relatório fundamenta a negativa no grafo — cita o resultado de `graph.sh path` (NO PATH) ou `graph.sh query`, ou as edges do graph.json de src/domain/tarifa.ts (apenas → src/domain/tabela-tarifaria.ts) — e não apenas em leitura do arquivo-fonte",
+        "reason": "Aceitar 'as edges do graph.json' deixa passar um relatório que menciona o grafo de passagem e se apoia na leitura do fonte (caso without_skill); exigir o resultado de `graph.sh path` (NO PATH) discriminaria o uso do procedimento do agente."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o mapa de camadas com contagem (api 1, application 1, domain 2, infrastructure 1, unknown 1) nem o maior fan-in (src/domain/tabela-tarifaria.ts, 2), pedidos no prompt e no expected_output; o without_skill não traz contagem nem fan-in e isso passa despercebido."
+      }
+    ],
+    "overall": "A asserção 4 é a única que discrimina (without_skill conclui 'Não há violação de camadas hoje'). As demais passam nas duas configurações. A contaminação do with_skill (leu evals.json) deve ser tratada antes de tomar o delta como verdade."
+  }
+}

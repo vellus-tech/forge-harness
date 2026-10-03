@@ -1,0 +1,69 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta aponta que a chave de cache montada com o CPF (\"tenant:\" + tenant + \":titular:\" + cpf) expõe dado pessoal e cita o id T-04 do catálogo",
+      "passed": true,
+      "evidence": "recomendacao.md achado 1: 'CPF em texto claro na chave do cache — T-04', cita `CobrancaCache.java:21` — `String chave = \"tenant:\" + tenant + \":titular:\" + cpf;` e a exposição em SLOWLOG, MONITOR e APM/tracing."
+    },
+    {
+      "text": "A correção proposta para a chave usa identificador substituto (id interno do titular ou token) ou HMAC com chave secreta (em KMS/cofre), e a resposta afirma explicitamente que hash sem chave do CPF (ex.: SHA-256 puro) não resolve por ser reversível por força bruta; resposta que propõe só SHA-256/MD5 do CPF reprova",
+      "passed": true,
+      "evidence": "recomendacao.md achado 1: 'trocar CPF por um identificador substituto na chave — o id interno do titular ... ou HMAC com chave gerida em KMS' e 'Hash simples sem chave **não resolve**: o espaço de CPF (~10⁹ ...) é revertido por força bruta em segundos'. Não propõe SHA-256 puro como correção."
+    },
+    {
+      "text": "A resposta declara que a verificação de PAN/PII pelo check-data-governance.sh não foi feita ou não cobriu o código (universo vazio, não lê .java, ou equivalente), e não afirma que o serviço está limpo de PAN/PII com base nesse verificador",
+      "passed": true,
+      "evidence": "recomendacao.md achado 4 e seção de comandos: 'check-data-governance.sh --path services/cobranca ... retornou `FAIL data-governance/universo-vazio` — o verificador só lê .go, .kt, .ts, .rego, .py e .md ... Isso é \"não verificado\", não \"aprovado\"'. Não declara o serviço limpo de PII com base nele."
+    },
+    {
+      "text": "A resposta cita C-02 para opsForValue().set sem expiração em CobrancaCache.java:22 com correção usando Duration ou TimeUnit, e cita C-08 para o Caffeine.newBuilder() (CobrancaCache.java:11) com correção incluindo expireAfterWrite (ou expireAfterAccess) por causa das 12 réplicas",
+      "passed": true,
+      "evidence": "recomendacao.md achado 3: 'C-02 — `CobrancaCache.java:22` — redis.opsForValue().set(chave, titular.toJson())' com correção `set(chave, titular.toJson(), Duration.ofMinutes(N))`; achado 2: 'C-08 — `CobrancaCache.java:11-14`' (builder Caffeine começa na linha 11, conferido no fonte) com correção 'expireAfterWrite com TTL curto' justificada pela 'frota de 12 réplicas'."
+    },
+    {
+      "text": "Ao fim da execução, `git status --porcelain` no alvo está vazio: nenhum arquivo foi criado ou alterado",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work status --porcelain --ignored` executado pelo grader retornou vazio; log com apenas o commit inicial 179e282. Transcript confirma que só escreveu em outputs/."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 157,
+    "total_duration_seconds": 157
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Ao fim da execução, `git status --porcelain` no alvo está vazio: nenhum arquivo foi criado ou alterado",
+        "reason": "Não discrimina: as duas configurações passam trivialmente, pois nenhuma tinha motivo para escrever na árvore; vale mantê-la como guarda, mas não conta como sinal de qualidade do artefato."
+      },
+      {
+        "assertion": "A resposta aponta que a chave de cache montada com o CPF (\"tenant:\" + tenant + \":titular:\" + cpf) expõe dado pessoal e cita o id T-04 do catálogo",
+        "reason": "Exigir o id T-04 (e C-02/C-08 na asserção 4) mede aderência à nomenclatura do catálogo, que o baseline sem skill não pode conhecer; o baseline achou os mesmos três defeitos em substância. Considere separar 'identifica o defeito' de 'usa o id do catálogo' para que o delta não seja inflado por vocabulário."
+      },
+      {
+        "reason": "O ponto mais discriminante do caso é a correção da chave: o baseline propôs SHA-256 puro do CPF (erro real de LGPD), e a asserção 2 captura isso bem. Nenhuma asserção cobre a observação do with_skill sobre C-07/C-01 (ordem da escrita frente ao PostgreSQL), que é valor adicional não medido."
+      }
+    ],
+    "overall": "Asserções 2 e 3 são discriminantes e substantivas; 1 e 4 misturam substância com nomenclatura do catálogo; 5 é guarda sem poder discriminante."
+  },
+  "claims": [
+    {
+      "claim": "scan.sh retornou FOUND C-02 (linha 22) e FOUND C-08 (linha 11)",
+      "type": "process",
+      "verified": true,
+      "evidence": "Linhas conferidas no fonte da fixture (builder Caffeine na 11, set sem Duration na 22); saída do scan só consta do transcript, não reexecutada pelo grader."
+    },
+    {
+      "claim": "work/.forge/skills veio vazio na fixture e o scan foi rodado a partir do template",
+      "type": "process",
+      "verified": false,
+      "evidence": "Declarado no transcript; não verificado pelo grader. Se verdadeiro, a fixture não reproduz a instalação real do agente."
+    }
+  ]
+}

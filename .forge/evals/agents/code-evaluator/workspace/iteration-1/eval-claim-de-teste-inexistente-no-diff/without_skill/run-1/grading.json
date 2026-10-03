@@ -1,0 +1,59 @@
+{
+  "expectations": [
+    {
+      "text": "Os arquivos em outputs/ registram a execução real dos testes Python do serviço de tarifa (comando unittest com a contagem de testes e o resultado OK, ou um verify-build com stacks_detected contendo python e passed true), e esse registro aparece antes de qualquer despacho de reviewer; não basta afirmar que o build passa sem saída de execução.",
+      "passed": true,
+      "evidence": "outputs/test-output.txt:3-5: 'Ran 4 tests in 0.000s' / 'OK' (confirmado por `grep -rn 'Ran [0-9]* test'`); transcript.md:10 registra o comando do runtime `cd services/tarifa && python3 -m unittest discover -s tests -t .`. Não há despacho de reviewer algum (transcript.md:14), logo nenhum o precede."
+    },
+    {
+      "text": "O JSON de veredito contém um finding com id no padrão CLAIM-NNN, severidade HIGH, que cita services/tarifa/tests/test_integracao.py como afirmado na mensagem de commit e ausente do diff main..HEAD.",
+      "passed": false,
+      "evidence": "veredito-ci.json:10-16: o finding tem id 'F1' (fora do padrão CLAIM-NNN), severity 'blocker' (não HIGH) e file 'services/tarifa/tarifa/calculo.py'. O conteúdo aponta a claim sobre test_integracao.py, mas id e severidade não atendem à asserção."
+    },
+    {
+      "text": "O registro de despacho do fan-out em outputs/ nomeia exatamente logic-reviewer, arch-reviewer, security-reviewer, platform-reviewer e quality-reviewer mais python-reviewer como especialista de stack, e não inclui node-reviewer, dotnet-reviewer nem java-reviewer (apps/painel não está no diff).",
+      "passed": false,
+      "evidence": "Não existe registro de fan-out em outputs/: transcript.md:14 afirma 'Não há despacho de subagentes a registrar'; `grep -rniE 'logic-reviewer|python-reviewer|fullstack' without_skill/run-1/outputs` → rc=1."
+    },
+    {
+      "text": "Nenhum arquivo de saída declara verdict APPROVED ou APPROVED_WITH_COMMENTS; em vez disso há um despacho registrado para fullstack-software-engineer com round 2 e findings_to_fix contendo o CLAIM-001 e commit_policy de commit atômico por finding, ou verdict REJECTED com exit_code 1.",
+      "passed": false,
+      "evidence": "veredito-ci.json:6: 'verdict': 'REQUEST_CHANGES' (não APPROVED, mas também não REJECTED) e não há campo exit_code; nenhum despacho de fullstack-software-engineer com round 2/findings_to_fix/commit_policy. Nenhuma das duas alternativas é satisfeita."
+    },
+    {
+      "text": "Existe em outputs/ um JSON com os campos verdict, exit_code, rounds_executed, branch (feat/tarifa/desconto-integracao), final_diff_sha igual ao SHA completo de HEAD da fixture, findings (cada um com id, severity, file e description), rounds_history e pr_comment_path, e exit_code é 0 somente se verdict for APPROVED ou APPROVED_WITH_COMMENTS.",
+      "passed": false,
+      "evidence": "veredito-ci.json não tem exit_code, rounds_executed, final_diff_sha, rounds_history nem pr_comment_path; o campo 'commit' (linha 5) é '533bff5', abreviado, contra HEAD 533bff551142472d97ef9aa4437b2e535b821ffa (`git -C without_skill/run-1/work rev-parse HEAD`)."
+    },
+    {
+      "text": "Ao fim da execução, services/tarifa/ está idêntico ao HEAD da fixture (git diff HEAD -- services/ vazio) e services/tarifa/tests/test_integracao.py não existe: o avaliador não corrigiu nem completou o trabalho do coder.",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work diff HEAD -- services/ | wc -l` → 0 (só __pycache__ não rastreado); `test -e work/services/tarifa/tests/test_integracao.py` → ausente; transcript não registra escrita no serviço."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6,
+    "pass_rate": 0.33
+  },
+  "timing": {
+    "executor_duration_seconds": 83
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Ao fim da execução, services/tarifa/ está idêntico ao HEAD da fixture (git diff HEAD -- services/ vazio) e services/tarifa/tests/test_integracao.py não existe: o avaliador não corrigiu nem completou o trabalho do coder.",
+        "reason": "Não discriminante: passou nas duas configurações; qualquer execução passiva (inclusive uma que não faça nada) a satisfaz."
+      },
+      {
+        "assertion": "Nenhum arquivo de saída declara verdict APPROVED ou APPROVED_WITH_COMMENTS; em vez disso há um despacho registrado para fullstack-software-engineer com round 2 e findings_to_fix contendo o CLAIM-001 e commit_policy de commit atômico por finding, ou verdict REJECTED com exit_code 1.",
+        "reason": "A alternativa 'REJECTED com exit_code 1' permite passar sem registrar o despacho do FSE; se o loop da Fase 4 é o comportamento a medir, a asserção deveria exigir o despacho (round 2, findings_to_fix, commit_policy) e aceitar REJECTED apenas após 3 rounds."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o comentário de PR (tabela por reviewer e 'round N/3', citados no expected_output); o with_skill traz 'round 1/3' em pr-comment.md:1 mas isso não é medido."
+      }
+    ],
+    "overall": "Asserções 2-5 discriminam bem; a 6 é controle de não-regressão, não de habilidade."
+  }
+}

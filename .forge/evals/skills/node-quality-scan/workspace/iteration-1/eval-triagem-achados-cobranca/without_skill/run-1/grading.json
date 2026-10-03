@@ -1,0 +1,53 @@
+{
+  "expectations": [
+    {
+      "text": "outputs/triagem-cobranca.md informa, antes da triagem dos achados, que o node-baseline --check reprova / não há eslint.config.* com as regras forge-quality/* no serviço.",
+      "passed": false,
+      "evidence": "grep -n -i 'baseline\\|eslint\\|forge-quality' without_skill/run-1/outputs/triagem-cobranca.md → nenhuma ocorrência. O relatório começa direto pela triagem (linha 5: '## 1. Pool do pg') sem mencionar node-baseline --check nem ausência de eslint.config.*/forge-quality/*; o transcript também não registra execução do node-baseline (única ocorrência de 'baseline' é a linha 3, 'Condição: baseline sem skill')."
+    },
+    {
+      "text": "O achado new-pg-client em src/db/bootstrap.ts é classificado como exceção legítima (módulo de bootstrap de conexão), não como defeito a corrigir.",
+      "passed": true,
+      "evidence": "Linha 5: '## 1. Pool do pg (src/db/bootstrap.ts) — deixar como está'; 'O pool é criado uma única vez, num módulo dedicado (bootstrap.ts), e importado como singleton por boot.ts ... É o padrão correto'. Tabela linha 41: 'Falso positivo — singleton correto'. Sugestão de timeouts é opcional/pós-release, não correção."
+    },
+    {
+      "text": "O achado sync-fs-blocking em src/boot.ts é classificado como aceitável por rodar uma vez no boot, antes de o servidor aceitar conexões.",
+      "passed": true,
+      "evidence": "Linha 9: '## 2. readFileSync (src/boot.ts) — deixar como está'; 'acontece uma única vez, no bootstrap do processo, antes de app.listen, fora de qualquer caminho de requisição ... o servidor não pode aceitar conexões antes de ter o certificado carregado'."
+    },
+    {
+      "text": "O achado single-impl-interface (CobrancaRepository) é tratado como porta de domínio deliberada, sem recomendar remover a interface.",
+      "passed": true,
+      "evidence": "Linha 13: '## 3. Interface com uma implementação só (CobrancaRepository) — deixar como está'; linha 15: 'É o padrão ports-and-adapters (hexagonal) aplicado deliberadamente para testabilidade — não é abstração prematura', citando repoEmMemoria em test/fakes.ts. Não recomenda remover."
+    },
+    {
+      "text": "O achado floating-promise em src/jobs/lembrete.ts é reconhecido como falso positivo porque o .catch() está na linha seguinte da cadeia.",
+      "passed": false,
+      "evidence": "Linha 17: '## 4. .then/.catch em vez de async/await (src/jobs/lembrete.ts) — deixar como está, com ressalva de estilo'; linha 19 trata o achado como questão de estilo .then vs async/await e tabela linha 44 diz 'Estilo, não defeito'. Reconhece que o .catch existe, mas não identifica o achado como floating-promise nem como falso positivo da heurística por o .catch estar na linha seguinte da cadeia (o motivo exigido pela asserção); ainda sugere padronizar estilo depois."
+    },
+    {
+      "text": "A interpolação de SQL em src/infra/PgCobrancaRepository.ts:13 é o único achado classificado como defeito real (BLOCKER/injeção de SQL), com arquivo:linha, e nenhum arquivo em src/ foi modificado (git status limpo no alvo).",
+      "passed": false,
+      "evidence": "A SQL é o único defeito real (linha 21: 'CORRIGIR ANTES DO RELEASE', linha 27: 'injeção de SQL clássica') e git -C work status --porcelain → vazio (src/ intocado). Porém falta arquivo:linha: grep -n ':13\\|linha 13' outputs/triagem-cobranca.md → nenhuma ocorrência; cita só 'src/infra/PgCobrancaRepository.ts, método marcarPaga'. Parte conjuntiva da asserção não atendida."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A interpolação de SQL em src/infra/PgCobrancaRepository.ts:13 é o único achado classificado como defeito real (BLOCKER/injeção de SQL), com arquivo:linha, e nenhum arquivo em src/ foi modificado (git status limpo no alvo).",
+        "reason": "Asserção conjuntiva (único defeito + arquivo:linha + git limpo): uma falha de formatação (sem ':13') derruba o mérito técnico; considerar separar."
+      },
+      {
+        "assertion": "O achado floating-promise em src/jobs/lembrete.ts é reconhecido como falso positivo porque o .catch() está na linha seguinte da cadeia.",
+        "reason": "Distingue bem skill vs sem skill: sem skill o modelo lê o achado como estilo .then vs async/await, não como falso positivo da heurística de uma linha."
+      }
+    ],
+    "overall": "Asserções 2-4 não discriminam (sem skill também acerta por raciocínio geral); o sinal está em 1, 5 e 6."
+  }
+}

@@ -1,0 +1,1 @@
+OK graph (10 nodes, 15 edges; 1 warning(s) — 2 orphan node(s) to review — dead code or unresolved imports: src/domain/desconto.ts, src/jobs/expurgo-legado.ts)

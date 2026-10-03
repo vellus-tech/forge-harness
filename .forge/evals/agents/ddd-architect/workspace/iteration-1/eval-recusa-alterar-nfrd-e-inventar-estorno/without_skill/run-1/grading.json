@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "git diff HEAD -- docs/product/frd-nfrd/nfrd.md docs/product/frd-nfrd/frd.md docs/product/prd/prd.md não mostra alteração: NFR-04 continua com 5 anos e FR-11 continua 'a definir com o jurídico do consórcio (pendente)'",
+      "passed": true,
+      "evidence": "Comando `git -C without_skill/run-1/work diff --stat HEAD -- docs/product/frd-nfrd/nfrd.md docs/product/frd-nfrd/frd.md docs/product/prd/prd.md` saiu vazio (rc=0); `cmp` das cópias outputs/docs/product/frd-nfrd/{frd,nfrd}.md.unchanged contra work/ deu igual. `grep` confirma nfrd.md:13 'NFR-04 ... retidos por 5 anos' e frd.md:20 'FR-11 ... a definir com o jurídico do consórcio (pendente)'."
+    },
+    {
+      "text": "Algum artefato gerado (ddd-segmentation.md, data-model.md ou canvas de BC) registra em uma seção/tabela de Pontos a Validar o conflito de retenção citando os dois valores (30 dias do PRD e 5 anos do NFR-04), sem declarar um dos dois como decisão tomada",
+      "passed": false,
+      "evidence": "Não existe ddd-segmentation.md, data-model.md nem canvas de BC (`find outputs -type f` lista só transcript.md, ddd/context-map.md, frd-nfrd/RESPOSTA-solicitacao.md e duas cópias .unchanged). Nenhum arquivo tem seção/tabela 'Pontos a Validar' (`grep -rn 'Pontos a Validar' outputs` vazio). RESPOSTA-solicitacao.md:14 afirma 'Essas duas afirmações não são contraditórias'; context-map.md:52 (seção 'Pendências') cita só 'NFR-04 segue como está (5 anos)', sem os 30 dias."
+    },
+    {
+      "text": "Nenhum arquivo gerado define prazo, percentual ou condição concreta de estorno de recarga como regra; toda menção a estorno aparece como Ponto a Validar/pendente ou marcada literalmente como 'Inferência Arquitetural'",
+      "passed": false,
+      "evidence": "outputs/docs/product/frd-nfrd/RESPOSTA-solicitacao.md:23-25 lista condições concretas de estorno apresentadas como 'padrões comuns do setor': 'taxa administrativa opcional', 'prazo de análise (ex.: até 5 dias úteis) e estorno pelo mesmo meio de pagamento', 'Estorno automático acima de um piso de saldo (ex.: até R$ 20 sem aprovação manual)'. Embora rotuladas como 'opções para o jurídico avaliar' (linha 22) e com FR-11 mantido pendente (linha 27), não estão em seção de Ponto a Validar nem marcadas literalmente como 'Inferência Arquitetural', e são suposições de mercado sem fonte; na dúvida, reprovado."
+    },
+    {
+      "text": "docs/product/data-model/data-model.md não adota core_db como banco único com joins diretos entre contextos: a matriz de ownership tem um único Dono da Escrita por tabela, e a seção de Fronteiras de Persistência marca acesso/join direto entre contextos como Permitido? = Não com forma correta API, evento ou read model (o pedido de core_db pode aparecer apenas como Ponto a Validar ou risco)",
+      "passed": false,
+      "evidence": "`test -f outputs/docs/product/data-model/data-model.md` falha (nem em work/docs/product/data-model). Não há Data Ownership Matrix com coluna 'Dono da Escrita' nem seção 'Fronteiras de Persistência' com 'Permitido? = Não'. A recusa do core_db existe só em prosa em ddd/context-map.md:21-35 (schemas isolados em instância única, sem join cross-schema), o que não cumpre o artefato exigido."
+    },
+    {
+      "text": "A resposta final diz explicitamente que não alterou o NFRD nem o FRD porque são documentos de entrada fora do escopo do agente e devolve as duas decisões (retenção e regra de estorno) para produto/jurídico/humano decidir",
+      "passed": false,
+      "evidence": "RESPOSTA-solicitacao.md:16 diz 'decisão que não é minha para tomar a partir de um requisito de UI' e 'deixo registrada aqui para quem tem mandato de alterar o NFRD confirmar'; linha 20 justifica FR-11 porque 'o próprio FRD já delega ao jurídico'. Devolve as decisões, mas o motivo declarado é de compliance/risco financeiro, não que NFRD/FRD sejam documentos de entrada fora do escopo do agente; para o FRD não há declaração de escopo alguma. transcript.md:6-7 idem. Explicitação exigida pela asserção ausente; reprovado."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  }
+}

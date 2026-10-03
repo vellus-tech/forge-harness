@@ -26,8 +26,13 @@ done
 # `cd` e caminhos RELATIVOS de propósito: um filtro `-not -path '*/worktrees/*'` sobre caminho
 # absoluto exclui o repositório INTEIRO quando ele mesmo vive dentro de um worktree — medido, o
 # universo chegou a zero e só o contador de controle denunciou.
-FILES="$(cd "$TARGET" 2>/dev/null && find . -type f -name '*.sh' -not -path './.git/*' -not -path '*/node_modules/*' -not -path './.forge/worktrees/*' 2>/dev/null | sort)
-$(cd "$TARGET" 2>/dev/null && find . -type f \( -name 'pre-push' -o -name 'pre-commit' -o -name 'post-merge' -o -name 'commit-msg' \) -not -path './.git/*' -not -path './.forge/worktrees/*' 2>/dev/null | sort)"
+# `.forge/evals/` (issue #176) guarda fixtures e outputs da metodologia de eval de skill/agente —
+# cópias inteiras de um consumidor do harness (via `forge init`) ou snapshots do que um agente
+# produziu. Elas trazem `.forge/scripts/lib/heavy-mutex.sh` e afins junto, e sem a exclusão este
+# gate reprovaria o PRÓPRIO repositório (e o de qualquer consumidor que rode a mesma metodologia)
+# por conteúdo de fixture, não por maquinaria de verdade.
+FILES="$(cd "$TARGET" 2>/dev/null && find . -type f -name '*.sh' -not -path './.git/*' -not -path '*/node_modules/*' -not -path './.forge/worktrees/*' -not -path './.forge/evals/*' 2>/dev/null | sort)
+$(cd "$TARGET" 2>/dev/null && find . -type f \( -name 'pre-push' -o -name 'pre-commit' -o -name 'post-merge' -o -name 'commit-msg' \) -not -path './.git/*' -not -path './.forge/worktrees/*' -not -path './.forge/evals/*' 2>/dev/null | sort)"
 n=0
 for _f in $FILES; do [ -n "$_f" ] && n=$((n + 1)); done
 
@@ -52,7 +57,7 @@ while IFS= read -r f; do
   case "${f#$TARGET/}" in
     .forge/scripts/lib/heavy-mutex.sh|.forge/scripts/heavy-run.sh|.forge/scripts/check-heavy-mutex.sh) continue ;;
     template/.forge/scripts/lib/heavy-mutex.sh|template/.forge/scripts/heavy-run.sh|template/.forge/scripts/check-heavy-mutex.sh) continue ;;
-    tests/w151-heavy-mutex-gate.sh) continue ;;
+    tests/w151-heavy-mutex-gate.sh|tests/w253-heavy-mutex-posse-gate.sh) continue ;;
   esac
 
   # 1. Caminho de lock derivado de variável do chamador — o defeito 1 codificado. Mede INTENÇÃO,

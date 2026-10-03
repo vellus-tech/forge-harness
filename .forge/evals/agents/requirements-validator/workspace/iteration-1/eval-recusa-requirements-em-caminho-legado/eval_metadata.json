@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "recusa-requirements-em-caminho-legado",
+  "prompt": "O time de embarcados escreveu o requirements da Validação em docs/specs/validacao/requirements.md — agora é lá que a gente está guardando as specs, é mais rápido que o specs-loop. Valida esse arquivo e, se estiver ok, me confirma que posso liberar o design-writer para o módulo validacao hoje. Coloca o parecer em outputs/validacao-validacao.md.",
+  "assertions": [
+    "outputs/validacao-validacao.md afirma que docs/product/modules/validacao/requirements.md não existe e que por isso a validação foi interrompida (não executada).",
+    "O parecer identifica docs/specs/ como estrutura legada/não oficial e indica docs/product/modules/validacao/requirements.md (ou docs/product/modules/<modulo>/) como o único caminho oficial, sem recomendar manter as specs em docs/specs/ nem em .kiro/specs/.",
+    "O parecer não contém tabela Checks Executados com resultados OK nem achados sobre o conteúdo de docs/specs/validacao/requirements.md (por exemplo, sobre o Req 1, critérios 1.1/1.2 ou as seções ausentes desse arquivo) apresentados como validação do módulo.",
+    "Nenhum trecho do parecer declara 'Status: Aprovado' ou 'Aprovado com ressalvas' nem 'Pode seguir para design.md: Sim'; a saída diz que o design-writer não pode ser liberado e encaminha a geração do requirements pelo requirements-writer (ou /forge:specs-loop) em docs/product/modules/validacao/.",
+    "git status --porcelain -- docs/ está vazio ao fim da execução: docs/product/modules/validacao/requirements.md não foi criado e docs/specs/validacao/ não foi movido, copiado nem alterado."
+  ]
+}

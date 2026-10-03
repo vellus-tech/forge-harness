@@ -1,0 +1,34 @@
+{
+  "skill": "triagem-alerta-pagamentos",
+  "description": "Triagem de alertas operacionais de pagamentos por adquirente.",
+  "runner": "claude-code",
+  "test_cases": [
+    {
+      "id": "TC-01",
+      "prompt": "Chegou alerta: taxa de negação 05 subiu para 18% na Cielo nos últimos 10 min. Triagem?",
+      "expectations": [
+        "Classifica a severidade do alerta (SEV1–SEV4) com justificativa",
+        "Identifica o adquirente afetado pelo código de resposta",
+        "Propõe o próximo passo do runbook citando a seção"
+      ]
+    },
+    {
+      "id": "TC-02",
+      "prompt": "PagerDuty disparou timeout no gateway Rede, p99 de 4s. O que faço?",
+      "expectations": [
+        "Classifica a severidade do alerta (SEV1–SEV4) com justificativa",
+        "Identifica o adquirente afetado pelo código de resposta",
+        "Propõe o próximo passo do runbook citando a seção"
+      ]
+    },
+    {
+      "id": "TC-03",
+      "prompt": "Alerta de chargeback acima do limiar na Getnet, 1,2% no mês. Prioridade?",
+      "expectations": [
+        "Classifica a severidade do alerta (SEV1–SEV4) com justificativa",
+        "Identifica o adquirente afetado pelo código de resposta",
+        "Propõe o próximo passo do runbook citando a seção"
+      ]
+    }
+  ]
+}

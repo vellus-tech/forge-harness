@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forge/schemas/ledger.schema.json",
+  "title": "ledger.json — ledger durável de projeto (roadmap & tech-debt)",
+  "description": "Store durável e NÃO-BLOQUEANTE de trabalho conhecido que sobrevive entre changes: roadmap, dívida técnica, bugs conhecidos, follow-ups e ideias de feature. Vive em .forge/ledger/ (fora de MACHINERY_DIRS — preservado byte-a-byte pelo forge update). Populado por captura automática (harvest de deferrals/analysis/verification no close/archive) e por curadoria manual (/forge:ledger add). A view humana é LEDGER.md, renderizada deterministicamente daqui.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["entries"],
+  "properties": {
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "title", "status", "source", "created_at", "dedup_key"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^LDG-[0-9]{4}$",
+            "description": "Contador global monotônico (max existente + 1), zero-padded a 4 dígitos."
+          },
+          "type": {
+            "enum": ["roadmap", "tech-debt", "known-bug", "follow-up", "feature-idea"]
+          },
+          "title": { "type": "string", "minLength": 1 },
+          "detail": { "type": "string" },
+          "severity": {
+            "enum": ["BLOCKER", "HIGH", "MEDIUM", "LOW", null],
+            "description": "Reusa o enum de findings do harness (analysis.md/code-evaluator). null quando não aplicável."
+          },
+          "priority": {
+            "enum": ["P0", "P1", "P2", "P3", null]
+          },
+          "status": {
+            "enum": ["open", "planned", "in-progress", "resolved", "wont-fix", "promoted"]
+          },
+          "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["origin"],
+            "properties": {
+              "change_id": { "type": ["string", "null"] },
+              "origin": {
+                "enum": ["analyze", "verify", "close", "archive", "manual", "session", "seed"]
+              },
+              "ref": {
+                "type": ["string", "null"],
+                "description": "Referência na fonte: DEFER-NN, SEC-001, linha de tabela de finding, etc."
+              }
+            }
+          },
+          "links": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "adr": { "type": "array", "items": { "type": "string" } },
+              "capability": { "type": "array", "items": { "type": "string" } },
+              "change": { "type": "array", "items": { "type": "string" } },
+              "promoted_to": {
+                "type": ["string", "null"],
+                "description": "change-id criado a partir desta entrada (status: promoted)."
+              }
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "description": "Data do commit HEAD (git log -1 --format=%cI) quando registrada — NÃO wall clock, para determinismo. Vazio fora de git."
+          },
+          "updated_at": { "type": ["string", "null"] },
+          "resolved_at": { "type": ["string", "null"] },
+          "dedup_key": {
+            "type": "string",
+            "description": "Chave de idempotência do harvest: \"${change_id}:${ref}\" (ex.: add-auth:DEFER-02). Manual usa \"manual:${id}\"."
+          }
+        }
+      }
+    }
+  }
+}

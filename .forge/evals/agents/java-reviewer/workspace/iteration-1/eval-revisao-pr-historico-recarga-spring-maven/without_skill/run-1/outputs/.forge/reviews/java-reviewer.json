@@ -1,0 +1,69 @@
+{
+  "reviewer": "java-reviewer",
+  "target": "git diff develop..HEAD",
+  "findings": [
+    {
+      "arquivo": "src/main/java/br/com/axis/bilhetagem/recarga/RecargaHistoricoQuery.java",
+      "linha": 17,
+      "cenario": "listar(cartaoId, status) monta o SQL por concatenação de string, interpolando o parâmetro status (vindo direto de @RequestParam em RecargaController.historico) dentro da cláusula WHERE. Um valor como CONFIRMADA' OR '1'='1 altera a query e vaza recargas de qualquer cartão; JdbcClient já oferece bind parameters (usados corretamente no método inserir logo abaixo) e não foram usados aqui.",
+      "severidade": "critical",
+      "categoria": "sql-injection"
+    },
+    {
+      "arquivo": "src/main/java/br/com/axis/bilhetagem/recarga/RecargaService.java",
+      "linha": 22,
+      "cenario": "recarregar(request) e historico(cartaoId, status) operam sobre qualquer cartaoId recebido do cliente sem checar que o cartão pertence ao titular autenticado. O próprio código-base já expõe CartaoService.buscarDoTitular(cartaoId, titularId) para essa validação, mas RecargaService não o usa — permite que um titular recarregue ou leia o histórico de recarga de um cartão de terceiros (IDOR / broken object-level authorization) em ambos os endpoints (POST /api/v1/recargas e GET /api/v1/cartoes/{cartaoId}/recargas).",
+      "severidade": "critical",
+      "categoria": "broken-access-control"
+    },
+    {
+      "arquivo": "src/main/java/br/com/axis/bilhetagem/recarga/RecargaController.java",
+      "linha": 24,
+      "cenario": "recarregar(@RequestBody RecargaRequest request) não tem @Valid no parâmetro. As anotações @NotNull e @Positive definidas em RecargaRequest (cartaoId, valorCentavos) nunca são avaliadas pelo Spring, então um valorCentavos negativo ou zero passa direto para a inserção — bean validation configurada (starter-validation está no pom.xml) mas inoperante neste endpoint.",
+      "severidade": "high",
+      "categoria": "correctness"
+    },
+    {
+      "arquivo": "src/main/java/br/com/axis/bilhetagem/recarga/RecargaService.java",
+      "linha": 26,
+      "cenario": "historico(cartaoId, status) itera a lista retornada por historicoQuery.listar e, para cada item, chama cartaoRepository.findById(recarga.cartaoId()) — mas cartaoId é o mesmo para todos os itens da lista (é o parâmetro de busca), então a mesma linha da tabela cartao é buscada N vezes em vez de uma única vez fora do laço. Um histórico com 200 recargas gera 200 SELECTs redundantes no cartão.",
+      "severidade": "medium",
+      "categoria": "performance-n-plus-1"
+    },
+    {
+      "arquivo": "src/main/java/br/com/axis/bilhetagem/recarga/RecargaController.java",
+      "linha": 30,
+      "cenario": "O filtro de histórico tem defaultValue = \"CONFIRMADA\", mas RecargaHistoricoQuery.inserir sempre grava a recarga recém-criada com status 'PENDENTE' (linha 23 de RecargaHistoricoQuery.java). Isso significa que, sem outro processo assíncrono que promova PENDENTE para CONFIRMADA, uma recarga nunca aparece no histórico consultado pelo endpoint com os parâmetros default — comportamento provavelmente não é o pretendido e deveria ser coberto por teste de integração explícito.",
+      "severidade": "medium",
+      "categoria": "logic"
+    },
+    {
+      "arquivo": "src/main/java/br/com/axis/bilhetagem/recarga/RecargaService.java",
+      "linha": 14,
+      "cenario": "RecargaService usa injeção por campo (@Autowired private ...) em historicoQuery e cartaoRepository, divergindo do padrão de injeção por construtor já estabelecido em CartaoService e CartaoRepository no mesmo módulo. Dificulta testes unitários (não dá para construir RecargaService com mocks sem reflection) e esconde dependências obrigatórias na assinatura da classe.",
+      "severidade": "low",
+      "categoria": "consistency"
+    },
+    {
+      "arquivo": "src/main/java/br/com/axis/bilhetagem/recarga/RecargaService.java",
+      "linha": 29,
+      "cenario": "cartaoRepository.findById(recarga.cartaoId()).orElseThrow() usa o orElseThrow() sem supplier, lançando NoSuchElementException genérica em vez da CartaoNaoEncontradoException de domínio usada em CartaoService.buscarDoTitular. Um cartão referenciado por uma recarga histórica mas já removido (se isso for possível) resulta em erro não mapeado, provavelmente um 500 cru em vez de uma resposta de erro tratada.",
+      "severidade": "low",
+      "categoria": "error-handling"
+    },
+    {
+      "arquivo": "src/main/java/br/com/axis/bilhetagem/recarga/RecargaController.java",
+      "linha": 28,
+      "cenario": "GET /api/v1/cartoes/{cartaoId}/recargas não tem paginação nem limite de resultados; para um cartão com histórico longo, historicoQuery.listar retorna a tabela inteira filtrada e RecargaService.historico monta a lista completa em memória, com uma query adicional de cartão por item (ver achado de N+1). Sugestão: adicionar limit/offset ou keyset pagination antes de expor este endpoint em produção.",
+      "severidade": "low",
+      "categoria": "performance"
+    },
+    {
+      "arquivo": "src/main/java/br/com/axis/bilhetagem/recarga/RecargaController.java",
+      "linha": 24,
+      "cenario": "POST /api/v1/recargas retorna ResponseEntity.ok(...) (200) para uma operação que cria um novo recurso; a convenção REST esperada é 201 Created, idealmente com o header Location apontando para o recurso criado (ou pelo menos para o histórico do cartão).",
+      "severidade": "low",
+      "categoria": "rest-convention"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "interpreta-eval-release-notes",
+  "prompt": "Terminei a iteração 1 do eval A/B da nossa skill release-notes-ptbr (fonte em tools/claude-skills/release-notes-ptbr/SKILL.md). O eval-aggregate.sh já rodou e deu pass-rate 0.4167→0.6667, mas antes de promover a skill quero a análise pós-hoc: o que essa média está escondendo e o que eu faço em seguida. Entrada: {\"skill\": \"release-notes-ptbr\", \"aggregate_file\": \".forge/evals/skills/release-notes-ptbr/workspace/iteration-1/aggregate.json\", \"grading_files\": [\".forge/evals/skills/release-notes-ptbr/workspace/iteration-1/eval-1/grading.json\", \".forge/evals/skills/release-notes-ptbr/workspace/iteration-1/eval-2/grading.json\", \".forge/evals/skills/release-notes-ptbr/workspace/iteration-1/eval-3/grading.json\"]}",
+  "assertions": [
+    "Existe .forge/evals/skills/release-notes-ptbr/workspace/iteration-1/analysis.json, JSON válido, com as chaves skill, verdict, summary, findings (array) e recommendation, e verdict é um de improve, neutral, regress ou inconclusive.",
+    "findings contém um item com kind 'regression' cujo case identifica TC-02 ou eval-2 e cujo detail menciona a expectativa de citar o número do PR (baseline passou, variant falhou).",
+    "findings contém um item com kind 'systematic_miss' cujo campo expectation (ou detail) nomeia a expectativa de separar breaking changes/mudanças incompatíveis em seção própria e registra que falha em 3 de 3 casos.",
+    "analysis.json cita o custo da variant com os valores literais do aggregate.json — delta de tokens 5200 (ou tokens_mean 8000→13200) e/ou delta de duração 18666.7 ms — e todo valor de pass-rate citado (0.4167, 0.6667, 0.25, 0.1179) coincide com o aggregate.json, sem média ou stddev recalculados com valor diferente.",
+    "recommendation é uma única string (não lista) que nomeia uma ação concreta — um comando como /forge:skill-lifecycle optimize ou uma alteração específica no SKILL.md/description (ex.: instruir a seção de mudanças incompatíveis ou a citação do número do PR em hotfix).",
+    "git status no projeto mostra como único arquivo novo ou modificado o analysis.json; SKILL.md, evals.json, aggregate.json e os três grading.json permanecem idênticos ao commit da fixture."
+  ]
+}

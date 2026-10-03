@@ -1,0 +1,49 @@
+{
+  "status": "simulated",
+  "reason": "Ambiente sem origin remoto, sem gh autenticado e sem MCP Atlassian conectado nesta sessão — nenhuma ação externa foi executada. Todos os comandos e conteúdos estão em outputs/sprint-runbook.md e outputs/pr-body.md.",
+  "module": "recarga",
+  "wave": 2,
+  "branch": "feat/recarga/wave-2",
+  "worktree": ".forge/worktrees/recarga-wave-2",
+  "task_ids": ["TASK-05", "TASK-06", "TASK-07", "TASK-08"],
+  "pr_url": null,
+  "pr_number": null,
+  "pr_would_be": {
+    "repo_slug": "axis-mobfintech/bilhetagem-recarga",
+    "base": "main",
+    "head": "feat/recarga/wave-2",
+    "title": "feat(recarga): wave 2 — Recarga via Pix",
+    "label": "auto-review",
+    "body_file": "outputs/pr-body.md"
+  },
+  "jira_sync": {
+    "attempted": 0,
+    "succeeded": 0,
+    "failed": 0,
+    "blocked": 4,
+    "issues_moved": [],
+    "issues_estimated_not_confirmed": ["REC-21", "REC-22", "REC-23", "REC-24"],
+    "note": "MCP Atlassian indisponível nesta sessão; chaves reais não consultadas via JQL. Numeração estimada por continuidade da onda 1 (REC-17..REC-20)."
+  },
+  "tracker_update": {
+    "file": "docs/product/modules/recarga/PROGRESS-TRACKING.md",
+    "applied": false,
+    "reason": "Edição + commit + push em main bloqueados pela regra do ambiente (nunca git commit/push/checkout) e pela ausência de origin.",
+    "content_prepared_in": "outputs/sprint-runbook.md (seção Fase 4)"
+  },
+  "spec_lifecycle": {
+    "change_id": "recarga-pix",
+    "current_status": "tasks-ready",
+    "would_advance_to": "implementing",
+    "script": ".forge/scripts/spec-advance-module.sh recarga implementing",
+    "applied": false,
+    "reason": "Depende da Fase 4 (tracker) não aplicada; tratado como escrita fora do escopo autorizado desta simulação."
+  },
+  "subagent_dispatch": [],
+  "next_steps": [
+    "Configurar origin e autenticar gh neste ambiente",
+    "Conectar MCP Atlassian para confirmar as chaves REC-NN reais da onda 2",
+    "Executar de fato os comandos listados em outputs/sprint-runbook.md, na ordem",
+    "Após PR aberto: aguardar code-evaluator (CI), merge após APPROVED, então /forge:deploy-wave recarga dev"
+  ]
+}

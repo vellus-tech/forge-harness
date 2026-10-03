@@ -1,0 +1,3 @@
+Nenhum subagente foi spawnado, nem registrado como despacho, nesta execução.
+
+Segundo o protocolo `code-evaluator.md`, a Fase 2 (fan-out para reviewers: logic-reviewer, arch-reviewer, security-reviewer, platform-reviewer, quality-reviewer, python-reviewer ou fullstack-software-engineer conforme a stack) só é acionada se a Fase 1.3 (`check-red-first`) não retornar BLOCKER. Como o gate 1.3 retornou `CONFLICT`/BLOCKER (RED-001), o agente nunca chegou à Fase 2 — não há despacho, real ou hipotético, a documentar aqui. O pipeline foi de 1.3 direto para a Fase 5 (veredito), exatamente como `code-evaluator.md` manda.

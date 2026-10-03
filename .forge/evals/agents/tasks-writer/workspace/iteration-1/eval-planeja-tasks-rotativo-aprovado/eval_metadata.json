@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "planeja-tasks-rotativo-aprovado",
+  "prompt": "O requirements (v1.1.0) e o design (v1.0.0) do módulo de estacionamento rotativo foram aprovados ontem no comitê. Escreve o tasks.md do módulo para o time começar a sprint na segunda — a ideia é o task-coder pegar direto dele. Tudo está em docs/product/modules/rotativo/. Stack é a do ADR-0001 (.NET 8, FsCheck, NetArchTest).",
+  "assertions": [
+    "Em docs/product/modules/rotativo/tasks.md toda tarefa tem cabeçalho no formato 'TASK-NN' (dois dígitos) e suas subtasks usam 'ST-MM' reiniciando em ST-01 a cada TASK; não existe nenhum heading 'Onda N' contendo checkboxes de ST-NN diretamente abaixo dele (onda aparece só como campo da TASK e na tabela da seção de Ondas).",
+    "Em toda TASK que implementa lógica (Domain, Application, Infrastructure ou Api), a primeira subtask é marcada como Red/teste que falha e a última é de Encerramento (checks, commit e push); nenhuma TASK dessas camadas tem subtask Green antes de uma Red.",
+    "A seção 'Matriz de Rastreabilidade' tem uma linha para cada uma das origens Req 1, Req 2, Req 3, RNF 1, RNF 2, PBT-01, PBT-02, PBT-03, DD-001 e DD-002, cada uma apontando para pelo menos uma TASK que existe na seção de Tarefas.",
+    "O conjunto de IDs TASK-NN listados na tabela da seção 'Status Geral' é idêntico ao conjunto de headings TASK-NN da seção 'Tarefas' (nenhum a mais, nenhum a menos), e cada linha traz branch no padrão '<tipo>/rotativo/<NN>-<slug>' com o mesmo NN da TASK.",
+    "O cabeçalho do tasks.md referencia 'requirements.md v1.1.0' e 'design.md v1.0.0' e tem Status 'Rascunho' ou 'Rascunho para revisão' (não 'Aprovado para desenvolvimento', já que o próprio tasks.md ainda não foi aprovado), além de uma tabela 'Histórico de Versões'.",
+    "docs/product/modules/rotativo/README.md deixou de mostrar tasks.md como 'Não iniciado' e passou a registrar a versão e o status do novo tasks.md (ou, se não foi editado, a resposta final do agente recomenda explicitamente a atualização do README com versão, status e quantidade de TASKs)."
+  ]
+}

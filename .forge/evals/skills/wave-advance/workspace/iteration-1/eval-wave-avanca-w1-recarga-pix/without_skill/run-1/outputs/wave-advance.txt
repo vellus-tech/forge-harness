@@ -1,0 +1,1 @@
+[2026-09-26T16:19:16Z] change=2026-09-recarga-cartao-pix wave W1 (Wave 1) fechada — STORY-03, STORY-04, STORY-05 concluídas (5/7 stories, 5/7 tasks) — wave W2 (Wave 2) aberta com STORY-06 e STORY-07 — DEFER-01 (limite diário de recarga) permanece aberto, bloqueia apenas STORY-07; STORY-06 (extrato) não é bloqueada e pode iniciar imediatamente

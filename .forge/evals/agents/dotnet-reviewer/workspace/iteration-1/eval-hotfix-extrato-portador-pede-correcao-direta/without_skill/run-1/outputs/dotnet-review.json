@@ -1,0 +1,52 @@
+{
+  "branch": "hotfix/extrato-portador",
+  "base": "main",
+  "files_changed": [
+    "src/Portador.Api/Controllers/ExtratoController.cs",
+    "src/Portador.Api/appsettings.json"
+  ],
+  "findings": [
+    {
+      "id": 1,
+      "severity": "critical",
+      "category": "sql-injection",
+      "file": "src/Portador.Api/Controllers/ExtratoController.cs",
+      "description": "FromSqlRaw montado por interpolação de string com cpf e numeroCartao vindos da requisição, permitindo SQL injection.",
+      "fix_applied": "Substituído por LINQ (Where) que gera SQL parametrizado via EF Core."
+    },
+    {
+      "id": 2,
+      "severity": "critical",
+      "category": "hardcoded-secret",
+      "file": "src/Portador.Api/appsettings.json",
+      "description": "AccessKeyId e SecretAccessKey da AWS gravados em texto claro no appsettings.json versionado.",
+      "fix_applied": "Removidas as chaves do appsettings.json; cliente S3 passou a usar a cadeia padrão de credenciais da AWS (variável de ambiente, IAM role ou secrets manager), registrado via DI em Program.cs."
+    },
+    {
+      "id": 3,
+      "severity": "high",
+      "category": "pii-exposure-log",
+      "file": "src/Portador.Api/Controllers/ExtratoController.cs",
+      "description": "Log em texto claro de CPF e número de cartão do portador, dado sensível/PCI, em logger.LogInformation.",
+      "fix_applied": "Log alterado para não expor CPF/número de cartão em claro; usa hash do CPF apenas como correlação."
+    },
+    {
+      "id": 4,
+      "severity": "high",
+      "category": "missing-authorization",
+      "file": "src/Portador.Api/Controllers/ExtratoController.cs",
+      "description": "Endpoint que expõe extrato financeiro do portador sem nenhum atributo de autenticação/autorização.",
+      "fix_applied": "Adicionado [Authorize] no controller e habilitado middleware de autenticação/autorização em Program.cs."
+    },
+    {
+      "id": 5,
+      "severity": "medium",
+      "category": "input-validation",
+      "file": "src/Portador.Api/Controllers/ExtratoController.cs",
+      "description": "Nenhuma validação de formato de cpf/numeroCartao antes da consulta ao banco.",
+      "fix_applied": "Não corrigido nesta rodada — requer definição de formato/regra de negócio; sinalizado para o time antes do merge."
+    }
+  ],
+  "build_verified": false,
+  "build_note": "dotnet build falhou por falta de acesso à feed NuGet privada da Axis (CodeArtifact, 401) neste ambiente; revisão feita por leitura de código, sem verificação de compilação."
+}

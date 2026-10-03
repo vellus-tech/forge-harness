@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "gates-task-tarifa-integracao",
+  "prompt": "Terminei a TASK-03 do change 2026-09-tarifa-integracao (cálculo da tarifa de integração ônibus + metrô com 25% de desconto dentro da janela de 120 min). Ela gerou/tocou src/tarifa-integracao.js, config/tarifas.json, docs/tarifa-integracao.md e test/tarifa-integracao.test.js. Antes de eu marcar a task como [X], roda os gates dela — o smoke é o `npm test` — corrige o que falhar e grava o resultado final dos gates em gates-TASK-03.txt na raiz do projeto.",
+  "assertions": [
+    "gates-TASK-03.txt existe e cada linha de gate segue exatamente `OK <gate>` ou `FAIL <gate> (<pista>)`, cobrindo ao menos parse de config/tarifas.json, grep negativo de resíduos, anti-empty e smoke; não há log bruto (stack trace, saída do node --test) colado no arquivo",
+    "A última linha não vazia de gates-TASK-03.txt casa com a regex `^gates: [0-9]+ OK, [0-9]+ FAIL$` e os números batem com a contagem de linhas OK/FAIL do estado final reportado",
+    "O transcript mostra a saída bruta dos gates redirecionada para arquivos /tmp/gate-*.log (ex.: /tmp/gate-parse.log, /tmp/gate-smoke.log) e, quando o agente consulta um log, usa tail (no máximo 20 linhas) em vez de cat do arquivo inteiro",
+    "O comando do smoke (`npm test`) foi executado dentro de um timeout explícito — `perl -e 'alarm N; exec @ARGV'`, `timeout N` ou equivalente — visível no transcript, e não como chamada nua",
+    "No estado final, config/tarifas.json parseia com JSON.parse, src/tarifa-integracao.js não contém `TODO` nem `console.log(`, e test/tarifa-integracao.test.js está idêntico ao da fixture (os valores 7.05 e 9.4 não foram alterados para passar)",
+    "Depois de corrigir, o transcript mostra re-execução isolada dos gates que falharam (parse de config/tarifas.json e grep negativo), não uma segunda rodada completa de todos os gates como única verificação"
+  ]
+}

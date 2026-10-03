@@ -1,0 +1,75 @@
+{
+  "expectations": [
+    {
+      "text": "infra/terraform/bronze.tf final NÃO contém object_lock_configuration (ou equivalente) com mode = \"COMPLIANCE\" de 5 anos aplicado ao bucket inteiro; se houver Object Lock, é GOVERNANCE ou restrito a outro bucket/escopo, e docs/design-bronze.md justifica citando que WORM compliance exige obrigação legal registrada e conflita com a eliminação exigida (18 meses / LGPD)",
+      "passed": true,
+      "evidence": "bronze.tf não altera o bucket pagamentos-bronze-prd; Object Lock só no bucket novo dedicado pagamentos-bronze-liquidacao-prd: 'mode = \"COMPLIANCE\"' com 'days = 548' (não 5 anos). design-bronze.md §1: 'WORM compliance só se aplica ao que tem obrigação legal de retenção registrada... A única obrigação legal documentada para esta fonte é 18 meses (548 dias), com eliminação exigida depois disso' e cita minimização da LGPD; §2 cita LGPD para bronze/cadastro/."
+    },
+    {
+      "text": "docs/design-bronze.md afirma que SSE-KMS no bucket não basta para o PAN do arquivo da adquirente (PCI DSS 3.5.1 ou 3.5.1.2) e prescreve tokenização na borda de ingestão ou criptografia em nível de arquivo/campo com chave gerida fora do lake; aceitar o 'PCI já resolvido pelo SSE-KMS' reprova",
+      "passed": true,
+      "evidence": "design-bronze.md §4 '\"PCI já está resolvido porque o bucket usa SSE-KMS\" — não está': 'Pelo catálogo desta skill (T-03, apoiado em PCI DSS 3.5.1.2): criptografia transparente... sozinha, não atende' e prescreve 'Criptografia em nível de arquivo ou de campo, com chave gerida fora do lake (KMS/HSM do CDE, não a chave de bucket do S3), aplicada pelo processo de ingestão antes do PUT'; tokenização na borda discutida e descartada pelo requisito byte a byte do jurídico."
+    },
+    {
+      "text": "A policy de deny s3:DeleteObject, se criada em bronze.tf, exclui bronze/liquidacao/ (NotResource, condição de prefixo ou statement restrito a outros prefixos), e bronze.tf ganha regra de ciclo de vida que expira objetos de bronze/liquidacao/ em cerca de 18 meses (~540 a 550 dias)",
+      "passed": true,
+      "evidence": "Nenhuma policy de deny s3:DeleteObject foi criada (transcript passo 7 e design §3: 'Sem policy explícita negando s3:DeleteObject'), logo o prefixo com CHD não fica preso por deny. bronze.tf tem aws_s3_bucket_lifecycle_configuration.bronze_liquidacao com rule 'expira-liquidacao-18-meses', filter prefix 'liquidacao/' e expiration days = 548 no bucket dedicado ao arquivo de liquidação. Ressalva: deny do resto do bronze foi descartado inteiro, o que a asserção condicional não cobra."
+    },
+    {
+      "text": "docs/design-bronze.md prevê chave por lote ou por período (ou crypto-shredding) para permitir eliminar o arquivo com PAN, ou registra que o bronze de liquidação entra no inventário/escopo do CDE",
+      "passed": true,
+      "evidence": "design-bronze.md §4: '...aplicada pelo processo de ingestão antes do PUT, com chave por lote ou por período para permitir crypto-shredding.' Registrado como pendência de aplicação, não implementado, mas a asserção pede que o desenho preveja."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "executor_duration_seconds": 210.0,
+    "total_duration_seconds": 210.0
+  },
+  "claims": [
+    {
+      "claim": "object_lock_enabled só pode ser definido na criação do bucket",
+      "type": "factual",
+      "verified": false,
+      "evidence": "Não verificável aqui; a AWS passou a permitir habilitar Object Lock em bucket existente com versionamento — a afirmação é parcialmente desatualizada, embora no Terraform object_lock_enabled seja ForceNew."
+    },
+    {
+      "claim": "scan.sh e check-data-governance.sh rodaram com OK",
+      "type": "process",
+      "verified": false,
+      "evidence": "Só o transcript afirma; não há log de saída em outputs/."
+    },
+    {
+      "claim": "terraform validate/plan não executados",
+      "type": "process",
+      "verified": true,
+      "evidence": "Declarado explicitamente no transcript e no doc."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "docs/design-bronze.md prevê chave por lote ou por período (ou crypto-shredding) para permitir eliminar o arquivo com PAN, ou registra que o bronze de liquidação entra no inventário/escopo do CDE",
+        "reason": "O ramo 'OU registra que o bronze de liquidação entra no inventário/escopo do CDE' é satisfeito por qualquer menção genérica a CDE; a baseline sem skill passou só por esse ramo sem prever chave por lote/crypto-shredding. Considere separar em duas asserções ou exigir o crypto-shredding."
+      },
+      {
+        "assertion": "A policy de deny s3:DeleteObject, se criada em bronze.tf, exclui bronze/liquidacao/ (NotResource, condição de prefixo ou statement restrito a outros prefixos), e bronze.tf ganha regra de ciclo de vida que expira objetos de bronze/liquidacao/ em cerca de 18 meses (~540 a 550 dias)",
+        "reason": "Asserção é condicional ('se criada'): o with_skill removeu por completo o deny de DeleteObject do bronze (inclusive bronze/validacoes/, que o catálogo O-13 manda proteger) e passou mesmo assim. Nenhuma asserção verifica que o deny continua valendo para os prefixos sem CHD/PII."
+      },
+      {
+        "assertion": "infra/terraform/bronze.tf final NÃO contém object_lock_configuration (ou equivalente) com mode = \"COMPLIANCE\" de 5 anos aplicado ao bucket inteiro; se houver Object Lock, é GOVERNANCE ou restrito a outro bucket/escopo, e docs/design-bronze.md justifica citando que WORM compliance exige obrigação legal registrada e conflita com a eliminação exigida (18 meses / LGPD)",
+        "reason": "A asserção aceita Object Lock COMPLIANCE em bucket dedicado; o with_skill aplicou COMPLIANCE 548 dias direto em produção, sem o teste em GOVERNANCE previsto no expected_output (só recomendou em comentário). Se o teste em governance é requisito, falta asserção."
+      },
+      {
+        "reason": "Nenhuma asserção verifica coerência de prefixo entre bucket dedicado e regra de ciclo de vida (o with_skill filtra 'liquidacao/' num bucket novo enquanto o prompt fala em bronze/liquidacao/); um desalinhamento aí faria a expiração nunca disparar."
+      }
+    ],
+    "overall": "Asserções 1-3 discriminam bem (with 3/3 vs without 0/3); a 4 é fraca por causa do OU com CDE."
+  },
+  "grader_notes": "Entregáveis em outputs/ diferem de work/ (bronze.tf de work/ é o original), coerente com o transcript que lista outputs/ como destino."
+}

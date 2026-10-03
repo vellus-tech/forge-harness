@@ -56,7 +56,7 @@ const AUTO_ID_PREFIX = 'd';
 // CLASSIFICATIONS antes desta constante existir. Exclui 'id', 'id_explicit', 'status',
 // 'fix_files' e 'waiver', que têm forma/validação própria (ver validateEntryFields abaixo).
 export const ENTRY_SCALAR_FIELDS = [
-  'test_path', 'test_id', 'command', 'base_commit', 'failure_pattern', 'excerpt', 'excerpt_sha256',
+  'test_path', 'test_id', 'command', 'base_commit', 'failure_pattern', 'positive_control', 'excerpt', 'excerpt_sha256',
   'classification', 'base_result', 'base_strategy', 'graft_from', 'revert_patch', 'replay_head',
   'setup_command', 'reproduces', 'recorded_at', 'replayed_at', 'waived_at',
 ];
@@ -72,7 +72,7 @@ function validateEntryFields(e, idx, errors) {
   if (e.id !== undefined && e.id !== null && typeof e.id !== 'string') errors.push(`${p}.id must be string|null`);
   if (e.id_explicit !== undefined && typeof e.id_explicit !== 'boolean') errors.push(`${p}.id_explicit must be boolean`);
   if (!STATUSES.includes(e.status)) errors.push(`${p}.status invalid: ${e.status} (allowed: ${STATUSES.join('|')})`);
-  for (const k of ['test_path', 'test_id', 'command', 'failure_pattern', 'excerpt', 'reproduces'])
+  for (const k of ['test_path', 'test_id', 'command', 'failure_pattern', 'positive_control', 'excerpt', 'reproduces'])
     if (e[k] !== undefined && e[k] !== null && typeof e[k] !== 'string') errors.push(`${p}.${k} must be string|null`);
   if (e.base_commit !== undefined && e.base_commit !== null) {
     if (typeof e.base_commit !== 'string' || !/^[a-f0-9]{7,40}$/.test(e.base_commit))
@@ -122,7 +122,7 @@ export function validateRedEvidence(data) {
   if (data.schema !== 'red-evidence/v1') errors.push(`schema must be "red-evidence/v1": ${data.schema}`);
   if (typeof data.change_id !== 'string' || !data.change_id.length) errors.push('change_id missing');
   if (!STATUSES.includes(data.status)) errors.push(`status invalid: ${data.status} (allowed: ${STATUSES.join('|')})`);
-  for (const k of ['test_path', 'test_id', 'command', 'failure_pattern', 'excerpt', 'reproduces'])
+  for (const k of ['test_path', 'test_id', 'command', 'failure_pattern', 'positive_control', 'excerpt', 'reproduces'])
     if (data[k] !== undefined && data[k] !== null && typeof data[k] !== 'string') errors.push(`${k} must be string|null`);
   if (data.base_commit !== undefined && data.base_commit !== null) {
     if (typeof data.base_commit !== 'string' || !/^[a-f0-9]{7,40}$/.test(data.base_commit))

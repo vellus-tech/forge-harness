@@ -1,0 +1,37 @@
+{
+  "note": "Despacho simulado — o sandbox do eval proíbe spawnar subagentes reais (Agent tool). Isto é o que o fullstack-software-engineer, atuando em Modo B (router de correção), teria efetivamente despachado.",
+  "dispatches": [
+    {
+      "order": 1,
+      "agent": "backend-engineer-dotnet",
+      "model": "opus",
+      "path_group": "services/payment/src/Payment.Api/Handlers/CreatePaymentHandler.cs",
+      "findings": ["SEC-001", "PERF-002"],
+      "prompt_resumido": "Corrigir 2 findings BLOCKER/HIGH em CreatePaymentHandler.cs (branch feat/pagamento-cartao, rodada 2 do code-evaluator): (1) SEC-001 — remover HolderName/HolderCpf do template de log em HandleAsync, logar só paymentId e AmountCents (CPF é dado sensível, nunca em log); (2) PERF-002 — propagar o CancellationToken recebido em HandleAsync para repository.InsertAsync (hoje a chamada usa o default do parâmetro opcional, o token nunca chega ao repositório). Contexto: payment é ASP.NET Core 8, checkout de transporte com pagamento por cartão. Commit atômico por finding, mensagem 'fix(payment): SEC-001 — ...' e 'fix(payment): PERF-002 — ...', scope 'payment' (lista canônica do .commitlintrc.json). Não commitar nem dar push — commit_policy é executada pelo router ao final, após todos os specialists.",
+      "executed": false,
+      "reason_not_executed": "Regra do harness para este eval: nunca spawnar subagentes reais; apenas registrar o despacho que seria feito."
+    },
+    {
+      "order": 2,
+      "agent": "frontend-engineer",
+      "model": "opus",
+      "path_group": "apps/web/checkout/src/components/PayButton.tsx",
+      "findings": ["A11Y-003"],
+      "prompt_resumido": "Corrigir finding HIGH de acessibilidade em PayButton.tsx (branch feat/pagamento-cartao, rodada 2 do code-evaluator): o botão de pagar só tem ícone (CreditCardIcon), sem nome acessível para leitor de tela. Adicionar aria-label=\"Pagar\" ao elemento <button> (ou texto visível, se o design system permitir). Preservar comportamento (onClick, disabled) e classe 'pay-button'. Contexto: checkout é React/TS, fluxo de pagamento com cartão. Commit atômico, mensagem 'fix(checkout): A11Y-003 — ...', scope 'checkout'. Não commitar nem dar push — commit_policy é executada pelo router ao final.",
+      "executed": false,
+      "reason_not_executed": "Regra do harness para este eval: nunca spawnar subagentes reais; apenas registrar o despacho que seria feito."
+    }
+  ],
+  "nao_delegado": [
+    {
+      "finding": "DOC-004",
+      "motivo": "path em docs/** — pela matriz do agente, o próprio router responde direto, sem delegar.",
+      "acao": "Aplicado diretamente em work/docs/runbooks/payment.md (ver outputs/docs/runbooks/payment.md)."
+    },
+    {
+      "finding": "ARCH-005",
+      "motivo": "path em services/**/*.cs tocaria backend-engineer-dotnet pela matriz de path, mas o finding é arquitetural (LedgerReadRepository lê ledger.entries direto via SQL cross-BC) e o context_summary informa que o ledger só expõe gRPC — não há proto/contrato do ledger-service disponível neste eval para implementar o client sem inventar a definição de serviço. Regra 7 do Modo B (findings irreparáveis automaticamente) se aplica: não delegado, registrado como unresolved.",
+      "acao": "Nenhuma correção aplicada; ver findings_unresolved em review/fix-round-2.json."
+    }
+  ]
+}

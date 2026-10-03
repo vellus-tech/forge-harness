@@ -2064,10 +2064,10 @@
       "id": "LDG-0153",
       "type": "tech-debt",
       "title": "Doctor não informa divergência do _common.sh do liaison contra o template",
-      "detail": "A issue #101 propunha que o doctor do consumidor informasse quando o _common.sh local diverge do que o template entrega. NÃO IMPLEMENTADO — e a justificativa registrada antes estava ERRADA em ambas as pernas, corrigida aqui. (a) 'Não há referência local contra a qual comparar' é falso: .forge/cache/machinery.lock grava o sha256 do TEMPLATE por path (bin/forge.mjs:361,384) e bin/forge.mjs:617-643 já computa exatamente essa comparação em driftWarned para imprimir o WARN de drift. O harness calcula o fato que este item dizia não ser calculável. (b) 'A divergência é transitória por construção e o próprio update é o remédio' só vale quando o template está à frente; nesta issue o template estava ATRÁS das árvores consumidoras, e o update era a doença, não o remédio. RESTRIÇÃO REAL, essa sim medida: machinery.lock só existe depois do primeiro update, então em consumidor que rodou apenas init não há referência — e é justamente nesse caso que a perda hoje é totalmente muda (rc=0, nenhum WARN). A peça cross-repositório continua fora do alcance pelo motivo já registrado (o harness não enxerga a árvore do consumidor); essa recusa NÃO cobre o check local, que é viável.",
+      "detail": "A issue #101 propunha que o doctor do consumidor informasse quando o _common.sh local diverge do que o template entrega. NÃO IMPLEMENTADO — e a justificativa registrada antes estava ERRADA em ambas as pernas, corrigida aqui. (a) 'Não há referência local contra a qual comparar' é falso: .forge/cache/machinery.lock grava o sha256 do TEMPLATE por path (bin/forge.mjs:361,384) e bin/forge.mjs:617-643 já computa exatamente essa comparação em driftWarned para imprimir o WARN de drift. O harness calcula o fato que este item dizia não ser calculável. (b) 'A divergência é transitória por construção e o próprio update é o remédio' só vale quando o template está à frente; nesta issue o template estava ATRÁS das árvores consumidoras, e o update era a doença, não o remédio. RESTRIÇÃO REAL, essa sim medida: machinery.lock só existe depois do primeiro update, então em consumidor que rodou apenas init não há referência — e é justamente nesse caso que a perda hoje é totalmente muda (rc=0, nenhum WARN). A peça cross-repositório continua fora do alcance pelo motivo já registrado (o harness não enxerga a árvore do consumidor); essa recusa NÃO cobre o check local, que é viável. — Resolvido: Fechado pelo PR #209 (trilha/ldg-0153, commit 3a958059): doctor.sh compara scripts/lib/transports/*.sh contra machinery.lock, nomeando divergências com os dois shas; sem lock, 'não medido'; exceção viva declarada troca a linha. Cenários [14]-[18] em tests/w191-doctor-orphan-gate-gate.sh.",
       "severity": null,
       "priority": "P3",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -2080,8 +2080,8 @@
         "promoted_to": null
       },
       "created_at": "2026-09-05T19:55:23-03:00",
-      "updated_at": "2026-09-06T12:15:55-03:00",
-      "resolved_at": null,
+      "updated_at": "2026-09-30T07:54:24-03:00",
+      "resolved_at": "2026-09-30T07:54:24-03:00",
       "dedup_key": "manual:LDG-0153"
     },
     {
@@ -2736,10 +2736,10 @@
       "id": "LDG-0181",
       "type": "tech-debt",
       "title": "O runner do TEMPLATE, entregue aos consumidores, continua com dois desfechos por alvo",
-      "detail": "Aberto em 2026-09-08 pela onda de LDG-0180, que corrigiu tests/run-all.sh (o runner INTERNO deste repositório) e deixou template/.forge/scripts/tests/run-all.sh de fora por decisão explícita — D7 da especificação docs/plans/spikes/ldg-0180-tres-estados-no-runner.md. O runner do template é o que o harness ENTREGA no pacote npm e o que os consumidores executam, e ele tem o mesmo defeito de classe: todo rc diferente de zero vira a mesma parcela, o mesmo marcador e o mesmo código de saída, de modo que gate morto por OOM, por SIGKILL, por teto de tempo estourado ou por interpretador ausente fica indistinguível de gate que reprovou por asserção. A partir desta onda os dois programas se comportam DIFERENTE diante da mesma morte, e é o do template que roda na máquina dos consumidores. POR QUE NÃO ENTROU DE CARONA, com os fatos medidos na especificação: (1) ele já ocupa os códigos de saída 64 e 66, então o 3 escolhido no runner interno não é transponível sem conferir colisão; (2) ele aceita --path, superfície que o interno não tem; (3) ele já tem guarda de vacuidade própria, pelo contador total, que precisa ser reconciliada com o terceiro estado em vez de duplicada; (4) e o que exige análise separada de verdade, ele REEXECUTA o comando no ramo de falha para imprimir a saída, de modo que um alvo morto por falta de memória seria morto DUAS vezes, e a segunda morte pode até mudar de classe. Emendar isso numa onda sobre o runner interno é o tipo de escopo que a revisão adversarial derruba, e a correção lá muda o comportamento de quatro consumidores instalados. CONDIÇÃO PARA FECHAR: o runner do template classifica os três estados, com gate próprio que prove a distinção de ponta a ponta sobre uma cópia conferida por checksum, com o mapa de códigos de saída reconciliado contra 64/66 e com decisão registrada sobre a reexecução no ramo de falha.\n\nMEDIÇÃO (2026-09-08): Vacuidade também no runner INTERNO, medida em 2026-09-08 na correção dos achados da revisão de LDG-0180. Ao ganhar guarda de contagem antes das expansões de array (os três sítios pré-existentes: as duas listagens do --list, o laço dos gates e o laço dos bats, que sob set -u no bash 3.2 abortavam com 'unbound variable' e matavam a suíte sem publicar o resumo), tests/run-all.sh passou a atravessar a árvore vazia sem morrer — e a atravessar publicando 'PASS=0 FAIL=0 SKIP=0 UNVERIFIED=0' seguido de 'OK — suíte 100% verde', com rc 0. Ou seja: uma árvore sem gate algum e sem suíte .bats agora sai VERDE. É exatamente o buraco que o fato (3) deste item nomeia no runner do template ('ele já tem guarda de vacuidade própria, pelo contador total'), e o runner interno não tem nenhuma. Não foi corrigido nesta onda por estar fora do escopo autorizado dela e por exigir a mesma decisão do outro lado — qual é o piso de alvos abaixo do qual a suíte recusa em vez de aprovar. Quem fechar este item decide para os dois runners de uma vez; a guarda de vacuidade do interno é asserção que ainda falta ao w212.",
+      "detail": "Aberto em 2026-09-08 pela onda de LDG-0180, que corrigiu tests/run-all.sh (o runner INTERNO deste repositório) e deixou template/.forge/scripts/tests/run-all.sh de fora por decisão explícita — D7 da especificação docs/plans/spikes/ldg-0180-tres-estados-no-runner.md. O runner do template é o que o harness ENTREGA no pacote npm e o que os consumidores executam, e ele tem o mesmo defeito de classe: todo rc diferente de zero vira a mesma parcela, o mesmo marcador e o mesmo código de saída, de modo que gate morto por OOM, por SIGKILL, por teto de tempo estourado ou por interpretador ausente fica indistinguível de gate que reprovou por asserção. A partir desta onda os dois programas se comportam DIFERENTE diante da mesma morte, e é o do template que roda na máquina dos consumidores. POR QUE NÃO ENTROU DE CARONA, com os fatos medidos na especificação: (1) ele já ocupa os códigos de saída 64 e 66, então o 3 escolhido no runner interno não é transponível sem conferir colisão; (2) ele aceita --path, superfície que o interno não tem; (3) ele já tem guarda de vacuidade própria, pelo contador total, que precisa ser reconciliada com o terceiro estado em vez de duplicada; (4) e o que exige análise separada de verdade, ele REEXECUTA o comando no ramo de falha para imprimir a saída, de modo que um alvo morto por falta de memória seria morto DUAS vezes, e a segunda morte pode até mudar de classe. Emendar isso numa onda sobre o runner interno é o tipo de escopo que a revisão adversarial derruba, e a correção lá muda o comportamento de quatro consumidores instalados. CONDIÇÃO PARA FECHAR: o runner do template classifica os três estados, com gate próprio que prove a distinção de ponta a ponta sobre uma cópia conferida por checksum, com o mapa de códigos de saída reconciliado contra 64/66 e com decisão registrada sobre a reexecução no ramo de falha.\n\nMEDIÇÃO (2026-09-08): Vacuidade também no runner INTERNO, medida em 2026-09-08 na correção dos achados da revisão de LDG-0180. Ao ganhar guarda de contagem antes das expansões de array (os três sítios pré-existentes: as duas listagens do --list, o laço dos gates e o laço dos bats, que sob set -u no bash 3.2 abortavam com 'unbound variable' e matavam a suíte sem publicar o resumo), tests/run-all.sh passou a atravessar a árvore vazia sem morrer — e a atravessar publicando 'PASS=0 FAIL=0 SKIP=0 UNVERIFIED=0' seguido de 'OK — suíte 100% verde', com rc 0. Ou seja: uma árvore sem gate algum e sem suíte .bats agora sai VERDE. É exatamente o buraco que o fato (3) deste item nomeia no runner do template ('ele já tem guarda de vacuidade própria, pelo contador total'), e o runner interno não tem nenhuma. Não foi corrigido nesta onda por estar fora do escopo autorizado dela e por exigir a mesma decisão do outro lado — qual é o piso de alvos abaixo do qual a suíte recusa em vez de aprovar. Quem fechar este item decide para os dois runners de uma vez; a guarda de vacuidade do interno é asserção que ainda falta ao w212. — Resolvido: Fechado pelo PR #197 (fix/ldg-0181-template-runner-three-states, commit fd308254): runner do template distingue os três estados (0 verde, 1 reprovação com precedência, 3 não verificado por sinal/dependência ausente/árvore não medida), sem reexecutar no ramo de falha (grava log da única execução e imprime tail -20), 64/66 preservados, gate tests/w247-template-runner-tres-estados-gate.sh e cenário novo no w212 (zero gates também sai UNV/rc 3 no runner interno).",
       "severity": null,
       "priority": "P2",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -2752,8 +2752,8 @@
         "promoted_to": null
       },
       "created_at": "2026-09-08T18:26:41-03:00",
-      "updated_at": "2026-09-08T18:26:41-03:00",
-      "resolved_at": null,
+      "updated_at": "2026-09-29T03:02:54-03:00",
+      "resolved_at": "2026-09-29T03:02:54-03:00",
       "dedup_key": "manual:LDG-0181"
     },
     {
@@ -3235,6 +3235,30 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0201"
+    },
+    {
+      "id": "LDG-0202",
+      "type": "tech-debt",
+      "title": "w239 (revisão da DH-1) custa 5,7min de PBT sozinho e empurra o CI perto do teto",
+      "detail": "Medido no PR #182 (2026-09-28): w239 sozinho levou 5,7min numa execução real do CI (75 casos de PBT, cada um chamando node forge.mjs update num consumidor sintético). Somado a w151 e w217 (heavy-mutex, ~7,4min), a suíte já ocupava ~13 dos 25min do teto antes de qualquer gate novo. O teto subiu para 35min (chore/ci-timeout-35min), mas isso é alívio, não correção: se a suíte continuar crescendo, o w239 é o primeiro candidato a enxugar (menos casos de PBT com cobertura equivalente, ou paralelizar as chamadas de node forge.mjs update dentro do próprio gate).",
+      "severity": "MEDIUM",
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": "docs/plans/2026-09-15-plano-issues-abertas.md"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-09-27T16:57:19-03:00",
+      "updated_at": "2026-09-28T09:26:22-03:00",
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0202"
     }
   ]
 }

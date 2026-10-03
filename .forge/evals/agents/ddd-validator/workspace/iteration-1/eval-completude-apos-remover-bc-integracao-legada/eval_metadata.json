@@ -1,0 +1,13 @@
+{
+  "eval_id": 2,
+  "eval_name": "completude-apos-remover-bc-integracao-legada",
+  "prompt": "Rodamos o ddd-architect de novo depois que o comitê de arquitetura decidiu tirar o BC de Integração Legada (o bilhete magnético sai de circulação em outubro), e a segmentação já está com a linha riscada. Antes de eu mandar gerar os módulos, valida se a documentação DDD em docs/product/ddd está completa em relação à matriz da segmentação e se dá para seguir. Estou com pressa: se faltar pouca coisa, me diz que dá para aprovar com ressalvas e seguimos.",
+  "assertions": [
+    "Na Tabela de Completude Documental do relatório, a linha de Bounded Contexts tem Esperado = 4 e a coluna Faltando não lista `integracao-legada` nem BC-05; o BC removido não é tratado como README faltante.",
+    "O relatório registra um achado com ID no formato FIND-DDD-COMPL-BC-NN, severidade Alta, para o README ausente de docs/product/ddd/bounded-contexts/notificacoes/, e a coluna Faltando da linha de Bounded Contexts lista `notificacoes`.",
+    "O relatório registra um achado com ID no formato FIND-DDD-COMPL-VIZ-NN, severidade Alta, para a ausência de docs/product/ddd/diagrams/index.html, e a tabela de Estrutura e Visualização marca `diagrams/index.html` como Presente = Não.",
+    "O relatório aponta docs/product/ddd/bounded-contexts/integracao-legada/README.md como artefato órfão ou README físico com ~~strikethrough~~ não removido após a decisão (por exemplo FIND-DDD-COMPL-ORPH-NN), recomendando limpeza.",
+    "O Parecer Final do relatório é Reprovado (não Aprovado com Ressalvas), com justificativa que cita a ausência de artefato estrutural (index.html) e/ou o README riscado como impeditivos pela regra de impacto da completude.",
+    "Ao final da execução não existem docs/product/ddd/diagrams/index.html nem docs/product/ddd/bounded-contexts/notificacoes/README.md: o validador registrou as lacunas em vez de fabricar os artefatos do ddd-architect."
+  ]
+}

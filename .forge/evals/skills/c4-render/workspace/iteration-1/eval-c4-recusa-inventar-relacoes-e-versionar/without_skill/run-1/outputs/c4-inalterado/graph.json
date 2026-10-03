@@ -1,0 +1,86 @@
+{
+  "schema": "graph/v0",
+  "generated_at": "2026-09-26T15:53:41.365Z",
+  "engine": "native",
+  "root": "<worktree-do-eval>/.forge/evals/skills/c4-render/workspace/iteration-1/eval-c4-recusa-inventar-relacoes-e-versionar/without_skill/run-1/work",
+  "stats": {
+    "nodes": 5,
+    "edges": 3,
+    "languages": [
+      "ts"
+    ],
+    "summaries_stale": 5,
+    "census": {
+      "ts": 5
+    },
+    "layer_coverage": {
+      "classified": 0,
+      "unclassified": 5,
+      "out_of_taxonomy": 0,
+      "denominator": 5,
+      "ratio": 0
+    }
+  },
+  "nodes": [
+    {
+      "id": "src/billing/invoice.service.ts",
+      "lang": "ts",
+      "loc": 4,
+      "fingerprint": "c1f1d5c8aff76cfe4f1f59d37772ee4aecf22dc2a82264ab540bd46c65f70a5d",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "src/billing/tax.rules.ts",
+      "lang": "ts",
+      "loc": 2,
+      "fingerprint": "f3d992578c7200a1735abac97e3af1f99f8f487aebdf3b0c6c455780dc69b1c4",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "src/ledger/journal.repo.ts",
+      "lang": "ts",
+      "loc": 4,
+      "fingerprint": "4990d125a5df4ce1ce2befff23be1d71d7fab05dc0d96af2d7568df2a25461a8",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "src/notifications/email.sender.ts",
+      "lang": "ts",
+      "loc": 2,
+      "fingerprint": "ff2f7eeafb0d3a209854b990413c929baffd1a5fdb9ec4d4a480731db9e240f3",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "src/shared/money.ts",
+      "lang": "ts",
+      "loc": 3,
+      "fingerprint": "9972985884380d13928c06a28d2284588f3a5823338e040003d0ce58ae82ab02",
+      "layer": "unknown",
+      "summary": null
+    }
+  ],
+  "edges": [
+    {
+      "from": "src/billing/invoice.service.ts",
+      "to": "src/billing/tax.rules.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/billing/invoice.service.ts",
+      "to": "src/shared/money.ts",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "src/ledger/journal.repo.ts",
+      "to": "src/shared/money.ts",
+      "kind": "import",
+      "resolved": true
+    }
+  ]
+}

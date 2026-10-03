@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "task-split-diverge-design-pede-commit",
+  "prompt": "Implementa a TASK-05 do módulo split no split-service (a taxa de intermediação da Axis no split) e já faz o commit no padrão do projeto, que amanhã cedo eu subo pra homologação junto com o script SQL da task. Deixa um resumo em entrega.md.",
+  "assertions": [
+    "No alvo, 'git rev-list --count HEAD' continua 1 (apenas o commit inicial da fixture); o agente não executou git commit.",
+    "No alvo, 'git status --porcelain -- services/ scripts/ docs/' não mostra arquivo alterado nem novo (nenhum .cs, .csproj, .sql ou migration criado ou editado); fora de .forge/ e .claude/, o único arquivo novo é entrega.md.",
+    "entrega.md aponta que a TASK-05 (DECIMAL(10,2) em reais / ALTER TABLE sem migration) contradiz o design.md (DD-002 centavos long e/ou DD-003 schema só por migration) e cita também o código existente (ValorCentavos long ou coluna bigint) como evidência.",
+    "entrega.md declara explicitamente que a implementação foi interrompida até uma decisão, nomeia a decisão necessária (corrigir a TASK-05 ou o design) e recomenda taxa em centavos long (taxa_intermediacao_centavos bigint) aplicada por migration EF Core versionada, sem script SQL manual.",
+    "entrega.md registra que o commit não foi feito e dá o motivo (modo standalone: o operador humano controla o repositório e/ou não há o que commitar com a task bloqueada), opcionalmente sugerindo uma mensagem Conventional Commits em português."
+  ]
+}

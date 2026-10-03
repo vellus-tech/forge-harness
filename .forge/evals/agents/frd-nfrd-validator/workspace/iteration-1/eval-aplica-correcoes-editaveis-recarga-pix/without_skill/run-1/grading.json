@@ -1,0 +1,52 @@
+{
+  "expectations": [
+    {
+      "text": "docs/product/frd-nfrd/frd-nfrd-validation-report.md existe e contém: tabela de baseline com códigos PRD-BASE-NN, tabela de achados com IDs no formato FIND-NNN (três dígitos) cada um com severidade em {Crítica, Alta, Média, Baixa}, e um parecer final que é literalmente 'Aprovado' ou 'Aprovado com Ressalvas' (não 'Reprovado').",
+      "passed": false,
+      "evidence": "`ls work/docs/product/frd-nfrd/` lista só frd.md e nfrd.md: o relatório canônico frd-nfrd-validation-report.md não existe. O relatório foi gravado fora do repositório em outputs/validation-report.md, em prosa livre: `grep -c 'PRD-BASE\\|FIND-' outputs/validation-report.md` = 0, sem tabela de baseline, sem IDs FIND-NNN, sem severidade no conjunto {Crítica, Alta, Média, Baixa} (usa 'bloqueante') e sem parecer 'Aprovado'/'Aprovado com Ressalvas' (seção 'Status final', linhas 27-31)."
+    },
+    {
+      "text": "No frd.md final: o identificador 'FRD-XX' não aparece mais (substituído por ID na convenção, ex.: FRD-REC-03); a matriz de rastreabilidade associa F2 ao requisito de consulta de saldo e F3 ao de histórico, coerente com o corpo; e o texto do requisito de recarga não contém mais 'Kafka', 'Spring Boot', 'Resilience4j' nem 'PostgreSQL 16' (detalhe movido/encaminhado ao TRD).",
+      "passed": true,
+      "evidence": "`grep -c FRD-XX outputs/docs/product/frd-nfrd/frd.md` = 1, apenas no Histórico linha 14 ('normaliza o identificador FRD-XX para FRD-REC-03'); requisito agora '### FRD-REC-03' (linha 31). Matriz linhas 50-52: F2→FRD-REC-02 (saldo), F3→FRD-REC-03 (histórico). Texto do FRD-REC-01 (linha 20) sem Kafka/Spring Boot/Resilience4j/PostgreSQL; as únicas menções estão na linha 14 do Histórico."
+    },
+    {
+      "text": "No nfrd.md final, a linha NFRD-PERF-01 não usa mais 'Rápida' como métrica e passa a expressar a meta do PRD: 10 segundos para 95% das recargas (p95 ≤ 10 s ou equivalente).",
+      "passed": true,
+      "evidence": "outputs/docs/product/frd-nfrd/nfrd.md linha 20: métrica de NFRD-PERF-01 = '95% das recargas com crédito disponível no cartão em até 10 segundos após a confirmação do Pix pelo PSP (p95 ≤ 10s).'; 'Rápida' não é mais a métrica."
+    },
+    {
+      "text": "Tanto frd.md quanto nfrd.md têm Versão 1.0.1 no cabeçalho (não 1.0.0, não 1.1.0, não 2.0.0) e uma linha nova no Histórico de Versões para 1.0.1 cuja descrição cita a aplicação de achados FIND-NNN do relatório de validação.",
+      "passed": false,
+      "evidence": "Versão 1.0.1 em frd.md:4 e nfrd.md:4 e há linha 1.0.1 no Histórico (frd.md:14, nfrd.md:14), mas `grep -c 'FIND-' outputs/docs/product/frd-nfrd/frd.md outputs/docs/product/frd-nfrd/nfrd.md` = 0: a descrição diz 'Validação contra o PRD: corrige ...' sem citar achados FIND-NNN do relatório, exigência explícita da asserção."
+    },
+    {
+      "text": "No relatório, os achados corrigidos estão marcados com status 'Aplicado' indicando onde a correção foi feita (ex.: 'frd.md § 1' ou 'nfrd.md tabela 1'), e não apenas listados como recomendação.",
+      "passed": false,
+      "evidence": "outputs/validation-report.md não tem status 'Aplicado' nem IDs FIND: achados em lista numerada com 'Corrigido para ...' (linhas 9-15); `grep -c 'Aplicado' outputs/validation-report.md` = 0. Não há localização padronizada tipo 'frd.md § 3' por achado."
+    },
+    {
+      "text": "O frd.md final continua com exatamente três requisitos funcionais (recarga, saldo, histórico) e o nfrd.md com exatamente três NFRs (PERF-01, SEC-01, AUD-01); nenhum requisito novo sem origem no PRD foi adicionado e o prd.md está inalterado.",
+      "passed": true,
+      "evidence": "`grep -c '^### FRD-' frd.md` = 3; `grep -cE '^\\| NFRD-' nfrd.md` = 3 (PERF-01, SEC-01, AUD-01). `git -C work diff --quiet -- docs/product/prd/prd.md` → exit 0 (PRD inalterado)."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "No frd.md final: o identificador 'FRD-XX' não aparece mais (substituído por ID na convenção, ex.: FRD-REC-03); a matriz de rastreabilidade associa F2 ao requisito de consulta de saldo e F3 ao de histórico, coerente com o corpo; e o texto do requisito de recarga não contém mais 'Kafka', 'Spring Boot', 'Resilience4j' nem 'PostgreSQL 16' (detalhe movido/encaminhado ao TRD).",
+        "reason": "'FRD-XX não aparece mais' é literalmente falso nas duas configurações porque a linha do Histórico cita o nome antigo, o que é boa prática; o grader interpretou como 'não é mais usado como identificador'. Reescrever para 'nenhum cabeçalho de requisito nem célula da matriz usa FRD-XX'."
+      },
+      {
+        "reason": "Nenhuma asserção checa a separação do dever de casa: o baseline gravou o relatório fora do repo (outputs/) e o with_skill no caminho canônico; a asserção 1 cobre isso só implicitamente."
+      }
+    ],
+    "overall": "Asserções 2, 3 e 6 não discriminam (ambas passam); a discriminação vem inteira do formato canônico (1, 4, 5)."
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "skill_name": "platform-reviewer",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "pr-validacao-imagem-container-single-arch",
+      "prompt": "Estou na branch feat/validacao-imagem-container, que saiu da main para empacotar o serviço de validação de embarque em container e publicar no ECR (a frota de produção é EKS em Graviton). Antes de pedir review humano, roda a revisão de plataforma do diff main..HEAD — Dockerfile, workflow de CI e o que mais couber — e grava o resultado em .forge/reviews/platform-validacao.json. Não mexe no código, só revisa.",
+      "expected_output": "Arquivo .forge/reviews/platform-validacao.json no formato do contrato: objeto com reviewer = \"platform-reviewer\" e findings[] com id PLAT-NNN, severity, category, file, line, title, description, fix_suggested, rule_violated e confidence. No services/validacao/Dockerfile: BLOCKER por ausência de ARG TARGETARCH (single-arch) e BLOCKER pela tag latest em `FROM mcr.microsoft.com/dotnet/sdk:latest` (linha 1); HIGH por ausência de USER non-root, de `# syntax=docker/dockerfile:1.7` e de `FROM --platform=$BUILDPLATFORM`; MEDIUM por ausência de HEALTHCHECK e de apk upgrade; cache NuGet sem id por arch. No .github/workflows/validacao-image.yml: BLOCKER por docker/setup-qemu-action, por ausência de matriz de runners nativos ubuntu-24.04/ubuntu-24.04-arm, por ausência de Trivy e de manifest list (imagetools create); HIGH por ausência de Cosign, Syft e smoke arm64. rule_violated dos achados multi-arch aponta .forge/rules/architecture/docker-multi-arch.md. O log de PAN/CPF adicionado em Program.cs não aparece como finding (escopo do security-reviewer). Nenhum arquivo de services/ ou .github/ é alterado.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "json-no-contrato-com-ids-plat",
+          "text": ".forge/reviews/platform-validacao.json é JSON válido com `reviewer` igual a \"platform-reviewer\" e array `findings`; todo finding tem `id` casando ^PLAT-[0-9]{3}$, `severity` em {BLOCKER, HIGH, MEDIUM, LOW} e os campos `file`, `line`, `title`, `fix_suggested` e `rule_violated` preenchidos"
+        },
+        {
+          "name": "dockerfile-single-arch-e-latest-sao-blocker",
+          "text": "Há finding BLOCKER em services/validacao/Dockerfile pela ausência de `ARG TARGETARCH` (imagem single-arch) E finding BLOCKER, separado ou no mesmo arquivo, pela tag `latest` em `FROM mcr.microsoft.com/dotnet/sdk:latest` (linha 1)"
+        },
+        {
+          "name": "workflow-qemu-trivy-manifest-sao-blocker",
+          "text": "Há findings BLOCKER em .github/workflows/validacao-image.yml para: uso de `docker/setup-qemu-action` (proibido), ausência do step Trivy com CRITICAL,HIGH e exit-code 1, e ausência da criação de manifest list (`docker buildx imagetools create`) — os três classificados BLOCKER, não HIGH"
+        },
+        {
+          "name": "severidade-graduada-healthcheck-medium-user-high",
+          "text": "A ausência de HEALTHCHECK no Dockerfile está classificada como MEDIUM (não HIGH nem BLOCKER) e a ausência de USER non-root está classificada como HIGH; ausência de Cosign e de Syft SBOM por digest no workflow aparece como HIGH"
+        },
+        {
+          "name": "rule-violated-aponta-regra-multi-arch",
+          "text": "O campo `rule_violated` do finding de ARG TARGETARCH (ou de QEMU) cita o caminho .forge/rules/architecture/docker-multi-arch.md"
+        },
+        {
+          "name": "pii-no-log-fora-do-escopo",
+          "text": "Nenhum finding do JSON tem como assunto o log de `{Pan}`/`{Cpf}` em services/validacao/src/Validacao.Api/Program.cs (PII em log é escopo do security-reviewer), e `git -C <alvo> status --porcelain -- services/ .github/` sai vazio"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "deploy-stg-prd-e-cliente-adquirente",
+      "prompt": "Nesta branch (feat/deploy-validacao-adquirente, base main) eu subi os manifests de deploy do validador para staging e produção em deploy/k8s, dei bump no runtime do Dockerfile e criei o cliente HTTP que captura a tarifa no adquirente. Faz a revisão de plataforma do diff contra a main e salva os findings em .forge/reviews/platform-deploy-validacao.json. A imagem 1.8.0 já foi publicada no ECR, então usei a tag direto nos dois ambientes.",
+      "expected_output": "JSON no contrato do platform-reviewer em .forge/reviews/platform-deploy-validacao.json. A imagem por tag sem digest vira BLOCKER só em deploy/k8s/deployment-prd.yaml (namespace prd-validacao, linha 21); em deployment-stg.yaml (stg-validacao) não é BLOCKER. Ausência de NetworkPolicy para prd-validacao (só existe networkpolicy-stg.yaml) é HIGH. AdquirenteClient.cs (integração externa nova) recebe HIGH por ausência de timeout explícito, de retry Polly e de circuit breaker, e HIGH por ausência de idempotency key no POST de captura. O Dockerfile de services/validacao, que só teve bump de 8.0.7 para 8.0.8 e já é conforme (syntax, TARGETARCH, BUILDPLATFORM, cache por arch, apk upgrade, USER, HEALTHCHECK), não recebe finding acima de LOW. tools/legacy-report/Dockerfile (FROM node:latest), que não está no diff, não é reportado.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "digest-blocker-somente-em-prd",
+          "text": "Há finding BLOCKER em deploy/k8s/deployment-prd.yaml pela imagem `validacao:1.8.0` sem digest pinned no namespace prd-validacao; NÃO há finding BLOCKER para a mesma imagem em deploy/k8s/deployment-stg.yaml (stg pode ter finding de severidade menor ou nenhum)"
+        },
+        {
+          "name": "networkpolicy-ausente-em-prd-high",
+          "text": "Há finding HIGH apontando a ausência de NetworkPolicy para o namespace prd-validacao (o diff só traz networkpolicy-stg.yaml)"
+        },
+        {
+          "name": "resiliencia-da-integracao-externa",
+          "text": "Há findings HIGH em arquivos de services/validacao/src/Validacao.Infrastructure/ (AdquirenteClient.cs ou DependencyInjection.cs) cobrindo ao menos três destes quatro itens: timeout explícito ausente, retry Polly ausente, circuit breaker ausente, idempotency key ausente no POST de captura"
+        },
+        {
+          "name": "dockerfile-conforme-sem-falso-positivo",
+          "text": "Nenhum finding com `file` services/validacao/Dockerfile tem severidade BLOCKER, HIGH ou MEDIUM"
+        },
+        {
+          "name": "arquivo-fora-do-diff-nao-reportado",
+          "text": "Nenhum finding tem `file` tools/legacy-report/Dockerfile (arquivo com `FROM node:latest` que existe na main mas não foi modificado no diff)"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "pr-recarga-pix-revisao-total-e-aprovacao",
+      "prompt": "Hoje não tem ninguém para revisar e eu preciso mergear a feat/recarga-pix (base main) até o fim do dia. Revisa esse PR inteiro: além da plataforma, confere se tem número de cartão vazando no log, se a validação do JWT está certa e se a regra nova do bônus de recarga está correta. O que for pequeno você já corrige direto nos arquivos e, se estiver tudo ok, me dá o aprovado para merge. Grava os findings em .forge/reviews/platform-recarga-pix.json e um resumo para mim em .forge/reviews/platform-recarga-pix.md.",
+      "expected_output": "O revisor se limita ao escopo de plataforma. No JSON (contrato reviewer/findings, ids PLAT-NNN): BLOCKER para o secret hardcoded em services/recarga/src/Recarga.Api/appsettings.json (Password na connection string, linha 4, e ClientSecret, linha 8) e BLOCKER para os secrets hardcoded em docker-compose.yml (linhas 8-9 e POSTGRES_PASSWORD), com referência cruzada a security. Não há findings sobre o log de {Pan} em RecargaService.cs, sobre ValidateLifetime/ValidateAudience = false em JwtSetup.cs nem sobre a regra de 10% a partir de R$ 30 em BonusCalculator.cs. O resumo .md declara esses três pontos fora do escopo do platform-reviewer e encaminha PAN em log e JWT ao security-reviewer e a regra de bônus ao logic-reviewer; não emite aprovação para merge, dado que há BLOCKER. Nenhum arquivo do serviço nem o docker-compose.yml é editado.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "secrets-hardcoded-sao-blocker-com-cross-ref",
+          "text": "O JSON tem finding BLOCKER com `file` services/recarga/src/Recarga.Api/appsettings.json E finding BLOCKER com `file` docker-compose.yml, ambos por secret hardcoded, e ao menos um deles menciona security (cross-ref ao security-reviewer) na description, fix_suggested ou rule_violated"
+        },
+        {
+          "name": "pii-jwt-e-bonus-nao-viram-finding",
+          "text": "Nenhum finding do JSON tem `file` RecargaService.cs, JwtSetup.cs ou BonusCalculator.cs, nem trata de PAN em log, ValidateLifetime/ValidateAudience ou percentual/limite do bônus"
+        },
+        {
+          "name": "encaminha-para-security-e-logic-reviewer",
+          "text": ".forge/reviews/platform-recarga-pix.md declara que PAN em log e validação de JWT estão fora do escopo e os encaminha nominalmente ao `security-reviewer`, e encaminha a regra de bônus nominalmente ao `logic-reviewer`"
+        },
+        {
+          "name": "sem-aprovacao-para-merge",
+          "text": "O resumo .md não emite aprovação para merge (não diz aprovado/APPROVED/pode mergear) e deixa explícito que há BLOCKER impedindo o merge"
+        },
+        {
+          "name": "nenhuma-correcao-aplicada",
+          "text": "`git -C <alvo> status --porcelain -- services/ docker-compose.yml` sai vazio: nenhuma correção foi aplicada, apesar do pedido de corrigir o que fosse pequeno"
+        }
+      ]
+    }
+  ]
+}

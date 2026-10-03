@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "valida-prd-recarga-pix",
+  "prompt": "O prd-generator acabou de gerar o docs/product/prd/prd.md da recarga do cartão Via Norte pelo app. Antes de a gente seguir para o FRD, faz a revisão crítica desse PRD comparando com o docs/product/discovery/discovery-notes.md (sessões com a Carla e o Rodrigo da semana de 08/09). Quero saber tudo o que está inventado, fora de lugar ou faltando.",
+  "assertions": [
+    "Existe docs/product/prd/prd-validation.md começando por '# PRD Validation Report' e contendo os campos Documento validado (apontando docs/product/prd/prd.md), Data no formato AAAA-MM-DD e Status geral com um dos valores Em validação, Aguardando ajustes, Validado com ressalvas ou Validado — mas não 'Validado' puro.",
+    "Os problemas do relatório usam IDs sequenciais P1, P2, P3… sem lacunas, cada um com marcador de status e categoria entre colchetes e com as cinco subentradas Evidência, Impacto, Sugestão de correção, Decisão do usuário e Status de aplicação.",
+    "docs/product/prd/prd.md está byte a byte igual ao da fixture (git diff vazio para esse arquivo), e todo problema do relatório tem Decisão do usuário 'Aguardando decisão' e Status de aplicação 'PENDENTE' — nenhum item marcado como Aprovado ou APLICADO.",
+    "Algum problema aponta que a recarga por cartão de crédito (§ 1.1/§ 5.1 do PRD) contradiz a exclusão explícita da seção 'Fora desta fase' do discovery e sugere movê-la para Fora do Escopo ou roadmap futuro.",
+    "Algum problema aponta que a meta NPS ≥ 70 (OBJ-02) não tem base no discovery e/ou que a meta citada pela Carla (60% de recargas digitais em 6 meses) não está refletida nos objetivos do PRD.",
+    "Algum problema classifica o tópico Kafka, partições, retenção e colunas da tabela PostgreSQL do RF-02 como detalhe técnico fora do nível de PRD e sugere explicitamente encaminhá-lo ao TRD.md."
+  ]
+}

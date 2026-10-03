@@ -1,0 +1,29 @@
+{
+  "reviewer": "arch-reviewer",
+  "findings": [
+    {
+      "id": "ARCH-001",
+      "severity": "BLOCKER",
+      "category": "arch",
+      "file": "services/pagamentos/src/Pagamentos.Contracts/Events/PagamentoAprovadoV1.cs",
+      "line": 4,
+      "title": "Breaking change no contrato público PagamentoAprovadoV1 sem nova versão",
+      "description": "O campo `Valor` (decimal) foi trocado por `ValorEmCentavos` (long) no mesmo tipo `PagamentoAprovadoV1`, publicado no tópico \"pagamentos.pagamento-aprovado.v1\" e consumido por Bilhetagem e Conciliação. Isso muda o nome e a unidade/tipo do campo dentro da mesma versão de contrato — consumidores existentes que desserializam `Valor` como decimal quebram silenciosamente ou passam a interpretar o valor errado (ex.: R$ 10,00 lido como 1000 sem conversão). api-and-contracts.md exige que breaking changes criem nova versão e proíbe alteração retroativa de eventos publicados; o próprio escopo do arch-reviewer trata isso como BLOCKER por definição.",
+      "fix_suggested": "Criar `PagamentoAprovadoV2` com `ValorEmCentavos`, publicar em novo tópico/versão (`pagamentos.pagamento-aprovado.v2`), manter `PagamentoAprovadoV1` inalterado até a deprecação formal e migrar Bilhetagem/Conciliação para v2 antes de remover v1.",
+      "rule_violated": ".forge/rules/architecture/api-and-contracts.md",
+      "confidence": "high"
+    },
+    {
+      "id": "ARCH-002",
+      "severity": "BLOCKER",
+      "category": "arch",
+      "file": "services/pagamentos/src/Pagamentos.Infrastructure/Pagamentos.Infrastructure.csproj",
+      "line": 8,
+      "title": "Newtonsoft.Json adicionado em Infrastructure, conflita com ADR-0005 (Aceito)",
+      "description": "ADR-0005 (status: Aceito) proíbe Newtonsoft.Json em qualquer projeto novo ou existente, inclusive Infrastructure, por divergência de tratamento de decimal e datas nos contratos de evento. O diff adiciona `PackageReference Include=\"Newtonsoft.Json\"` e `CachedPagamentoRepository` usa `JsonConvert.DeserializeObject<Pagamento>` para desserializar o cache — exatamente o cenário que a ADR aceita bloqueia.",
+      "fix_suggested": "Remover a dependência Newtonsoft.Json e reescrever `CachedPagamentoRepository` usando `System.Text.Json` (`JsonSerializer.Serialize/Deserialize`), conforme ADR-0005.",
+      "rule_violated": "docs/product/adr/ADR-0005-serializacao-system-text-json.md",
+      "confidence": "high"
+    }
+  ]
+}

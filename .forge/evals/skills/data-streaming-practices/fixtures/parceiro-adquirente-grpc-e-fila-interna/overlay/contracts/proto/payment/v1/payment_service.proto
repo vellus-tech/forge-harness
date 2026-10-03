@@ -1,0 +1,29 @@
+syntax = "proto3";
+package payment.v1;
+
+service PaymentService {
+  rpc Authorize(AuthorizeRequest) returns (AuthorizeResponse);
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+}
+
+message AuthorizeRequest {
+  string idempotency_key = 1;
+  int64 amount_in_cents = 2;
+  string currency = 3;
+  string pan_token = 4;
+}
+
+message AuthorizeResponse {
+  string transaction_id = 1;
+  string status = 2;
+}
+
+message GetStatusRequest {
+  string transaction_id = 1;
+}
+
+message GetStatusResponse {
+  string transaction_id = 1;
+  string status = 2;
+  int64 amount_in_cents = 3;
+}

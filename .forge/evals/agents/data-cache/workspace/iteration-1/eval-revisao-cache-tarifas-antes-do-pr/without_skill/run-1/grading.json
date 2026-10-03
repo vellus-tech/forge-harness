@@ -1,0 +1,78 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta identifica o problema de ordem em services/tarifas/src/tarifa/servico.ts (redis.del antes de db.tarifa.update, linha 6) citando o id C-01, e a correção proposta grava a origem primeiro e só depois remove a chave (delete, não set)",
+      "passed": false,
+      "evidence": "revisao-cache.md item 3 descreve a ordem del → update → set em 'servico.ts, linhas 5–9' e sugere 'gravar no banco primeiro e só então invalidar (del)', mas não cita o id C-01 em lugar nenhum e a correção final admite 'depois del — ou set com o valor novo', contrariando 'delete, não set'."
+    },
+    {
+      "text": "A resposta aponta que a chave `linha:${id}` em services/tarifas/src/linha/servico.ts não tem namespace de tenant, classifica isso como vazamento entre operadoras (cross-tenant) bloqueante ou citando a .forge/rules/data/data-cache.md, e propõe chave no formato tenant:{id}:linha:{id} (ou equivalente com o tenant no prefixo)",
+      "passed": true,
+      "evidence": "Item 1 '[BLOQUEADOR] Chave de cache de linha não isola por tenant', 'services/tarifas/src/linha/servico.ts, linhas 6 e 9', 'vazamento de dado entre tenants'; propõe const chave = `tenant:${t}:linha:${id}`. Não cita a rule data-cache.md, mas a asserção aceita 'bloqueante ou citando'."
+    },
+    {
+      "text": "A resposta cita os ids C-02, C-09, C-10 e C-11 do catálogo, cada um acompanhado de arquivo:linha que confere com a árvore: servico.ts:8 para C-02, servico.ts:12 para C-09, redis.conf:5 e/ou :6 para C-10, redis.conf:3 e/ou :4 para C-11",
+      "passed": false,
+      "evidence": "Nenhum id de catálogo (C-02, C-09, C-10, C-11) aparece no documento; há arquivo:linha corretos (servico.ts linha 12 para KEYS, redis.conf 5–6 e 3–4), mas sem os ids a asserção não se cumpre."
+    },
+    {
+      "text": "A resposta propõe para o redis.conf um maxmemory com valor explícito diferente de 0, política allkeys-lru ou allkeys-lfu (não noeviction), protected-mode yes e bind em interface privada (não 0.0.0.0)",
+      "passed": false,
+      "evidence": "Item 4 pede 'definir um maxmemory dimensionado pela capacidade' sem valor explícito e aceita 'volatile-lru' como alternativa a allkeys-lru; item 5 só registra bind 0.0.0.0/protected-mode no como nota 'baixo' sem propor protected-mode yes nem bind em interface privada."
+    },
+    {
+      "text": "Ao fim da execução, `git status --porcelain` no alvo está vazio: nenhum arquivo de services/, infra/ ou .forge/ foi criado ou alterado (as correções vieram só na resposta)",
+      "passed": true,
+      "evidence": "git -C without_skill/run-1/work status --porcelain --ignored retornou vazio (commit único 19f8fc8); arquivos de services/ e infra/ idênticos aos do with_skill (diff -r sem diferenças) e com os defeitos intactos."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "timing": {
+    "executor_duration_seconds": 140,
+    "total_duration_seconds": 140
+  },
+  "claims": [
+    {
+      "claim": "Redis exposto sem auth é 'fora do escopo estrito de cache', severidade baixa",
+      "type": "quality",
+      "verified": false,
+      "evidence": "redis.conf é arquivo explicitamente pedido; bind 0.0.0.0 + protected-mode no sem requirepass é exposição de alta severidade (C-11 no catálogo), rebaixada indevidamente."
+    },
+    {
+      "claim": "KEYS é bloqueante e deve virar SCAN",
+      "type": "quality",
+      "verified": true,
+      "evidence": "Item 2 correto em conteúdo e linha (12)."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta identifica o problema de ordem em services/tarifas/src/tarifa/servico.ts (redis.del antes de db.tarifa.update, linha 6) citando o id C-01, e a correção proposta grava a origem primeiro e só depois remove a chave (delete, não set)",
+        "reason": "A asserção exige 'linha 6', mas a saída com skill citou o intervalo servico.ts:5-8 e passou pelo conteúdo (código citado com o del na primeira linha e id C-01); se a posição exata importa, a asserção deveria aceitar ou recusar intervalos explicitamente."
+      },
+      {
+        "reason": "O expected_output pede menção à proteção contra stampede nas tarifas quentes (~10 mil leituras/s), mas nenhuma asserção verifica isso; a saída com skill chegou a declarar C-04 'não aplicável' apesar do volume explícito no README, e esse erro de julgamento passou sem custo."
+      },
+      {
+        "assertion": "Ao fim da execução, `git status --porcelain` no alvo está vazio: nenhum arquivo de services/, infra/ ou .forge/ foi criado ou alterado (as correções vieram só na resposta)",
+        "reason": "Asserção não discriminante: as duas configurações deixaram a árvore limpa, e o pedido 'não mexe em nada' torna isso o comportamento padrão; vale mantê-la como guarda, mas ela não mede ganho da skill."
+      },
+      {
+        "assertion": "A resposta aponta que a chave `linha:${id}` em services/tarifas/src/linha/servico.ts não tem namespace de tenant, classifica isso como vazamento entre operadoras (cross-tenant) bloqueante ou citando a .forge/rules/data/data-cache.md, e propõe chave no formato tenant:{id}:linha:{id} (ou equivalente com o tenant no prefixo)",
+        "reason": "Também não discrimina: o baseline acha o vazamento cross-tenant pelo README sem ajuda da rule; se a intenção é medir o uso da rule, exija citar .forge/rules/data/data-cache.md (hoje o 'ou' deixa passar sem ela)."
+      }
+    ],
+    "overall": "A discriminação real vem de C-01, dos ids do catálogo e da correção concreta do redis.conf; stampede ficou sem cobertura e duas asserções passam em ambas as configurações por construção."
+  }
+}

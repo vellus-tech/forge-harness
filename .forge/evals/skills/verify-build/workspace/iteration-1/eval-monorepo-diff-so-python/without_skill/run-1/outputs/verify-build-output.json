@@ -1,0 +1,43 @@
+{
+  "branch": "feat/integracao-60min",
+  "base": "main",
+  "repo": "plataforma-tarifas",
+  "changed_files": [
+    "docs/tarifas.md",
+    "services/tarifa/tarifa/calculo.py",
+    "services/tarifa/tests/test_integracao.py"
+  ],
+  "checks": [
+    {
+      "scope": "services/tarifa",
+      "type": "python-compile",
+      "command": "python3 -m py_compile tarifa/calculo.py tarifa/__init__.py tests/test_calculo.py tests/test_integracao.py",
+      "status": "pass",
+      "exit_code": 0
+    },
+    {
+      "scope": "services/tarifa",
+      "type": "test",
+      "command": "python3 -m unittest discover -s tests -v",
+      "status": "pass",
+      "exit_code": 0,
+      "tests_run": 7,
+      "tests_failed": 0,
+      "note": "inclui os 4 testes de test_integracao.py cobrindo a janela de 60 minutos (dentro, limite, fora, primeiro embarque)"
+    },
+    {
+      "scope": "web/painel",
+      "type": "typecheck",
+      "command": "tsc --noEmit -p tsconfig.json",
+      "status": "fail",
+      "exit_code": 2,
+      "error": "src/linhas.ts(8,9): error TS2322: Type 'string' is not assignable to type 'number'.",
+      "in_diff": false,
+      "note": "web/painel não foi tocado por este branch (fora de docs/tarifas.md, services/tarifa/tarifa/calculo.py e services/tarifa/tests/test_integracao.py). Typecheck quebrado é pré-existente, conforme relatado pelo usuário (épico PAINEL-12); não bloqueia este PR."
+    }
+  ],
+  "overall_status": "pass",
+  "overall_status_note": "Build e testes do escopo alterado (services/tarifa) passaram. A falha de typecheck em web/painel é pré-existente e fora do diff deste branch — não é regressão desta mudança.",
+  "verified_at_utc": "2026-09-28T16:12:43.708337Z",
+  "verified_by": "Milton Antonio da Silva Jr"
+}

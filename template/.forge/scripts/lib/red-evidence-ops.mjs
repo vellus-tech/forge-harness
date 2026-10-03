@@ -4,7 +4,8 @@
 // red-evidence.sh direto a check-red-first.sh (Onda B) — mesma política, uma fonte só.
 //
 //   record <change-dir> --test-path <p> --command <c> --failure-pattern <p> [--test-id <id>]
-//          [--fix-files a,b,c] [--setup-command <c>] [--reproduces <txt>] [--excerpt <txt>]
+//          [--fix-files a,b,c] [--setup-command <c>] [--positive-control <c>]
+//          [--reproduces <txt>] [--excerpt <txt>]
 //     Declara a intenção (test_path/command/failure_pattern/fix_files/...). NUNCA marca
 //     status:'observed' — essa transição só acontece via `replay` bem-sucedido (é o ponto
 //     central da Onda C: sem replay, a evidência é só uma declaração que o agente pode
@@ -52,7 +53,8 @@ import {
   loadRedEvidence, REL_PATH, ENTRY_SCALAR_FIELDS,
   emptyEntry, deriveEntries, computeProjection, deriveTopStatus, nextAutoId, resolveEntryId,
 } from './red-evidence.mjs';
-import { replay as runReplay } from './red-replay.mjs';
+import { replay as runReplay, replayTask } from './red-replay.mjs';
+import { isDefectFixing } from './defect-scope.mjs';
 
 const root = resolve(process.env.FORGE_ROOT || '.');
 
@@ -77,10 +79,10 @@ function truncate(s, max = 6000) {
   return text.length <= max ? text : `…(truncado — ${text.length} chars)…\n${text.slice(-max)}`;
 }
 
-function requireBugfix(changeDir) {
+function requireDefectFixing(changeDir) {
   const man = readManifest(changeDir);
   if (!man) { console.log('FAIL (manifest.yaml ausente/ilegível)'); process.exit(1); }
-  if (man.type !== 'bugfix') { console.log(`FAIL (red-evidence só se aplica a change type:bugfix, got: ${man.type})`); process.exit(1); }
+  if (!isDefectFixing(man)) { console.log(`FAIL (red-evidence só se aplica a change sujeito ao red-first — type:bugfix ou fixes_defects declarado, got type: ${man.type})`); process.exit(1); }
   return man;
 }
 
@@ -169,6 +171,7 @@ export function applyRecord(prevData, changeId, flags) {
   if (flags['fix-files']) target.fix_files = flags['fix-files'].split(',').map((s) => s.trim()).filter(Boolean);
   if (flags['failure-pattern']) target.failure_pattern = flags['failure-pattern'];
   if (flags['setup-command']) target.setup_command = flags['setup-command'];
+  if (flags['positive-control']) target.positive_control = flags['positive-control'];
   if (flags['reproduces']) target.reproduces = flags['reproduces'];
   if (flags['excerpt']) {
     target.excerpt = flags['excerpt'];
@@ -201,7 +204,7 @@ export function applyRecord(prevData, changeId, flags) {
 }
 
 function cmdRecord(changeDir, argv) {
-  requireBugfix(changeDir);
+  requireDefectFixing(changeDir);
   const ev = requireEvidence(changeDir);
   const f = parseFlags(argv);
 
@@ -331,7 +334,7 @@ function persistReplayResult(ev, data, result, opts) {
 // roda ANTES de chamar o motor de replay — sem isso, um change ambíguo pagava worktree+execução
 // de teste só para descartar o resultado no fim.
 async function cmdReplay(changeDir, argv) {
-  requireBugfix(changeDir);
+  requireDefectFixing(changeDir);
   const ev = requireEvidence(changeDir);
   const data = ev.data;
   const f = parseFlags(argv);
@@ -406,7 +409,7 @@ async function cmdReplay(changeDir, argv) {
 async function cmdEnsure(changeDir, argv) {
   const man = readManifest(changeDir);
   if (!man) { console.log('FAIL (manifest.yaml ausente/ilegível)'); process.exit(1); }
-  if (man.type !== 'bugfix') { console.log(`OK ensure (n/a — type: ${man.type})`); return; }
+  if (!isDefectFixing(man)) { console.log(`OK ensure (n/a — type: ${man.type})`); return; }
 
   const ev = loadRedEvidence(changeDir);
   if (!ev.exists) { console.log('OK ensure (evidência ausente — nada a garantir; check-red-first cobre o item 1)'); return; }
@@ -496,6 +499,38 @@ async function cmdEnsure(changeDir, argv) {
   console.log(`OK ensure — ${replayed} entrada(s) replayada(s), ${skippedWaived} dispensada(s), ${skippedIncomplete} incompleta(s) (status do topo: ${current.status})`);
 }
 
+// cmdTask (issue #156): vermelho/verde de uma TASK delegada, por execução — enxerto do teste do
+// verde, infraestrutura intocada no vermelho e topologia, ver replayTask em red-replay.mjs. Sem
+// change-id e sem artefato: o veredito é o rc e a linha impressa. Flags
+// estritas — desconhecida ou sem valor recusa; o valor é literal (um failure-pattern pode começar
+// com "--", ex.: "--- FAIL:" do Go).
+async function cmdTask(taskRoot, argv) {
+  const known = new Set(['red', 'green', 'task-base', 'task-id', 'command', 'failure-pattern', 'setup-command', 'timeout']);
+  const f = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    const name = a.startsWith('--') ? a.slice(2) : null;
+    if (!name || !known.has(name)) { console.log(`FAIL task [entrada] argumento desconhecido: ${a}`); process.exit(1); }
+    if (i + 1 >= argv.length) { console.log(`FAIL task [entrada] --${name} sem valor`); process.exit(1); }
+    f[name] = argv[++i];
+  }
+  let timeoutS;
+  if (f.timeout !== undefined) {
+    timeoutS = Number(f.timeout);
+    if (!Number.isInteger(timeoutS) || timeoutS < 1) { console.log(`FAIL task [entrada] --timeout inválido: ${f.timeout}`); process.exit(1); }
+  }
+  const res = await replayTask({
+    root: resolve(taskRoot), red: f.red, green: f.green || null,
+    taskBase: f['task-base'] || null, taskId: f['task-id'] || null, command: f.command,
+    failurePattern: f['failure-pattern'], setupCommand: f['setup-command'] || null,
+    ...(timeoutS ? { timeoutS } : {}),
+  });
+  if (res.ok) { console.log(`OK task — ${res.reason}`); process.exit(0); }
+  console.log(`FAIL task [${res.code}] ${res.reason}`);
+  if (res.excerpt) console.log(res.excerpt.split('\n').slice(-15).map((l) => `  | ${l}`).join('\n'));
+  process.exit(1);
+}
+
 // ── main guard (mesmo padrão de sync-adapters.mjs, issue #130/w216) ────────────────────────────
 // Sem isto, `import { applyRecord } from './red-evidence-ops.mjs'` (o que o PBT do gate w218 e
 // qualquer leitor futuro de `applyRecord` precisam fazer) executava o bloco de dispatch abaixo
@@ -513,13 +548,14 @@ function isMainModule() {
 if (isMainModule()) {
   const [, , cmd, changeDir, ...rest] = process.argv;
   if (!cmd || !changeDir) {
-    console.log('FAIL (usage: red-evidence-ops.mjs record|replay|ensure <change-dir> [...])');
+    console.log('FAIL (usage: red-evidence-ops.mjs record|replay|ensure <change-dir> [...] | task <root> --red <sha> [...])');
     process.exit(1);
   }
   switch (cmd) {
     case 'record': cmdRecord(changeDir, rest); break;
     case 'replay': await cmdReplay(changeDir, rest); break;
     case 'ensure': await cmdEnsure(changeDir, rest); break;
+    case 'task': await cmdTask(changeDir, rest); break;
     default: console.log(`FAIL (unknown subcommand: ${cmd})`); process.exit(1);
   }
 }

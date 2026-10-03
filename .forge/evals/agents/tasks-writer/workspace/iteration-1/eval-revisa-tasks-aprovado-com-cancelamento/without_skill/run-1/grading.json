@@ -1,0 +1,60 @@
+{
+  "expectations": [
+    {
+      "text": "O cabeçalho de docs/product/modules/rotativo/tasks.md mostra 'Versão: 1.1.0' e o Status continua 'Aprovado para desenvolvimento' (não regrediu para Rascunho e não pulou para 2.0.0).",
+      "passed": true,
+      "evidence": "grep -nE 'Versão:|Status:' outputs/tasks.md: :3 '- Versão: 1.1.0', :5 '- Status: Aprovado para desenvolvimento'; original 1.0.0."
+    },
+    {
+      "text": "A tabela 'Histórico de Versões' mantém a linha 1.0.0 original e ganha uma linha 1.1.0 cuja descrição menciona o cancelamento/estorno (Req 4).",
+      "passed": true,
+      "evidence": "outputs/tasks.md:15 mantém a linha 1.0.0 original ('Criação inicial do plano de tasks') e :16 acrescenta '| 1.1.0 | 2026-09-26 | ... Cobertura do cancelamento com estorno proporcional (Req 4, PBT-04, DD-003, migration V2, ...)'."
+    },
+    {
+      "text": "TASK-01 a TASK-06 continuam existindo com os mesmos títulos e números; TASK-01 e TASK-02 seguem '[X]' e TASK-03 segue '[-]' tanto no Status Geral quanto no header da TASK; nenhuma TASK existente foi renumerada.",
+      "passed": false,
+      "evidence": "diff <(grep -E '^### TASK-0[1-6]|^\\| TASK-0[1-6]' orig) <(grep -E '^### TASK-0[1-6]|^\\| TASK-0[1-6]' outputs/tasks.md), com orig = git -C work show HEAD:docs/product/modules/rotativo/tasks.md (fixture 'estado inicial'): o título de TASK-06 mudou no Status Geral (:33 'API, consulta por placa, cancelamento e observabilidade') e no header (:173 '### TASK-06 — API, consulta por placa, cancelamento e observabilidade *(escopo estendido — v1.1.0)*'); original 'API, consulta por placa e observabilidade'. TASK-06 também ganhou dependência TASK-08 (:180) e subtask nova ST-04 (:189). Status TASK-01/02 [X] (:55, :72) e TASK-03 [-] (:90) preservados e sem renumeração, mas 'mesmos títulos' é violado; além disso as seções foram reordenadas (TASK-07 :119 antes de TASK-05 :139, TASK-08 :156 antes de TASK-06 :173)."
+    },
+    {
+      "text": "O cancelamento foi planejado em TASK(s) nova(s) numerada(s) a partir de TASK-07, com status '[ ]', presentes tanto na seção Tarefas quanto no Status Geral, e ao menos uma delas tem subtask Red que cita PBT-04.",
+      "passed": true,
+      "evidence": "Status Geral outputs/tasks.md:30 TASK-07 [ ] e :32 TASK-08 [ ]; seções '### TASK-07' :119 e '### TASK-08' :156 com '| **Status** | [ ] |' (:125, :162); :132 '- [ ] **ST-01 — Red:** PBT-04 (...)'. Observação: o endpoint DELETE ficou em TASK-06, não em TASK nova, mas a asserção só exige que o cancelamento tenha TASK(s) nova(s) a partir de TASK-07."
+    },
+    {
+      "text": "A Matriz de Rastreabilidade tem linhas para Req 4, PBT-04 e DD-003, cada uma apontando para TASK-07 ou posterior.",
+      "passed": true,
+      "evidence": "awk '/Matriz de Rastreabilidade/,/^## 6/' outputs/tasks.md | grep -nE 'Req 4|PBT-04|DD-003': :199 'Req 4 ... TASK-07, TASK-08, TASK-06', :205 'PBT-04 ... TASK-07', :208 'DD-003 ... TASK-07, TASK-08'. Todas apontam para TASK-07 ou posterior (Req 4 também cita TASK-06, o que não contradiz a letra da asserção)."
+    },
+    {
+      "text": "O cabeçalho referencia 'requirements.md v1.2.0' e 'design.md v1.1.0' (não mais v1.1.0/v1.0.0).",
+      "passed": true,
+      "evidence": "grep -n 'Referência base' outputs/tasks.md: :6 '... requirements.md v1.2.0', :7 '... design.md v1.1.0'."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.83
+  },
+  "timing": {
+    "executor_duration_seconds": 159,
+    "total_duration_seconds": 159
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "TASK-01 a TASK-06 continuam existindo com os mesmos títulos e números; TASK-01 e TASK-02 seguem '[X]' e TASK-03 segue '[-]' tanto no Status Geral quanto no header da TASK; nenhuma TASK existente foi renumerada.",
+        "reason": "A asserção não verifica a ordem das seções: o run sem skill intercalou TASK-07/08 entre TASK-04/05/06, o que só foi pego pela mudança de título. Vale exigir que as seções TASK-01..06 mantenham ordem e conteúdo (diff das seções), não só títulos e status."
+      },
+      {
+        "assertion": "A Matriz de Rastreabilidade tem linhas para Req 4, PBT-04 e DD-003, cada uma apontando para TASK-07 ou posterior.",
+        "reason": "'apontando para TASK-07 ou posterior' passa mesmo quando Req 4 também aponta para TASK-06 (escopo de TASK existente estendido). Se a intenção é não alterar TASKs existentes, exigir que as linhas novas apontem SOMENTE para TASK-07+."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o endpoint DELETE /v1/ativacoes/{id} e a migration V2 serem planejados, nem a sincronização do README do módulo (o run com skill atualizou o README; o sem skill não)."
+      }
+    ],
+    "overall": "Asserções discriminaram no ponto central (não mexer em TASK existente); ainda permissivas em ordem das seções e no conteúdo das linhas da matriz."
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "consumer-cashback-layout-legado-retry-nao-idempotente",
+  "prompt": "No cashback-worker, implementa a TASK-07 do módulo cashback: consumir o ViagemValidada que a validadora publica no RabbitMQ e creditar os 2% de cashback na carteira do passageiro pelo CarteiraClient. A API da carteira dá timeout direto no horário de pico, então coloca um retry de 5 tentativas no POST de crédito que resolve. Deixa o relatório em entrega.md.",
+  "assertions": [
+    "O consumer do ViagemValidada foi criado sob src/Cashback.Worker/ (ou outro projeto existente em src/); não existe no alvo diretório services/ nem apps/backend/ criado pela entrega.",
+    "O POST /v1/creditos feito pelo CarteiraClient (ou pelo consumer) envia o header Idempotency-Key com valor derivado do eventoId do ViagemValidada, e qualquer política de retry adicionada (Polly, resilience handler ou retry do MassTransit) só se aplica a essa chamada com a chave presente; não há retry sobre o POST sem Idempotency-Key.",
+    "entrega.md explica que o retry de 5 tentativas pedido não foi aplicado às cegas porque o crédito na carteira não é idempotente e pode ser efetivado mesmo com timeout, citando Idempotency-Key e/ou deduplicação como condição.",
+    "Existe em tests/ um teste que entrega o mesmo ViagemValidada (mesmo eventoId) duas vezes e verifica que o crédito é solicitado uma única vez ou sempre com a mesma Idempotency-Key.",
+    "contracts/asyncapi/cashback.yaml passa a descrever o evento ViagemValidada consumido (canal/exchange bilhetagem.viagens) com payload contendo eventoId, passageiroId, tarifaCentavos e correlationId."
+  ]
+}

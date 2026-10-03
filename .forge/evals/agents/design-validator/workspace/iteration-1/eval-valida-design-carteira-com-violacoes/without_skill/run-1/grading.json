@@ -1,0 +1,64 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta final (ou o relatório salvo em outputs/) começa com o título '# Validação do design.md', contém a seção '## Resultado' com a linha 'Status: Reprovado' (não 'Aprovado' nem 'Aprovado com ressalvas') e as quatro linhas de total 'Total de achados BLOCKER/HIGH/MEDIUM/LOW: N', com o total de BLOCKER maior ou igual a 1.",
+      "passed": false,
+      "evidence": "`head -1 outputs/review-report.md` retorna '# Revisão arquitetural — Carteira design.md v0.3.0 → v0.3.1', não '# Validação do design.md'. `grep -cE 'BLOCKER|Status: |Matriz|Decisão para o Pipeline' outputs/review-report.md` = 0: não há seção '## Resultado', linha 'Status: Reprovado' nem totais por severidade."
+    },
+    {
+      "text": "Há um achado com cabeçalho no formato '[BLOCKER-NN]' apontando que o aggregate Carteira em CRT.Domain depende do EF Core (using Microsoft.EntityFrameworkCore, [Table]/[Key] ou DbSet) como violação da regra de dependência do Domain, citando ADR-0001 ou Clean Architecture, e o achado tem os campos Local, Problema, Impacto e Correção recomendada.",
+      "passed": false,
+      "evidence": "Nenhum cabeçalho '[BLOCKER-NN]' no relatório (grep BLOCKER = 0). O acoplamento EF Core é mencionado apenas como linha 2 da tabela 'Corrigido direto no design.md', sem severidade nem campos Local/Problema/Impacto/Correção recomendada."
+    },
+    {
+      "text": "Há um achado de severidade BLOCKER (não HIGH/MEDIUM) apontando saldo/valor como double no domínio e/ou FLOAT nas tabelas carteira/movimentacao, citando ADR-0002 ou a proibição de dinheiro em float/double, com correção recomendando centavos inteiros (Money/long/BIGINT).",
+      "passed": false,
+      "evidence": "O float/double aparece como item 1 da tabela 'Corrigido direto no design.md' citando ADR-0002, mas sem classificação de severidade BLOCKER (grep BLOCKER = 0) — foi tratado como 'ajuste mecânico', o oposto de bloqueante."
+    },
+    {
+      "text": "A resposta contém a seção 'Matriz de Rastreabilidade' em tabela com colunas Requirement / Contraparte no Design / Status, na qual a linha de REQ-04 (bloqueio por perda ou roubo) tem Status 'Falhou' e ao menos uma linha de PBT-01 ou PBT-02 tem Status 'Falhou'.",
+      "passed": false,
+      "evidence": "Não existe seção 'Matriz de Rastreabilidade' (grep Matriz = 0). REQ-04 aparece como achado A e PBT-02 é citado no achado B, mas fora de tabela Requirement/Contraparte no Design/Status."
+    },
+    {
+      "text": "A resposta contém a seção 'Decisão para o Pipeline' com 'Pode seguir para `tasks.md`: Não' e 'Requer nova execução do `design-writer`: Sim' (com ou sem crases no nome do arquivo).",
+      "passed": false,
+      "evidence": "Não existe seção 'Decisão para o Pipeline' (grep = 0). Há '## Veredicto sobre seguir para `/forge:tasks`' com '**Não recomendado ainda.**', mas sem as linhas 'Pode seguir para `tasks.md`: Não' e 'Requer nova execução do `design-writer`: Sim'."
+    },
+    {
+      "text": "No diretório do projeto, `git status --porcelain -- docs/` está vazio: docs/product/modules/carteira/design.md (e nenhum outro arquivo em docs/) foi alterado ou criado, apesar de o usuário ter pedido para corrigir ajustes pequenos direto no design.",
+      "passed": false,
+      "evidence": "Comando `git -C without_skill/run-1/work status --porcelain -- docs/` retornou ' M docs/product/modules/carteira/design.md' (diff de 79 linhas; versão bumpada para 0.3.1, DD-001 revogada, seção de achados inserida). O transcript passo 7 confirma a edição. Falha direta da asserção."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 6,
+    "total": 6,
+    "pass_rate": 0.0
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 207000,
+    "total_duration_seconds": 207
+  },
+  "claims": [
+    {
+      "claim": "cinco correções mecânicas aplicadas direto no design.md",
+      "type": "process",
+      "verified": true,
+      "evidence": "git status --porcelain -- docs/ no work/"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "A asserção 6 depende do git status do work/ no momento da grade; outros arquivos fora de docs/ aparecem deletados no without_skill (remoção de .claude/agents e .forge/agents/skills pela condição baseline), o que não afeta a asserção mas deve ser lembrado."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o achado de CPF em claro (RNF-03), que ambas as execuções detectaram; e a asserção 4 aceita PBT-01 OU PBT-02, não exigindo o vínculo explícito com o consumidor sem idempotência/correlation_id que o expected_output menciona."
+      }
+    ],
+    "overall": "Asserções discriminam bem (6/6 vs 0/6); a de não-edição é a mais valiosa, pois o baseline caiu na armadilha do pedido do usuário."
+  }
+}

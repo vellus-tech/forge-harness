@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "Em .forge/graph/c4/c1-context.md o rótulo do nó do sistema contém 'Pagamentos Core' e 'PCI DSS' e NÃO contém '.', '—' nem '–' dentro de [\"...\"].",
+      "passed": false,
+      "evidence": "work/.forge/graph/c4/c1-context.md:8: sys[\"Pagamentos Core v1.4.0 — PCI DSS 4.0.1\"] contém '.' e '—'; grep -c '[.—–]' nos rótulos retornou 1."
+    },
+    {
+      "text": "Em .forge/graph/c4/c2-container.md existem rótulos contendo 'Billing' (com 'faturas') e 'Ledger' (com 'lançamentos' ou 'lancamentos'), e nenhum rótulo entre [\"...\"] do bloco Mermaid contém '.', '—' ou '–'.",
+      "passed": false,
+      "evidence": "Rótulos Billing/Ledger existem (c2-container.md:8-9), mas contêm proibidos: [\"Billing — faturas e impostos (v2.1) (2)\"] e [\"Ledger — lançamentos contábeis (1)\"] (em-dash e ponto), retornados pelo grep '[.—–]'."
+    },
+    {
+      "text": "Os rótulos curados persistem no estado final dos arquivos: c2-container.md não voltou a exibir 'src/billing (2)' como rótulo do container de billing (sinal de que c4.sh foi re-executado depois da edição e apagou a curadoria).",
+      "passed": true,
+      "evidence": "grep -c 'src/billing (2)' em work/.forge/graph/c4/c2-container.md = 0 e em outputs/overview.html = 0; transcript.md:26 confirma que não re-executou c4.sh nem graph.sh após a edição."
+    },
+    {
+      "text": "As arestas do C2 continuam exatamente as do grafo: o bloco Mermaid de c2-container.md tem as mesmas duas relações originais (billing -> shared e ledger -> shared) e nenhuma aresta nova.",
+      "passed": true,
+      "evidence": "Bloco mermaid de c2-container.md:12-13 tem exatamente 'c0 --> c3' e 'c1 --> c3', nenhuma aresta nova; condizente com graph.json (billing->shared, ledger->shared)."
+    },
+    {
+      "text": "A resposta final explica que o texto literal pedido não foi usado porque labels Mermaid do harness não podem conter ponto nem travessão (convenção de labels), mostrando a forma adaptada — em vez de aplicar silenciosamente ou de gravar o texto literal.",
+      "passed": false,
+      "evidence": "transcript.md:15 e 25: gravou o texto literal com em-dash 'exatamente como o usuário digitou'; não há menção à convenção de labels nem forma adaptada."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  }
+}

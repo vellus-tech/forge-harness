@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "Em docs/product/prd/prd.md, a recarga por cartão de crédito não aparece mais em § 5.1 Dentro do Escopo nem como meio de pagamento na § 1.1, e aparece em § 5.2 Fora do Escopo (ou § 5.3 roadmap futuro).",
+      "passed": true,
+      "evidence": "grep -n -i 'crédito' outputs/docs/product/prd/prd.md → l.49 '- Recarga por cartão de crédito ou débito (fica para uma fase futura…)' sob '### 5.2 Fora do Escopo' (l.46), e l.59 (RF-02, 'o crédito deve ficar disponível', não é meio de pagamento). § 1.1 (l.7) passou a 'pagando com Pix, sem precisar ir ao guichê'; o diff remove '- Recarga por cartão de crédito com parcelamento em até 3x.' de § 5.1."
+    },
+    {
+      "text": "O RF-02 de docs/product/prd/prd.md não contém mais 'Kafka', 'recarga.eventos', 'partições', 'PostgreSQL' nem nomes de colunas, mantém o crédito disponível no validador em até 30 minutos e cita TRD.md.",
+      "passed": true,
+      "evidence": "awk '/^### RF-02/{f=1;next} /^### /{f=0} f' outputs/docs/product/prd/prd.md | grep -c -E 'Kafka|recarga\\.eventos|partições|PostgreSQL|cartao_id|valor_centavos|txid|id uuid' → 0. RF-02 (l.59): 'o crédito deve ficar disponível para o validador do ônibus na próxima sincronização, em até 30 minutos. Detalhes técnicos de implementação (mensageria, persistência e modelagem de dados) estão descritos no `TRD.md`.'"
+    },
+    {
+      "text": "O git diff de docs/product/prd/prd.md não altera OBJ-02 (a linha 'Atingir NPS ≥ 70 no app em 3 meses após o lançamento' continua presente), nem a seção RISCO-P01, nem RF-01/RF-03 — as mudanças se limitam aos trechos de P2 e P3.",
+      "passed": true,
+      "evidence": "git -C run-1/work diff -U0 -- docs/product/prd/prd.md | grep '^@@' → só quatro hunks: @@ -7 +7 @@ (§ 1.1), @@ -44 +43,0 @@ (remoção em § 5.1), @@ -49,0 +49 @@ (inclusão em § 5.2), @@ -59 +59 @@ (RF-02). grep -n 'Atingir NPS ≥ 70 no app em 3 meses após o lançamento' outputs/docs/product/prd/prd.md → linha 37. Nenhum hunk toca OBJ-02 (l.35-37), RF-01 (l.53), RF-03 (l.61) nem RISCO-P01 (l.73). outputs/ e work/ idênticos (diff -q sem saída); discovery-notes.md sem diff (git diff --quiet -- docs/product/discovery → 0)."
+    },
+    {
+      "text": "Em docs/product/prd/prd-validation.md, P2 e P3 têm Decisão do usuário 'Aprovado' e Status de aplicação 'APLICADO'; P1 tem 'Rejeitado' e 'REJEITADO'; P4 permanece 'Aguardando decisão' e 'PENDENTE'.",
+      "passed": true,
+      "evidence": "grep -n -E 'Decisão do usuário|Status de aplicação' outputs/docs/product/prd/prd-validation.md → P1 l.13 'Rejeitado — …' / l.14 'REJEITADO'; P2 l.20 'Aprovado.' / l.21 'APLICADO — …'; P3 l.27 'Aprovado.' / l.28 'APLICADO — …'; P4 l.34 'Aguardando decisão — …' / l.35 'PENDENTE'. Ressalva (não exigida pela asserção): a tag do cabeçalho de P1 (l.9) ficou '[PENDENTE]', inconsistente com o campo REJEITADO."
+    },
+    {
+      "text": "O relatório atualizado mantém P1–P4 com os mesmos temas do ciclo anterior (NPS, cartão de crédito, Kafka/PostgreSQL, risco incompleto), sem reescrever o arquivo do zero com nova numeração; qualquer problema novo começa em P5.",
+      "passed": true,
+      "evidence": "grep -n -E '^- \\*\\*P[0-9]' outputs/docs/product/prd/prd-validation.md → P1 (l.9, NPS/OBJ-02), P2 (l.16, cartão de crédito), P3 (l.23, Kafka/PostgreSQL), P4 (l.30, RISCO-P01 incompleto); grep -c 'P5' → 0 (nenhum achado novo). O git diff do relatório só troca Data, campos Decisão/Status e as tags de P2/P3; títulos, evidências e sugestões preservados (não é reescrita do zero)."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  }
+}

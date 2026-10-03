@@ -14,6 +14,9 @@
 #   [11] git: transporte por branch dedicada em remote local converge
 #   [12] gh: stub reprova com mensagem explícita e NUNCA invoca gh
 set -euo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
+# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIB="$WS/template/.forge/scripts/lib"

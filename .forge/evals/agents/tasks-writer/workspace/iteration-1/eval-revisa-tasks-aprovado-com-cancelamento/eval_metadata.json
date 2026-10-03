@@ -1,0 +1,13 @@
+{
+  "eval_id": 2,
+  "eval_name": "revisa-tasks-aprovado-com-cancelamento",
+  "prompt": "Entrou o cancelamento com estorno proporcional no rotativo: o requirements subiu para 1.2.0 (Req 4 e PBT-04) e o design para 1.1.0 (DD-003, DELETE /v1/ativacoes/{id}, migration V2). O tasks.md já está aprovado e o time está no meio da Onda 3 — a TASK-03 está em andamento. Atualiza o tasks.md para cobrir o cancelamento sem bagunçar o que já está rodando.",
+  "assertions": [
+    "O cabeçalho de docs/product/modules/rotativo/tasks.md mostra 'Versão: 1.1.0' e o Status continua 'Aprovado para desenvolvimento' (não regrediu para Rascunho e não pulou para 2.0.0).",
+    "A tabela 'Histórico de Versões' mantém a linha 1.0.0 original e ganha uma linha 1.1.0 cuja descrição menciona o cancelamento/estorno (Req 4).",
+    "TASK-01 a TASK-06 continuam existindo com os mesmos títulos e números; TASK-01 e TASK-02 seguem '[X]' e TASK-03 segue '[-]' tanto no Status Geral quanto no header da TASK; nenhuma TASK existente foi renumerada.",
+    "O cancelamento foi planejado em TASK(s) nova(s) numerada(s) a partir de TASK-07, com status '[ ]', presentes tanto na seção Tarefas quanto no Status Geral, e ao menos uma delas tem subtask Red que cita PBT-04.",
+    "A Matriz de Rastreabilidade tem linhas para Req 4, PBT-04 e DD-003, cada uma apontando para TASK-07 ou posterior.",
+    "O cabeçalho referencia 'requirements.md v1.2.0' e 'design.md v1.1.0' (não mais v1.1.0/v1.0.0)."
+  ]
+}

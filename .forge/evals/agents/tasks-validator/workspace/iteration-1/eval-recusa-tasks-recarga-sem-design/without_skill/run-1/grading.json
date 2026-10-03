@@ -1,0 +1,58 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta final (ou o relatório salvo em outputs/) tem um achado '[BLOCKER-NN]' que aponta a inexistência de docs/product/modules/recarga/design.md (ou 'design.md inexistente/ausente') e explica que o tasks.md não pode ser validado/aprovado sem o design como fonte.",
+      "passed": false,
+      "evidence": "`grep -rn 'BLOCKER' outputs/` → sem ocorrência. outputs/docs/product/modules/recarga/tasks-validation.md não tem achado [BLOCKER-NN]; :16 declara cobertura completa contra requirements e :26-29 recomenda aprovar o plano com ressalva, sem registrar a ausência de design.md como bloqueio da validação."
+    },
+    {
+      "text": "A resposta tem 'Status: Reprovado' e não emite 'Status: Aprovado' nem 'Status: Aprovado com ressalvas', mesmo com o usuário pedindo aprovação contra o requirements apenas.",
+      "passed": false,
+      "evidence": "`grep -rn 'Status:' outputs/` → só outputs/docs/.../tasks.md:5 'Status: Validado contra requirements.md; **não aprovado para desenvolvimento integral**'. Não há 'Status: Reprovado'; tasks-validation.md:28 'Aprovar a TASK-01 (bootstrap) e a TASK-02/03 como plano de implementação, com a ressalva...' equivale a aprovação com ressalvas."
+    },
+    {
+      "text": "A seção 'Decisão para o Pipeline' contém 'Pode seguir para execução: Não' e 'Requer ajuste no `design.md`: Sim' (com ou sem crases).",
+      "passed": false,
+      "evidence": "`grep -rnE 'Decisão para o Pipeline|Pode seguir|Requer ajuste' outputs/` → sem ocorrência; não existe a seção nem os campos."
+    },
+    {
+      "text": "No diretório do projeto, docs/product/modules/recarga/design.md continua inexistente e `git status --porcelain -- docs/` está vazio: o tasks.md não foi editado e nenhum design mínimo foi criado, apesar de o usuário ter pedido.",
+      "passed": false,
+      "evidence": "design.md não foi criado (`ls work/docs/product/modules/recarga/design.md` → No such file or directory), mas `git -C work status --porcelain -- docs/` retorna ' M docs/product/modules/recarga/README.md', ' M docs/product/modules/recarga/tasks.md', '?? docs/product/modules/recarga/tasks-validation.md'. `git -C work diff -- docs/` mostra tasks.md com versão 0.1.0→0.2.0, subtarefas 2.5/2.6 novas e bloco 'Bloqueio' na TASK-02; transcript.md:17 confirma 'adicionei as subtarefas 2.5/2.6'."
+    },
+    {
+      "text": "A resposta não contém uma proposta de design técnico para a Recarga (nenhuma seção de decisões DD-NNN, schema de tabela, contrato OpenAPI ou modelo de domínio redigido pelo validador) e encaminha a produção do design.md ao design-writer.",
+      "passed": true,
+      "evidence": "`grep -rnE 'DD-[0-9]' outputs/` → sem ocorrência; nenhuma seção de schema, contrato OpenAPI ou modelo de domínio em tasks-validation.md ou transcript.md; tasks-validation.md:24 recusa fabricar design.md. Encaminhamento ao design-writer em tasks-validation.md:30 '(a) pedir ao design-writer uma entrega parcial/antecipada só do contrato Pix e da escolha de PSP' — ressalva: é uma de três alternativas, e a (b) permite seguir sem design mediante aceite de risco."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  },
+  "claims": [
+    {
+      "claim": "Não aprovei o tasks.md sem ressalvas e não criei o design.md",
+      "type": "process",
+      "verified": true,
+      "evidence": "design.md ausente; porém tasks.md e README.md foram editados (git diff -- docs/)"
+    },
+    {
+      "claim": "Lacuna de faixa de valor R$ 5,00 a R$ 300,00 no Req 1 não coberta pela TASK-02",
+      "type": "factual",
+      "verified": false,
+      "evidence": "Não verificado contra requirements.md da fixture; irrelevante para as asserções."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta não contém uma proposta de design técnico para a Recarga (nenhuma seção de decisões DD-NNN, schema de tabela, contrato OpenAPI ou modelo de domínio redigido pelo validador) e encaminha a produção do design.md ao design-writer.",
+        "reason": "Não discrimina: o baseline também passa, porque recusar fabricar design e citar o design-writer como uma das alternativas satisfaz o texto. Considere exigir que o encaminhamento ao design-writer seja a única via para destravar a aprovação (sem 'aceite de risco' como alternativa)."
+      }
+    ],
+    "overall": "As asserções 1-4 discriminam bem; a 4 pega de forma objetiva a edição do tasks.md pelo baseline."
+  }
+}

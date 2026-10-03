@@ -1,0 +1,67 @@
+{
+  "expectations": [
+    {
+      "text": "O analysis.json em .forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/ existe e seu verdict não é 'improve' (esperado 'inconclusive'), apesar do delta.pass_rate positivo de +0.25 no aggregate.json.",
+      "passed": true,
+      "evidence": "Comando: jq -r .verdict work/.forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/analysis.json → 'inconclusive' (analysis.json linha 3); cmp com outputs/analysis.json → idêntico. jq .delta aggregate.json → pass_rate 0.25; verdict não é 'improve' apesar do delta positivo."
+    },
+    {
+      "text": "findings contém um item com kind 'high_variance' cujo detail cita o stddev da variant 0.4463 e a média 0.5625 exatamente como estão no aggregate.json (ou a relação stddev maior que metade da média com esses valores).",
+      "passed": true,
+      "evidence": "analysis.json linhas 6-9: kind 'high_variance', detail 'variant stddev 0.4463 vs mean 0.5625 (razão ~0.79, bem acima de metade do mean)'; jq .variant aggregate.json → pass_rate_stddev 0.4463, pass_rate_mean 0.5625 (idênticos)."
+    },
+    {
+      "text": "findings contém um item de kind 'triggering' (ou kind equivalente que declare explicitamente não disparo da skill) cujo case identifica TC-03 ou eval-3 e cujo detail registra que a saída da variant é idêntica/igual à do baseline.",
+      "passed": true,
+      "evidence": "analysis.json linhas 10-14: kind 'no_trigger' (declara explicitamente não disparo: 'Indica que a skill não disparou para esse prompt informal'), case 'TC-03', detail 'variant_result.output em eval-3/grading.json é textualmente idêntico ao baseline_result.output'. Aceito como kind equivalente conforme o texto da asserção."
+    },
+    {
+      "text": "recommendation é uma única string que manda rodar /forge:skill-lifecycle optimize (na description) e/ou reavaliar com mais casos antes de promover — e não recomenda aprovar/promover a skill agora.",
+      "passed": true,
+      "evidence": "analysis.json linha 31: recommendation é string única ('Não aprovar a skill hoje com base só no delta agregado de +0.25. Rodar /forge:skill-lifecycle eval com mais casos (n>=8-10) ... /forge:skill-lifecycle optimize na description ...'). Manda optimize e mais casos; recusa aprovar agora."
+    },
+    {
+      "text": "git status mostra o analysis.json como único arquivo novo ou modificado; SKILL.md, aggregate.json e os quatro grading.json permanecem idênticos ao commit da fixture.",
+      "passed": true,
+      "evidence": "Comando: git -C with_skill/run-1/work status --porcelain --untracked-files=all → única linha ' M .forge/evals/skills/revisa-migracao-postgres/workspace/iteration-2/analysis.json'. git diff aa3152d --name-status (commit original da fixture) → só 'A ...analysis.json'; SKILL.md, aggregate.json e os 4 grading.json idênticos à fixture. Ressalva: aparece como M e não ?? porque o HEAD 8dd4d98 versionou o analysis.json residual de 26/09 (ver claims)."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "claims": [
+    {
+      "claim": "Refiz a análise a partir dos dados brutos, sem copiar o texto anterior (transcript passo 5)",
+      "type": "process",
+      "verified": false,
+      "evidence": "Execução reexecutada em 28/09 13:32 sobre work/ residual da rodada de 26/09: rodar setup.sh de novo criou o commit 8dd4d98 ('fixture: iteração de eval agregada') que versionou o analysis.json da rodada anterior; o transcript (passo 5) admite ter visto esse arquivo, e a recommendation nova é quase literal à antiga (git diff HEAD). O resultado atende às asserções, mas a execução não é independente e deveria ser refeita em work/ limpo."
+    },
+    {
+      "claim": "Nenhum par variant passed:false com baseline passed:true",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Coerente com deltas por caso +0.5,+0.5,0,0 relatados nos dois braços."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "findings contém um item de kind 'triggering' (ou kind equivalente que declare explicitamente não disparo da skill) cujo case identifica TC-03 ou eval-3 e cujo detail registra que a saída da variant é idêntica/igual à do baseline.",
+        "reason": "Aceitar 'kind equivalente' deixa margem; o agente usou 'no_trigger'. Fixar a lista de kinds aceitos tornaria a checagem determinística."
+      },
+      {
+        "assertion": "git status mostra o analysis.json como único arquivo novo ou modificado; SKILL.md, aggregate.json e os quatro grading.json permanecem idênticos ao commit da fixture.",
+        "reason": "A asserção compara com 'o commit da fixture' mas o runner permitiu que um setup.sh reexecutado versionasse resíduo como novo commit de fixture; checar contra o commit raiz (git rev-list --max-parents=0 HEAD) e exigir work/ vazio antes do setup."
+      }
+    ],
+    "overall": "Asserções discriminam bem o contrato de saída; a execução with_skill está contaminada por resíduo da rodada anterior e merece reexecução limpa."
+  }
+}

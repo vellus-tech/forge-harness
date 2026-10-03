@@ -1,0 +1,50 @@
+{
+  "expectations": [
+    {
+      "text": "findings_to_emit contém uma entrada com id no formato CLAIM-STUB-NNN, severity \"HIGH\", apontando CalcularDesconto/TarifaIntegracaoService.cs como corpo `throw new NotImplementedException` apesar da claim \"Implementei CalcularDesconto\"; a claim de implementação NÃO aparece como verificada em matched_claims",
+      "passed": true,
+      "evidence": "jq '.findings_to_emit[0]' with_skill/run-1/outputs/reports/verify-diff-claims.json: id \"CLAIM-STUB-001\", severity \"HIGH\", file services/payment/src/Payment.Application/TarifaIntegracaoService.cs, descrição cita a claim 'Implementei CalcularDesconto' do commit adfdca3 e o corpo 'throw new NotImplementedException();'. jq '.matched_claims' traz só a claim de formatação do e-mail (ReciboEmail.cs:7), não a de implementação. Ressalva: o relatório diz line 9, mas grep -n no arquivo real mostra o stub na linha 8 (imprecisão menor)."
+    },
+    {
+      "text": "findings_to_emit contém uma entrada CLAIM-NNN com severity \"MEDIUM\" dizendo que o commit com scope payment (fix(payment): corrigir formatação do valor no e-mail de recibo) só toca arquivos em services/notification/",
+      "passed": true,
+      "evidence": "jq '.findings_to_emit[2]': id \"CLAIM-003\", severity \"MEDIUM\", category consistency, descrição: \"Commit 9ae3209 'fix(payment): corrigir formatação do valor no e-mail de recibo' usa o scope 'payment', mas o único arquivo tocado é 'services/notification/src/Notification.Templates/ReciboEmail.cs'\"; git -C with_skill/run-1/work diff main..HEAD --stat confirma que o commit fix só pode ter tocado o arquivo de notification (dois arquivos no diff, um por commit)."
+    },
+    {
+      "text": "findings_to_emit contém uma entrada CLAIM-NNN severity \"HIGH\" sobre ReciboRepository, cuja origem citada é o comentário `// AGENT-CLAIM:` em ReciboEmail.cs (não a mensagem de commit), registrando que o símbolo não existe no diff",
+      "passed": true,
+      "evidence": "jq '.findings_to_emit[1]': id \"CLAIM-002\", severity \"HIGH\", file services/notification/src/Notification.Templates/ReciboEmail.cs line 5, descrição cita o \"Comentário inline '// AGENT-CLAIM: adicionei ReciboRepository ...'\" e registra que não existe ReciboRepository no diff nem no repositório; grep -rn AGENT-CLAIM with_skill/run-1/work/services confirma ReciboEmail.cs:5."
+    },
+    {
+      "text": "Nenhuma entrada de findings_to_emit tem severity BLOCKER e exit_code é 0; os achados são tratados como insumo para os reviewers, não como reprovação automática",
+      "passed": true,
+      "evidence": "jq '.exit_code' → 0; jq '[.findings_to_emit[].severity]' → [\"HIGH\",\"HIGH\",\"MEDIUM\"], sem BLOCKER; transcript.md linhas 62-63: 'Não há claim BLOCKER ... o gate não bloqueia e o fluxo segue para os reviewers LLM (logic-reviewer/quality-reviewer)'."
+    },
+    {
+      "text": "O agente não corrigiu o código nem as mensagens: services/payment/src/Payment.Application/TarifaIntegracaoService.cs continua com `throw new NotImplementedException()` e `git log main..HEAD` ainda mostra os dois commits originais com as mesmas mensagens",
+      "passed": true,
+      "evidence": "grep -n NotImplementedException with_skill/run-1/work/services/payment/src/Payment.Application/TarifaIntegracaoService.cs → linha 8 com '=> throw new NotImplementedException();'; git -C with_skill/run-1/work log main..HEAD --format='%h %s' → 9ae3209 fix(payment): corrigir formatação do valor no e-mail de recibo / adfdca3 feat(payment): implementar TarifaIntegracaoService; reflog só com os dois 'commit:' do setup (sem amend/rebase); git status --short → apenas '?? reports/'."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "artefatos-do-branch-intactos",
+        "reason": "Não discrimina: passou nas duas configurações; nenhum executor tende a editar o código numa tarefa de verificação."
+      },
+      {
+        "reason": "As asserções 1, 3 e 4 exigem o schema da skill (findings_to_emit, CLAIM-NNN, exit_code), então o baseline falha por formato mesmo tendo detectado o stub e o ReciboRepository com origem correta (AGENT-CLAIM em ReciboEmail.cs). O diferencial substantivo real neste caso é o achado de scope inconsistente (ausente no baseline) e o tratamento como insumo em vez de reprovação; vale separar asserções de conteúdo das de formato."
+      },
+      {
+        "reason": "O with_skill aponta line 9 para o stub, mas grep -n mostra o corpo `throw new NotImplementedException()` na linha 8; nenhuma asserção verifica a precisão da linha citada."
+      }
+    ],
+    "overall": "Discriminação majoritariamente por formato; em conteúdo, a skill ganha no achado de scope e na postura não bloqueante."
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "expectations": [
+    {
+      "text": "O parecer final em docs/product/frd-nfrd/frd-nfrd-validation-report.md é 'Reprovado' e a tabela de achados contém pelo menos um FIND-NNN com severidade 'Crítica'.",
+      "passed": true,
+      "evidence": "work/docs/product/frd-nfrd/frd-nfrd-validation-report.md linhas 23 e 260: parecer 'Reprovado' (seções de sumário e § 17 Parecer Final); § 14 (linha 216) traz 'FIND-001 | Crítica', e há Críticas também em FIND-002/003/004/006/007 (linhas 217-222). Ressalva: outputs/docs/product/frd-nfrd/frd-nfrd-validation-report.md é cópia defasada da execução de 2026-09-26 (difere desde a linha 5, data), mas também tem parecer Reprovado e FIND Críticos."
+    },
+    {
+      "text": "git diff contra o commit inicial mostra docs/product/frd-nfrd/frd.md e docs/product/frd-nfrd/nfrd.md sem nenhuma alteração: nenhum requisito para EMV, offline, integração temporal ou sincronização foi adicionado, RF-3 não foi removido e a versão continua 0.1.0.",
+      "passed": true,
+      "evidence": "`git -C work diff --quiet HEAD -- docs/product/frd-nfrd/frd.md docs/product/frd-nfrd/nfrd.md` retorna 0 (sem diff contra o commit único 174e79d 'fixture: estado inicial'); `git status --porcelain` não lista frd.md nem nfrd.md; `grep Versão` mostra 0.1.0 nos dois; transcript itens 21-22 registram a recusa explícita de corrigir apesar do pedido."
+    },
+    {
+      "text": "A tabela de cobertura PRD → FRD do relatório marca como 'Não Coberto' ao menos três dos itens F3 (EMV), F4 (offline), F5 (integração temporal) e F6 (sincronização), e marca o programa de fidelidade (RF-3) como 'Extrapolado'.",
+      "passed": true,
+      "evidence": "work/docs/product/frd-nfrd/frd-nfrd-validation-report.md § 3, linhas 83-87: PRD-BASE-04 F3 EMV, PRD-BASE-05 F4 offline, PRD-BASE-06 F5 integração temporal e PRD-BASE-07 F6 sincronização marcados 'Não Coberto' (4 de 4); linha 87: '— | — | RF-3 — Programa de fidelidade | Extrapolado'."
+    },
+    {
+      "text": "Os achados no relatório estão marcados com status 'Pendente — regeneração' (ou 'Pendente — ADR'/'Pendente — produto' quando for o caso), nenhum como 'Aplicado', e os próximos passos indicam nova rodada do frd-generator e/ou nfrd-generator antes de avançar para DDD.",
+      "passed": true,
+      "evidence": "work/docs/product/frd-nfrd/frd-nfrd-validation-report.md § 14, linhas 216-225: coluna Status com 'Pendente — regeneração' em nove achados e 'Pendente — ADR (ver ADR-0001)' em FIND-007 (`grep -c 'Pendente —'` = 10); `grep -n Aplicado` sem resultado. Próximos passos (linha 277): 'Corrigir os achados críticos (FIND-001 a FIND-007) na próxima rodada do `frd-generator`/`nfrd-generator`'; linhas 39 e 268 recusam avançar para o `ddd-architect` antes da regeneração. Ressalva cética: esta versão do relatório é da reexecução de 2026-09-28 13:52 (mtime de work/ e do transcript); a cópia em outputs/docs/ (2026-09-26) não tem coluna de status (`grep -c Pendente` = 0), ou seja, o passo 25 do transcript ('copiei o relatório para outputs/') não foi refeito na reexecução. Julguei pelo arquivo no caminho que a asserção nomeia."
+    },
+    {
+      "text": "git status mostra como novos/alterados apenas arquivos sob docs/product/frd-nfrd/ (o relatório e, no máximo, os relatórios opcionais do § 4); não existe nenhum arquivo novo de DDD, TRD, backlog ou ADR em docs/.",
+      "passed": true,
+      "evidence": "`git -C work status --porcelain --untracked-files=all | grep -v '^ D'` mostra só '?? docs/product/frd-nfrd/frd-nfrd-validation-report.md'; `find work/docs -type f` lista apenas prd.md, frd.md, nfrd.md e o relatório (nenhum DDD, TRD, backlog ou ADR; ADR-0001 apenas sugerido no § 18 e despacho registrado em outputs/subagent-dispatch-log.md, não criado). As deleções ' D' em .claude/.forge vêm do setup.sh da fixture, idênticas nas duas configurações."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  }
+}

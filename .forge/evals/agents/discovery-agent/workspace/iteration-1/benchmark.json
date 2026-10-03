@@ -1,0 +1,313 @@
+{
+  "metadata": {
+    "skill_name": "discovery-agent",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T19:37:33Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 116,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe docs/discovery/discovery-notes.md (caminho oficial), e n\u00e3o apenas um discovery-notes.md na raiz; o arquivo come\u00e7a com '# Discovery Notes' e tem os campos de cabe\u00e7alho Tipo de iniciativa, Data e Status com Status = 'Em discovery'.",
+          "passed": true,
+          "evidence": "Comando `test -e work/docs/discovery/discovery-notes.md` \u2192 ok; `test -e work/discovery-notes.md` \u2192 ausente (n\u00e3o h\u00e1 c\u00f3pia na raiz). work/docs/discovery/discovery-notes.md:1 '# Discovery Notes'; :4 '**Tipo de iniciativa:** Nova feature \u2014 Ponto a validar (...)'; :5 '**Data:** 2026-09-26'; :6 '**Status:** Em discovery'."
+        },
+        {
+          "text": "A se\u00e7\u00e3o '## 0. Workspace Scan' cont\u00e9m a tabela 0.1 com colunas Caminho | Tipo | Contexto Oferecido listando ao menos tr\u00eas caminhos que existem na fixture (entre README.md, docs/product/adr/, openapi.yaml, src/Recarga.Api/, docker-compose.yml), al\u00e9m das subse\u00e7\u00f5es 0.2 Resumo do Contexto Existente e 0.3 Lacunas Identificadas com conte\u00fado.",
+          "passed": true,
+          "evidence": "discovery-notes.md:10 '## 0. Workspace Scan'; :12 '### 0.1 Diret\u00f3rios e Arquivos Relevantes'; :14 '| Caminho | Tipo | Contexto Oferecido |'; linhas 16-21 listam README.md, docs/product/adr/0001-saldo-centralizado-no-postgres.md, openapi.yaml, src/Recarga.Api/Program.cs, src/Recarga.Api/Recarga.Api.csproj e docker-compose.yml, todos confirmados por `test -e` na fixture. :24 '### 0.2 Resumo do Contexto Existente' com par\u00e1grafo em :26 (cita a sincroniza\u00e7\u00e3o de 15 minutos do ADR-0001); :28 '### 0.3 Lacunas Identificadas' com quatro itens em :30-33."
+        },
+        {
+          "text": "A resposta final do agente cont\u00e9m exatamente um ponto de interroga\u00e7\u00e3o de pergunta dirigida ao usu\u00e1rio, e essa pergunta \u00e9 a Q1 (qual problema a feature resolve); n\u00e3o pergunta sobre usu\u00e1rio, integra\u00e7\u00f5es, monetiza\u00e7\u00e3o, stack ou plataforma nesta mensagem.",
+          "passed": true,
+          "evidence": "outputs/agent-response.md: `grep -c '?'` \u2192 1; a \u00fanica interroga\u00e7\u00e3o est\u00e1 em :17 '**Qual problema essa feature resolve? Me explica como se estivesse contando para um amigo.**' (Q1). As linhas 1-13 s\u00e3o tabela de artefatos e men\u00e7\u00e3o declarativa aos pontos VAL-001/VAL-002 'para validar mais \u00e0 frente', sem pergunta sobre usu\u00e1rio, integra\u00e7\u00f5es, monetiza\u00e7\u00e3o, stack ou plataforma. Ressalva: a resposta \u00e9 a mensagem simulada gravada pelo executor (transcript.md:16), n\u00e3o uma sess\u00e3o interativa real."
+        },
+        {
+          "text": "Em docs/discovery/discovery-notes.md, as subse\u00e7\u00f5es 1.1 a 5.2 (Problema, Usu\u00e1rio Principal, Refer\u00eancias, Pitch, Core Features, Integra\u00e7\u00f5es, Modelo, Planos, Stack, Plataforma, Refer\u00eancias Visuais, Notas Adicionais) est\u00e3o vazias ou s\u00f3 com placeholder; em particular 4.1 Stack n\u00e3o registra .NET/PostgreSQL como decis\u00e3o, apesar de o workspace os revelar.",
+          "passed": true,
+          "evidence": "discovery-notes.md:37-78 (se\u00e7\u00f5es 1 a 5): `sed -n '37,78p' | grep -vE '^(#|---|$)' | wc -l` \u2192 0, ou seja, s\u00f3 cabe\u00e7alhos e separadores; `grep -nE '\\.NET|PostgreSQL'` restrito \u00e0s linhas 37-78 \u2192 0 ocorr\u00eancias; :67-69 '### 4.1 Stack' seguido direto de '### 4.2 Plataforma'. .NET/PostgreSQL aparecem s\u00f3 na se\u00e7\u00e3o 0 (contexto), n\u00e3o como decis\u00e3o; se\u00e7\u00e3o 6 Decis\u00f5es Registradas (:83-84) est\u00e1 vazia."
+        },
+        {
+          "text": "git status no alvo, desconsiderando as remo\u00e7\u00f5es feitas pelo setup em .forge/ e .claude/, mostra apenas arquivos novos sob docs/discovery/; nenhum PRD/FRD/NFRD/TRD/ADR novo, nenhum arquivo em src/ e nenhum arquivo versionado alterado.",
+          "passed": true,
+          "evidence": "`git -C work status --porcelain --untracked-files=all | grep -vE '^.. (\\.forge|\\.claude|plugin)/'` \u2192 apenas '?? docs/discovery/discovery-notes.md'. Nenhum arquivo versionado modificado (nenhuma linha ' M'), nenhum PRD/FRD/NFRD/TRD/ADR novo, nada em src/. A c\u00f3pia em outputs/work/ fica fora do alvo (\u00e9 evid\u00eancia da run) e o ADR copiado ali \u00e9 id\u00eantico ao original, sem status de altera\u00e7\u00e3o no alvo."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 137,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe docs/discovery/discovery-notes.md, e ele cita o arquivo legado discovery-notes.md da raiz na tabela 0.1 do Workspace Scan e incorpora o fato legado sobre os fiscais de p\u00e1tio que anotam em prancheta a sa\u00edda dos \u00f4nibus (ex.: men\u00e7\u00e3o a 'prancheta' ou 'fiscal de p\u00e1tio').",
+          "passed": true,
+          "evidence": "with_skill/run-1/work/docs/discovery/discovery-notes.md (id\u00eantico a outputs/work/docs/discovery/discovery-notes.md, verificado com cmp): linha 16 da tabela 0.1 lista `discovery-notes.md` (raiz) como 'Documento legado'; linha 40 (1.1 Problema) incorpora o fato legado: 'Os fiscais de p\u00e1tio da Via\u00e7\u00e3o Norte registram em prancheta a sa\u00edda de cada \u00f4nibus'. grep -niE 'prancheta|fiscal' confirma linhas 22, 40, 44, 118."
+        },
+        {
+          "text": "docs/discovery/discovery-notes.md n\u00e3o cont\u00e9m nenhuma das express\u00f5es 'a definir', 'talvez', 'possivelmente', 'aparentemente' (busca sem distin\u00e7\u00e3o de mai\u00fasculas), embora o legado as use; a d\u00favida app nativo vs PWA, se registrada, aparece como Ponto a validar (linha VAL-xxx na se\u00e7\u00e3o 7) e n\u00e3o como fato.",
+          "passed": false,
+          "evidence": "grep -niE 'a definir|talvez|possivelmente|aparentemente' em with_skill/run-1/work/docs/discovery/discovery-notes.md (id\u00eantico a outputs/work/docs/discovery/discovery-notes.md, verificado com cmp) casa a linha 22 (0.2: 'possivelmente com luva e sol forte', 'como \"a definir\" / \"aparentemente\"') e a linha 44 (1.2: 'possivelmente com luva e sol forte na tela'). Express\u00f5es proibidas presentes, ainda que entre aspas ou atribu\u00eddas ao legado. Al\u00e9m disso, a d\u00favida nativo vs PWA n\u00e3o virou VAL-xxx: foi convertida em fato (4.2 e DEC-002)."
+        },
+        {
+          "text": "A resposta final do agente faz exatamente uma pergunta ao usu\u00e1rio e ela \u00e9 a Q1 (problema), podendo citar o conte\u00fado legado como contexto; o agente n\u00e3o trata Q1/Q2 como j\u00e1 respondidas nem avan\u00e7a para Q3 ou blocos posteriores.",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 pergunta ao usu\u00e1rio: grep -c '?' em with_skill/run-1/outputs/transcript.md = 0. O transcript ('Resultado') declara que 'a pr\u00f3xima pergunta obrigat\u00f3ria \u00e9 a Q2 (usu\u00e1rio principal)' e a linha 130 do arquivo oficial diz o mesmo, ou seja, o agente tratou Q1 como respondida (1.1 Problema preenchido na linha 40 a partir do legado) e n\u00e3o formulou a Q1."
+        },
+        {
+          "text": "Em docs/discovery/discovery-notes.md, as subse\u00e7\u00f5es 3.1 Modelo, 3.2 Planos, 4.1 Stack e 4.2 Plataforma n\u00e3o trazem 'uso interno', 'sem cobran\u00e7a', 'PWA' ou 'React' como resposta registrada (men\u00e7\u00f5es em 0.2/0.3 como contexto do scan, ou em 7 como ponto a validar, s\u00e3o aceitas).",
+          "passed": false,
+          "evidence": "awk da se\u00e7\u00e3o 3.1 at\u00e9 a 5 em with_skill/run-1/work/docs/discovery/discovery-notes.md (id\u00eantico a outputs/work/docs/discovery/discovery-notes.md, verificado com cmp) mostra linha 72 '3.1 Modelo: Uso interno, sem cobran\u00e7a.', linha 84 '4.1 Stack: React, no front-end...' e linha 88 '4.2 Plataforma: PWA (Progressive Web App)...'; tamb\u00e9m DEC-001..003 nas linhas 108-110. O transcript admite: 'as registrei diretamente nas se\u00e7\u00f5es correspondentes'."
+        },
+        {
+          "text": "O arquivo oficial segue a estrutura obrigat\u00f3ria: cont\u00e9m os t\u00edtulos '## 0. Workspace Scan', '## 1. Vis\u00e3o', '## 2. Funcionalidades', '## 3. Monetiza\u00e7\u00e3o', '## 4. T\u00e9cnico', '## 5. Contexto', '## 6. Decis\u00f5es Registradas', '## 7. Pontos a Validar' e '## 8. Resumo Final do Discovery', e o cabe\u00e7alho tem Status 'Em discovery'.",
+          "passed": true,
+          "evidence": "grep -nE '^## ' em with_skill/run-1/work/docs/discovery/discovery-notes.md (id\u00eantico a outputs/work/docs/discovery/discovery-notes.md, verificado com cmp) retorna as 9 se\u00e7\u00f5es exigidas nas linhas 10, 36, 56, 68, 80, 92, 104, 114, 126 com os t\u00edtulos exatos; linha 6: '**Status:** Em discovery'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 105,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "N\u00e3o existem docs/prd/ nem qualquer arquivo de PRD/FRD/NFRD/TRD no alvo, e n\u00e3o existe src/ nem arquivo de c\u00f3digo (.js, .ts, .tsx, .py, .cs, .java, .kt, package.json) criado pelo agente; git status s\u00f3 mostra arquivos novos sob docs/discovery/ (desconsiderando as remo\u00e7\u00f5es do setup em .forge/ e .claude/).",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work status --porcelain --untracked-files=all` (filtrando remo\u00e7\u00f5es do setup em .forge/ e .claude/) retorna s\u00f3 `?? docs/discovery/discovery-notes.md`; `ls work/src work/docs/prd` \u2192 'No such file or directory' nos dois; `find work -path '*/.git' -prune -o -type f \\( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.py' -o -name package.json -o -iname '*prd*' \\) -print` \u2192 vazio."
+        },
+        {
+          "text": "A resposta final declara que n\u00e3o vai gerar o PRD nem escolher a stack/criar c\u00f3digo nesta fase, e justifica pelo papel do discovery \u2014 o PRD \u00e9 produzido depois (pelo PRD Generator a partir do discovery-notes.md) e a stack precisa ser validada com o usu\u00e1rio.",
+          "passed": true,
+          "evidence": "outputs/agent-response.md:1 \u2014 'n\u00e3o posso pular direto para o PRD nem escolher a stack por conta pr\u00f3pria \u2014 isso n\u00e3o \u00e9 papel do discovery' e '...registrar tudo em `docs/discovery/discovery-notes.md`, que alimenta o PRD Generator na sequ\u00eancia'. Cobre PRD depois pelo PRD Generator a partir do discovery-notes.md e a stack n\u00e3o escolhida 'por conta pr\u00f3pria' (valida\u00e7\u00e3o com o usu\u00e1rio, impl\u00edcita). Ressalva: a resposta n\u00e3o menciona explicitamente o esqueleto em src/ nem diz em letra 'a stack precisa ser validada com voc\u00ea'; aprovado porque a asser\u00e7\u00e3o aceita 'stack/criar c\u00f3digo' e o motivo est\u00e1 presente em subst\u00e2ncia."
+        },
+        {
+          "text": "Nem a resposta final recomenda uma stack concreta (framework, linguagem ou banco nomeado como escolha) nem docs/discovery/discovery-notes.md registra stack na subse\u00e7\u00e3o 4.1 ou decis\u00e3o de stack na se\u00e7\u00e3o 6.",
+          "passed": true,
+          "evidence": "Resposta (outputs/agent-response.md) n\u00e3o nomeia nenhum framework, linguagem ou banco como escolha. discovery-notes.md:61-63 \u2014 '### 4.1 Stack' vazio seguido de '### 4.2 Plataforma'; se\u00e7\u00e3o 6 (linhas 75-79) s\u00f3 tem a linha-molde 'DEC-001 |  | Discovery |  |' vazia; linha 26 registra como lacuna 'N\u00e3o h\u00e1 prefer\u00eancia de stack ou plataforma registrada'."
+        },
+        {
+          "text": "docs/discovery/discovery-notes.md existe com '## 0. Workspace Scan' listando README.md na tabela 0.1, e a resposta final termina com exatamente uma pergunta ao usu\u00e1rio, que \u00e9 a Q1 (qual problema o produto resolve).",
+          "passed": true,
+          "evidence": "outputs/docs/discovery/discovery-notes.md:10 '## 0. Workspace Scan', linha 16 '| README.md | Arquivo | Descreve a ideia inicial...' na tabela 0.1; `git status` em work/ confirma o arquivo real em work/docs/discovery/. `grep -c '?' outputs/agent-response.md` \u2192 1, \u00fanica pergunta na linha 13: 'Qual problema esse produto resolve? Me explica como se estivesse contando para um amigo.' (Q1). Ressalva: a resposta fecha com um par\u00eantese de apoio (linha 15) ap\u00f3s a pergunta, sem nova pergunta; considerado dentro de 'termina com exatamente uma pergunta'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 84,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe docs/discovery/discovery-notes.md (caminho oficial), e n\u00e3o apenas um discovery-notes.md na raiz; o arquivo come\u00e7a com '# Discovery Notes' e tem os campos de cabe\u00e7alho Tipo de iniciativa, Data e Status com Status = 'Em discovery'.",
+          "passed": false,
+          "evidence": "Comando `test -e work/docs/discovery/discovery-notes.md` \u2192 ausente; `find work -name discovery-notes.md -not -path '*/.forge/*' | wc -l` \u2192 0. O \u00fanico documento produzido \u00e9 work/DISCOVERY-recarga-pix.md, que come\u00e7a com '# Discovery \u2014 Recarga de cart\u00e3o via Pix no app do passageiro' (:1) e n\u00e3o tem os campos Tipo de iniciativa, Data nem Status."
+        },
+        {
+          "text": "A se\u00e7\u00e3o '## 0. Workspace Scan' cont\u00e9m a tabela 0.1 com colunas Caminho | Tipo | Contexto Oferecido listando ao menos tr\u00eas caminhos que existem na fixture (entre README.md, docs/product/adr/, openapi.yaml, src/Recarga.Api/, docker-compose.yml), al\u00e9m das subse\u00e7\u00f5es 0.2 Resumo do Contexto Existente e 0.3 Lacunas Identificadas com conte\u00fado.",
+          "passed": false,
+          "evidence": "DISCOVERY-recarga-pix.md n\u00e3o tem se\u00e7\u00e3o '## 0. Workspace Scan' nem tabela 'Caminho | Tipo | Contexto Oferecido'; os achados est\u00e3o em bullets sob '## O que j\u00e1 li no reposit\u00f3rio' (:3-8), sem as subse\u00e7\u00f5es 0.2/0.3 exigidas."
+        },
+        {
+          "text": "A resposta final do agente cont\u00e9m exatamente um ponto de interroga\u00e7\u00e3o de pergunta dirigida ao usu\u00e1rio, e essa pergunta \u00e9 a Q1 (qual problema a feature resolve); n\u00e3o pergunta sobre usu\u00e1rio, integra\u00e7\u00f5es, monetiza\u00e7\u00e3o, stack ou plataforma nesta mensagem.",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 outputs/agent-response.md nem resposta final registrada; o entreg\u00e1vel (DISCOVERY-recarga-pix.md:18-26) cont\u00e9m sete perguntas simult\u00e2neas, cobrindo integra\u00e7\u00f5es/PSP (:20-22), plataforma/app (:25) e estorno (:26), e nenhuma \u00e9 a Q1 'qual problema resolve'. transcript.md:20 confirma 'Formulei sete perguntas de esclarecimento'."
+        },
+        {
+          "text": "Em docs/discovery/discovery-notes.md, as subse\u00e7\u00f5es 1.1 a 5.2 (Problema, Usu\u00e1rio Principal, Refer\u00eancias, Pitch, Core Features, Integra\u00e7\u00f5es, Modelo, Planos, Stack, Plataforma, Refer\u00eancias Visuais, Notas Adicionais) est\u00e3o vazias ou s\u00f3 com placeholder; em particular 4.1 Stack n\u00e3o registra .NET/PostgreSQL como decis\u00e3o, apesar de o workspace os revelar.",
+          "passed": false,
+          "evidence": "docs/discovery/discovery-notes.md n\u00e3o existe (`test -e` falhou), portanto as subse\u00e7\u00f5es 1.1 a 5.2 n\u00e3o existem para verificar. Al\u00e9m disso, DISCOVERY-recarga-pix.md:28-32 j\u00e1 prop\u00f5e desenho (fluxo em duas etapas, ADR complementar), conte\u00fado inferido antes das respostas do usu\u00e1rio."
+        },
+        {
+          "text": "git status no alvo, desconsiderando as remo\u00e7\u00f5es feitas pelo setup em .forge/ e .claude/, mostra apenas arquivos novos sob docs/discovery/; nenhum PRD/FRD/NFRD/TRD/ADR novo, nenhum arquivo em src/ e nenhum arquivo versionado alterado.",
+          "passed": false,
+          "evidence": "`git -C work status --porcelain --untracked-files=all | grep -vE '^.. (\\.forge|\\.claude|plugin)/'` \u2192 '?? DISCOVERY-recarga-pix.md', arquivo novo na raiz e n\u00e3o sob docs/discovery/. Nenhum arquivo versionado alterado e nada em src/, mas a asser\u00e7\u00e3o exige que os arquivos novos estejam apenas sob docs/discovery/."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 68,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe docs/discovery/discovery-notes.md, e ele cita o arquivo legado discovery-notes.md da raiz na tabela 0.1 do Workspace Scan e incorpora o fato legado sobre os fiscais de p\u00e1tio que anotam em prancheta a sa\u00edda dos \u00f4nibus (ex.: men\u00e7\u00e3o a 'prancheta' ou 'fiscal de p\u00e1tio').",
+          "passed": false,
+          "evidence": "without_skill/run-1/work/docs n\u00e3o existe (ls: No such file or directory); o agente reescreveu in-place o legado work/discovery-notes.md (copiado em outputs/discovery-notes.md), sem tabela 0.1 nem caminho oficial. O transcript confirma: 'Optei por atualizar o discovery-notes.md existente em vez de criar um documento novo'."
+        },
+        {
+          "text": "docs/discovery/discovery-notes.md n\u00e3o cont\u00e9m nenhuma das express\u00f5es 'a definir', 'talvez', 'possivelmente', 'aparentemente' (busca sem distin\u00e7\u00e3o de mai\u00fasculas), embora o legado as use; a d\u00favida app nativo vs PWA, se registrada, aparece como Ponto a validar (linha VAL-xxx na se\u00e7\u00e3o 7) e n\u00e3o como fato.",
+          "passed": false,
+          "evidence": "docs/discovery/discovery-notes.md n\u00e3o existe no run; a asser\u00e7\u00e3o n\u00e3o \u00e9 satisfeita. Mesmo no arquivo produzido (outputs/discovery-notes.md), grep acha 'possivelmente' nas linhas 11 e 19, e a d\u00favida nativo vs PWA foi dada como 'Confirmado' (linha 15), n\u00e3o como VAL-xxx."
+        },
+        {
+          "text": "A resposta final do agente faz exatamente uma pergunta ao usu\u00e1rio e ela \u00e9 a Q1 (problema), podendo citar o conte\u00fado legado como contexto; o agente n\u00e3o trata Q1/Q2 como j\u00e1 respondidas nem avan\u00e7a para Q3 ou blocos posteriores.",
+          "passed": false,
+          "evidence": "Nenhuma pergunta ao usu\u00e1rio: grep '?' em without_skill/run-1/outputs/transcript.md sem resultado; o transcript diz 'N\u00e3o fiz perguntas de esclarecimento de volta ao usu\u00e1rio'. N\u00e3o h\u00e1 Q1."
+        },
+        {
+          "text": "Em docs/discovery/discovery-notes.md, as subse\u00e7\u00f5es 3.1 Modelo, 3.2 Planos, 4.1 Stack e 4.2 Plataforma n\u00e3o trazem 'uso interno', 'sem cobran\u00e7a', 'PWA' ou 'React' como resposta registrada (men\u00e7\u00f5es em 0.2/0.3 como contexto do scan, ou em 7 como ponto a validar, s\u00e3o aceitas).",
+          "passed": false,
+          "evidence": "docs/discovery/discovery-notes.md n\u00e3o existe no run. No arquivo produzido, 'Stack' (linha 15) registra '**Confirmado:** PWA com React' e 'Monetiza\u00e7\u00e3o' (linha 25) '**Confirmado:** uso interno, sem cobran\u00e7a' como respostas."
+        },
+        {
+          "text": "O arquivo oficial segue a estrutura obrigat\u00f3ria: cont\u00e9m os t\u00edtulos '## 0. Workspace Scan', '## 1. Vis\u00e3o', '## 2. Funcionalidades', '## 3. Monetiza\u00e7\u00e3o', '## 4. T\u00e9cnico', '## 5. Contexto', '## 6. Decis\u00f5es Registradas', '## 7. Pontos a Validar' e '## 8. Resumo Final do Discovery', e o cabe\u00e7alho tem Status 'Em discovery'.",
+          "passed": false,
+          "evidence": "docs/discovery/discovery-notes.md n\u00e3o existe; outputs/discovery-notes.md usa t\u00edtulos livres ('## Problema', '## Usu\u00e1rio', '## Stack', '## Monetiza\u00e7\u00e3o', '## Lacunas...', '## Pr\u00f3ximos passos') sem nenhuma das se\u00e7\u00f5es 0-8 exigidas nem cabe\u00e7alho de Status."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 4,
+        "total": 4,
+        "time_seconds": 199,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "N\u00e3o existem docs/prd/ nem qualquer arquivo de PRD/FRD/NFRD/TRD no alvo, e n\u00e3o existe src/ nem arquivo de c\u00f3digo (.js, .ts, .tsx, .py, .cs, .java, .kt, package.json) criado pelo agente; git status s\u00f3 mostra arquivos novos sob docs/discovery/ (desconsiderando as remo\u00e7\u00f5es do setup em .forge/ e .claude/).",
+          "passed": false,
+          "evidence": "`git -C without_skill/run-1/work status --porcelain --untracked-files=all` lista `?? docs/prd/prd.md`, `?? package.json`, `?? src/app/page.tsx`, `?? src/lib/db.ts`, `?? prisma/schema.prisma`, `?? tailwind.config.ts` entre outros; transcript.md:14-25 descreve a cria\u00e7\u00e3o do PRD e do esqueleto."
+        },
+        {
+          "text": "A resposta final declara que n\u00e3o vai gerar o PRD nem escolher a stack/criar c\u00f3digo nesta fase, e justifica pelo papel do discovery \u2014 o PRD \u00e9 produzido depois (pelo PRD Generator a partir do discovery-notes.md) e a stack precisa ser validada com o usu\u00e1rio.",
+          "passed": false,
+          "evidence": "transcript.md:13 'decidi atender ao pedido expl\u00edcito do usu\u00e1rio: gerar o PRD diretamente, escolher a stack e montar o esqueleto'; transcript.md:32 'Este run **n\u00e3o recusou** e **n\u00e3o redirecionou**'. N\u00e3o h\u00e1 resposta final com recusa."
+        },
+        {
+          "text": "Nem a resposta final recomenda uma stack concreta (framework, linguagem ou banco nomeado como escolha) nem docs/discovery/discovery-notes.md registra stack na subse\u00e7\u00e3o 4.1 ou decis\u00e3o de stack na se\u00e7\u00e3o 6.",
+          "passed": false,
+          "evidence": "transcript.md:15 'Escolhi a stack: Next.js 14 (App Router) + TypeScript + Prisma + PostgreSQL + Tailwind CSS'; n\u00e3o existe docs/discovery/discovery-notes.md (`ls work/docs` \u2192 s\u00f3 'prd')."
+        },
+        {
+          "text": "docs/discovery/discovery-notes.md existe com '## 0. Workspace Scan' listando README.md na tabela 0.1, e a resposta final termina com exatamente uma pergunta ao usu\u00e1rio, que \u00e9 a Q1 (qual problema o produto resolve).",
+          "passed": false,
+          "evidence": "`ls work/docs` \u2192 apenas 'prd'; n\u00e3o existe docs/discovery/discovery-notes.md nem Workspace Scan, e nenhuma pergunta Q1 foi feita ao usu\u00e1rio (transcript.md:32)."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8,
+        "stddev": 0.3464,
+        "min": 0.4,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 119.3333,
+        "stddev": 16.2583,
+        "min": 105,
+        "max": 137
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "time_seconds": {
+        "mean": 117.0,
+        "stddev": 71.4633,
+        "min": 68,
+        "max": 199
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.80",
+      "time_seconds": "+2.3",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

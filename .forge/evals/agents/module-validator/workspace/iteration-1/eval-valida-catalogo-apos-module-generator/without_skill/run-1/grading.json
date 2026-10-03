@@ -1,0 +1,81 @@
+{
+  "expectations": [
+    {
+      "text": "Existe docs/product/modules/modules-validation-report.md com cabeçalho contendo Versão 1.0.0, Data, Status e Validador module-validator, e seções de Matriz de Cobertura BC ↔ Módulo, Matriz de Ownership, Grafo de Dependências em bloco mermaid, Matriz Módulo ↔ Deployable e Parecer Final.",
+      "passed": false,
+      "evidence": "`ls work/docs/product/modules` não contém modules-validation-report.md; em outputs/ só há parecer.md, sem cabeçalho de Versão/Data/Status/Validador e sem nenhuma 'Matriz' (`grep -nE 'Matriz|Reprovado|MOD-' outputs/parecer.md` rc=1)."
+    },
+    {
+      "text": "O Status/Parecer Final do relatório é 'Reprovado' e há um achado com prefixo MOD-OWN classificado como Crítica apontando que cartoes_transporte tem dois donos (cadastro-passageiro e recarga).",
+      "passed": false,
+      "evidence": "`grep -nE 'Reprovado|MOD-' outputs/parecer.md` vazio (rc=1). O veredito é 'Não libere a implementação ainda' (parecer.md:7) e o achado está como '### 1. Ownership de cartoes_transporte em conflito ... — BLOQUEANTE' (l.11), sem ID MOD-OWN nem classificação Crítica."
+    },
+    {
+      "text": "O achado de ownership de cartoes_transporte está marcado como 'Conflito Arquitetural' ou 'Ponto a Validar' (não [CORRIGIDO]) e as linhas de ownership de cartoes_transporte em docs/product/modules/recarga/README.md e docs/product/modules/cadastro-passageiro/README.md permanecem idênticas às do commit inicial (git diff não altera essas linhas), assim como docs/product/data-model/data-model.md.",
+      "passed": false,
+      "evidence": "Falha substantiva, não só de vocabulário: `git -C work diff -- docs/product | grep -c '^[-+].*cartoes_transporte'` = 2 — recarga/README.md trocou '- cartoes_transporte (dono do saldo; recarga grava o saldo diretamente)' por '- cartoes_transporte (não é dono — atualiza o saldo via CreditarSaldo ...)'. O próprio parecer.md:16 e :27 confessa que resolveu parcialmente o ownership ('Corrigi apenas a parte...'; 'troquei a reivindicação de posse'). Também não há rótulo 'Conflito Arquitetural' nem 'Ponto a Validar' (grep rc=1). cadastro-passageiro/README.md e data-model.md seguem intactos, mas a asserção é conjuntiva."
+    },
+    {
+      "text": "docs/product/modules/recarga/README.md passou a declarar o deployable recarga-service (seção Deployable ou equivalente), e o relatório lista essa correção com marcação [CORRIGIDO] na seção Correções Aplicadas indicando arquivo e antes/depois.",
+      "passed": false,
+      "evidence": "`grep -n '^## Deployable' work/docs/product/modules/recarga/README.md` vazio; recarga-service só aparece no rodapé Cross-refs original. parecer.md:40 afirma que os deployables 'batem 1:1' e não detectou a lacuna; não há [CORRIGIDO] nem seção Correções Aplicadas."
+    },
+    {
+      "text": "docs/product/modules/notificacoes/README.md ganhou um bloco mermaid de dependências com arestas de notificacoes para recarga e para cadastro-passageiro, e o relatório registra a correção como [CORRIGIDO] com ID MOD-DOC-NNN ou equivalente.",
+      "passed": false,
+      "evidence": "O diff de work/ mostra mermaid novo em notificacoes/README.md com 'notificacoes -->|PL RecargaConfirmada| recarga' e 'notificacoes -->|Conformist gRPC ObterContato| cadastro-passageiro', mas essa edição veio da tentativa anterior contaminada: o transcript desta run (l.26-29) lista só 3 edições, todas em recarga/README.md, e parecer.md:31 diz que notificacoes 'não foi alterado'. O relatório não registra nenhuma correção em notificacoes, nem [CORRIGIDO], nem ID MOD-DOC."
+    },
+    {
+      "text": "A Matriz de Ownership do relatório tem uma linha para cada uma das 5 tabelas do data-model (passageiros, cartoes_transporte, recargas, tabelas_tarifarias, notificacoes_enviadas) e a Matriz de Cobertura lista os 4 bounded contexts com percentual de cobertura.",
+      "passed": false,
+      "evidence": "Não há Matriz de Ownership nem Matriz de Cobertura em outputs/parecer.md (grep 'Matriz' rc=1); as tabelas não são enumeradas em linhas, e a l.35 só afirma que o tipo de subdomínio 'bate', sem listar os 4 BCs com percentual."
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 6,
+    "total": 6,
+    "pass_rate": 0.0
+  },
+  "timing": {
+    "executor_duration_seconds": 203.0,
+    "total_duration_seconds": 203.0
+  },
+  "claims": [
+    {
+      "claim": "Deployables de cada módulo batem 1:1 com a tabela de trd.md, sem divergência",
+      "type": "quality",
+      "verified": false,
+      "evidence": "parecer.md:40; ignora que recarga/README.md não tem seção Deployable (grep vazio), lacuna que a configuração with_skill detectou."
+    },
+    {
+      "claim": "notificacoes não foi alterado",
+      "type": "factual",
+      "verified": false,
+      "evidence": "parecer.md:31 contradiz git diff em work/, que altera notificacoes/README.md (+6 linhas) por resíduo da tentativa anterior."
+    },
+    {
+      "claim": "Conteúdo técnico decidido antes de ver o rubric vazado",
+      "type": "process",
+      "verified": false,
+      "evidence": "transcript.md:46-48 relata leitura de grading.json anterior durante a run; não verificável e contamina a execução."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [
+      "Run contaminada: work/ reaproveitado de tentativa anterior (setup.sh retornou FAIL, transcript l.5) e grading.json com o rubric lido durante a execução (transcript l.46). Recomenda-se refazer a run com diretório limpo."
+    ],
+    "workarounds": [
+      "Executor seguiu sem --force no setup, trabalhando sobre work/ pré-existente."
+    ]
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "O harness deixou grading.json e work/ da iteração anterior dentro de run-1 ao reexecutar; o executor leu o rubric. O runner deve limpar run-N antes de nova execução, ou os graders anteriores devem ficar fora da árvore visível ao executor."
+      }
+    ],
+    "overall": "Baseline edita a linha de ownership que deveria preservar, não detecta o deployable ausente e não segue o contrato de relatório; a falha na asserção 3 é substantiva, não só de vocabulário."
+  }
+}

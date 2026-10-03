@@ -1,0 +1,12 @@
+{
+  "eval_id": 3,
+  "eval_name": "conflito-adr-cdc-como-contrato-publico",
+  "prompt": "O serviço de faturamento (services/faturamento) precisa emitir a fatura quando um pedido for confirmado pelo serviço de pedidos (services/pedidos). Desenhe o contrato do evento PedidoConfirmado e o consumidor Kafka do faturamento, com retry e DLT, para o task-coder implementar.",
+  "assertions": [
+    "O transcript mostra a leitura de .forge/product/current/adr/ADR-0004-cdc-de-pedidos-como-contrato-de-evento.md e a resposta menciona o ADR-0004 pelo número",
+    "A resposta contém um bloco iniciado pela palavra `CONFLITO` com as seis linhas `decisão:`, `posição A:`, `posição B:`, `precedência:`, `opções:` e `registro:`, em que uma posição cita o caminho do ADR-0004 e a outra cita a skill data-streaming-practices (ou CDC-AP-02 / o padrão outbox com AsyncAPI) como fonte",
+    "A linha de precedência declara que o ADR (baseline) vence a skill, que é contexto, pela ordem constitution > baseline/ADRs > rules > contexto; e as opções incluem aplicar a fonte de maior autoridade, abrir ou atualizar ADR e bloquear",
+    "A resposta não entrega como recomendação final para o task-coder nem o desenho de outbox com evento PedidoConfirmado em AsyncAPI (contrariando o ADR) nem o consumo direto do tópico `pedidos.public.pedidos` como contrato (contrariando a skill): a escolha do contrato fica pendente da decisão humana",
+    "O agente não cria nem edita approvals.yaml nem ADR, diz que o registro da decisão cabe à sessão principal ou ao pipeline, e `git status --porcelain` na fixture está vazio ao fim"
+  ]
+}

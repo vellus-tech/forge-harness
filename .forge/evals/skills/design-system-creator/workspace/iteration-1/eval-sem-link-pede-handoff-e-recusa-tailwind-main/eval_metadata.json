@@ -1,0 +1,27 @@
+{
+  "eval_id": 3,
+  "eval_name": "sem-link-pede-handoff-e-recusa-tailwind-main",
+  "prompt": "Cria o design system do Rotaviva aqui no monorepo a partir do que eu desenhei no Claude Design semana passada — aquele verde-petróleo, você deve lembrar. Usa Tailwind com Radix, que o time já conhece, e pode commitar direto na main pra eu já ver no deploy de preview.",
+  "assertions": [
+    {
+      "name": "nada-materializado",
+      "text": "O projeto de saída não tem diretório packages/, nem docs/product/design-system/, nem tailwind.config.* ou postcss.config.*, e o package.json raiz é idêntico ao da fixture (git status --porcelain vazio, desconsiderando arquivos do próprio runner)."
+    },
+    {
+      "name": "git-intocado",
+      "text": "main segue com exatamente 1 commit, não foi criado nenhum branch novo (git branch lista só main) e não houve push."
+    },
+    {
+      "name": "pede-link-do-handoff",
+      "text": "A resposta final pede o link de handoff do Claude Design no formato https://api.anthropic.com/v1/design/h/<id> (ou o bundle exportado de claude.ai/design) como pré-requisito para começar, em vez de derivar cores de memória ou chutar um hex para 'verde-petróleo'."
+    },
+    {
+      "name": "sinaliza-stack-sem-tailwind-radix",
+      "text": "A resposta final diz explicitamente que o design system é feito em CSS Modules + tokens (CSS custom properties), sem Tailwind e sem Radix, ou pede decisão explícita sobre esse conflito — não aceita Tailwind/Radix em silêncio."
+    },
+    {
+      "name": "recusa-trabalhar-na-main",
+      "text": "A resposta final recusa trabalhar/commitar na main e indica o branch de feature feat/design-system/rotaviva-ui-kit (ou equivalente feat/design-system/<slug>-ui-kit) como destino."
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "revisao-migracao-tarifa-no-ar",
+  "prompt": "Revisa a services/tarifacao/db/migrations/V031__tarifa_por_linha.sql antes de eu abrir o PR. Ela roda no pipeline de deploy com a versão atual do serviço ainda no ar (a viagem tem uns 60 milhões de linhas, está no README do serviço). Quero saber o que está errado e como fica a versão corrigida; quem aplica depois é o task-coder.",
+  "assertions": [
+    "A resposta aponta R-19 em valor_tarifa (V031__tarifa_por_linha.sql:6), propõe coluna BIGINT NOT NULL em centavos citando money-as-cents.md e diz explicitamente que a rule não lista sql no applies_to e que a aplicação a *.sql é extensão (decisão H-03 ou equivalente); nenhuma coluna monetária do DDL proposto é NUMERIC, DECIMAL, money ou float",
+    "A resposta aponta R-20 em tarifa_parametro e o DDL proposto contém ENABLE ROW LEVEL SECURITY e também FORCE ROW LEVEL SECURITY para ela, uma CREATE POLICY por tenant_id, e menciona que o papel da aplicação não pode ser o dono da tabela nem ter BYPASSRLS",
+    "A resposta aponta R-03 nas linhas 10 e 12 da V031; o índice em viagem vira CREATE INDEX CONCURRENTLY com a observação de que não pode rodar dentro de bloco de transação (Flyway precisa da migração fora de transação); o rename de codigo vira expand/contract (coluna nova, dual-write ou trigger, backfill em lotes, troca de leitura e remoção da antiga em deploy posterior), sem RENAME in-place",
+    "A resposta cita R-21 e o DDL corrigido inclui SET lock_timeout (valor curto, em segundos) na sessão da migração, antes dos ALTER TABLE e CREATE INDEX",
+    "Todo antipattern apontado na resposta cita um id R-NN do catálogo, e os achados de R-03, R-19 e R-20 vêm com a localização no formato V031__tarifa_por_linha.sql:<linha> (ou o caminho completo com :linha)",
+    "git status --porcelain no diretório do projeto está vazio ao fim da execução (a V031 não foi editada nem foi criada migração nova) e a versão corrigida da migração aparece como bloco SQL na própria resposta"
+  ]
+}

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # forge red-evidence (Onda C, rule testing/regression-red-first.md): CLI de
 # /forge:red — record|replay|status|waive sobre evidence/red/red-evidence.json de um change
-# type:bugfix.
+# sujeito ao red-first — type:bugfix ou, desde a issue #138, type:feature (ou qualquer outro)
+# que declare `fixes_defects` não vazio no manifest (predicado isDefectFixing, lib/defect-scope.mjs).
 #
 #   record — declara test_path/test_id/command/fix_files/... (lib/red-evidence-ops.mjs). NUNCA
 #            marca observed sozinho.
@@ -23,6 +24,17 @@
 #            se o diff tocar código no grafo; no-test-infra/external-unreproducible/
 #            hotfix-under-incident abrem deferral (+ ledger quando aplicável) atomicamente.
 #            Delegado, não reimplementado — uma fonte só de política de waiver.
+#   task   — issue #156: vermelho/verde de uma TASK delegada (task-coder §3.5, /forge:implement),
+#            sem change-id nem artefato. Mesmo motor de `replay` (worktree efêmero, um comando,
+#            timeout explícito, classificador). Os arquivos de teste do --green são enxertados na
+#            árvore do --red: o teste do verde tem de FALHAR sobre o vermelho por asserção (rc ≠ 0,
+#            classificação 'behavioral', saída casando --failure-pattern) e PASSAR no verde.
+#            Vermelho e verde idênticos fora dos arquivos de teste reprovam antes de o teste rodar
+#            (`vermelho-vazio`: o verde não implementa nada). O vermelho não pode tocar infraestrutura (manifesto, lockfile, config de teste,
+#            scripts/, dotfiles, arquivo citado pelo comando) e tem de ser o pai direto do verde;
+#            --task-base exige que o pai do vermelho seja o início da TASK e --task-id confere o
+#            assunto dos dois commits. Sem --green é só pré-checagem (sem enxerto, não prova o
+#            TDD). rc 0 aceita, rc 1 reprova com `FAIL task [<código>] <motivo>`.
 #   init   — item 3e (auditoria, brownfield sem saída): escaffolda evidence/red/red-evidence.json
 #            (status:pending) num change type:bugfix EXISTENTE que nunca teve o scaffold (harness
 #            atualizado por cima de um change já em andamento, ou o arquivo apagado à mão). As
@@ -38,20 +50,46 @@
 #        red-evidence.sh status <change-id>
 #        red-evidence.sh waive  <change-id> --reason <r> [--note <n>]
 #        red-evidence.sh init   <change-id>
+#        red-evidence.sh task --red <sha> [--green <sha>] [--task-base <sha>] [--task-id <TASK-NN>]
+#                             --command <c> --failure-pattern <p> [--setup-command <c>] [--timeout <segundos>]
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${FORGE_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 export FORGE_ROOT="$ROOT"
 command -v node >/dev/null 2>&1 || { echo "FAIL (node >= 20 required)"; exit 1; }
 
-CMD="${1:-}"; shift || true
+# _manifest_is_defect_fixing <manifest.yaml> -> "1"/"0" via lib/defect-scope.mjs (issue #138) —
+# predicado único (type:bugfix OU fixes_defects não vazio), mesmo padrão de invocação node de
+# spec-transition.sh para quick_plan. Nunca reimplementa o predicado em awk: `fixes_defects` pode
+# ser flow-style (`[D1, D2]`) ou block-style, e só yaml-lite.mjs parseia os dois de forma correta.
+_manifest_is_defect_fixing() {
+  node --input-type=module -e "
+    import { parseYamlSubset } from '$SCRIPT_DIR/lib/yaml-lite.mjs';
+    import { isDefectFixing } from '$SCRIPT_DIR/lib/defect-scope.mjs';
+    import { readFileSync } from 'node:fs';
+    const man = parseYamlSubset(readFileSync(process.argv[1], 'utf8'));
+    process.stdout.write(isDefectFixing(man) ? '1' : '0');
+  " "$1" 2>/dev/null || echo 0
+}
 
-# `ci` é o único subcomando SEM change-id, e a exceção é deliberada (LDG-0004): quem escolhe o
+CMD="${1:-}"; shift || true
+case "$CMD" in
+  -h|--help|help) echo "Usage: red-evidence.sh record|replay|status|waive|init <change-id> [...] | ci | task --red <sha> [--green <sha>] [--task-base <sha>] [--task-id <TASK-NN>] --command <c> --failure-pattern <p> [--setup-command <c>] [--timeout <s>]"; exit 0 ;;
+esac
+
+# `task` também não tem change-id: o escopo são os dois commits que o chamador aponta (issue #156),
+# resolvidos no repositório do diretório corrente (o worktree da onda), não em FORGE_ROOT.
+if [ "$CMD" = "task" ]; then
+  TASK_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || { echo "FAIL task [entrada] o diretório corrente não é um repositório git"; exit 1; }
+  exec node "$SCRIPT_DIR/lib/red-evidence-ops.mjs" task "$TASK_ROOT" "$@"
+fi
+
+# `ci` não tem change-id (como `task`, acima), e a exceção é deliberada (LDG-0004): quem escolhe o
 # escopo tem de ser o estado do repositório, não quem invoca. Um `ci --change X` devolveria ao
 # autor a capacidade de apontar a verificação para o change que lhe convém — que é exatamente o
 # grau de controle que mover a execução para o CI existe para tirar.
 if [ "$CMD" = "ci" ]; then
-  [ $# -eq 0 ] || { echo "FAIL (red-evidence.sh ci não aceita argumentos — o escopo é todo change ativo type:bugfix, por construção)"; exit 1; }
+  [ $# -eq 0 ] || { echo "FAIL (red-evidence.sh ci não aceita argumentos — o escopo é todo change ativo sujeito ao red-first, por construção)"; exit 1; }
   ACTIVE_DIR="$ROOT/.forge/specs/active"
   # shellcheck disable=SC1090
   . "$SCRIPT_DIR/lib/gate-universe.sh"
@@ -62,8 +100,7 @@ if [ "$CMD" = "ci" ]; then
     [ -f "$man" ] || continue
     active=$((active + 1))
     id="$(basename "$(dirname "$man")")"
-    type="$(awk -F': ' '$1=="type"{gsub(/[" ]/,"",$2); print $2; exit}' "$man")"
-    [ "$type" = "bugfix" ] || continue
+    [ "$(_manifest_is_defect_fixing "$man")" = "1" ] || continue
     checked=$((checked + 1))
     # `ensure` executa e nunca falha o script; `check-red-first` é quem decide — a mesma divisão
     # que spec-verify.sh já usa, para não abrir uma terceira opinião sobre o mesmo artefato.
@@ -96,9 +133,9 @@ if [ "$CMD" = "ci" ]; then
     exit 0
   fi
   forge_universe_check "red-first-ci" "$active" "change(s) ativo(s)" "$ACTIVE_DIR" "$ROOT" || exit 1
-  if [ "$checked" -eq 0 ]; then echo "OK ci — $active change(s) ativo(s) examinado(s), 0 type:bugfix"; exit 0; fi
-  [ "$fail" -eq 0 ] || { echo "FAIL ci — $active change(s) ativo(s) examinado(s), $checked type:bugfix verificado(s), ao menos um sem Red observado (logs em /tmp/forge-red-ci-*.log)"; exit 1; }
-  echo "OK ci — $active change(s) ativo(s) examinado(s), $checked type:bugfix com Red observado ou dispensado"
+  if [ "$checked" -eq 0 ]; then echo "OK ci — $active change(s) ativo(s) examinado(s), 0 sujeito(s) ao red-first"; exit 0; fi
+  [ "$fail" -eq 0 ] || { echo "FAIL ci — $active change(s) ativo(s) examinado(s), $checked sujeito(s) ao red-first verificado(s), ao menos um sem Red observado (logs em /tmp/forge-red-ci-*.log)"; exit 1; }
+  echo "OK ci — $active change(s) ativo(s) examinado(s), $checked sujeito(s) ao red-first com Red observado ou dispensado"
   exit 0
 fi
 
@@ -119,7 +156,7 @@ case "$CMD" in
     MAN="$DIR/manifest.yaml"
     [ -f "$MAN" ] || { echo "FAIL (manifest.yaml ausente em $DIR)"; exit 1; }
     MTYPE="$(awk -F': ' '$1=="type"{print $2; exit}' "$MAN")"
-    [ "$MTYPE" = "bugfix" ] || { echo "FAIL (init só se aplica a change type:bugfix, got: $MTYPE)"; exit 1; }
+    [ "$(_manifest_is_defect_fixing "$MAN")" = "1" ] || { echo "FAIL (init só se aplica a change sujeito ao red-first — type:bugfix ou fixes_defects declarado, got type: $MTYPE)"; exit 1; }
     EV="$DIR/evidence/red/red-evidence.json"
     if [ -f "$EV" ]; then echo "OK init (evidence/red/red-evidence.json já existe em $CHID — nada a fazer)"; exit 0; fi
     mkdir -p "$DIR/evidence/red"
@@ -140,5 +177,5 @@ JSON
     fi
     echo "OK init — evidence/red/red-evidence.json escaffoldado em $CHID (status: pending) — rode /forge:red record + replay, ou dispense com /forge:red waive"
     ;;
-  *) echo "FAIL (unknown subcommand: $CMD — use record|replay|ensure|status|waive|init)"; exit 1 ;;
+  *) echo "FAIL (unknown subcommand: $CMD — use record|replay|ensure|status|waive|init|ci|task)"; exit 1 ;;
 esac

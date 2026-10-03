@@ -1,0 +1,56 @@
+{
+  "expectations": [
+    {
+      "text": "As subpastas de docs/product/modules/ (exceto diagrams/) são exatamente validacao-embarque-api, recarga-api, tokenizacao-cartao-adapter, tarifacao-lib, liquidacao-operadoras-worker e cadastro-passageiro-api, cada uma com README.md; não existe pasta para aggregates (viagem, cartao-transporte, tabela-tarifaria, pedido-recarga, lote-liquidacao, passageiro), para eventos (ex.: embarque-validado) nem para bounded contexts sem módulo próprio (ex.: tarifacao, validacao).",
+      "passed": true,
+      "evidence": "Comando: find work/docs/product/modules -mindepth 1 -maxdepth 1 -type d → exatamente cadastro-passageiro-api, diagrams, liquidacao-operadoras-worker, recarga-api, tarifacao-lib, tokenizacao-cartao-adapter, validacao-embarque-api; cada uma com README.md (listagem ls -R). Nenhuma pasta de aggregate, evento ou bounded context. outputs/docs/product/modules é idêntico a work/ (diff -rq vazio)."
+    },
+    {
+      "text": "Todo docs/product/modules/<modulo>/README.md começa com '# Module - ' e contém os cabeçalhos '## 2. Classificação', '## 5. Fora de Escopo', '## 12. Dados Próprios', '## 16. Compliance Aplicável', '## 20. Pontos a Validar' e '## 22. Referências' (numeração e títulos do template do agente).",
+      "passed": true,
+      "evidence": "Os 6 READMEs abrem com '# Module - ' (ex.: cadastro-passageiro-api: '# Module - Cadastro de Passageiro API'; tarifacao-lib: '# Module - Tarifação Lib') e grep -F encontra os 6 cabeçalhos '## 2. Classificação', '## 5. Fora de Escopo', '## 12. Dados Próprios', '## 16. Compliance Aplicável', '## 20. Pontos a Validar', '## 22. Referências' em todos (resultado 'ok' 6x por módulo)."
+    },
+    {
+      "text": "docs/product/modules/tarifacao-lib/README.md classifica o Tipo de Módulo como Shared Library ou Domain Package, indica que o deployable é a validacao-embarque-api (sem deploy próprio) e contém a frase 'Este módulo não expõe API pública' em vez de uma tabela de endpoints inventada.",
+      "passed": true,
+      "evidence": "tarifacao-lib/README.md l.11 '| Tipo de Módulo | Shared Library |'; l.12 'Deployable Candidato | Não aplicável — embarcada em validacao-embarque-api'; l.15 'sem deploy próprio'; l.58 'Este módulo não expõe API pública. Atua como package consumido internamente pelo `validacao-embarque-api`.'; grep de linhas de tabela com GET/POST/PUT/DELETE retorna vazio."
+    },
+    {
+      "text": "Existem docs/product/modules/diagrams/README.md, solution-architecture.md, module-dependencies.md, integration-flows.md e compliance-flows.md, cada um com ao menos um bloco ```mermaid; module-dependencies.md contém a seção 'Matriz de Dependências' com colunas Origem, Destino e Tipo, e docs/product/modules/README.md contém as seções 'Relação Bounded Context x Módulo' e 'Relação Módulo x Eventos'.",
+      "passed": false,
+      "evidence": "grep -c '```mermaid': solution-architecture.md=1, module-dependencies.md=1, integration-flows.md=3, mas diagrams/README.md=0 e compliance-flows.md=0 (arquivos de 26 e 18 linhas só com tabelas). O restante passa: module-dependencies.md l.22 '## 3. Matriz de Dependências', l.24 '| Origem | Destino | Tipo | ...'; modules/README.md l.77 '## 5. Relação Bounded Context x Módulo' e l.98 '## 7. Relação Módulo x Eventos'. Falha pela letra da asserção (cada um dos cinco com mermaid)."
+    },
+    {
+      "text": "Existe docs/product/modules/diagrams/compliance-pci-dss.md com tabela 'Escopo PCI' marcando tokenizacao-cartao-adapter como dentro do CDE (Sim) e recarga-api, validacao-embarque-api e liquidacao-operadoras-worker como fora (Não), e um diagrama mermaid com subgraph CDE; existe docs/product/modules/diagrams/compliance-lgpd.md listando CPF com módulo dono cadastro-passageiro-api e a retenção de 5 anos do NFR-03.",
+      "passed": true,
+      "evidence": "compliance-pci-dss.md l.7 '## 2. Escopo PCI'; l.11 '| tokenizacao-cartao-adapter | Sim |'; l.12 recarga-api 'Não'; l.13 validacao-embarque-api 'Não'; l.15 liquidacao-operadoras-worker 'Não'; l.31 'subgraph CDE[\"CDE - Cardholder Data Environment\"]' contendo apenas 'Tokenizacao Cartao Adapter - Entrada Segura', serviço de criptografia e HSM (recarga-api fica no subgraph 'Fora do CDE'). compliance-lgpd.md l.11 '| CPF | Pessoal | cadastro-passageiro-api | ... | 5 anos após o último uso do cartão (NFR-03) |'."
+    },
+    {
+      "text": "git diff HEAD -- docs/product ':(exclude)docs/product/modules' é vazio e não há arquivo novo fora de docs/product/modules/ (ignorando as remoções de .forge/agents, .claude/agents e plugin feitas pela fixture); os nomes EmbarqueValidado, RecargaConfirmada, RecargaEstornada e LoteLiquidacaoFechado aparecem literalmente (sem tradução ou renomeação) nos READMEs dos módulos que os publicam ou consomem.",
+      "passed": true,
+      "evidence": "git -C work diff --stat HEAD -- docs/product ':(exclude)docs/product/modules' → vazio; git status --short --untracked-files=all filtrado de ' D' (remoções da fixture) e de docs/product/modules/ → vazio. grep -lF nos READMEs de módulo: EmbarqueValidado em validacao-embarque-api e liquidacao-operadoras-worker; RecargaConfirmada e RecargaEstornada em recarga-api e validacao-embarque-api; LoteLiquidacaoFechado em liquidacao-operadoras-worker (publicador; consumidor é externo segundo ddd-segmentation.md l.32)."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.83
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 575000,
+    "total_duration_seconds": 575
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "A asserção 4 exige bloco ```mermaid em diagrams/README.md e compliance-flows.md, mas o template do próprio agente (snapshot/project-bootstrap/.claude/agents/architecture/module-generator.md §8.1 linhas 707-737 e §8.5 a partir da linha 923) define esses dois arquivos como índices em tabela, sem mermaid; a asserção pune conformidade ao template e deveria exigir mermaid só em solution-architecture, module-dependencies e integration-flows."
+      },
+      {
+        "reason": "O expected_output pede o resumo final 'Resultado da Geração da Estrutura de Módulos', mas nenhuma asserção o verifica; nenhum dos dois transcripts contém a frase (grep -n 'Resultado da Geração' */run-1/outputs/transcript.md sem resultado)."
+      }
+    ],
+    "overall": "Asserções 1, 2, 3 e 5 discriminam bem entre seguir e não seguir o template; a 4 está descalibrada contra o template e o resumo final não é coberto."
+  }
+}

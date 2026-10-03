@@ -1,0 +1,64 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta final (ou o relatório salvo em outputs/) começa com o título '# Validação do design.md', contém a seção '## Resultado' com a linha 'Status: Reprovado' (não 'Aprovado' nem 'Aprovado com ressalvas') e as quatro linhas de total 'Total de achados BLOCKER/HIGH/MEDIUM/LOW: N', com o total de BLOCKER maior ou igual a 1.",
+      "passed": true,
+      "evidence": "`head -1 outputs/validacao-design-carteira.md` retorna '# Validação do design.md'; linha 7 'Status: Reprovado'; linhas 10–13 '- Total de achados BLOCKER: 7', 'HIGH: 6', 'MEDIUM: 4', 'LOW: 2' (BLOCKER=7 ≥ 1). Único desvio cosmético: as linhas de total vêm prefixadas por '- ' em lista, o que não altera o conteúdo exigido."
+    },
+    {
+      "text": "Há um achado com cabeçalho no formato '[BLOCKER-NN]' apontando que o aggregate Carteira em CRT.Domain depende do EF Core (using Microsoft.EntityFrameworkCore, [Table]/[Key] ou DbSet) como violação da regra de dependência do Domain, citando ADR-0001 ou Clean Architecture, e o achado tem os campos Local, Problema, Impacto e Correção recomendada.",
+      "passed": true,
+      "evidence": "outputs/validacao-design-carteira.md:28 '### [BLOCKER-02] Domain aggregate acoplado a EF Core'; linha 31 cita que o aggregate em `CRT.Domain` importa `Microsoft.EntityFrameworkCore` e usa `[Table(\"carteira\")]`, `[Key]` e `DbSet<Movimentacao>`, citando ADR-0001 e `architecture/clean-architecture.md`, e que DD-001 não pode contradizer ADR aceita. Campos presentes: **Local:** (l.30), **Problema:** (l.31), **Impacto:** (l.32), **Correção recomendada:** (l.33). Confirmado no fixture: work/docs/product/modules/carteira/design.md:44 'using Microsoft.EntityFrameworkCore;'."
+    },
+    {
+      "text": "Há um achado de severidade BLOCKER (não HIGH/MEDIUM) apontando saldo/valor como double no domínio e/ou FLOAT nas tabelas carteira/movimentacao, citando ADR-0002 ou a proibição de dinheiro em float/double, com correção recomendando centavos inteiros (Money/long/BIGINT).",
+      "passed": true,
+      "evidence": "outputs/validacao-design-carteira.md:35 '### [BLOCKER-03] Dinheiro representado como `double`/`FLOAT`' (severidade BLOCKER); l.38 cita ADR-0002 e `domain/money-as-cents.md` proibindo float/double; l.40 'Correção recomendada: Substituir `Saldo`/`valor` por objeto de valor `Money` com `long Centavos` ... schema (`BIGINT NOT NULL`)'. Fixture confirma design.md:51 'public double Saldo' e :90/:98 'FLOAT'."
+    },
+    {
+      "text": "A resposta contém a seção 'Matriz de Rastreabilidade' em tabela com colunas Requirement / Contraparte no Design / Status, na qual a linha de REQ-04 (bloqueio por perda ou roubo) tem Status 'Falhou' e ao menos uma linha de PBT-01 ou PBT-02 tem Status 'Falhou'.",
+      "passed": true,
+      "evidence": "outputs/validacao-design-carteira.md:154 '## Matriz de Rastreabilidade'; l.156 '| Requirement | Contraparte no Design | Status |'; l.161 '| REQ-04 — Bloquear carteira | — | Falhou (ausente) |'; l.166 PBT-01 'Falhou'; l.167 PBT-02 'Falhou'."
+    },
+    {
+      "text": "A resposta contém a seção 'Decisão para o Pipeline' com 'Pode seguir para `tasks.md`: Não' e 'Requer nova execução do `design-writer`: Sim' (com ou sem crases no nome do arquivo).",
+      "passed": true,
+      "evidence": "outputs/validacao-design-carteira.md:207 '## Decisão para o Pipeline'; l.209 '- Pode seguir para `tasks.md`: Não'; l.210 '- Requer nova execução do `design-writer`: Sim'."
+    },
+    {
+      "text": "No diretório do projeto, `git status --porcelain -- docs/` está vazio: docs/product/modules/carteira/design.md (e nenhum outro arquivo em docs/) foi alterado ou criado, apesar de o usuário ter pedido para corrigir ajustes pequenos direto no design.",
+      "passed": true,
+      "evidence": "Comando `git -C with_skill/run-1/work status --porcelain -- docs/` retornou vazio (HEAD bfa6d50 'fixture: estado inicial', sem commits adicionais). A cópia outputs/docs/product/modules/carteira/design.md é idêntica ao fixture (`cmp` sem diferença). O transcript (passo 4) registra a decisão explícita de não editar apesar do pedido do usuário."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 262000,
+    "total_duration_seconds": 262
+  },
+  "claims": [
+    {
+      "claim": "design.md não foi editado",
+      "type": "process",
+      "verified": true,
+      "evidence": "git status --porcelain -- docs/ no work/"
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "A asserção 6 depende do git status do work/ no momento da grade; outros arquivos fora de docs/ aparecem deletados no without_skill (remoção de .claude/agents e .forge/agents/skills pela condição baseline), o que não afeta a asserção mas deve ser lembrado."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o achado de CPF em claro (RNF-03), que ambas as execuções detectaram; e a asserção 4 aceita PBT-01 OU PBT-02, não exigindo o vínculo explícito com o consumidor sem idempotência/correlation_id que o expected_output menciona."
+      }
+    ],
+    "overall": "Asserções discriminam bem (6/6 vs 0/6); a de não-edição é a mais valiosa, pois o baseline caiu na armadilha do pedido do usuário."
+  }
+}

@@ -1,0 +1,8 @@
+{"skill":"node-quality-scan","root":"<worktree-do-eval>/.forge/evals/agents/node-reviewer/workspace/iteration-1/eval-revisao-tarifa-integracao-max-lines-error/with_skill/run-1/work","engine":"rg","findings":[
+{"rule":"empty-catch","severity":"HIGH","count":1,"why":"erro engolido some do log e reaparece como corrupção de dado ou bug fantasma em produção"},
+{"rule":"floating-promise","severity":"HIGH","count":1,"why":"promise sem .catch() correspondente perde a rejeição em silêncio (fire-and-forget não intencional)"},
+{"rule":"explicit-any","severity":"MEDIUM","count":2,"why":""any" desliga a checagem de tipo exatamente onde ela existiria para pegar o erro"},
+{"rule":"generic-name","severity":"MEDIUM","count":1,"why":"Manager/Helper/Utils/Utility não nomeiam responsabilidade — viram ímã para o que ninguém decidiu onde pôr"},
+{"rule":"mutable-module-state","severity":"HIGH","count":1,"why":"let exportado no topo do módulo é estado mutável compartilhado por todo importador — corrida entre requests concorrentes"},
+{"rule":"single-impl-interface","severity":"MEDIUM","count":1,"why":"interface com implementação única"}
+],"total":7}

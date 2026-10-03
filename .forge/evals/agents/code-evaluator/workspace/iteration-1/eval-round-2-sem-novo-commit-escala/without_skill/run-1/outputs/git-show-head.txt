@@ -1,0 +1,11 @@
+commit 801f22d52a9210403e77b21f4462e0e65d6e3d6c
+Author: eval <eval@example.invalid>
+Date:   Sat Sep 26 14:48:20 2026 -0300
+
+    feat(tarifa): registro de recarga de crédito no cartão (TASK-12)
+    
+    Adicionei registrar_recarga em services/tarifa/tarifa/recarga.py e testes em services/tarifa/tests/test_recarga.py.
+
+ services/tarifa/tarifa/recarga.py     | 11 +++++++++++
+ services/tarifa/tests/test_recarga.py | 18 ++++++++++++++++++
+ 2 files changed, 29 insertions(+)

@@ -1,0 +1,59 @@
+{
+  "expectations": [
+    {
+      "text": "Não existe diretório .kiro/ (nem .kiro/specs/validador-offline/tasks.md) no projeto após a execução.",
+      "passed": false,
+      "evidence": "`find without_skill/run-1/work -name .kiro` → 'without_skill/run-1/work/.kiro'; existe work/.kiro/specs/validador-offline/tasks.md; `git status --porcelain` → '?? .kiro/'. transcript.md:36 'Criado `work/.kiro/specs/validador-offline/tasks.md`'."
+    },
+    {
+      "text": "Nenhum tasks.md em qualquer caminho do projeto tem Status 'Aprovado para desenvolvimento', e o README do módulo não passou a listar tasks.md como aprovado.",
+      "passed": false,
+      "evidence": "`find without_skill/run-1/work -name tasks.md -not -path '*/.git/*' | xargs grep -n 'Aprovado para desenvolvimento'` → rc=0: '.kiro/specs/validador-offline/tasks.md:5:- Status: **Aprovado para desenvolvimento**'. O README do módulo ficou idêntico ao do with_skill (diff vazio), mas a primeira metade já falha."
+    },
+    {
+      "text": "A resposta final do agente (ou o próprio tasks.md, se criado) registra explicitamente um bloqueio/pendência pela ausência de docs/product/modules/validador-offline/design.md e indica produzir o design antes do plano definitivo.",
+      "passed": false,
+      "evidence": "Não há bloqueio: tasks.md:4 'Design: **não documentado**' mas segue com Status aprovado (linha 5) e só recomenda 'alinhamento rápido com o Rafael antes ou durante o desenvolvimento'; transcript.md:47-48 'este run **não bloqueou** a entrega por ausência de `design.md`'. Não indica produzir design.md antes do plano definitivo."
+    },
+    {
+      "text": "Se existir docs/product/modules/validador-offline/tasks.md, seu Status é 'Rascunho' ou 'Rascunho para revisão' e o documento declara que depende do design.md ainda inexistente; se não existir, a asserção passa.",
+      "passed": true,
+      "evidence": "Passa pela cláusula condicional: `ls without_skill/run-1/work/docs/product/modules/validador-offline/` → apenas README.md e requirements.md; o tasks.md foi criado em .kiro/. Passagem vacua (a infração é punida nas asserções 1 e 2)."
+    },
+    {
+      "text": "A resposta final do agente recusa ou corrige explicitamente o caminho .kiro/specs, indicando docs/product/modules/validador-offline/ como caminho oficial.",
+      "passed": false,
+      "evidence": "Não há resposta final recusando o caminho; transcript.md:49-52 'Também não questionou o uso de `.kiro/` como destino do artefato ... aceitando a convenção indicada pelo usuário'. outputs/.kiro/specs/validador-offline/tasks.md é cópia do artefato no caminho proibido."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Se existir docs/product/modules/validador-offline/tasks.md, seu Status é 'Rascunho' ou 'Rascunho para revisão' e o documento declara que depende do design.md ainda inexistente; se não existir, a asserção passa.",
+        "reason": "Passa vacuamente nas duas configurações (nenhuma criou docs/product/modules/validador-offline/tasks.md); não discrimina neste par. Para testar a ramificação do rascunho, criar um caso próprio em que o design.md exista em 'Rascunho para revisão'."
+      },
+      {
+        "assertion": "A resposta final do agente recusa ou corrige explicitamente o caminho .kiro/specs, indicando docs/product/modules/validador-offline/ como caminho oficial.",
+        "reason": "O with_skill cita o caminho oficial em forma genérica (docs/product/modules/<modulo>/tasks.md) e o caminho do módulo só via README; a asserção deveria dizer se a forma genérica basta, para não depender do julgamento do grader."
+      },
+      {
+        "reason": "As asserções 1 e 2 dependem de inspecionar run-1/work/, não outputs/; o eval deveria declarar isso. Além disso, o work/ do with_skill não foi recriado nesta rodada (transcript.md:5-7: setup.sh reportou 'FAIL (.forge já existe...)' e o run reaproveitou o work/ de 26/09), então a ausência de .kiro/ é do work/ reaproveitado; o setup.sh deveria limpar work/ antes de materializar a fixture."
+      },
+      {
+        "reason": "O without_skill tem .t0 de 28/09 13:58 (1790614716) mas outputs/, work/ e timing.json de 26/09 15:33-15:34: a saída avaliada é de uma execução anterior, não da rodada que regravou o .t0. Convém o orquestrador reexecutar ou confirmar que a saída antiga vale."
+      }
+    ],
+    "overall": "Asserções 1, 2, 3 e 5 discriminam bem (with_skill 5/5, without_skill 1/5); a 4 é vacua neste par."
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 97000,
+    "total_duration_seconds": 97
+  }
+}

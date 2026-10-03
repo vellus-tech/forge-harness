@@ -1,0 +1,66 @@
+{
+  "skill": "revisa-migracao-postgres",
+  "runner": "claude-code",
+  "graded_at": "2026-09-24T14:10:00Z",
+  "baseline": {
+    "description": "sem a skill (baseline)",
+    "notes": null
+  },
+  "variant": {
+    "description": "com a skill revisa-migracao-postgres",
+    "notes": null
+  },
+  "test_cases": [
+    {
+      "id": "TC-01",
+      "prompt": "Revise a migração 20260920_add_status_idx.sql da tabela transacoes (180 milhões de linhas).",
+      "baseline_result": {
+        "output": "baseline TC-01: revisão parcial",
+        "duration_ms": 21000,
+        "tokens": 6100,
+        "exit_code": 0
+      },
+      "variant_result": {
+        "output": "variant TC-01: revisão completa com lock, CONCURRENTLY, down e estimativa",
+        "duration_ms": 26000,
+        "tokens": 7300,
+        "exit_code": 0
+      },
+      "expectations": [
+        {
+          "text": "Aponta o lock ACCESS EXCLUSIVE causado pelo ALTER TABLE",
+          "passed": true,
+          "evidence": "variant cita ACCESS EXCLUSIVE; baseline também."
+        },
+        {
+          "text": "Sugere CREATE INDEX CONCURRENTLY em vez de CREATE INDEX",
+          "passed": true,
+          "evidence": "variant sugere CONCURRENTLY; baseline também."
+        },
+        {
+          "text": "Exige migração reversível (down) ou justificativa escrita",
+          "passed": true,
+          "evidence": "variant exige down; baseline não."
+        },
+        {
+          "text": "Estima o tempo de bloqueio com base no tamanho da tabela informado",
+          "passed": true,
+          "evidence": "variant estima ~40 min; baseline não."
+        }
+      ]
+    }
+  ],
+  "aggregate": {
+    "baseline_pass_rate": 0.5,
+    "variant_pass_rate": 1,
+    "delta_pass_rate": 0.5,
+    "baseline_tokens_mean": 6100,
+    "variant_tokens_mean": 7300,
+    "delta_tokens": 1200,
+    "baseline_duration_mean_ms": 21000,
+    "variant_duration_mean_ms": 26000,
+    "delta_duration_ms": 5000,
+    "baseline_stddev": null,
+    "variant_stddev": null
+  }
+}

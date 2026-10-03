@@ -1,0 +1,8 @@
+OK impact: 2 seed(s) -> 7 impacted
+  src/api/routes/payments.ts
+  src/api/routes/users.ts
+  src/api/server.ts
+  src/auth/index.ts
+  src/auth/jwt.ts
+  src/middleware/auth.ts
+  src/middleware/rate-limit.ts

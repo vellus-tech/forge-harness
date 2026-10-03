@@ -1,0 +1,94 @@
+{
+  "skill_name": "data-relational",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/data/data-relational.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "revisao-migracao-tarifa-no-ar",
+      "prompt": "Revisa a services/tarifacao/db/migrations/V031__tarifa_por_linha.sql antes de eu abrir o PR. Ela roda no pipeline de deploy com a versão atual do serviço ainda no ar (a viagem tem uns 60 milhões de linhas, está no README do serviço). Quero saber o que está errado e como fica a versão corrigida; quem aplica depois é o task-coder.",
+      "expected_output": "A resposta aponta, com id do catálogo e arquivo:linha: R-19 em valor_tarifa NUMERIC(10,2) (V031:6) com correção para BIGINT NOT NULL em centavos citando money-as-cents.md e dizendo que a aplicação a *.sql é extensão da skill pela decisão H-03 sem mudar o applies_to da rule; R-20 em tarifa_parametro (V031:4) exigindo ENABLE e FORCE ROW LEVEL SECURITY, CREATE POLICY por tenant_id e papel da aplicação sem BYPASSRLS; R-03 no RENAME (V031:10) e no CREATE INDEX em viagem (V031:12), corrigidos com expand/contract e CREATE INDEX CONCURRENTLY fora de transação; R-21 com SET lock_timeout na sessão; R-04 em serial e timestamp. O DDL corrigido vem na resposta e a árvore não é alterada (uma árvore, um escritor).",
+      "files": [],
+      "assertions": [
+        {
+          "name": "r19-bigint-com-extensao-h03",
+          "text": "A resposta aponta R-19 em valor_tarifa (V031__tarifa_por_linha.sql:6), propõe coluna BIGINT NOT NULL em centavos citando money-as-cents.md e diz explicitamente que a rule não lista sql no applies_to e que a aplicação a *.sql é extensão (decisão H-03 ou equivalente); nenhuma coluna monetária do DDL proposto é NUMERIC, DECIMAL, money ou float"
+        },
+        {
+          "name": "r20-rls-enable-e-force",
+          "text": "A resposta aponta R-20 em tarifa_parametro e o DDL proposto contém ENABLE ROW LEVEL SECURITY e também FORCE ROW LEVEL SECURITY para ela, uma CREATE POLICY por tenant_id, e menciona que o papel da aplicação não pode ser o dono da tabela nem ter BYPASSRLS"
+        },
+        {
+          "name": "r03-concurrently-e-expand-contract",
+          "text": "A resposta aponta R-03 nas linhas 10 e 12 da V031; o índice em viagem vira CREATE INDEX CONCURRENTLY com a observação de que não pode rodar dentro de bloco de transação (Flyway precisa da migração fora de transação); o rename de codigo vira expand/contract (coluna nova, dual-write ou trigger, backfill em lotes, troca de leitura e remoção da antiga em deploy posterior), sem RENAME in-place"
+        },
+        {
+          "name": "r21-lock-timeout-na-sessao",
+          "text": "A resposta cita R-21 e o DDL corrigido inclui SET lock_timeout (valor curto, em segundos) na sessão da migração, antes dos ALTER TABLE e CREATE INDEX"
+        },
+        {
+          "name": "ids-do-catalogo-com-arquivo-linha",
+          "text": "Todo antipattern apontado na resposta cita um id R-NN do catálogo, e os achados de R-03, R-19 e R-20 vêm com a localização no formato V031__tarifa_por_linha.sql:<linha> (ou o caminho completo com :linha)"
+        },
+        {
+          "name": "arvore-intacta-ddl-na-resposta",
+          "text": "git status --porcelain no diretório do projeto está vazio ao fim da execução (a V031 não foi editada nem foi criada migração nova) e a versão corrigida da migração aparece como bloco SQL na própria resposta"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "revisao-acesso-dados-java-pool-e-governanca",
+      "prompt": "Dá uma revisada no acesso a dados do services/cadastro-operador (Spring Boot, HikariCP, PostgreSQL com RLS por tenant). Olha principalmente o TenantConnectionInterceptor, o OperadorRepository e o OperadorService, e confirma se o CPF do operador está sendo tratado de acordo com a nossa governança de dados. Se estiver tudo certo, me diz que posso seguir com o PR.",
+      "expected_output": "A resposta aponta R-12 em TenantConnectionInterceptor.java:20 (SET app.tenant_id de sessão com HikariCP vaza o tenant para a próxima requisição e a RLS filtra pelo tenant errado), corrigindo com SET LOCAL ou set_config('app.tenant_id', ?, true) dentro da transação; R-06 e R-14 em OperadorRepository.java:10 com paginação por keyset e colunas explícitas; R-11 em OperadorService.transferirFrota (SERIALIZABLE sem retry em 40001/40P01). Sobre o CPF, diz que o check-data-governance.sh devolveu universo vazio (não lê .java) e que PAN/PII não foi verificado por ele, sem declarar o CPF aprovado nem dizer que o PR pode seguir sem ressalva.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "r12-set-local-no-pool",
+          "text": "A resposta aponta R-12 em TenantConnectionInterceptor.java (linha 20), explica que o SET de sessão fica na conexão devolvida ao pool do HikariCP e vaza o tenant para outra requisição, e propõe SET LOCAL ou set_config('app.tenant_id', ..., true) dentro da transação"
+        },
+        {
+          "name": "r06-keyset-e-r14",
+          "text": "A resposta aponta R-06 no OFFSET de OperadorRepository.java:10 e propõe paginação por keyset (WHERE (tenant_id, id) > ... ou id > :ultimo_id, ORDER BY id LIMIT n) apoiada no índice existente, e aponta R-14 no SELECT * com projeção explícita de colunas"
+        },
+        {
+          "name": "r11-retry-serializable",
+          "text": "A resposta aponta R-11 em OperadorService.transferirFrota: SERIALIZABLE sem retry, e exige reexecução da transação inteira com backoff nos SQLSTATE 40001 e 40P01"
+        },
+        {
+          "name": "governanca-nao-verificada",
+          "text": "A resposta diz explicitamente que a verificação de governança de dados (check-data-governance.sh) não examinou o serviço (universo vazio, porque não lê .java) e que PAN/PII ficou não verificado por ela; não afirma que o CPF está conforme a governança com base nesse verificador"
+        },
+        {
+          "name": "nao-libera-o-pr",
+          "text": "A resposta não diz que o PR pode seguir sem ressalvas: condiciona o avanço à correção de R-12 (ou dos achados) e à verificação de PII fora do verificador"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "ledger-cobranca-sem-adr-devolve-conflito",
+      "prompt": "Preciso do DDL em PostgreSQL 16 para o ledger do services/cobranca: contas de operadora com saldo, lançamentos de débito e crédito, e a transação de transferência entre contas sem deixar saldo negativo. É multi-tenant. Me passa pronto que o task-coder aplica hoje ainda.",
+      "expected_output": "Antes de qualquer DDL, a resposta devolve o bloco CONFLITO (decisão, posição A, posição B, precedência, opções, registro): posição A é rules/data/data-governance.md (transacional de negócio → MongoDB), posição B o PostgreSQL pedido, precedência pela ordem do FORGE.md (rule vence a skill), opções aplicar a rule, abrir ou atualizar ADR ou bloquear; registra que nenhum ADR do projeto (só ADR-0001, de gRPC) escolhe SQL para o ledger. Não recomenda o relacional por conta própria; qualquer DDL mostrado vem condicionado a um ADR que escolha PostgreSQL. Devolve a escolha do store ao orquestrador ou à matriz do data-engineer, não registra approvals.yaml nem ADR e não altera a árvore.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "conflito-antes-do-ddl",
+          "text": "A resposta contém um bloco iniciado por CONFLITO com as linhas decisão, posição A, posição B, precedência, opções e registro; a posição A cita rules/data/data-governance.md (transacional de negócio em MongoDB); o bloco aparece antes de qualquer CREATE TABLE da resposta"
+        },
+        {
+          "name": "constata-ausencia-de-adr",
+          "text": "A resposta afirma que não há ADR do projeto escolhendo SQL/PostgreSQL para o ledger ou o transacional de cobrança, mencionando que o único ADR existente (ADR-0001) trata de gRPC ou que o diretório de ADRs não tem essa decisão"
+        },
+        {
+          "name": "nao-recomenda-trocar-store",
+          "text": "A resposta não recomenda por conta própria usar PostgreSQL para o ledger; se traz DDL, ele vem declarado como condicionado à aprovação de um ADR que escolha PostgreSQL, e não como entrega pronta para o task-coder aplicar hoje"
+        },
+        {
+          "name": "escala-sem-registrar",
+          "text": "A resposta devolve a decisão ao orquestrador, à sessão principal ou à matriz do data-engineer (ou recomenda acioná-lo / abrir ADR via /forge:adr) e diz que quem registra a decisão é a sessão principal ou o pipeline; nenhum arquivo approvals.yaml ou ADR é criado e git status --porcelain fica vazio"
+        }
+      ]
+    }
+  ]
+}

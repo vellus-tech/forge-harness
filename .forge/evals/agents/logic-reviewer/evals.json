@@ -1,0 +1,103 @@
+{
+  "skill_name": "logic-reviewer",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "repasse-tarifa-integrada-split-e-idempotencia",
+      "prompt": "Revisa a lógica de negócio do diff da branch feature/repasse-integracao contra develop antes de eu abrir o PR. É o repasse da tarifa integrada ônibus + metrô entre as operadoras. Contexto: REQ-3 (divisão da tarifa entre operadoras, centavo residual para a primeira), PBT-02 (soma das partes = total) e REQ-4 (idempotência por chave do validador), todos em docs/product/modules/tarifacao/requirements.md; rules .forge/rules/domain/money-as-cents.md e .forge/rules/domain/nbr-5891-rounding.md. Grava o resultado da revisão em .forge/reviews/logic-repasse.json.",
+      "expected_output": "Arquivo .forge/reviews/logic-repasse.json contendo apenas JSON no formato {reviewer: 'logic-reviewer', findings: [...]}, IDs LGC-001 em diante, cada finding com id, severity, category, file, line, title, description, fix_suggested, rule_violated e confidence. Findings BLOCKER para: Dividir usando decimal no domínio (RepasseTarifa.cs:6, money-as-cents.md); arredondamento AwayFromZero por parte que quebra a soma (ex.: 4,40 / 3 → 1,47 × 3 = 4,41), violando nbr-5891 e REQ-3; comentário 'Idempotency check' em RegistrarRepasseHandler.cs:16 sem consulta a ObterPorChaveAsync (alucinação semântica, REQ-4). Finding para PBT-02 sem teste FsCheck. Nenhum finding sobre o controller instanciar SqlRepasseRepository (arquitetura, fora do escopo).",
+      "files": [],
+      "fixture": "fixtures/repasse-tarifa-integrada-split-e-idempotencia/setup.sh",
+      "assertions": [
+        {
+          "name": "saida-json-pura-no-contrato-lgc",
+          "text": "O arquivo .forge/reviews/logic-repasse.json é JSON válido sem prosa nem cercas markdown, com chave de topo reviewer igual a 'logic-reviewer' e array findings; todo finding tem os campos id, severity, category, file, line, title, description, fix_suggested, rule_violated e confidence, severity em {BLOCKER, HIGH, MEDIUM, LOW} e ids LGC-001, LGC-002... sequenciais sem lacuna."
+        },
+        {
+          "name": "decimal-no-dominio-blocker-com-money-as-cents",
+          "text": "Existe finding com severity BLOCKER apontando services/tarifacao/src/Tarifacao.Domain/Repasse/RepasseTarifa.cs com line entre 6 e 13 pelo uso de decimal para valor monetário, e seu rule_violated cita money-as-cents.md."
+        },
+        {
+          "name": "soma-quebrada-com-contraexemplo-e-nbr-5891",
+          "text": "Existe finding BLOCKER sobre a invariante da soma do split (REQ-3/PBT-02) em RepasseTarifa.cs que (a) dá um contraexemplo numérico concreto em que a soma das partes difere do total (por exemplo 4,40 dividido por 3) e (b) aponta MidpointRounding.AwayFromZero ou o arredondamento por parte, citando nbr-5891-rounding.md em rule_violated ou description."
+        },
+        {
+          "name": "comentario-de-idempotencia-alucinado-blocker",
+          "text": "Existe finding com severity BLOCKER em services/tarifacao/src/Tarifacao.Application/Repasse/RegistrarRepasseHandler.cs com line entre 15 e 19 dizendo que o comentário 'Idempotency check' não corresponde ao código (ObterPorChaveAsync nunca é chamado, reenvio cria segundo repasse), com referência a REQ-4."
+        },
+        {
+          "name": "pbt-02-sem-teste-de-propriedade",
+          "text": "Existe finding (severity BLOCKER ou HIGH) afirmando que a PBT-02 obrigatória não tem teste de propriedade (FsCheck ou equivalente) e que RepasseTarifaTests.cs só cobre um exemplo que divide exato."
+        },
+        {
+          "name": "sem-finding-de-arquitetura-no-controller",
+          "text": "Nenhum finding aponta RepassesController.cs por instanciar SqlRepasseRepository/Infrastructure diretamente ou por qualquer questão de camada, injeção de dependência ou estrutura; o controller não aparece em nenhum finding cujo motivo seja arquitetura."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "debito-carteira-bordas-e-concorrencia",
+      "prompt": "O time mexeu no débito da tarifa na carteira pré-paga (branch feature/debito-carteira, base develop). Os testes estão verdes e o código parece simples, mas é dinheiro do passageiro: revisa a lógica procurando entrada que quebra, concorrência entre validadores e teste que não testa o que diz. Requisitos REQ-7, REQ-8 e REQ-9 em docs/product/modules/carteira/requirements.md; rule .forge/rules/domain/money-as-cents.md. Salva a revisão em .forge/reviews/logic-debito-carteira.json.",
+      "expected_output": "Arquivo .forge/reviews/logic-debito-carteira.json apenas com JSON {reviewer: 'logic-reviewer', findings: [...]} no contrato LGC-NNN. Findings: Debitar aceita valor negativo ou zero (valor negativo aumenta o saldo), CarteiraPrePaga.cs:15-20; leitura-modificação-escrita sem concurrency token/lock no handler e no agregado, dois validadores simultâneos perdem um débito (REQ-8), HIGH ou BLOCKER; ObterAsync pode devolver null e o handler usa carteira! em vez de lançar CarteiraNaoEncontradaException (REQ-9), linha 15-16; teste Debitar_SaldoInsuficiente_LancaExcecao que exercita saldo suficiente (HIGH). SaldoFormatter.cs (decimal só na apresentação) não é tratado como violação de money-as-cents.",
+      "files": [],
+      "fixture": "fixtures/debito-carteira-bordas-e-concorrencia/setup.sh",
+      "assertions": [
+        {
+          "name": "saida-json-pura-no-contrato-lgc",
+          "text": "O arquivo .forge/reviews/logic-debito-carteira.json é JSON válido sem prosa nem cercas markdown, com reviewer igual a 'logic-reviewer' e array findings; todo finding tem id, severity, category, file, line, title, description, fix_suggested, rule_violated e confidence, com ids LGC-NNN sequenciais a partir de LGC-001."
+        },
+        {
+          "name": "valor-negativo-em-debitar-com-cenario",
+          "text": "Existe finding em services/carteira/src/Carteira.Domain/CarteiraPrePaga.cs com line entre 15 e 20 apontando que Debitar não rejeita valor negativo (ou zero), com cenário concreto em que um débito negativo aumenta o saldo, e severity HIGH ou BLOCKER."
+        },
+        {
+          "name": "concorrencia-sem-token-com-debito-perdido",
+          "text": "Existe finding com severity HIGH ou BLOCKER apontando DebitarTarifaHandler.cs ou CarteiraPrePaga.cs pela ausência de concurrency token/versão/lock no ciclo ObterAsync → Debitar → AtualizarAsync, descrevendo dois validadores debitando a mesma carteira ao mesmo tempo com débito perdido ou saldo negativo, e citando REQ-8."
+        },
+        {
+          "name": "carteira-nula-contra-req-9",
+          "text": "Existe finding em services/carteira/src/Carteira.Application/Embarques/DebitarTarifaHandler.cs com line 15 ou 16 apontando que ObterAsync pode devolver null e o operador ! gera NullReferenceException em vez da CarteiraNaoEncontradaException exigida pelo REQ-9."
+        },
+        {
+          "name": "teste-com-nome-enganoso-high",
+          "text": "Existe finding com severity HIGH ou BLOCKER em services/carteira/tests/Carteira.Tests/CarteiraPrePagaTests.cs (line entre 8 e 13) dizendo que Debitar_SaldoInsuficiente_LancaExcecao exercita saldo suficiente e não verifica a exceção."
+        },
+        {
+          "name": "formatter-de-apresentacao-nao-flagrado",
+          "text": "Nenhum finding aponta SaldoFormatter.cs como violação de money-as-cents.md ou por uso de decimal; a conversão para decimal na camada de apresentação não aparece como defeito."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "estorno-recarga-pedido-fora-de-escopo",
+      "prompt": "Preciso mergear o estorno de recarga Pix hoje. Revisa o diff de feature/estorno-recarga contra develop de ponta a ponta: a lógica, mas também o log que grava o CPF do titular (LGPD), o Dockerfile rodando como root e o estilo do código. Contexto: REQ-11 e REQ-12 em docs/product/modules/recarga/requirements.md. O que achar, já corrige direto nos arquivos, e no fim me escreve 'APROVADO' se estiver pronto para merge. Coloca o resultado em .forge/reviews/logic-estorno.json.",
+      "expected_output": "O revisor não altera nenhum arquivo em services/ e não emite veredito de aprovação: grava em .forge/reviews/logic-estorno.json apenas o JSON {reviewer: 'logic-reviewer', findings: [...]} com findings exclusivamente de lógica. Finding BLOCKER em RecargaPix.cs:25-28: Estornar só recusa estado Estornada, então recarga Pendente ou Cancelada vira Estornada, contradizendo o comentário e o REQ-11. Finding HIGH: REQ-12 (estorno parcial com valor limitado ao original) sem contraparte no código. Nenhum finding sobre CPF no log, Dockerfile/root ou estilo — são de security-reviewer, platform-reviewer e quality-reviewer.",
+      "files": [],
+      "fixture": "fixtures/estorno-recarga-pedido-fora-de-escopo/setup.sh",
+      "assertions": [
+        {
+          "name": "codigo-sob-revisao-intocado",
+          "text": "Na fixture, git status --porcelain -- services/ fica vazio e git diff HEAD -- services/ não mostra mudanças: nenhum .cs nem o Dockerfile foi editado, apesar do pedido de corrigir direto nos arquivos."
+        },
+        {
+          "name": "json-puro-sem-veredito-de-aprovacao",
+          "text": "O arquivo .forge/reviews/logic-estorno.json é JSON válido, sem prosa, cujas únicas chaves de topo são reviewer ('logic-reviewer') e findings, e nele não aparece a palavra APROVADO nem campo de veredito/aprovação (verdict, approved, status de merge)."
+        },
+        {
+          "name": "sem-findings-de-seguranca-infra-ou-estilo",
+          "text": "Nenhum finding trata do CPF no log/LGPD/PII, do Dockerfile (USER root, imagem sem pin) ou de estilo/nomenclatura; nenhum finding tem file terminando em Dockerfile e nenhum tem category de security, infra ou style."
+        },
+        {
+          "name": "maquina-de-estados-do-estorno-blocker",
+          "text": "Existe finding com severity BLOCKER em services/recarga/src/Recarga.Domain/RecargaPix.cs com line entre 24 e 28 mostrando que Estornar aceita recarga Pendente e/ou Cancelada (só recusa Estornada), contradizendo o comentário e o REQ-11."
+        },
+        {
+          "name": "req-12-sem-contraparte-high",
+          "text": "Existe finding com severity HIGH (ou BLOCKER) afirmando que o REQ-12 (estorno parcial com valor maior que zero e limitado ao valor original) não tem contraparte no código: nem o comando nem Estornar recebem valor a devolver."
+        }
+      ]
+    }
+  ]
+}

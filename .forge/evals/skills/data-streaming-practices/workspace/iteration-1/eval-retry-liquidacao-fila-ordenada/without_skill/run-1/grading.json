@@ -1,0 +1,69 @@
+{
+  "expectations": [
+    {
+      "text": "docs/design-retry-liquidacao.md afirma que retry atrasado (delayed-retry nativo, fila de espera ou DLX de volta) tira a mensagem da ordem e deixa as seguintes da mesma conta passarem, o que conflita com o Single Active Consumer da fila liquidacao.lancamentos (cita RMQ-AP-26 ou descreve o mesmo efeito explicitamente)",
+      "passed": true,
+      "evidence": "design-retry-liquidacao.md §'Restrição que domina a decisão': 'Qualquer desenho que tire a mensagem com falha da fila principal e a devolva depois (fila de espera com TTL, exchange de delay, etc.) quebra a garantia de ordem: enquanto o lançamento com falha espera do lado de fora, lançamentos seguintes da mesma conta [...] são consumidos primeiro. Isso é exatamente o cenário que o Single Active Consumer foi desenhado para evitar.' Descreve o efeito explicitamente para fila de espera e DLX de volta (não cita RMQ-AP-26). Ressalva: para o delayed retry nativo o design fica em dúvida ('Se ela existir e preservar a semântica de entrega ordenada do SAC'), mas a asserção aceita qualquer das três formas descritas explicitamente."
+    },
+    {
+      "text": "Na infra/rabbitmq/definitions.json final, a policy/argumentos de liquidacao.lancamentos NÃO têm delayed-retry-type diferente de disabled; se o agente ainda assim ligou o retry nativo nessa fila, só passa se o design e a resposta final registrarem explicitamente a quebra de ordem como decisão pendente do usuário",
+      "passed": true,
+      "evidence": "definitions.json final (outputs/ idêntico a work/): arguments de liquidacao.lancamentos = {x-queue-type, x-single-active-consumer, x-dead-letter-exchange}; policy definition = {delivery-limit: 5, max-length: 200000}. Nenhum delayed-retry-type. Passa porque o agente não usou o recurso (por desconfiar que ele existe), não por ter entendido o conflito com a ordem no nativo."
+    },
+    {
+      "text": "O design explica que o retry nativo do 4.3 calcula o atraso como min(delayed-retry-min × delivery-count, delayed-retry-max), linear com teto e sem jitter, e que por isso não reproduz os patamares 5s/30s/5min pedidos",
+      "passed": false,
+      "evidence": "O design declara não conseguir confirmar a feature ('Não consegui confirmar essa feature nas notas de release do 4.3') e não descreve fórmula, linearidade, teto nem ausência de jitter do retry nativo."
+    },
+    {
+      "text": "A policy de liquidacao.lancamentos em infra/rabbitmq/definitions.json final contém dead-letter-exchange, dead-letter-strategy igual a at-least-once e overflow igual a reject-publish (na definition da policy, não em arguments da fila), e o design aponta que delivery-limit sem DLX descarta a mensagem em silêncio (RMQ-AP-23)",
+      "passed": false,
+      "evidence": "A DLX foi posta em arguments da fila ('x-dead-letter-exchange': 'liquidacao.lancamentos.dlx'), não na policy; a policy continua só com {delivery-limit: 5, max-length: 200000}, sem dead-letter-strategy at-least-once e sem overflow reject-publish. O design até nota que delivery-limit sem DLX perde a mensagem ('simplesmente desaparece'), mas as exigências de definitions.json falham."
+    },
+    {
+      "text": "Nenhum arquivo final (definitions.json, enabled_plugins, consumidor ou design) introduz exchange do tipo x-delayed-message nem habilita rabbitmq_delayed_message_exchange",
+      "passed": true,
+      "evidence": "Nenhum exchange x-delayed-message em definitions.json (tipos: topic e fanout); sem enabled_plugins; o design cita rabbitmq_delayed_message_exchange apenas em 'Alternativas descartadas'."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 146000,
+    "total_duration_seconds": 146
+  },
+  "claims": [
+    {
+      "claim": "Não é possível confirmar o delayed retry nativo do 4.3",
+      "type": "factual",
+      "verified": false,
+      "evidence": "O próprio caso de eval pressupõe o recurso (delayed-retry-type, fórmula linear); o agente sem skill não o conhecia e preferiu declarar incerteza — postura honesta, mas deixou de responder parte do pedido."
+    },
+    {
+      "claim": "A DLX evita perda silenciosa com delivery-limit",
+      "type": "quality",
+      "verified": false,
+      "evidence": "DLX em x-arguments e sem dead-letter-strategy at-least-once: o dead-lettering é at-most-once e sem overflow reject-publish a policy mantém drop-head silencioso ao encher."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Na infra/rabbitmq/definitions.json final, a policy/argumentos de liquidacao.lancamentos NÃO têm delayed-retry-type diferente de disabled; se o agente ainda assim ligou o retry nativo nessa fila, só passa se o design e a resposta final registrarem explicitamente a quebra de ordem como decisão pendente do usuário",
+        "reason": "Passa trivialmente para quem simplesmente não conhece o recurso (caso without_skill): não discrimina entendimento do conflito ordem×retry nativo. Considere exigir, junto, que o design justifique a não-adoção pela quebra de ordem."
+      },
+      {
+        "reason": "Nenhuma asserção verifica o 'com teto' do retry no consumidor nem a marcação da chave/parking ao estourar o teto, que estão no expected_output. O with_skill tenta para sempre em ErroTransitorio e passaria em tudo mesmo assim."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que a DLX não ficou duplicada em x-arguments (o without_skill a pôs só em arguments) nem o jitter no consumidor; a 4 cobre parcialmente o primeiro ponto."
+      }
+    ],
+    "overall": "Asserções 1, 3 e 4 são discriminantes; a 2 e a 5 passam por omissão. Falta cobrir o teto de tentativas e a marcação da chave."
+  }
+}

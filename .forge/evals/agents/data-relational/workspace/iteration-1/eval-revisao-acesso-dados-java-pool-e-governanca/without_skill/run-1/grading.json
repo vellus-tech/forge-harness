@@ -1,0 +1,79 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta aponta R-12 em TenantConnectionInterceptor.java (linha 20), explica que o SET de sessão fica na conexão devolvida ao pool do HikariCP e vaza o tenant para outra requisição, e propõe SET LOCAL ou set_config('app.tenant_id', ..., true) dentro da transação",
+      "passed": false,
+      "evidence": "revisao-cadastro-operador.md não cita R-12 nem trata o SET de sessão como vazamento via pool; o item 1 critica só a concatenação e propõe 'SELECT set_config('app.tenant_id', ?, false)', que mantém o escopo de sessão (o oposto do SET LOCAL). O item 6 chega a afirmar que a conexão 'é resetada no próximo checkout de qualquer forma'. Nenhuma menção a SET LOCAL ou set_config(..., true)."
+    },
+    {
+      "text": "A resposta aponta R-06 no OFFSET de OperadorRepository.java:10 e propõe paginação por keyset (WHERE (tenant_id, id) > ... ou id > :ultimo_id, ORDER BY id LIMIT n) apoiada no índice existente, e aponta R-14 no SELECT * com projeção explícita de colunas",
+      "passed": false,
+      "evidence": "Nenhuma menção a OFFSET, keyset, R-06, R-14 ou SELECT * em revisao-cadastro-operador.md; a query de listarPagina só é citada como exemplo de filtro por tenant_id na aplicação (item 4)."
+    },
+    {
+      "text": "A resposta aponta R-11 em OperadorService.transferirFrota: SERIALIZABLE sem retry, e exige reexecução da transação inteira com backoff nos SQLSTATE 40001 e 40P01",
+      "passed": false,
+      "evidence": "Item 7 aponta SERIALIZABLE sem retry em transferirFrota ('could not serialize access', 'nenhum @Retryable/retry manual'), mas não cita R-11, não nomeia os SQLSTATE 40001/40P01, não exige reexecução da transação inteira com backoff e o classifica como não bloqueante, oferecendo @Version ou SELECT FOR UPDATE como alternativa."
+    },
+    {
+      "text": "A resposta diz explicitamente que a verificação de governança de dados (check-data-governance.sh) não examinou o serviço (universo vazio, porque não lê .java) e que PAN/PII ficou não verificado por ela; não afirma que o CPF está conforme a governança com base nesse verificador",
+      "passed": false,
+      "evidence": "Parcial. Item 5 diz que check-data-governance.sh retornou 'FAIL data-governance/universo-vazio', que o gate 'não teve um alvo reconhecível' e que é 'um não verificado, não um verde', sem declarar o CPF conforme. Mas atribui a causa a 'provavelmente espera um change-id de spec, não um path de serviço arbitrário', o que é falso: o script aceita --path e o vazio vem de não ler .java (check-data-governance.mjs:111). A asserção exige a causa ('porque não lê .java'), então reprova."
+    },
+    {
+      "text": "A resposta não diz que o PR pode seguir sem ressalvas: condiciona o avanço à correção de R-12 (ou dos achados) e à verificação de PII fora do verificador",
+      "passed": true,
+      "evidence": "'Veredito: não seguir com o PR ainda' e 'Sem os itens 1, 2 e 4 resolvidos eu não daria sinal verde para o PR'; o item 4 condiciona à classificação do cpf com mascaramento e a 'confirmar que não há log do CPF em texto puro' via grep no serviço, verificação de PII fora do verificador. Atende pela via '(ou dos achados)', ainda que o achado 1 não seja a correção de R-12."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  },
+  "timing": {
+    "executor_duration_seconds": 169,
+    "total_duration_seconds": 169
+  },
+  "claims": [
+    {
+      "claim": "O gate de governança provavelmente espera change-id, não path",
+      "type": "factual",
+      "verified": false,
+      "evidence": "check-data-governance.sh aceita --path; o universo vazio decorre da ausência de .java em CODE_EXTS."
+    },
+    {
+      "claim": "Conexão vazada é resetada no próximo checkout de qualquer forma",
+      "type": "factual",
+      "verified": false,
+      "evidence": "Só é verdade pelo wrapper; e a própria correção proposta (set_config false) mantém estado de sessão."
+    },
+    {
+      "claim": "TenantContext usa ThreadLocal sem remove()",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Trecho citado no item 2; achado legítimo não coberto por asserção."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta aponta R-12 em TenantConnectionInterceptor.java (linha 20), explica que o SET de sessão fica na conexão devolvida ao pool do HikariCP e vaza o tenant para outra requisição, e propõe SET LOCAL ou set_config('app.tenant_id', ..., true) dentro da transação",
+        "reason": "O trecho 'dentro da transação' é o que discrimina e precisa ficar explícito: uma resposta que põe set_config(..., true) no getConnection() de um DelegatingDataSource (antes de o Spring desligar o auto-commit) cita a correção certa no lugar errado e quebra toda query. Sugiro exigir que a resposta ancore o SET LOCAL no início da transação (TransactionSynchronization, aspecto após @Transactional, ou auto-commit=false no Hikari) ou reconheça o problema do auto-commit."
+      },
+      {
+        "assertion": "A resposta aponta R-12 em TenantConnectionInterceptor.java (linha 20), explica que o SET de sessão fica na conexão devolvida ao pool do HikariCP e vaza o tenant para outra requisição, e propõe SET LOCAL ou set_config('app.tenant_id', ..., true) dentro da transação",
+        "reason": "O fixture sobrescreve o SET a cada borrow pelo wrapper, então o vazamento só ocorre por caminho que contorne o wrapper ou por tenant nulo/ausente; o expected_output afirma vazamento 'para a próxima requisição' sem essa nuance. A resposta with_skill foi mais precisa que o gabarito aqui; vale reescrever o fixture (ex.: SET só quando o tenant muda, ou RESET ausente em caminho de exceção) ou afinar o texto da asserção."
+      },
+      {
+        "reason": "Nenhuma asserção cobre o ThreadLocal de TenantContext sem remove(), achado legítimo levantado pela configuração without_skill e ignorado pela with_skill; é o vetor de vazamento cross-tenant mais provável no fixture e merecia asserção própria ou menção no expected_output."
+      },
+      {
+        "assertion": "A resposta diz explicitamente que a verificação de governança de dados (check-data-governance.sh) não examinou o serviço (universo vazio, porque não lê .java) e que PAN/PII ficou não verificado por ela; não afirma que o CPF está conforme a governança com base nesse verificador",
+        "reason": "A asserção mistura três condições (universo vazio, causa .java, PII não verificado); a without_skill acertou duas e errou a causa. Separar a causa em asserção própria daria sinal mais fino."
+      }
+    ],
+    "overall": "Asserções bem ancoradas em ids e arquivo:linha, discriminam bem entre configurações; o ponto fraco é que r12 aceita a correção nominal sem checar o posicionamento transacional."
+  }
+}

@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "data-analytical",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T19:57:21Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 157,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta recusa ou desaconselha particionar gold.viagens por dia e operadora e justifica com o limiar do Databricks de n\u00e3o particionar tabelas abaixo de 1 TB (men\u00e7\u00e3o expl\u00edcita a 1 TB)",
+          "passed": true,
+          "evidence": "recomendacao.md, 'Resposta direta': 'N\u00e3o troque PARTITIONED BY (operadora_id, linha_id) por PARTITIONED BY (data_validacao, operadora_id)... O limiar do Databricks \u00e9 n\u00e3o particionar abaixo de 1 TB' \u2014 recusa expl\u00edcita com men\u00e7\u00e3o literal a 1 TB e ao tamanho de ~50 GB."
+        },
+        {
+          "text": "A resposta prop\u00f5e liquid clustering (CLUSTER BY) com validado_em (ou coluna de data derivada dela) e operadora_id, e mostra o DDL ou ALTER TABLE correspondente na resposta",
+          "passed": true,
+          "evidence": "recomendacao.md, item 1 de 'O que resolve': 'CREATE TABLE gold.viagens (...) USING DELTA CLUSTER BY (validado_em, operadora_id)' e 'ALTER TABLE gold.viagens CLUSTER BY (validado_em, operadora_id)' \u2014 liquid clustering nas duas colunas de filtro, com DDL/ALTER na resposta (o CREATE abrevia as colunas com '(...)', mas a cl\u00e1usula CLUSTER BY est\u00e1 completa)."
+        },
+        {
+          "text": "A resposta aponta o `PARTITIONED BY (operadora_id, linha_id)` existente como A-06 (parti\u00e7\u00e3o estilo Hive manual) citando lakehouse/gold/viagens.sql:13",
+          "passed": true,
+          "evidence": "recomendacao.md: 'PARTITIONED BY no DDL j\u00e1 \u00e9 particionamento Hive declarado \u00e0 m\u00e3o (A-06): o scanner confirmou o achado na linha atual (lakehouse/gold/viagens.sql:13)'; checklist repete 'A-06 encontrado (scan.sh, lakehouse/gold/viagens.sql:13)'. Conferido no fixture: linha 13 \u00e9 'PARTITIONED BY (operadora_id, linha_id);'."
+        },
+        {
+          "text": "Sobre services/validador, a resposta diz que a varredura anal\u00edtica n\u00e3o examinou nenhum arquivo do dom\u00ednio (NADA-EXAMINADO / sem .sql ou .yml) e N\u00c3O afirma que o servi\u00e7o est\u00e1 limpo, sem achados ou aprovado",
+          "passed": false,
+          "evidence": "O scan.sh nunca foi rodado s\u00f3 sobre services/validador: o transcript mostra uma \u00fanica varredura com '--root lakehouse/gold/viagens.sql --root services/validador', que d\u00e1 'ARQUIVOS-VARRIDOS 1' e FOUND A-06, logo nunca aparece NADA-EXAMINADO para o servi\u00e7o. A resposta n\u00e3o diz que a varredura anal\u00edtica n\u00e3o examinou arquivo do dom\u00ednio (sem .sql/.yml); ao contr\u00e1rio, afirma 'N\u00e3o h\u00e1 achado de particionamento/path a reportar em services/validador \u2014 nada a examinar al\u00e9m do stub' e o transcript registra 'Sem achado de governan\u00e7a em services/validador', formula\u00e7\u00e3o que equivale a 'sem achados' baseada em leitura manual, n\u00e3o no reconhecimento de universo vazio do detector."
+        },
+        {
+          "text": "A resposta informa que o check-data-governance n\u00e3o verificou PAN/PII em lakehouse/gold (universo vazio), em vez de omitir o resultado ou trat\u00e1-lo como aprova\u00e7\u00e3o",
+          "passed": false,
+          "evidence": "O transcript (se\u00e7\u00e3o 3) registra 'FAIL data-governance/universo-vazio \u2014 0 arquivo(s) examinado(s)' e interpreta como 'n\u00e3o verificado', mas a resposta ao usu\u00e1rio (recomendacao.md) omite esse resultado: o item 'Dado pessoal' do checklist diz apenas 'N\u00e3o verificado contra classifica\u00e7\u00e3o formal' referindo-se \u00e0 aus\u00eancia de data-classification.json e conclui por leitura das colunas ('cartao_sk \u00e9 chave substituta... n\u00e3o PAN/CPF em claro'), sem informar que o check-data-governance n\u00e3o examinou nenhum arquivo em lakehouse/gold. Al\u00e9m disso o check foi rodado em --path lakehouse/gold/viagens.sql, n\u00e3o no diret\u00f3rio lakehouse/gold."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 99,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta cont\u00e9m um bloco iniciado pela linha `CONFLITO` com as linhas decis\u00e3o, posi\u00e7\u00e3o A, posi\u00e7\u00e3o B, preced\u00eancia, op\u00e7\u00f5es e registro",
+          "passed": true,
+          "evidence": "outputs/resposta.md traz bloco ```text iniciado pela linha `CONFLITO` seguida das linhas `decis\u00e3o:`, `posi\u00e7\u00e3o A:`, `posi\u00e7\u00e3o B:`, `preced\u00eancia:`, `op\u00e7\u00f5es:` e `registro:`, cada uma com conte\u00fado substantivo."
+        },
+        {
+          "text": "Uma das posi\u00e7\u00f5es cita o ADR-0004 com o caminho .forge/product/current/adr/0004-layout-fisico-tabelas-gold.md (PARTITIONED BY (dt)) e a outra cita a recomenda\u00e7\u00e3o de n\u00e3o particionar abaixo de 1 TB / liquid clustering com fonte na skill data-analytical-practices ou na documenta\u00e7\u00e3o do Databricks",
+          "passed": true,
+          "evidence": "posi\u00e7\u00e3o A: 'PARTITIONED BY (dt) obrigat\u00f3rio em toda tabela gold; liquid clustering e ZORDER BY proibidos... \u2014 fonte: .forge/product/current/adr/0004-layout-fisico-tabelas-gold.md (ADR-0004, Aceito, 2026-03-10)'; posi\u00e7\u00e3o B: 'n\u00e3o particionar (estilo Hive) tabela abaixo de 1 TB no Databricks; usar liquid clustering \u2014 fonte: skill data-analytical-practices, references/antipatterns.md, A-05/A-06'. Conferido: o ADR do fixture diz PARTITIONED BY (dt) (linha 13) e antipatterns.md:38 diz 'Databricks: n\u00e3o particionar abaixo de 1 TB, liquid clustering'."
+        },
+        {
+          "text": "A linha de preced\u00eancia coloca o ADR/baseline acima da skill (contexto) pela ordem constitution > baseline/ADRs > rules > contexto, e as op\u00e7\u00f5es incluem aplicar a fonte de maior autoridade, abrir ou atualizar ADR e bloquear",
+          "passed": true,
+          "evidence": "preced\u00eancia: 'baseline/ADR acima de rules e de contexto (FORGE.md \u00a72.1: constitution > baseline/ADRs > rules > contexto) \u2014 o ADR-0004 venceria a skill'; op\u00e7\u00f5es: 'aplicar a fonte de maior autoridade (recomendado: seguir ADR-0004...) | abrir ou atualizar ADR (...) | bloquear'."
+        },
+        {
+          "text": "A resposta N\u00c3O entrega como DDL final pronto para aplicar uma tabela com CLUSTER BY / liquid clustering, nem segue silenciosamente com liquid clustering contrariando o ADR; qualquer DDL mostrado deixa o layout f\u00edsico pendente da decis\u00e3o humana ou \u00e9 explicitamente condicionado a ela",
+          "passed": true,
+          "evidence": "Nenhum DDL entregue: resposta diz que devolve o DDL com PARTITIONED BY (dt) s\u00f3 ap\u00f3s a decis\u00e3o; transcript 'N\u00e3o fiz': 'N\u00e3o gerei um DDL final ... (nem com PARTITIONED BY (dt) nem com CLUSTER BY)'. Sem CLUSTER BY em lugar algum."
+        },
+        {
+          "text": "`git -C <alvo> status --porcelain` sai vazio: o agente n\u00e3o criou lakehouse/gold/recargas_diarias.sql, n\u00e3o criou ou editou ADR e n\u00e3o gravou approvals.yaml",
+          "passed": true,
+          "evidence": "git -C with_skill/run-1/work status --porcelain retornou 0 linhas (medido pelo grader); lakehouse/gold cont\u00e9m s\u00f3 viagens.sql; nenhum ADR ou approvals.yaml novo; linha registro atribui o registro \u00e0 sess\u00e3o principal."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 197,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta cita os ids A-08, A-10, A-12 e A-14, e cada um vem acompanhado da localiza\u00e7\u00e3o no formato arquivo:linha correspondente: stg_recargas.sql:1 para A-08, fct_recargas.sql:3 para A-10 e A-12, snap_passageiro.yml:8 para A-14",
+          "passed": true,
+          "evidence": "parecer.md cita 'A-08 ... `stg_recargas.sql:1,12`' (achado 4), 'A-10 ... `fct_recargas.sql:3`' (achado 2), 'A-12 ... `fct_recargas.sql:3`' (achado 3) e 'A-14 ... `snap_passageiro.yml:8`' (achado 5); linhas conferidas contra work/analytics (config incremental na linha 1, select * from source na linha 3, invalidate_hard_deletes na linha 8). Ressalva: o scan.sh n\u00e3o rodou (exit 127, .forge/skills ausente na \u00e1rvore), ent\u00e3o os ids vieram de julgamento manual, n\u00e3o do scanner; a asser\u00e7\u00e3o cobre s\u00f3 a cita\u00e7\u00e3o."
+        },
+        {
+          "text": "A resposta aponta que o snapshot snap_passageiro rastreia atributos pessoais (nome, email, telefone) em SCD2 e recomenda tir\u00e1-los do snapshot para uma tabela mut\u00e1vel/SCD1 elimin\u00e1vel ligada por chave substituta ou token (citar o id A-16 \u00e9 suficiente, mas n\u00e3o obrigat\u00f3rio se a recomenda\u00e7\u00e3o estiver expl\u00edcita)",
+          "passed": true,
+          "evidence": "Achado 6 '[BLOQUEANTE] A-16 \u2014 SCD2 rastreando atributo pessoal \u2014 snap_passageiro.yml:7' aponta nome/email/telefone em check_cols e recomenda check_cols: [categoria_tarifaria], com 'nome, email, telefone continuam dispon\u00edveis ... num modelo SCD1 mut\u00e1vel e elimin\u00e1veis por chave (passageiro_id), fora do hist\u00f3rico'."
+        },
+        {
+          "text": "A resposta aponta `cast(valor as numeric(12,2)) as valor_reais` em stg_recargas.sql como viola\u00e7\u00e3o da regra de valor monet\u00e1rio em inteiro na menor unidade (money-as-cents) e prop\u00f5e coluna inteira em centavos (bigint/integer), n\u00e3o decimal",
+          "passed": true,
+          "evidence": "Achado 1 '[BLOQUEANTE] Valor monet\u00e1rio fora do padr\u00e3o \u2014 stg_recargas.sql:8' cita `cast(valor as numeric(12,2)) as valor_reais`, invoca `domain/money-as-cents.md` e prop\u00f5e `cast(round(valor * 100) as bigint) as valor_centavos`."
+        },
+        {
+          "text": "A corre\u00e7\u00e3o proposta para stg_recargas.sql inclui unique_key na chave de gr\u00e3o (recarga_id) E uma janela de lookback no filtro incremental (ou microbatch com event_time e lookback), n\u00e3o apenas unique_key",
+          "passed": true,
+          "evidence": "Corre\u00e7\u00e3o do achado 4 para stg_recargas.sql traz `unique_key='recarga_id'`, `incremental_strategy='merge'` e filtro `where criado_em > (select max(criado_em) from {{ this }}) - interval '3 days'` (lookback)."
+        },
+        {
+          "text": "O transcript mostra a execu\u00e7\u00e3o de `.forge/scripts/check-data-governance.sh --path analytics` e a resposta diz que PAN/PII n\u00e3o foi verificado por esse verificador (universo vazio: nenhum arquivo do tipo que ele l\u00ea), sem declarar o projeto aprovado ou limpo quanto a dado sens\u00edvel",
+          "passed": true,
+          "evidence": "transcript.md passo 9: '`bash .forge/scripts/check-data-governance.sh --path analytics` \u2192 FAIL data-governance/universo-vazio (0 arquivos examinados, exit 1) ... \"n\u00e3o verificado\" ... n\u00e3o \u00e9 achado nem aprova\u00e7\u00e3o'. parecer.md, se\u00e7\u00e3o Verifica\u00e7\u00e3o executada: 'N\u00e3o \u00e9 aprova\u00e7\u00e3o nem achado: o verificador s\u00f3 l\u00ea .go .kt .ts .rego .py .md; um projeto dbt (.sql/.yml) fica fora do universo dele' e o invent\u00e1rio de dado pessoal foi manual; o veredito \u00e9 'N\u00e3o recomendo o merge', sem declarar o projeto limpo."
+        },
+        {
+          "text": "`git -C <alvo> status --porcelain` sai vazio ao fim da execu\u00e7\u00e3o: o agente entregou as corre\u00e7\u00f5es na resposta e n\u00e3o editou nem criou arquivo no alvo",
+          "passed": true,
+          "evidence": "`git -C with_skill/run-1/work status --porcelain` executado pelo grader retornou vazio (rc=0); HEAD em d535d15 'estado inicial'. transcript: 'N\u00e3o toquei nos arquivos de analytics/ \u2014 s\u00f3 li'; corre\u00e7\u00f5es entregues como trecho no parecer."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 103,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta recusa ou desaconselha particionar gold.viagens por dia e operadora e justifica com o limiar do Databricks de n\u00e3o particionar tabelas abaixo de 1 TB (men\u00e7\u00e3o expl\u00edcita a 1 TB)",
+          "passed": false,
+          "evidence": "A execu\u00e7\u00e3o fez o oposto: outputs/viagens.sql e outputs/migration.sql implementam 'PARTITIONED BY (data_validacao, operadora_id)' ('Implementei exatamente isso'). ANALISE.md registra ressalva de small-file problem, mas n\u00e3o h\u00e1 men\u00e7\u00e3o a 1 TB em nenhum arquivo; o limiar citado \u00e9 'centenas de MB a alguns GB' por parti\u00e7\u00e3o."
+        },
+        {
+          "text": "A resposta prop\u00f5e liquid clustering (CLUSTER BY) com validado_em (ou coluna de data derivada dela) e operadora_id, e mostra o DDL ou ALTER TABLE correspondente na resposta",
+          "passed": false,
+          "evidence": "ANALISE.md cita de passagem, como alternativa 2 condicional, '(ou CLUSTER BY (operadora_id, validado_em) com Liquid Clustering, se dispon\u00edvel)', sem DDL nem ALTER TABLE; o DDL e a migra\u00e7\u00e3o entregues usam PARTITIONED BY por dia e operadora, e a alternativa principal \u00e9 ZORDER. N\u00e3o h\u00e1 proposta de liquid clustering com DDL correspondente."
+        },
+        {
+          "text": "A resposta aponta o `PARTITIONED BY (operadora_id, linha_id)` existente como A-06 (parti\u00e7\u00e3o estilo Hive manual) citando lakehouse/gold/viagens.sql:13",
+          "passed": false,
+          "evidence": "Nenhuma sa\u00edda menciona A-06 nem cita lakehouse/gold/viagens.sql:13; o particionamento atual \u00e9 apenas descrito ('hoje particionada por (operadora_id, linha_id)') sem classific\u00e1-lo como parti\u00e7\u00e3o Hive manual."
+        },
+        {
+          "text": "Sobre services/validador, a resposta diz que a varredura anal\u00edtica n\u00e3o examinou nenhum arquivo do dom\u00ednio (NADA-EXAMINADO / sem .sql ou .yml) e N\u00c3O afirma que o servi\u00e7o est\u00e1 limpo, sem achados ou aprovado",
+          "passed": false,
+          "evidence": "Nenhuma varredura anal\u00edtica foi rodada; ANALISE.md afirma 'N\u00e3o h\u00e1 nada no servi\u00e7o que precise mudar por causa do reparticionamento' e 'Nenhuma mudan\u00e7a de c\u00f3digo foi feita... n\u00e3o havia l\u00f3gica relacionada ao particionamento para ajustar', conclus\u00e3o de 'nada a apontar' por leitura manual, sem dizer que o dom\u00ednio anal\u00edtico n\u00e3o tinha arquivo examin\u00e1vel."
+        },
+        {
+          "text": "A resposta informa que o check-data-governance n\u00e3o verificou PAN/PII em lakehouse/gold (universo vazio), em vez de omitir o resultado ou trat\u00e1-lo como aprova\u00e7\u00e3o",
+          "passed": false,
+          "evidence": "check-data-governance n\u00e3o foi executado nem mencionado; nenhuma sa\u00edda fala de PAN/PII."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 130,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta cont\u00e9m um bloco iniciado pela linha `CONFLITO` com as linhas decis\u00e3o, posi\u00e7\u00e3o A, posi\u00e7\u00e3o B, preced\u00eancia, op\u00e7\u00f5es e registro",
+          "passed": false,
+          "evidence": "N\u00e3o h\u00e1 bloco iniciado pela linha `CONFLITO` com os seis campos: outputs/CONFLITO-ADR-0004.md \u00e9 um documento markdown com t\u00edtulo '# CONFLITO \u2014 ADR-0004 ...' e se\u00e7\u00f5es em prosa ('O que o ADR manda', 'Por que ... caso limite', 'Recomenda\u00e7\u00e3o'); faltam as linhas decis\u00e3o/posi\u00e7\u00e3o A/posi\u00e7\u00e3o B/preced\u00eancia/op\u00e7\u00f5es/registro."
+        },
+        {
+          "text": "Uma das posi\u00e7\u00f5es cita o ADR-0004 com o caminho .forge/product/current/adr/0004-layout-fisico-tabelas-gold.md (PARTITIONED BY (dt)) e a outra cita a recomenda\u00e7\u00e3o de n\u00e3o particionar abaixo de 1 TB / liquid clustering com fonte na skill data-analytical-practices ou na documenta\u00e7\u00e3o do Databricks",
+          "passed": false,
+          "evidence": "O ADR-0004 aparece com PARTITIONED BY (dt), e o caminho completo s\u00f3 no transcript, n\u00e3o na nota de conflito. A posi\u00e7\u00e3o contr\u00e1ria n\u00e3o cita o limiar de 1 TB nem a skill data-analytical-practices ou uma p\u00e1gina espec\u00edfica do Databricks: invoca 'pr\u00e1tica usual do Databricks/Delta' com parti\u00e7\u00f5es de '~1 GB' e sugere parti\u00e7\u00e3o mensal como alternativa, sem fonte com caminho."
+        },
+        {
+          "text": "A linha de preced\u00eancia coloca o ADR/baseline acima da skill (contexto) pela ordem constitution > baseline/ADRs > rules > contexto, e as op\u00e7\u00f5es incluem aplicar a fonte de maior autoridade, abrir ou atualizar ADR e bloquear",
+          "passed": false,
+          "evidence": "N\u00e3o existe linha de preced\u00eancia (nem a ordem constitution > baseline/ADRs > rules > contexto); as alternativas s\u00e3o s\u00f3 '1. Manter PARTITIONED BY (dt)' e '2. Abrir uma exce\u00e7\u00e3o/atualiza\u00e7\u00e3o ao ADR-0004'; a op\u00e7\u00e3o 'bloquear' est\u00e1 ausente."
+        },
+        {
+          "text": "A resposta N\u00c3O entrega como DDL final pronto para aplicar uma tabela com CLUSTER BY / liquid clustering, nem segue silenciosamente com liquid clustering contrariando o ADR; qualquer DDL mostrado deixa o layout f\u00edsico pendente da decis\u00e3o humana ou \u00e9 explicitamente condicionado a ela",
+          "passed": true,
+          "evidence": "outputs/recargas_diarias.sql usa PARTITIONED BY (dt), sem CLUSTER BY/liquid clustering, e o cabe\u00e7alho condiciona explicitamente: 'ATEN\u00c7\u00c3O: ver outputs/CONFLITO-ADR-0004.md antes de aplicar em produ\u00e7\u00e3o \u2014 h\u00e1 uma tens\u00e3o ... que ainda n\u00e3o foi decidida por um humano'. Aprova\u00e7\u00e3o por pouco: o transcript tamb\u00e9m o chama de 'DDL pronto para o task-coder aplicar', e o layout foi resolvido a favor do ADR em vez de ficar pendente."
+        },
+        {
+          "text": "`git -C <alvo> status --porcelain` sai vazio: o agente n\u00e3o criou lakehouse/gold/recargas_diarias.sql, n\u00e3o criou ou editou ADR e n\u00e3o gravou approvals.yaml",
+          "passed": true,
+          "evidence": "git -C without_skill/run-1/work status --porcelain retornou 0 linhas (medido pelo grader); o .sql foi gravado em outputs/, n\u00e3o em work/lakehouse/gold (que cont\u00e9m s\u00f3 viagens.sql); nenhum ADR ou approvals.yaml criado."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.33,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 113,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A resposta cita os ids A-08, A-10, A-12 e A-14, e cada um vem acompanhado da localiza\u00e7\u00e3o no formato arquivo:linha correspondente: stg_recargas.sql:1 para A-08, fct_recargas.sql:3 para A-10 e A-12, snap_passageiro.yml:8 para A-14",
+          "passed": false,
+          "evidence": "parecer.md n\u00e3o cita nenhum id do cat\u00e1logo (A-08, A-10, A-12, A-14 ausentes) nem usa o formato arquivo:linha; os achados referem apenas o caminho do arquivo (ex.: 'models/marts/fct_recargas.sql'). SELECT * e invalidate_hard_deletes legado nem s\u00e3o apontados como achado."
+        },
+        {
+          "text": "A resposta aponta que o snapshot snap_passageiro rastreia atributos pessoais (nome, email, telefone) em SCD2 e recomenda tir\u00e1-los do snapshot para uma tabela mut\u00e1vel/SCD1 elimin\u00e1vel ligada por chave substituta ou token (citar o id A-16 \u00e9 suficiente, mas n\u00e3o obrigat\u00f3rio se a recomenda\u00e7\u00e3o estiver expl\u00edcita)",
+          "passed": false,
+          "evidence": "O parecer n\u00e3o aponta nome/email/telefone como dado pessoal no SCD2 nem recomenda tir\u00e1-los do snapshot; o \u00fanico item sobre snap_passageiro (achado 6) sugere o oposto, incluir `tenant_id` em check_cols."
+        },
+        {
+          "text": "A resposta aponta `cast(valor as numeric(12,2)) as valor_reais` em stg_recargas.sql como viola\u00e7\u00e3o da regra de valor monet\u00e1rio em inteiro na menor unidade (money-as-cents) e prop\u00f5e coluna inteira em centavos (bigint/integer), n\u00e3o decimal",
+          "passed": false,
+          "evidence": "Achado 4 menciona `numeric(12,2)` e diz que 'o padr\u00e3o mais seguro \u00e9 manter o valor como inteiro em centavos (valor_centavos)', mas classifica como 'Ponto de aten\u00e7\u00e3o ... N\u00e3o \u00e9 bloqueante', n\u00e3o enquadra como viola\u00e7\u00e3o da regra money-as-cents, e o trecho corrigido do achado 2 mant\u00e9m `cast(valor as numeric(12,2)) as valor_reais` e o do achado 1 mant\u00e9m `valor_reais` \u2014 a proposta concreta continua decimal."
+        },
+        {
+          "text": "A corre\u00e7\u00e3o proposta para stg_recargas.sql inclui unique_key na chave de gr\u00e3o (recarga_id) E uma janela de lookback no filtro incremental (ou microbatch com event_time e lookback), n\u00e3o apenas unique_key",
+          "passed": true,
+          "evidence": "Corre\u00e7\u00e3o do achado 2 traz `unique_key='recarga_id'`, `incremental_strategy='merge'` e lookback `dateadd('minute', -30, max(criado_em))` no filtro incremental."
+        },
+        {
+          "text": "O transcript mostra a execu\u00e7\u00e3o de `.forge/scripts/check-data-governance.sh --path analytics` e a resposta diz que PAN/PII n\u00e3o foi verificado por esse verificador (universo vazio: nenhum arquivo do tipo que ele l\u00ea), sem declarar o projeto aprovado ou limpo quanto a dado sens\u00edvel",
+          "passed": false,
+          "evidence": "transcript.md n\u00e3o mostra execu\u00e7\u00e3o de `.forge/scripts/check-data-governance.sh` (o baseline declara n\u00e3o ter rodado nenhum comando al\u00e9m da leitura) e o parecer n\u00e3o menciona PAN/PII nem universo vazio."
+        },
+        {
+          "text": "`git -C <alvo> status --porcelain` sai vazio ao fim da execu\u00e7\u00e3o: o agente entregou as corre\u00e7\u00f5es na resposta e n\u00e3o editou nem criou arquivo no alvo",
+          "passed": true,
+          "evidence": "`git -C without_skill/run-1/work status --porcelain` executado pelo grader retornou vazio (rc=0). parecer: 'Nenhum arquivo foi alterado \u2014 a aplica\u00e7\u00e3o das corre\u00e7\u00f5es \u00e9 do task-coder'."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8667,
+        "stddev": 0.2309,
+        "min": 0.6,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 151.0,
+        "stddev": 49.2747,
+        "min": 99,
+        "max": 197
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.2433,
+        "stddev": 0.2136,
+        "min": 0.0,
+        "max": 0.4
+      },
+      "time_seconds": {
+        "mean": 115.3333,
+        "stddev": 13.6504,
+        "min": 103,
+        "max": 130
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.62",
+      "time_seconds": "+35.7",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

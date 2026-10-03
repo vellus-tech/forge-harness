@@ -1,0 +1,8 @@
+version: 2
+sources:
+  - name: bilhetagem
+    schema: raw_bilhetagem
+    tables:
+      - name: viagens
+      - name: linhas
+      - name: validacoes

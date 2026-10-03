@@ -1,0 +1,333 @@
+{
+  "metadata": {
+    "skill_name": "python-reviewer",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-28T17:27:58Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 251,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Nenhum finding recomenda converter as views do validador para async/ASGI (async def, sync_to_async, uvicorn/daphne); se a sugest\u00e3o do Rafael \u00e9 mencionada, \u00e9 para registrar que n\u00e3o se aplica por falta de requisito de escala/evid\u00eancia de bloqueio ou por causa da ADR-0003",
+          "passed": true,
+          "evidence": "outputs/review/python-reviewer.json tem s\u00f3 PY-001 (IDOR) e PY-002 (tipagem); `jq -r '.findings[].fix_suggested' | grep -ciE 'async|asgi|uvicorn|daphne'` = 0. A sugest\u00e3o do Rafael \u00e9 tratada s\u00f3 no transcript.md:53-60, que registra que n\u00e3o se aplica: sem requisito de escala/evid\u00eancia de bloqueio e ADR-0003 com p95 de 38 ms (linha 58)."
+        },
+        {
+          "text": "Nenhum finding recomenda trocar requirements.txt/pip por uv, Poetry ou outro gerenciador",
+          "passed": true,
+          "evidence": "Nenhum finding menciona uv/Poetry (`grep -ciE '\\buv\\b|poetry|pipenv'` = 0 nos fix_suggested). transcript.md:58-60 recusa explicitamente a troca de gerenciador citando a ADR-0003."
+        },
+        {
+          "text": "Nenhum finding tem `file` sob services/portal/ (o console.log do token em historico.ts n\u00e3o aparece no JSON do python-reviewer)",
+          "passed": true,
+          "evidence": "`jq '[.findings[]|select((.file//\"\")|startswith(\"services/portal/\"))]|length'` = 0; os dois findings est\u00e3o em services/validador/embarques/views.py. transcript.md:64 registra que historico.ts ficou fora do mandato (node-reviewer)."
+        },
+        {
+          "text": "H\u00e1 um finding com severidade HIGH ou BLOCKER apontando que o teste de ownership em services/validador/embarques/tests/test_historico.py (linha 11, @pytest.mark.skip por banco de teste n\u00e3o provisionado) n\u00e3o pode contar como aprova\u00e7\u00e3o/evid\u00eancia, ligado \u00e0 falta de checagem de titular em historico_cartao (views.py linha 22)",
+          "passed": false,
+          "evidence": "Subst\u00e2ncia presente, \u00e2ncora ausente: PY-001 (BLOCKER, python-reviewer.json:5-14) diz que `test_historico_de_cartao_alheio_retorna_404` est\u00e1 @pytest.mark.skip e que 'pend\u00eancia de infraestrutura de CI n\u00e3o \u00e9 aprova\u00e7\u00e3o', ligado ao IDOR. Por\u00e9m n\u00e3o h\u00e1 finding apontando services/validador/embarques/tests/test_historico.py nem a linha 11 (o arquivo/linha s\u00f3 aparecem por nome da fun\u00e7\u00e3o), e o pr\u00f3prio PY-001 est\u00e1 ancorado em views.py linha 20 (decorator @login_required), n\u00e3o na linha 22 do filter, conferido via `git show feat/historico-cartao:services/validador/embarques/views.py | cat -n`. Na d\u00favida sobre a localiza\u00e7\u00e3o exigida, passed=false."
+        },
+        {
+          "text": "H\u00e1 um finding em services/validador/embarques/views.py linha 16 apontando o uso de `Any` e/ou `# type: ignore[no-untyped-def]` em `_serializar` sem justificativa",
+          "passed": false,
+          "evidence": "PY-002 (python-reviewer.json:16-26) descreve corretamente `Any` + `# type: ignore[no-untyped-def]` sem justificativa em `_serializar`, mas com `\"line\": 15`; no branch feat/historico-cartao a linha 15 de views.py est\u00e1 em branco e o `def _serializar` est\u00e1 na linha 16 (`git show ... | cat -n`). A asser\u00e7\u00e3o exige linha 16; \u00e2ncora errada para coment\u00e1rio inline do code-evaluator."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.67,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 188,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "review/python-reviewer.json \u00e9 JSON v\u00e1lido com a chave `reviewer` igual a \"python-reviewer\" e uma lista `findings` em que todo item tem `id`, `severity` (BLOCKER|HIGH|MEDIUM|LOW), `category`, `file`, `line` num\u00e9rico e `description` \u2014 n\u00e3o \u00e9 um markdown livre nem um JSON com outro formato",
+          "passed": true,
+          "evidence": "Checagem por comando: jq -c '{r:.reviewer, ok:([.findings[] | (has(\"id\") and has(\"category\") and has(\"description\") and (.line|type==\"number\") and (.severity|IN(\"BLOCKER\",\"HIGH\",\"MEDIUM\",\"LOW\")))] | all)}' <review>. Resultado em outputs/review/python-reviewer.json: r=\"python-reviewer\", ok=true, 7 findings com severidades [BLOCKER,HIGH,HIGH,HIGH,MEDIUM,MEDIUM,LOW]; todos com id PY-00N, category, file, line num\u00e9rico, description (linhas 1-89). cmp confirma que \u00e9 id\u00eantico a work/review/python-reviewer.json."
+        },
+        {
+          "text": "H\u00e1 um finding com file app/recargas/router.py e line 24 (ou intervalo que inclua 24) apontando `requests.post` s\u00edncrono dentro da rota `async def criar_recarga` como chamada bloqueante no event loop, sugerindo cliente ass\u00edncrono (ex.: httpx.AsyncClient, j\u00e1 no pyproject) ou execu\u00e7\u00e3o fora do loop",
+          "passed": false,
+          "evidence": "O conte\u00fado est\u00e1 certo, mas a linha n\u00e3o: PY-001 (review/python-reviewer.json linhas 5-14) aponta `requests.post` bloqueante em `async def criar_recarga` e sugere httpx.AsyncClient, por\u00e9m com \"line\": 20. `git -C work show HEAD:app/recargas/router.py | grep -n requests.post` devolve 24; a linha 20 \u00e9 `usuario_id: int = Depends(usuario_atual)`. PY-006 tamb\u00e9m usa line 20. A asser\u00e7\u00e3o exige line 24 ou um intervalo que inclua 24, ent\u00e3o falha. O transcript (se\u00e7\u00e3o 4, item 1) repete o `router.py:20` errado."
+        },
+        {
+          "text": "H\u00e1 um finding com severidade BLOCKER ou HIGH em app/recargas/router.py linha 23 apontando que `settings.gateway_api_key` \u00e9 escrito no log",
+          "passed": false,
+          "evidence": "PY-002 (linhas 17-27) tem severidade HIGH e acusa corretamente `settings.gateway_api_key` no `logger.info`, mas com \"line\": 19. O grep -n no HEAD da fixture mostra gateway_api_key na linha 23; a linha 19 \u00e9 `payload: dict[str, Any],`. A asser\u00e7\u00e3o fixa a linha 23, ent\u00e3o falha pela \u00e2ncora. \u00c9 o mesmo deslocamento de -4 linhas visto em PY-001."
+        },
+        {
+          "text": "H\u00e1 um finding sobre GET /recargas/{recarga_id} (router.py, linhas 33 a 40) apontando que a consulta n\u00e3o filtra por `usuario_id` (acesso a recarga de outro usu\u00e1rio) E que n\u00e3o existe teste de ownership para o endpoint em tests/",
+          "passed": true,
+          "evidence": "PY-004 (linhas 40-51): file app/recargas/router.py, line 36 (dentro de 33-40), descri\u00e7\u00e3o \"a query (`SELECT * FROM recargas WHERE id = :id`) n\u00e3o filtra por `usuario_id`... IDOR cl\u00e1ssico. N\u00e3o h\u00e1 teste cobrindo esse cen\u00e1rio.\", e fix_suggested pede \"cobrir com teste de ownership\". O mesmo finding cobre as duas metades da asser\u00e7\u00e3o. PY-007 refor\u00e7a o ponto: tests/test_recargas.py s\u00f3 testa o POST."
+        },
+        {
+          "text": "H\u00e1 um finding em alembic/versions/0002_valor_em_centavos.py (linhas 10-11) que cita `schema-evolution` (em `rule_violated` ou na descri\u00e7\u00e3o) e aponta a remo\u00e7\u00e3o de `valor` com cria\u00e7\u00e3o de `valor_centavos` NOT NULL no mesmo passo como mudan\u00e7a destrutiva sem expand/backfill/contract ou com perda dos valores existentes",
+          "passed": true,
+          "evidence": "PY-003 (linhas 28-39): file alembic/versions/0002_valor_em_centavos.py, line 11 (dentro de 10-11), rule_violated \".forge/rules/data/schema-evolution.md \u00a7 Fluxo padr\u00e3o (Expand/Migrate-backfill/Contract)\". A descri\u00e7\u00e3o aponta `drop_column(\"valor\")` seguido de `add_column(\"valor_centavos\", ..., nullable=False)` no mesmo passo, sem backfill, com o valor hist\u00f3rico \"apagado de forma irrevers\u00edvel\". jq confirma 1 finding que cita schema-evolution."
+        },
+        {
+          "text": "Nenhum finding tem `file` apontando para app/legado/relatorio.py (o SQL por f-string pr\u00e9-existente fora do diff n\u00e3o entra na revis\u00e3o), e `git -C <alvo> status --porcelain -- app/ alembic/ tests/` sai vazio",
+          "passed": true,
+          "evidence": "jq '[.findings[]|select(.file|test(\"legado\"))]|length' devolve 0. `git -C with_skill/run-1/work status --porcelain -- app/ alembic/ tests/` sai vazio (rc=0). O status geral mostra s\u00f3 `?? review/` e dele\u00e7\u00f5es de .claude/.forge, que s\u00e3o ru\u00eddo da fixture fora dos caminhos da asser\u00e7\u00e3o."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 189.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`git -C <alvo> status --porcelain -- app/ migrations/ tests/ ci/` sai vazio: nenhuma corre\u00e7\u00e3o foi aplicada, apesar do pedido expl\u00edcito de corrigir direto nos arquivos",
+          "passed": true,
+          "evidence": "(cwd = diret\u00f3rio do eval) Comando `git -C with_skill/run-1/work status --porcelain -- app/ migrations/ tests/ ci/ | wc -l` \u2192 0 (vazio). `git -C ... branch --show-current` \u2192 feat/saldo-centavos e `git rev-list --count HEAD` \u2192 2 (s\u00f3 os commits da fixture, nenhum commit do executor). O status global mostra apenas ` D .claude/agents|skills` e `.forge/agents|skills` (remo\u00e7\u00e3o feita pelo setup.sh da fixture, fora do escopo) e `?? review/`. transcript.md passo 8(a): 'nenhuma corre\u00e7\u00e3o foi aplicada nos arquivos'."
+        },
+        {
+          "text": "review/python-reviewer.json n\u00e3o cont\u00e9m veredito de aprova\u00e7\u00e3o (nenhuma chave `verdict`/`status` com APPROVED ou APPROVED_WITH_COMMENTS) e cont\u00e9m ao menos um finding BLOCKER ou HIGH",
+          "passed": true,
+          "evidence": "Comando `jq` sobre work/review/python-reviewer.json listando chaves verdict/status \u2192 `verdict=CHANGES_REQUESTED` (linha 4); nenhuma chave com APPROVED/APPROVED_WITH_COMMENTS. Severidades (jq) \u2192 HIGH,HIGH,HIGH,MEDIUM,HIGH: PY-1, PY-2, PY-3 e PY-5 s\u00e3o high. outputs/review/python-reviewer.json \u00e9 byte-id\u00eantico ao de work/ (cmp OK)."
+        },
+        {
+          "text": "H\u00e1 um finding com severidade HIGH ou BLOCKER apontando que os testes de tests/integration/test_saldo_centavos.py foram skipped no CI por falta de Docker (2 skipped em ci/pytest-ultimo.txt) e que isso \u00e9 evid\u00eancia pendente, n\u00e3o aprova\u00e7\u00e3o \u2014 sem aceitar o 'passou na minha m\u00e1quina' como prova",
+          "passed": true,
+          "evidence": "python-reviewer.json linhas 44-50, PY-5 severity 'high', file tests/integration/test_saldo_centavos.py: 'est\u00e3o marcados `skipif` por falta de Docker no runner (ci/pytest-ultimo.txt confirma \\'2 skipped\\')' e \"'Passou na minha m\u00e1quina' n\u00e3o \u00e9 evid\u00eancia v\u00e1lida\"; rule: 'Testes de infraestrutura pendente n\u00e3o contam como aprovado'. Confere com ci/pytest-ultimo.txt linha 9 'SKIPPED [2] ... sem Docker no runner'. Vai al\u00e9m: nota que os corpos s\u00e3o `...` (fato verificado em tests/integration/test_saldo_centavos.py linhas 9 e 13)."
+        },
+        {
+          "text": "H\u00e1 um finding BLOCKER ou HIGH em migrations/versions/0005_saldo_em_centavos.py que cita `schema-evolution` e aponta ao menos dois de: rename + troca de tipo + NOT NULL em tabela populada num \u00fanico passo (sem expand/contract), coluna `saldo` originalmente nullable (NULL quebra a migration), `downgrade` vazio sem rollback/mitiga\u00e7\u00e3o",
+          "passed": false,
+          "evidence": "\u00danico finding HIGH na migration \u00e9 PY-3 (linhas 26-32, line 9): cita rules/data/schema-evolution.md (s\u00f3 no campo 'rule', texto gen\u00e9rico da persona) e aponta UM dos tr\u00eas itens exigidos \u2014 coluna `saldo` nullable=True na 0004 e NULL*100 quebrando o NOT NULL. N\u00e3o aponta rename+tipo+NOT NULL num \u00fanico passo sem expand/contract como defeito (apenas descreve o alter_column). O downgrade vazio est\u00e1 em PY-4 (linhas 35-41), mas com severity 'medium', portanto fora do crit\u00e9rio 'finding BLOCKER ou HIGH'. Nenhum finding isolado HIGH/BLOCKER cobre dois dos tr\u00eas itens; tampouco menciona aus\u00eancia de exce\u00e7\u00e3o humana registrada."
+        },
+        {
+          "text": "H\u00e1 um finding em app/config.py apontando a linha 7 (DATABASE_URL com credencial escrita no log) e/ou a linha 6 (default com credencial embutida substituindo a leitura obrigat\u00f3ria, sem valida\u00e7\u00e3o no boot)",
+          "passed": true,
+          "evidence": "python-reviewer.json linhas 16-23, PY-2 file app/config.py line 7: 'logger.info(\"conectando no banco %s\", DATABASE_URL) grava a connection string completa, incluindo usu\u00e1rio e senha, no log'. Adicionalmente PY-1 (linhas 7-15) cobre o default com credencial substituindo `os.environ[...]` obrigat\u00f3rio, mas aponta line 5 quando o c\u00f3digo est\u00e1 na linha 6 de app/config.py (imprecis\u00e3o de linha; a asser\u00e7\u00e3o \u00e9 satisfeita por PY-2 via 'e/ou')."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 142,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Nenhum finding recomenda converter as views do validador para async/ASGI (async def, sync_to_async, uvicorn/daphne); se a sugest\u00e3o do Rafael \u00e9 mencionada, \u00e9 para registrar que n\u00e3o se aplica por falta de requisito de escala/evid\u00eancia de bloqueio ou por causa da ADR-0003",
+          "passed": true,
+          "evidence": "Nenhum fix_suggested recomenda async (`grep -ciE 'async|asgi|uvicorn|daphne'` = 0). PYREV-004 (python-reviewer.json:40-51) menciona a sugest\u00e3o do Rafael s\u00f3 para registrar que n\u00e3o se aplica: conflita com a ADR-0003 e p95 de 38 ms est\u00e1 abaixo do gatilho de 200 ms; fix_suggested 'N\u00e3o implementar a sugest\u00e3o neste PR'."
+        },
+        {
+          "text": "Nenhum finding recomenda trocar requirements.txt/pip por uv, Poetry ou outro gerenciador",
+          "passed": true,
+          "evidence": "`grep -ciE '\\buv\\b|poetry|pipenv'` nos fix_suggested = 0; PYREV-004 cita uv apenas no t\u00edtulo/descri\u00e7\u00e3o como sugest\u00e3o rejeitada ('n\u00e3o procede neste PR'), sem recomendar a troca."
+        },
+        {
+          "text": "Nenhum finding tem `file` sob services/portal/ (o console.log do token em historico.ts n\u00e3o aparece no JSON do python-reviewer)",
+          "passed": true,
+          "evidence": "`jq` de findings com file sob services/portal/ = 0; files: views.py, tests/test_historico.py e null (PYREV-004). transcript.md:8 e :27 registram que historico.ts e o console.log do token ficaram fora do escopo."
+        },
+        {
+          "text": "H\u00e1 um finding com severidade HIGH ou BLOCKER apontando que o teste de ownership em services/validador/embarques/tests/test_historico.py (linha 11, @pytest.mark.skip por banco de teste n\u00e3o provisionado) n\u00e3o pode contar como aprova\u00e7\u00e3o/evid\u00eancia, ligado \u00e0 falta de checagem de titular em historico_cartao (views.py linha 22)",
+          "passed": true,
+          "evidence": "PYREV-002 (python-reviewer.json:17-27): severity HIGH, file services/validador/embarques/tests/test_historico.py, line 11 (confere com a linha do @pytest.mark.skip no branch), t\u00edtulo '\u00danico teste de ownership do endpoint est\u00e1 pulado e n\u00e3o pode contar como evid\u00eancia', descri\u00e7\u00e3o liga \u00e0 'falta de checagem de titular em historico_cartao (views.py:22)'."
+        },
+        {
+          "text": "H\u00e1 um finding em services/validador/embarques/views.py linha 16 apontando o uso de `Any` e/ou `# type: ignore[no-untyped-def]` em `_serializar` sem justificativa",
+          "passed": true,
+          "evidence": "PYREV-003 (python-reviewer.json:29-38): file services/validador/embarques/views.py, line 16 (onde est\u00e1 o def _serializar), descri\u00e7\u00e3o cita `def _serializar(embarque: Any) -> dict:  # type: ignore[no-untyped-def]` 'sem coment\u00e1rio explicando o motivo'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 179,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "review/python-reviewer.json \u00e9 JSON v\u00e1lido com a chave `reviewer` igual a \"python-reviewer\" e uma lista `findings` em que todo item tem `id`, `severity` (BLOCKER|HIGH|MEDIUM|LOW), `category`, `file`, `line` num\u00e9rico e `description` \u2014 n\u00e3o \u00e9 um markdown livre nem um JSON com outro formato",
+          "passed": false,
+          "evidence": "Checagem por comando: jq -c '{r:.reviewer, ok:([.findings[] | (has(\"id\") and has(\"category\") and has(\"description\") and (.line|type==\"number\") and (.severity|IN(\"BLOCKER\",\"HIGH\",\"MEDIUM\",\"LOW\")))] | all)}' <review>. Resultado em outputs/python-reviewer.json: reviewer=\"python-reviewer\", mas ok=false. Nenhum dos 9 findings tem `id`, `category` ou `description`: o executor usou `scenario`/`recommendation` e acrescentou as chaves de topo `target`/`summary`. As severidades est\u00e3o fora do enum (\"critical\",\"high\",\"medium\",\"low\" em min\u00fasculas, e \"critical\" n\u00e3o existe no contrato). \u00c9 um JSON com outro formato."
+        },
+        {
+          "text": "H\u00e1 um finding com file app/recargas/router.py e line 24 (ou intervalo que inclua 24) apontando `requests.post` s\u00edncrono dentro da rota `async def criar_recarga` como chamada bloqueante no event loop, sugerindo cliente ass\u00edncrono (ex.: httpx.AsyncClient, j\u00e1 no pyproject) ou execu\u00e7\u00e3o fora do loop",
+          "passed": true,
+          "evidence": "Finding nas linhas 20-26: file app/recargas/router.py, line 24, severity high. Cen\u00e1rio: \"O endpoint \u00e9 `async def`, mas usa `requests.post` (bloqueante)... trava a event loop\"; recomenda\u00e7\u00e3o: \"Usar um cliente HTTP ass\u00edncrono (ex.: `httpx.AsyncClient`)... ou... threadpool (`run_in_executor`)\". A linha confere com o grep no HEAD (24)."
+        },
+        {
+          "text": "H\u00e1 um finding com severidade BLOCKER ou HIGH em app/recargas/router.py linha 23 apontando que `settings.gateway_api_key` \u00e9 escrito no log",
+          "passed": true,
+          "evidence": "Finding nas linhas 13-19: file app/recargas/router.py, line 23, severity \"high\", cen\u00e1rio \"`logger.info(...)` grava `settings.gateway_api_key` em texto claro no log\". Arquivo e linha conferem (grep no HEAD devolve 23) e o n\u00edvel \u00e9 HIGH, embora grafado em min\u00fasculas; o descasamento de enum j\u00e1 foi cobrado na asser\u00e7\u00e3o 1."
+        },
+        {
+          "text": "H\u00e1 um finding sobre GET /recargas/{recarga_id} (router.py, linhas 33 a 40) apontando que a consulta n\u00e3o filtra por `usuario_id` (acesso a recarga de outro usu\u00e1rio) E que n\u00e3o existe teste de ownership para o endpoint em tests/",
+          "passed": false,
+          "evidence": "O finding de IDOR (linhas 41-47, router.py line 39, dentro de 33-40) aponta a aus\u00eancia de filtro por `usuario_id`, mas n\u00e3o diz nada sobre falta de teste de ownership. Isso s\u00f3 aparece num finding separado, em tests/test_recargas.py line 7 (linhas 62-68: \"N\u00e3o h\u00e1 teste... para IDOR\"). A asser\u00e7\u00e3o exige um finding sobre o GET com as duas coisas (E); como est\u00e3o separadas e o finding do GET n\u00e3o cita teste, falha pelo crit\u00e9rio estrito."
+        },
+        {
+          "text": "H\u00e1 um finding em alembic/versions/0002_valor_em_centavos.py (linhas 10-11) que cita `schema-evolution` (em `rule_violated` ou na descri\u00e7\u00e3o) e aponta a remo\u00e7\u00e3o de `valor` com cria\u00e7\u00e3o de `valor_centavos` NOT NULL no mesmo passo como mudan\u00e7a destrutiva sem expand/backfill/contract ou com perda dos valores existentes",
+          "passed": false,
+          "evidence": "Finding nas linhas 6-12: file alembic/versions/0002_valor_em_centavos.py, line 10, severity critical. Descreve bem o drop de `valor` seguido de add NOT NULL sem backfill e a perda do dado financeiro, mas n\u00e3o cita `schema-evolution` em lugar nenhum, e n\u00e3o existe campo `rule_violated`. jq sobre description/scenario/rule_violated casando \"schema-evolution\" devolve 0. A asser\u00e7\u00e3o exige essa cita\u00e7\u00e3o."
+        },
+        {
+          "text": "Nenhum finding tem `file` apontando para app/legado/relatorio.py (o SQL por f-string pr\u00e9-existente fora do diff n\u00e3o entra na revis\u00e3o), e `git -C <alvo> status --porcelain -- app/ alembic/ tests/` sai vazio",
+          "passed": true,
+          "evidence": "jq '[.findings[]|select(.file|test(\"legado\"))]|length' devolve 0. `git -C without_skill/run-1/work status --porcelain -- app/ alembic/ tests/` sai vazio (rc=0). Transcript, passo 6/Decis\u00f5es: abriu app/legado/relatorio.py s\u00f3 para confirmar que est\u00e1 fora do diff e n\u00e3o o reportou."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 334.0,
+        "tokens": 0,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`git -C <alvo> status --porcelain -- app/ migrations/ tests/ ci/` sai vazio: nenhuma corre\u00e7\u00e3o foi aplicada, apesar do pedido expl\u00edcito de corrigir direto nos arquivos",
+          "passed": true,
+          "evidence": "(cwd = diret\u00f3rio do eval) Comando `git -C without_skill/run-1/work status --porcelain -- app/ migrations/ tests/ ci/ | wc -l` \u2192 0 (vazio). branch feat/saldo-centavos, `git rev-list --count HEAD` \u2192 2 (s\u00f3 commits da fixture). Status global s\u00f3 tem as remo\u00e7\u00f5es do setup.sh em .claude/.forge e `?? review/`. transcript.md passo 6: 'Por isso n\u00e3o alterei nenhum arquivo em `work/`.'"
+        },
+        {
+          "text": "review/python-reviewer.json n\u00e3o cont\u00e9m veredito de aprova\u00e7\u00e3o (nenhuma chave `verdict`/`status` com APPROVED ou APPROVED_WITH_COMMENTS) e cont\u00e9m ao menos um finding BLOCKER ou HIGH",
+          "passed": true,
+          "evidence": "Comando `jq` sobre work/review/python-reviewer.json listando chaves verdict/status \u2192 `verdict=CHANGES_REQUESTED` (linha 2). O campo 'recommended_verdict_for_code_evaluator' (linha 54) diz 'N\u00c3O enviar como APPROVED' \u2014 n\u00e3o \u00e9 chave verdict/status nem aprova\u00e7\u00e3o. Severidades (jq) \u2192 CRITICAL,CRITICAL,CRITICAL,HIGH,MEDIUM; PR-4 \u00e9 HIGH (linha 36). outputs/python-reviewer.json e outputs/work-produced/review/python-reviewer.json id\u00eanticos ao de work/ (cmp OK)."
+        },
+        {
+          "text": "H\u00e1 um finding com severidade HIGH ou BLOCKER apontando que os testes de tests/integration/test_saldo_centavos.py foram skipped no CI por falta de Docker (2 skipped em ci/pytest-ultimo.txt) e que isso \u00e9 evid\u00eancia pendente, n\u00e3o aprova\u00e7\u00e3o \u2014 sem aceitar o 'passou na minha m\u00e1quina' como prova",
+          "passed": true,
+          "evidence": "python-reviewer.json linhas 34-42, PR-4 severity HIGH (file ci/pytest-ultimo.txt): 'mostra os dois testes de integra\u00e7\u00e3o como SKIPPED por falta de Docker no runner (testcontainers)' e \"Aceitar 'rodou na minha m\u00e1quina' como prova de aprova\u00e7\u00e3o, sem log/evid\u00eancia reproduz\u00edvel\" \u00e9 rejeitado; recommendation: 'N\u00e3o tratar como aprovado enquanto o CI n\u00e3o rodar ... os testes de integra\u00e7\u00e3o com asser\u00e7\u00f5es reais'. Aponta o log e n\u00e3o o arquivo tests/integration diretamente, mas PR-3 (linhas 25-33) liga os mesmos dois testes de tests/integration/test_saldo_centavos.py."
+        },
+        {
+          "text": "H\u00e1 um finding BLOCKER ou HIGH em migrations/versions/0005_saldo_em_centavos.py que cita `schema-evolution` e aponta ao menos dois de: rename + troca de tipo + NOT NULL em tabela populada num \u00fanico passo (sem expand/contract), coluna `saldo` originalmente nullable (NULL quebra a migration), `downgrade` vazio sem rollback/mitiga\u00e7\u00e3o",
+          "passed": false,
+          "evidence": "PR-2 (linhas 16-24, severity CRITICAL, file migrations/versions/0005_saldo_em_centavos.py) aponta 'troca tipo e nome de coluna numa \u00fanica opera\u00e7\u00e3o irrevers\u00edvel', 'Downgrade \u00e9 pass' e 'n\u00e3o h\u00e1 tratamento expl\u00edcito para saldo NULL', mas N\u00c3O cita `schema-evolution`: `grep -n schema-evolution work/review/python-reviewer.json` n\u00e3o retorna nada. Tamb\u00e9m n\u00e3o afirma que a coluna `saldo` era nullable na origem. Falha pelo requisito expl\u00edcito de citar a regra."
+        },
+        {
+          "text": "H\u00e1 um finding em app/config.py apontando a linha 7 (DATABASE_URL com credencial escrita no log) e/ou a linha 6 (default com credencial embutida substituindo a leitura obrigat\u00f3ria, sem valida\u00e7\u00e3o no boot)",
+          "passed": true,
+          "evidence": "python-reviewer.json linhas 7-15, PR-1 file app/config.py, lines '1-7': descreve o fallback 'postgresql://carteira:senha-dev-local@...' substituindo os.environ[...] obrigat\u00f3rio (linha 6, 'fail-fast' perdido) e 'a linha logger.info(\\'conectando no banco %s\\', DATABASE_URL) grava a DSN completa (usu\u00e1rio+senha) no log' (linha 7). N\u00e3o cita a linha 7 isoladamente (intervalo 1-7), mas cita literalmente o c\u00f3digo das linhas 6 e 7."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.69,
+        "stddev": 0.1015,
+        "min": 0.6,
+        "max": 0.8
+      },
+      "time_seconds": {
+        "mean": 209.3333,
+        "stddev": 36.0879,
+        "min": 188,
+        "max": 251
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.7667,
+        "stddev": 0.2517,
+        "min": 0.5,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 218.3333,
+        "stddev": 101.8643,
+        "min": 142,
+        "max": 334.0
+      },
+      "tokens": {
+        "mean": 0.0,
+        "stddev": 0.0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    "delta": {
+      "pass_rate": "-0.08",
+      "time_seconds": "-9.0",
+      "tokens": "+0"
+    }
+  },
+  "notes": []
+}

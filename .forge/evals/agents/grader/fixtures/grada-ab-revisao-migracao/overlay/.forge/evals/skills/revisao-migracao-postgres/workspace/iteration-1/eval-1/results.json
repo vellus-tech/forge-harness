@@ -1,0 +1,37 @@
+{
+  "skill": "revisao-migracao-postgres",
+  "test_cases": [
+    {
+      "id": "TC-01",
+      "prompt": "Revise a migration db/migration/V42__add_idx_validacoes_cartao.sql, que cria um índice em validacoes(cartao_id) na tabela de 180 milhões de linhas do validador.",
+      "baseline_result": {
+        "output": "A migration parece correta. O índice em cartao_id vai acelerar as consultas de extrato do passageiro. Sugiro apenas nomear o índice como idx_validacoes_cartao_id para seguir o padrão do repositório.",
+        "duration_ms": 4000,
+        "tokens": 310,
+        "exit_code": 0
+      },
+      "variant_result": {
+        "output": "Problema: CREATE INDEX sem CONCURRENTLY adquire lock SHARE na tabela validacoes e bloqueia todo INSERT e UPDATE enquanto o índice é construído — com 180 milhões de linhas, isso para o validador por minutos.\nCorreção: use CREATE INDEX CONCURRENTLY idx_validacoes_cartao_id ON validacoes (cartao_id); e marque a migration com -- flyway:executeInTransaction=false, porque CONCURRENTLY não pode rodar dentro de transação.\nPróximo passo: vou rodar o squawk nesta migration para confirmar que não há outro alerta.",
+        "duration_ms": 6100,
+        "tokens": 540,
+        "exit_code": 0
+      }
+    },
+    {
+      "id": "TC-02",
+      "prompt": "Revise a migration db/migration/V43__drop_coluna_codigo_legado.sql, que remove a coluna validacoes.codigo_legado.",
+      "baseline_result": {
+        "output": "Cuidado: remover a coluna codigo_legado enquanto a versão anterior do validador ainda está rodando no rolling deploy vai quebrar os SELECTs dela. Recomendo separar em duas releases: na primeira, o código para de ler e escrever codigo_legado; na segunda, a migration remove a coluna.",
+        "duration_ms": 5000,
+        "tokens": 330,
+        "exit_code": 0
+      },
+      "variant_result": {
+        "output": "Risco de compatibilidade: pods da versão anterior ainda em execução durante o rolling deploy continuam lendo codigo_legado e passam a falhar após o drop. Separe em duas releases — primeiro o código deixa de ler e escrever a coluna, depois a migration faz o DROP COLUMN. Antes do drop, consulte pg_depend e information_schema.view_column_usage para confirmar que nenhuma view, índice ou constraint depende de codigo_legado.",
+        "duration_ms": 6500,
+        "tokens": 610,
+        "exit_code": 0
+      }
+    }
+  ]
+}

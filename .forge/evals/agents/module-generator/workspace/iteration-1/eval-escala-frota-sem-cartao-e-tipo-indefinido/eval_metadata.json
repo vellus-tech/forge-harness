@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "escala-frota-sem-cartao-e-tipo-indefinido",
+  "prompt": "Fechamos ontem o DDD do Frota Certa (escala de motoristas da Viação Aurora), está em docs/product/ddd/ddd-segmentation.md. Gera a estrutura de módulos em docs/product/modules com os READMEs e os diagramas. Detalhe: esse produto não mexe com cartão nem pagamento nenhum, mas guarda CPF e CNH dos motoristas. E o comitê ainda não decidiu se a notificação vira um worker próprio ou fica dentro do BFF do painel, então não quero que ninguém decida isso no documento.",
+  "assertions": [
+    "Não existe docs/product/modules/diagrams/compliance-pci-dss.md; docs/product/modules/diagrams/compliance-flows.md existe e sua tabela 'Compliance Aplicável' marca PCI DSS como 'Não' com motivo citando a ausência de dados de cartão/pagamento.",
+    "Existe docs/product/modules/diagrams/compliance-lgpd.md cuja tabela de dados pessoais lista CPF, CNH e telefone do motorista com módulo dono jornada-api, e a retenção de 5 anos após o desligamento do NFR-01.",
+    "Existem as pastas docs/product/modules/escalas-api/ e docs/product/modules/publicador-escala-worker/, ambas com README cuja Classificação aponta o bounded context 'Programação de Escalas'; em docs/product/modules/README.md a seção 'Relação Bounded Context x Módulo' associa Programação de Escalas aos dois módulos, e não há pasta chamada programacao-de-escalas.",
+    "docs/product/modules/notificacao-motoristas/README.md tem na tabela de Classificação o Tipo de Módulo igual a 'Ponto a Validar' (não Worker, CronJob nem BFF), e há um item VAL-MOD-NN (no README do módulo ou no índice) descrevendo a decisão pendente entre worker próprio e rota no BFF do painel.",
+    "Em docs/product/modules/escalas-api/README.md a consulta de escala do motorista (FR-02) não aparece com caminho HTTP definido como fato (ex.: GET /v1/escalas/...) sem marcação; o endpoint está como 'Ponto a Validar' na tabela de APIs ou há um VAL-MOD-NN explícito sobre o endpoint não definido."
+  ]
+}

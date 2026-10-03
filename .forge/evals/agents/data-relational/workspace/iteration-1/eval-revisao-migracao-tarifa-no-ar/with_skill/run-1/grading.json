@@ -1,0 +1,56 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta aponta R-19 em valor_tarifa (V031__tarifa_por_linha.sql:6), propõe coluna BIGINT NOT NULL em centavos citando money-as-cents.md e diz explicitamente que a rule não lista sql no applies_to e que a aplicação a *.sql é extensão (decisão H-03 ou equivalente); nenhuma coluna monetária do DDL proposto é NUMERIC, DECIMAL, money ou float",
+      "passed": true,
+      "evidence": "review.md:32-34 aponta 'V031__tarifa_por_linha.sql:6: valor_tarifa NUMERIC(10,2)' sob R-19, cita money-as-cents.md, manda 'BIGINT NOT NULL' e diz que pela decisão H-03(a) vale em qualquer *.sql, 'não só nas stacks do applies_to original da rule (backend-dotnet/frontend-react/android-kotlin) — ... é uma extensão da skill, não uma mudança no applies_to da rule'. DDL proposto (outputs/V031__tarifa_parametro.sql:8) usa 'valor_tarifa_em_centavos BIGINT NOT NULL'; nenhuma coluna NUMERIC/DECIMAL/money/float nos três .sql."
+    },
+    {
+      "text": "A resposta aponta R-20 em tarifa_parametro e o DDL proposto contém ENABLE ROW LEVEL SECURITY e também FORCE ROW LEVEL SECURITY para ela, uma CREATE POLICY por tenant_id, e menciona que o papel da aplicação não pode ser o dono da tabela nem ter BYPASSRLS",
+      "passed": false,
+      "evidence": "R-20 apontado (review.md:28-30) e o DDL tem ENABLE e FORCE ROW LEVEL SECURITY e CREATE POLICY por tenant_id (V031__tarifa_parametro.sql:15-18), mas nenhuma saída menciona que o papel da aplicação não pode ser dono da tabela nem ter BYPASSRLS (grep 'bypassrls' em outputs/ sem ocorrência; nada sobre owner/papel)."
+    },
+    {
+      "text": "A resposta aponta R-03 nas linhas 10 e 12 da V031; o índice em viagem vira CREATE INDEX CONCURRENTLY com a observação de que não pode rodar dentro de bloco de transação (Flyway precisa da migração fora de transação); o rename de codigo vira expand/contract (coluna nova, dual-write ou trigger, backfill em lotes, troca de leitura e remoção da antiga em deploy posterior), sem RENAME in-place",
+      "passed": true,
+      "evidence": "review.md:17-25 aponta R-03 em 'V031__tarifa_por_linha.sql:10 e :12'. V032__viagem_index_validador_concurrently.sql traz '-- flyway:executeInTransaction=false' e 'CREATE INDEX CONCURRENTLY', com review.md:48 dizendo que CONCURRENTLY 'não pode rodar dentro de uma transação'. Rename vira expand (V033: ADD COLUMN codigo_linha + backfill), contract em deploy posterior após a versão nova ler codigo_linha (review.md:52), sincronização por dupla escrita ou trigger citada como requisito (review.md:58); nenhum RENAME in-place no DDL. Ressalva: backfill em lote único (justificado por linha ter só milhares de linhas) e sem trigger escrito no DDL."
+    },
+    {
+      "text": "A resposta cita R-21 e o DDL corrigido inclui SET lock_timeout (valor curto, em segundos) na sessão da migração, antes dos ALTER TABLE e CREATE INDEX",
+      "passed": true,
+      "evidence": "review.md:17 'R-03 + R-21' e :26 sobre ausência de lock_timeout; DDL corrigido tem \"SET lock_timeout = '5s';\" no topo de V031 (linha 2), V032 (linha 4, antes do CREATE INDEX CONCURRENTLY) e V033 (linha 7, antes do ALTER TABLE)."
+    },
+    {
+      "text": "Todo antipattern apontado na resposta cita um id R-NN do catálogo, e os achados de R-03, R-19 e R-20 vêm com a localização no formato V031__tarifa_por_linha.sql:<linha> (ou o caminho completo com :linha)",
+      "passed": true,
+      "evidence": "Todos os achados citam id: R-03/R-21 (§1), R-20 (§2), R-19 (§3), R-04 (§4), R-01 (§5). R-03 com 'V031__tarifa_por_linha.sql:10 e :12', R-19 com ':6', R-20 com 'V031__tarifa_por_linha.sql:2-8' (intervalo de linhas, aceito como arquivo:linha)."
+    },
+    {
+      "text": "git status --porcelain no diretório do projeto está vazio ao fim da execução (a V031 não foi editada nem foi criada migração nova) e a versão corrigida da migração aparece como bloco SQL na própria resposta",
+      "passed": true,
+      "evidence": "git -C with_skill/run-1/work status --porcelain vazio; migrations/ contém só V030 e V031 originais (V031 idêntica ao fixture). O DDL corrigido é entregue como arquivos .sql em outputs/ referenciados pelo review.md:46-54 ('Ficam nos arquivos abaixo, em outputs/'), com nota 'uma árvore, um escritor'. Ressalva: o SQL corrigido está em arquivos .sql da resposta, não inline em review.md."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.83
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "git status --porcelain no diretório do projeto está vazio ao fim da execução (a V031 não foi editada nem foi criada migração nova) e a versão corrigida da migração aparece como bloco SQL na própria resposta",
+        "reason": "'bloco SQL na própria resposta' é ambíguo quando a resposta do executor é um diretório outputs/ com .sql separados; as duas configurações passam pelo mesmo critério, então a asserção não discrimina. Explicitar se .sql em outputs/ conta."
+      },
+      {
+        "assertion": "A resposta aponta R-03 nas linhas 10 e 12 da V031; o índice em viagem vira CREATE INDEX CONCURRENTLY com a observação de que não pode rodar dentro de bloco de transação (Flyway precisa da migração fora de transação); o rename de codigo vira expand/contract (coluna nova, dual-write ou trigger, backfill em lotes, troca de leitura e remoção da antiga em deploy posterior), sem RENAME in-place",
+        "reason": "'backfill em lotes' conflita com o fixture (linha tem só milhares de linhas); ambas as execuções justificaram lote único. Considere exigir apenas expand/contract sem RENAME in-place."
+      },
+      {
+        "reason": "R-01 (FK sem índice) foi achado legítimo da configuração with_skill e não é coberto por asserção."
+      }
+    ],
+    "overall": "As asserções de id de catálogo discriminam bem; o ganho real de conteúdo técnico entre as configurações é pequeno (without_skill também acertou CONCURRENTLY, expand/contract com trigger, RLS, centavos e lock_timeout)."
+  }
+}

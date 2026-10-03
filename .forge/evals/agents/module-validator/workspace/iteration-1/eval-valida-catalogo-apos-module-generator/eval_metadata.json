@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "valida-catalogo-apos-module-generator",
+  "prompt": "O module-generator acabou de gerar o catálogo de módulos do Passe Urbano em docs/product/modules/ (cadastro-passageiro, recarga, tarifacao, notificacoes). Antes de liberar a implementação, faz a revisão crítica dos módulos contra o DDD, o TRD e o data-model e me dá o parecer. O que for ajuste seguro e derivado dos insumos pode corrigir direto nos READMEs; o resto só aponta.",
+  "assertions": [
+    "Existe docs/product/modules/modules-validation-report.md com cabeçalho contendo Versão 1.0.0, Data, Status e Validador module-validator, e seções de Matriz de Cobertura BC ↔ Módulo, Matriz de Ownership, Grafo de Dependências em bloco mermaid, Matriz Módulo ↔ Deployable e Parecer Final.",
+    "O Status/Parecer Final do relatório é 'Reprovado' e há um achado com prefixo MOD-OWN classificado como Crítica apontando que cartoes_transporte tem dois donos (cadastro-passageiro e recarga).",
+    "O achado de ownership de cartoes_transporte está marcado como 'Conflito Arquitetural' ou 'Ponto a Validar' (não [CORRIGIDO]) e as linhas de ownership de cartoes_transporte em docs/product/modules/recarga/README.md e docs/product/modules/cadastro-passageiro/README.md permanecem idênticas às do commit inicial (git diff não altera essas linhas), assim como docs/product/data-model/data-model.md.",
+    "docs/product/modules/recarga/README.md passou a declarar o deployable recarga-service (seção Deployable ou equivalente), e o relatório lista essa correção com marcação [CORRIGIDO] na seção Correções Aplicadas indicando arquivo e antes/depois.",
+    "docs/product/modules/notificacoes/README.md ganhou um bloco mermaid de dependências com arestas de notificacoes para recarga e para cadastro-passageiro, e o relatório registra a correção como [CORRIGIDO] com ID MOD-DOC-NNN ou equivalente.",
+    "A Matriz de Ownership do relatório tem uma linha para cada uma das 5 tabelas do data-model (passageiros, cartoes_transporte, recargas, tabelas_tarifarias, notificacoes_enviadas) e a Matriz de Cobertura lista os 4 bounded contexts com percentual de cobertura."
+  ]
+}

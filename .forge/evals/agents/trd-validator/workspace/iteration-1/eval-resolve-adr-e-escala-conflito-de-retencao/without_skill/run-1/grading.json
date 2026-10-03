@@ -1,0 +1,64 @@
+{
+  "expectations": [
+    {
+      "text": "Em docs/product/trd/trd.md a API síncrona de tarifa entre validacao-api e tarifacao-svc deixou de ser 'REST/JSON sobre HTTP' com 'API key interna' e passou a gRPC (com contrato .proto e/ou mTLS), e o diagrama Mermaid não mostra mais a seta 'REST/JSON' entre API e TAR.",
+      "passed": true,
+      "evidence": "grep -nE \"REST/JSON|API key|gRPC|mTLS\" work/docs/product/trd/trd.md: linha 46 `TarifasCalculadorService/Calcular` | gRPC, contrato `.proto` versionado (ADR-0002) | mTLS de malha interna; linha 109 do Mermaid `API -->|gRPC| TAR[tarifacao-svc]`. REST/JSON só aparece na nota histórica da linha 50 (\"a v0.1 descrevia ... como REST/JSON\"), não como protocolo vigente; API key não aparece mais. outputs/trd.diff confirma."
+    },
+    {
+      "text": "docs/product/trd/trd-validation-report.md lista o realinhamento REST→gRPC como ajuste ADJ-TRD-NNN com fonte ADR-0002, e a tabela ADR → TRD marca ADR-0002 como Corrigido (ou equivalente).",
+      "passed": false,
+      "evidence": "Não existe docs/product/trd/trd-validation-report.md: `ls work/docs/product/trd/` lista só trd.md e `git status --short -- docs/product` mostra só ` M docs/product/trd/trd.md`. `grep -rlE \"ARCH-CONFLICT|VAL-TRD|ADJ-TRD\"` em work/docs/product e outputs/ não retorna nada: não há ADJ-TRD-NNN nem tabela ADR → TRD. A correção só está anotada numa nota inline no TRD (linha 49-54) e no transcript."
+    },
+    {
+      "text": "O relatório contém uma entrada ARCH-CONFLICT-NNN (ou VAL-TRD-NN) que nomeia explicitamente NFRD-RET-01 (5 anos) e o Data Model (24 meses/expurgo) como fontes em conflito, com recomendação de decisão por stakeholder; o TRD não afirma 5 anos nem 24 meses como retenção decidida sem referenciar esse conflito/ponto a validar.",
+      "passed": false,
+      "evidence": "Não há relatório nem entrada ARCH-CONFLICT-NNN/VAL-TRD-NN (grep acima vazio). O conflito foi tratado corretamente em substância — TRD seção 10 com nota de conflito, seção 20 `NFRD-RET-01 | 10 (conflito aberto — ver seção 22)`, seção 22 item 1 com três caminhos, e outputs/escalacao-comite-retencao.md — mas a asserção exige a entrada identificada no relatório, que não existe. Além disso a seção 10 mantém `validacoes retida por 24 meses` como texto principal, com ressalva."
+    },
+    {
+      "text": "git diff contra o commit da fixture mostra docs/product/frd-nfrd/nfrd.md e docs/product/data-model/data-model.md sem nenhuma alteração; só arquivos em docs/product/trd/ mudaram.",
+      "passed": true,
+      "evidence": "git -C work diff --quiet HEAD -- docs/product/frd-nfrd/nfrd.md docs/product/data-model/data-model.md retornou 0 (intactos); git -C work diff --stat HEAD -- docs/product: só docs/product/trd/trd.md (37+, 5-). Deleções em .claude/ e .forge/ vêm do setup.sh da fixture."
+    },
+    {
+      "text": "O Parecer Final do relatório é 'Reprovado' ou 'Aprovado com Ressalvas' (nunca 'Aprovado'), e a justificativa ou as condições para aprovação citam o conflito de retenção pendente.",
+      "passed": false,
+      "evidence": "Sem relatório, não há Parecer Final. grep por Parecer/Aprovado/Reprovado nos outputs não encontra parecer; transcript e escalacao-comite-retencao.md não emitem veredito formal."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "claims": [
+    {
+      "claim": "Diagrama da seção 19 e Riscos/Resiliência (seção 15) também foram alinhados",
+      "type": "factual",
+      "verified": false,
+      "evidence": "Nota inserida no TRD (outputs/trd.diff, linha +25) afirma alinhamento da seção 15, mas `git diff HEAD -- docs/product/trd/trd.md` não tem nenhuma alteração na seção 15 (linha 88 do TRD); alegação falsa."
+    },
+    {
+      "claim": "FRD-EXT-01 adicionado à matriz de rastreabilidade",
+      "type": "factual",
+      "verified": true,
+      "evidence": "outputs/trd.diff: `+| FRD-EXT-01 | 8 |`"
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [
+      "Prosa do TRD e do Pontos a Validar foi escrita com quebra manual de linha dentro de parágrafos (hard-wrap), contra a convenção do usuário."
+    ],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "reason": "O baseline acertou a substância do conflito (não escolheu lado, escalou com opções) e falhou 3 asserções apenas pela ausência do relatório formatado; o eval discrimina formato do relatório mais do que julgamento. Considerar uma asserção separada sobre o TRD não afirmar retenção como decidida, independente do relatório."
+      }
+    ],
+    "overall": "Mesma lista de asserções da configuração with_skill."
+  }
+}

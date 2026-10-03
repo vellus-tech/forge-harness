@@ -42,15 +42,65 @@ argument-hint: "[--no-backup] [--overwrite-drift]"
    reconcilia adapters ativos (`sync-adapters --adapter all`), garante `core.hooksPath` e o bloco
    managed do `.gitignore`, re-materializa o plugin `/forge:*` (se claude ativo), e roda o `doctor`.
 
-4. **Garanta o `core.hooksPath` absoluto.** O `update` já o grava apontando para `<tronco>/.forge/hooks/git` e migra o valor legado relativo (`.forge/hooks/git`), preservando um `hooksPath` customizado de verdade. Absoluto porque `core.hooksPath` vive no `.git/config` comum e um valor relativo é resolvido por cada worktree contra a própria árvore, que carrega a cópia antiga dos hooks. Confirme no fim:
+4. **Rode a suíte de guarda do consumidor e trie cada reprovação contra a versão pré-upgrade.**
+   Revisão de diff não substitui execução: num overlay que reescreve arquivos inteiros, o diff
+   mostra bem o que mudou e mal o que sumiu (guarda de segurança removida, ordem invertida,
+   argumento perdido — nada disso aparece como linha vermelha num `git diff`, só como reprovação
+   de teste). Upgrade sem essa execução **não é declarado concluído**:
+
+   ```bash
+   bash .forge/scripts/tests/run-all.sh
+   ```
+
+   Rode também os checks declarados em `runtime.test`/`runtime.gates` do `FORGE.md`, se houver, além
+   da suíte acima.
+
+   Toda reprovação (rc 1) é comparada contra a versão do arquivo antes do commit do overlay —
+   `git show HEAD:<path>` (o commit anterior ao do update) ou, se já não houver histórico limpo, o
+   backup em `<git-dir>/forge-backups/` — e o `<git-dir>` é resolvido com
+   `git rev-parse --git-dir`, nunca assumido como `.git/`: numa worktree linked, `.git` é um
+   **arquivo** que aponta para o git-dir real, o mesmo cuidado de `bin/forge.mjs` ao localizar o
+   backup. Classifique cada reprovação numa de três classes, com remediação distinta:
+
+   - **Regressão** — o overlay quebrou um comportamento que a versão pré-upgrade tinha certo.
+     Remediação: restaure o comportamento e, se a causa é do template (não de customização local),
+     leve o achado ao upstream do `forge-harness`.
+   - **Evolução legítima do template** — o teste do consumidor ainda espera o comportamento
+     antigo, e o novo é o correto. Remediação: mescle o teste ao comportamento novo — **nunca**
+     reverta o overlay para fazer o teste antigo passar de novo.
+   - **Fixture desatualizada** — o teste compara um literal com um valor que o overlay mudou, e o
+     valor antigo não é mais o certo em lugar nenhum. Remediação: atualize a fixture, **nunca**
+     afrouxe a asserção.
+
+   **Critério de desempate antes de chamar algo de "fixture desatualizada":** quando a reprovação
+   é um literal comparado ao valor novo que o código produz, conte quem mais consome o valor
+   antigo em código de produção:
+
+   ```bash
+   git grep -n -- '<valor antigo>' -- . ':!tests' ':!**/*test*'
+   ```
+
+   Se o valor antigo ainda vive em código de produção que o overlay não tocou, o teste está
+   certo e quem mudou é que está errado — é regressão, não fixture desatualizada. Só realinhe o
+   literal depois que os demais consumidores do mesmo contrato tiverem sido realinhados junto (o
+   mecanismo da issue #75: um mutex com dois nomes de lock adquiridos por processos diferentes foi
+   "corrigido" trocando o literal do teste, e o defeito voltou a rodar sem ninguém notar).
+
+   **Alvo com desfecho NÃO VERIFICADO (rc 3, ver LDG-0181)** — morto por sinal, dependência
+   ausente ou árvore não medida — é reexecutado **isoladamente** antes de qualquer classificação.
+   Nunca classifique um alvo não verificado como regressão direto: um gate morto por sinal não é
+   um gate que reprovou, e tratá-lo como regressão esconde a causa real (ambiente, dependência,
+   timeout) atrás de uma remediação que não se aplica.
+
+5. **Garanta o `core.hooksPath` absoluto.** O `update` já o grava apontando para `<tronco>/.forge/hooks/git` e migra o valor legado relativo (`.forge/hooks/git`), preservando um `hooksPath` customizado de verdade. Absoluto porque `core.hooksPath` vive no `.git/config` comum e um valor relativo é resolvido por cada worktree contra a própria árvore, que carrega a cópia antiga dos hooks. Confirme no fim:
 
    ```bash
    git config --get core.hooksPath   # tem de ser caminho absoluto, terminando em /.forge/hooks/git
    ```
 
-5. **Meça a propagação para os worktrees existentes.** O `doctor` (que o `update` roda no fim) lista, por worktree linkado, quantos arquivos de maquinaria divergem do tronco e quantos commits aquele worktree está à frente. Use a tabela para decidir: sincronize primeiro os que estão com **zero commits à frente** (rebase/merge do tronco é trivial ali) e escale os que estão muito à frente ou em `HEAD` destacado, onde a sincronização é decisão de quem tem o contexto da branch.
+6. **Meça a propagação para os worktrees existentes.** O `doctor` (que o `update` roda no fim) lista, por worktree linkado, quantos arquivos de maquinaria divergem do tronco e quantos commits aquele worktree está à frente. Use a tabela para decidir: sincronize primeiro os que estão com **zero commits à frente** (rebase/merge do tronco é trivial ali) e escale os que estão muito à frente ou em `HEAD` destacado, onde a sincronização é decisão de quem tem o contexto da branch.
 
-6. **Resuma** o resultado: o que foi atualizado, o que foi preservado (specs/baseline), o estado do `core.hooksPath`, a divergência dos worktrees e o backup. Se o update imprimiu `PRESERVADO (deriva local)` ou `PRESERVADO (sem lock para provar)`, liste cada caminho com a versão pendente em `.forge/cache/template-pendente/` e peça ao usuário a decisão por arquivo (seção abaixo); nunca rode `--overwrite-drift` sem esse aceite explícito.
+7. **Resuma** o resultado: o que foi atualizado, o que foi preservado (specs/baseline), o estado do `core.hooksPath`, a divergência dos worktrees e o backup. **Liste cada reprovação da suíte (passo 4) com a classe atribuída** — regressão, evolução legítima do template ou fixture desatualizada — e a remediação aplicada; "suíte verde depois do upgrade" não pode ser obtido realinhando testes sem esse registro. Se o update imprimiu `PRESERVADO (deriva local)` ou `PRESERVADO (sem lock para provar)`, liste cada caminho com a versão pendente em `.forge/cache/template-pendente/` e peça ao usuário a decisão por arquivo (seção abaixo); nunca rode `--overwrite-drift` sem esse aceite explícito.
    O backup fica em `.git/forge-backups/` e não precisa ser removido para rodar gates: fora da árvore, ele não é varrido por `--path` nem aparece em `git status`. Antes ele vivia em `.forge.bak-N` e era varrido pelos próprios gates, bloqueando o primeiro push após o upgrade por conteúdo que era cópia do repositório (issue #76).
 
 ## Divergências deliberadas de maquinaria (issues #101/#131)
@@ -92,6 +142,37 @@ Arquivo ilegível, linha malformada ou caminho declarado duas vezes param o upda
 O ensaio de campo da 0.16.0 mediu cerca de 40 consertos deliberados sobrescritos em cinco consumidores que nunca tinham declarado exceção, entre eles consertos cuja perda fez a suíte do próprio consumidor reprovar. Por isso o `update` não sobrescreve mais, por padrão, maquinaria própria em deriva local: o arquivo fica como está, a linha `PRESERVADO (deriva local): <caminho> — versão nova do template em .forge/cache/template-pendente/<caminho>` nomeia cada um (ou `PRESERVADO (sem lock para provar): <caminho> — o conteúdo local não é nenhuma versão publicada do template; ...`, quando o lock não tem entrada para o caminho; se o pacote não trouxe o histórico de versões publicadas para consultar, a mesma linha diz `sem histórico de versões publicadas para provar` em vez de afirmar que o conteúdo não é nenhuma delas), e um `WARN` agregado no fim dá a contagem, separando quantos são sem lock. O `machinery.lock` não avança nesses caminhos (continua registrando o que o consumidor recebeu por último), para que o próximo update continue reconhecendo a deriva. Conteúdo que o próprio harness entregou nunca é deriva, com ou sem entrada no lock: o arquivo byte-idêntico a uma versão publicada do template (`template/machinery-history.json`) ou à versão pendente que o update anterior guardou recebe o template com `ATUALIZADO`. Isso cobre o lock defasado por checkout (o `.forge/` é versionado e o `.forge/cache/` não, então um update feito em outra worktree ou por um colega chega por pull sem o lock) e a reconciliação à mão da saída (2) abaixo. O custo: voltar um arquivo, de propósito, a uma versão publicada mais antiga não é reconhecido como deriva; para manter essa versão, declare a exceção. O `--dry-run` antecipa as mesmas linhas e o mesmo `WARN`. O `doctor` imprime `TEMPLATE-PENDENTE: N arquivo(s) ...` com os primeiros caminhos enquanto a versão pendente ainda difere do arquivo local e o caminho não tem exceção declarada.
 
 Reconcilie cada arquivo pendente com o usuário, por uma de três saídas: (1) o conserto local deve ficar — declare a exceção em `.forge/machinery-exceptions.txt` com o sha da versão pendente (`shasum -a 256 .forge/cache/template-pendente/<caminho>`) e a razão; (2) o template já cobre o conserto, ou os dois se completam — compare com `diff .forge/<caminho> .forge/cache/template-pendente/<caminho>` e incorpore à mão; se o resultado for igual à versão pendente, a reconciliação acabou: o `doctor` para de cobrar na hora, e o próximo update reconhece o arquivo como versão entregue pelo template e o atualiza (`ATUALIZADO`), sem nova versão pendente; se for uma mescla que ainda difere dela, declare também a exceção como na saída (1), senão o arquivo volta a ser deriva e pendente a cada update; (3) o template deve vencer em todos os arquivos pendentes — rode `npx forge-harness@latest update --overwrite-drift`, que sobrescreve com backup em `.git/forge-backups/` e nomeia cada um como `SOBRESCRITO (não declarado)`, sem passar por cima de exceção declarada. O diretório de pendentes é reconstruído a cada update e fica sob `.forge/cache/`, que não é versionado: um clone novo não tem `machinery.lock`, e nele a prova de intocado vem do histórico de versões publicadas — o arquivo idêntico a uma versão publicada recebe o template (`ATUALIZADO`), e só o que difere de todas aparece como `PRESERVADO (sem lock para provar)`.
+
+## Copiar `.forge` de outro repositório é upgrade parcial (issue #153)
+
+Copiar o diretório `.forge` (inteiro ou por partes: só `scripts/`, só um `commands/harness/*.md`
+que "ficou melhor" noutro projeto) de OUTRO consumidor para este repositório parece um atalho
+para adiantar o upgrade, mas é o mesmo overlay que este comando faz, sem nenhuma das garantias
+dele: sem preservar `specs/`, `product/current/`, `custom/`, `constitution.md`, `context.md`,
+`FORGE.md` do destino (que a cópia pisa ou ignora, dependendo do que foi copiado); sem atualizar
+`forge.yaml:template_version` para casar com o que chegou; sem reconciliar `machinery.lock`, que
+continua registrando a versão ANTERIOR da árvore de origem (ou nem existe, se a origem nunca
+rodou `update`); e sem trazer o script ou hook que, na origem, invocava cada lib copiada — o
+consumidor de destino herda a lib, não quem a chamava.
+
+Os dois sintomas ficam invisíveis até o `doctor` rodar (`/forge:doctor`, ou este comando no passo
+3):
+
+- **Lib órfã** — `scripts/lib/*.sh`/`*.mjs` presente e sem nenhum script, hook ou outra lib que a
+  mencione. É o rastro mais comum de uma cópia parcial: a lib veio, o invocador da origem não.
+- **Divergência de versão** — `forge.yaml:template_version` (o que a cópia trouxe, ou o que já
+  estava aqui) e a versão gravada no cabeçalho de `.forge/cache/machinery.lock` (a última
+  aplicação REAL de `update` nesta árvore) discordam. Nenhum dos dois arquivos sozinho prova
+  nada — só o cruzamento denuncia.
+
+O `doctor` nomeia os dois, sempre informativo (nunca reprova sozinho: uma lib sem invocador pode
+ser deliberada, e um clone novo sem `machinery.lock` diverge legitimamente até o primeiro
+`update`), mas nomear não é reconciliar — trate o aviso como sinal de que uma cópia manual
+aconteceu e faça o upgrade de verdade: rode este comando (passo 1–3) a partir da versão publicada
+do template, nunca copiando de outro checkout. Se a cópia manual já aconteceu e não pode ser
+desfeita, decida por arquivo copiado (seção "Divergências deliberadas de maquinaria" acima):
+declare exceção para o que deve ficar, ou rode `update` para trazer o resto ao ponto de
+convergência com o `machinery.lock` correto.
 
 ## Regras
 

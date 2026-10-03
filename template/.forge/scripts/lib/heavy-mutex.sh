@@ -463,7 +463,21 @@ forge_heavy_mutex_status() {
     ht="$(cat "$lock/token" 2>/dev/null || echo '')"
     age="$(LC_ALL=C ps -o etime= -p "$hp" 2>/dev/null | tr -d ' ')"
     if _fhm_alive "$hp" "$ht"; then
-      echo "detentor .... PID $hp há ${age:-?}"
+      # Terceiro estado do diagnóstico (D19): posse legítima, órfã por BENEFICIÁRIO, ou ESTAGNADA
+      # por idade — a idade impressa vem de `acquired_at` (a POSSE), nunca do `etime` do processo
+      # (a linha acima, ${age}, mede o PROCESSO — um detentor recém-nascido pode segurar um lock
+      # antigo, e usar `etime` para "estagnada" imprimiria o número errado).
+      local _fhm_lock_save="$_FHM_LOCK" _fhm_pose_age _fhm_stale_eff
+      _FHM_LOCK="$lock"
+      _fhm_stale_eff="$(_fhm_resolve_stale_after 2>/dev/null)"
+      if _fhm_beneficiary_orphaned; then
+        echo "detentor .... PID $hp há ${age:-?} — ÓRFÃO POR BENEFICIÁRIO (PID ${_FHM_LAST_BENEFICIARY} morto), reclamável"
+      elif [ "${_fhm_stale_eff:-0}" -gt 0 ] && _fhm_pose_age="$(_fhm_lock_age)" && [ "$_fhm_pose_age" -gt "$_fhm_stale_eff" ]; then
+        echo "detentor .... PID $hp há ${age:-?} — posse ESTAGNADA há ${_fhm_pose_age}s (idade da posse, não do processo; teto declarado ${_fhm_stale_eff}s), reclamável"
+      else
+        echo "detentor .... PID $hp há ${age:-?}"
+      fi
+      _FHM_LOCK="$_fhm_lock_save"
     else
       echo "detentor .... PID $hp — ÓRFÃO (processo morto, zumbi ou PID reciclado)"
     fi
@@ -632,12 +646,98 @@ _fhm_reclaim_orphan() {  # _fhm_reclaim_orphan <pid-esperado>
   return 1
 }
 
+_FHM_LAST_BENEFICIARY=""
+
+# ── posse órfã por BENEFICIÁRIO morto (issue #144) e por IDADE (issue #137) ────────────────────
+#
+# A ausência de identidade NUNCA é licença para destruir — mesmo idioma que `_fhm_alive` já aplica
+# ao token (`[ -n "$want" ] || return 0`). Campo ausente, vazio, não numérico ou <= 1 NUNCA
+# reclama: PID 0 endereça o grupo do chamador (`kill -0 0` é sucesso) e PID 1 é o próprio init —
+# um campo corrompido para um desses dois não pode virar "beneficiário vivo" ou "beneficiário
+# válido" por acidente.
+_fhm_beneficiary_orphaned() {  # 0 quando há beneficiário DECLARADO e ele está MORTO
+  local b bt
+  b="$(cat "$_FHM_LOCK/beneficiary" 2>/dev/null)"
+  case "$b" in ''|*[!0-9]*) return 1 ;; esac
+  [ "$b" -gt 1 ] || return 1
+  bt="$(cat "$_FHM_LOCK/beneficiary_token" 2>/dev/null)"
+  _FHM_LAST_BENEFICIARY="$b"
+  _fhm_alive "$b" "$bt" && return 1
+  return 0
+}
+
+# Idade da posse, pela leitura de `acquired_at` — NUNCA pelo `etime` do detentor, que mede a idade
+# do PROCESSO e não da POSSE (um detentor recém-nascido pode segurar um lock antigo). Ausente,
+# vazio, não numérico, <= 0 ou no FUTURO: idade NÃO É COMPUTÁVEL, e "não sei a idade" não é
+# licença para tratar como "é velho".
+_fhm_lock_age() {  # ecoa a idade em segundos; rc 1 quando não computável
+  local at now
+  at="$(cat "$_FHM_LOCK/acquired_at" 2>/dev/null)"
+  case "$at" in ''|*[!0-9]*) return 1 ;; esac
+  [ "$at" -gt 0 ] || return 1
+  now="$(date +%s)"
+  [ "$at" -le "$now" ] || return 1
+  printf '%s' "$((now - at))"
+  return 0
+}
+
+# Graça entre TERM e KILL. Botão de OPERAÇÃO de uma máquina, não contrato de repositório — por
+# isso não tem chave em forge.yaml (só a variável de ambiente).
+_fhm_stale_grace() {
+  case "${FORGE_HEAVY_MUTEX_STALE_GRACE_S:-}" in
+    ''|*[!0-9]*) printf 5 ;;
+    *) printf '%s' "$FORGE_HEAVY_MUTEX_STALE_GRACE_S" ;;
+  esac
+}
+
+_FHM_ESCALATE_CONSUMED=0
+
+# Encerramento TERM -> graça -> KILL, com remoção só depois de morte CONFIRMADA (D6). Nunca faz
+# `rm -rf` sobre detentor vivo — delega a remoção ao primitivo que já existe e já reconfere pid e
+# token (`_fhm_reclaim_orphan`). Imprime o censo de descendentes ANTES do encerramento (D11),
+# porque depois dele os filhos são reparentados e o vínculo de ppid some.
+_fhm_escalate_and_reclaim() {  # _fhm_escalate_and_reclaim <holder> <holder-token> <motivo>
+  local holder="$1" htok="$2" motivo="$3" grace poll consumed=0 nfilhos
+  grace="$(_fhm_stale_grace)"
+  poll="${FORGE_HEAVY_MUTEX_POLL_HEAD_S:-1}"
+  nfilhos="$(LC_ALL=C ps -Ao ppid= 2>/dev/null | tr -d ' ' | grep -cx "$holder" 2>/dev/null)"
+  echo "heavy-mutex: RECOLHENDO posse — ${motivo} (PID $holder, ${nfilhos:-0} descendente(s) direto(s) medido(s) antes do encerramento)" >&2
+  kill -TERM "$holder" 2>/dev/null
+  while [ "$consumed" -lt "$grace" ]; do
+    if [ ! -d "$_FHM_LOCK" ]; then
+      _FHM_ESCALATE_CONSUMED="$consumed"
+      echo "heavy-mutex: detentor liberou a posse após o sinal (TERM) — ${motivo}" >&2
+      return 0
+    fi
+    sleep "$poll"
+    consumed=$((consumed + poll))
+  done
+  if [ -d "$_FHM_LOCK" ]; then
+    kill -KILL "$holder" 2>/dev/null
+    sleep 1
+    consumed=$((consumed + 1))
+  fi
+  _FHM_ESCALATE_CONSUMED="$consumed"
+  if [ ! -d "$_FHM_LOCK" ]; then
+    return 0
+  fi
+  if ! _fhm_alive "$holder" "$htok"; then
+    if _fhm_reclaim_orphan "$holder"; then
+      echo "heavy-mutex: posse recolhida — ${motivo} (PID $holder)" >&2
+      return 0
+    fi
+    return 1
+  fi
+  echo "heavy-mutex: recolhimento TENTADO e FALHOU — ${motivo} (PID $holder segue vivo após TERM/KILL; morte não confirmada, posse NÃO removida)" >&2
+  return 1
+}
+
 
 # Escreve os metadados e CONFIRMA a posse; devolve 1 quando o lock foi revogado no meio, e o
 # chamador RETENTA em vez de desistir. Desistir transformaria uma corrida benigna em falha de
 # push: medido com cinco concorrentes, três saíam com rc 75 sobre um recurso que estava LIVRE.
-_fhm_claim() {  # _fhm_claim <label>
-  local label="$1"
+_fhm_claim() {  # _fhm_claim <label> <beneficiario>
+  local label="$1" beneficiary="${2:-}"
   # `pid` PRIMEIRO, porque é o campo que o legado lê: estreita ao máximo a janela em que o lock
   # existe sem dono legível. Todo `rc` de escrita é conferido — um `printf` que falhe é falha de
   # AQUISIÇÃO, não um aviso solto no stderr.
@@ -661,6 +761,17 @@ _fhm_claim() {  # _fhm_claim <label>
   printf '%s\n' "$(_fhm_state1 "$$")" > "$_FHM_LOCK/state" 2>/dev/null
   printf '%s\n' "$(id -un 2>/dev/null || echo '?')" > "$_FHM_LOCK/owner" 2>/dev/null
   printf '%s\n' "$(LC_ALL=C ps -o command= -p "$$" 2>/dev/null | cut -c1-200)" > "$_FHM_LOCK/cmd" 2>/dev/null
+  # Beneficiário (issue #144): só gravado quando DECLARADO e VÁLIDO (inteiro > 1). Campo ausente
+  # ou inválido não vira arquivo — leitura de arquivo inexistente já é "não reclamável" por
+  # `_fhm_beneficiary_orphaned`, então não há necessidade de gravar lixo para distinguir isso.
+  case "$beneficiary" in
+    ''|*[!0-9]*) : ;;
+    *)
+      if [ "$beneficiary" -gt 1 ] 2>/dev/null; then
+        printf '%s\n' "$beneficiary" > "$_FHM_LOCK/beneficiary" 2>/dev/null
+        printf '%s\n' "$(_fhm_token "$beneficiary")" > "$_FHM_LOCK/beneficiary_token" 2>/dev/null
+      fi ;;
+  esac
 
   # CONFIRMAÇÃO DE POSSE. Escrever `pid` primeiro ESTREITA a janela (medido: mediana 87 µs, p95
   # 130 µs), não a fecha — e um consumidor legado que a atravesse remove o nosso lock e segue.
@@ -689,6 +800,42 @@ _fhm_yaml_timeout() {
   # para eliminar: config publicada que ninguém lê é pior que config ausente, porque quem a ajusta
   # acredita ter ajustado.
   awk '/^heavy_mutex:/{f=1;next} f&&/^[a-z]/{f=0} f&&/^[[:space:]]*timeout_s:/{sub(/^[[:space:]]*timeout_s:[[:space:]]*/,"");sub(/[[:space:]]*#.*$/,"");gsub(/["'"'"']/,"");sub(/[[:space:]]+$/,"");print;exit}' "$yaml" 2>/dev/null
+}
+
+# Teto de POSSE (issue #137) — OPT-IN, ausente significa DESLIGADO. Precedência idêntica à do
+# timeout: env > forge.yaml > ausente. NÃO existe terceiro degrau numérico aqui — decisão DH-5 do
+# dono: um default derivado (mesmo pela metade do teto de espera) encerraria dono vivo em TODO
+# consumidor que ligasse o mutex sem nunca ter declarado nada, o que é regressão de produto. Quando
+# o consumidor declara um valor, ele é RESPEITADO como está (DA-06) — nunca rebaixado —, mesmo que
+# ultrapasse o teto de espera menos a reserva; nesse caso o efeito é só um AVISO (ver _fhm_stale_*).
+_fhm_yaml_stale_after() {
+  local yaml="${FORGE_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null)}/.forge/forge.yaml"
+  [ -f "$yaml" ] || return 0
+  awk '/^heavy_mutex:/{f=1;next} f&&/^[a-z]/{f=0} f&&/^[[:space:]]*stale_after_s:/{sub(/^[[:space:]]*stale_after_s:[[:space:]]*/,"");sub(/[[:space:]]*#.*$/,"");gsub(/["'"'"']/,"");sub(/[[:space:]]+$/,"");print;exit}' "$yaml" 2>/dev/null
+}
+
+# Resolução de `stale_after_s`, compartilhada entre `forge_heavy_mutex_acquire` e
+# `forge_heavy_mutex_status` — as duas precisam do MESMO efetivo, senão o `status` classificaria
+# como "estagnada" uma posse que o `acquire` nunca reclamaria (ou o oposto).
+_fhm_resolve_stale_after() {
+  local _sa_env _sa_yaml=""
+  _sa_env="${FORGE_HEAVY_MUTEX_STALE_AFTER_S:-}"
+  case "$_sa_env" in
+    '') : ;;
+    *[!0-9]*)
+      printf 'heavy-mutex: FORGE_HEAVY_MUTEX_STALE_AFTER_S inválido (%s) — exigido inteiro >= 0 em SEGUNDOS; ignorando\n' "$_sa_env" >&2
+      _sa_env="" ;;
+  esac
+  if [ -z "$_sa_env" ]; then
+    _sa_yaml="$(_fhm_yaml_stale_after)"
+    case "$_sa_yaml" in
+      '') : ;;
+      *[!0-9]*)
+        printf 'heavy-mutex: stale_after_s inválido no forge.yaml (%s) — exigido inteiro >= 0; recuperação por idade DESLIGADA\n' "$_sa_yaml" >&2
+        _sa_yaml="" ;;
+    esac
+  fi
+  printf '%s' "${_sa_env:-${_sa_yaml:-0}}"
 }
 
 forge_heavy_mutex_acquire() {
@@ -726,15 +873,26 @@ forge_heavy_mutex_acquire() {
         _t_yaml="" ;;
     esac
   fi
+  # Teto de posse: mesma disciplina de validação do teto de espera, sem terceiro degrau (ver
+  # comentário de `_fhm_yaml_stale_after`). Ausente (nos dois degraus) = 0 = DESLIGADO.
+  local stale_after; stale_after="$(_fhm_resolve_stale_after)"
+  local beneficiary="${FORGE_HEAVY_MUTEX_BENEFICIARY:-}"
+  case "$beneficiary" in ''|*[!0-9]*) beneficiary="" ;; esac
+
   local label="carga pesada" timeout="${_t_env:-${_t_yaml:-1800}}" waited=0 holder
   # O contador de reimpressão é por AQUISIÇÃO, não por processo. Ele é global porque os dois laços
   # de espera precisam enxergá-lo, mas herdar o valor da aquisição anterior faz a subtração ficar
   # negativa na seguinte, e o primeiro diagnóstico some por até LAST_NOTIFY + NOTIFY_S segundos —
   # silêncio numa espera que já começou, que é o pior momento para não dizer nada.
   _FHM_LAST_NOTIFY=0
+  local _sa_warned=0
   while [ $# -gt 0 ]; do
     case "$1" in
-      --label) label="$2"; shift 2 ;;
+      --label)
+        case "${2:-}" in
+          '') echo "heavy-mutex: --label vazio — recusado" >&2; return 64 ;;
+        esac
+        label="$2"; shift 2 ;;
       --timeout)
         case "${2:-}" in
           ''|*[!0-9]*)
@@ -851,7 +1009,7 @@ forge_heavy_mutex_acquire() {
       fi
     fi
     if mkdir "$_FHM_LOCK" 2>/dev/null; then
-      if _fhm_claim "${label}"; then break; fi
+      if _fhm_claim "${label}" "${beneficiary}"; then break; fi
       if [ "$waited" -ge "$timeout" ]; then _fhm_leave_queue; return 75; fi
       sleep "${FORGE_HEAVY_MUTEX_POLL_HEAD_S:-1}"
       waited=$((waited + ${FORGE_HEAVY_MUTEX_POLL_HEAD_S:-1}))
@@ -877,6 +1035,49 @@ forge_heavy_mutex_acquire() {
       if ! _fhm_alive "$holder" "$htok"; then
         _fhm_reclaim_orphan "$holder" || true
         continue
+      fi
+      # Ordem D5: dono morto (acima) -> BENEFICIÁRIO morto -> IDADE acima do teto. Beneficiário é
+      # CERTEZA ("ninguém vai ler o resultado"), idade é HEURÍSTICA ("está demorando demais") — a
+      # certeza vem primeiro (issue #144 antes da #137).
+      if _fhm_beneficiary_orphaned; then
+        if _fhm_escalate_and_reclaim "$holder" "$htok" "beneficiário PID ${_FHM_LAST_BENEFICIARY} morto"; then
+          waited=$((waited + _FHM_ESCALATE_CONSUMED))
+          continue
+        fi
+        waited=$((waited + _FHM_ESCALATE_CONSUMED))
+        if [ "$waited" -ge "$timeout" ]; then
+          echo "heavy-mutex: TIMEOUT após ${waited}s esperando o mutex da máquina (recolhimento por beneficiário morto tentado e falhou)." >&2
+          echo "  lock ........ $_FHM_LOCK (âncora: $prov)" >&2
+          echo "  detentor .... PID ${holder}" >&2
+          _fhm_leave_queue
+          return 75
+        fi
+        continue
+      fi
+      if [ "$stale_after" -gt 0 ]; then
+        local _fhm_age="" _fhm_reserve
+        if _fhm_age="$(_fhm_lock_age)"; then
+          _fhm_reserve=$(( $(_fhm_stale_grace) + ${FORGE_HEAVY_MUTEX_POLL_HEAD_S:-1} ))
+          if [ "$_sa_warned" = 0 ] && [ $(( stale_after + _fhm_reserve )) -gt "$timeout" ]; then
+            echo "heavy-mutex: AVISO — heavy_mutex.stale_after_s declarado ($stale_after) + reserva (${_fhm_reserve}s de graça e poll) excede o teto de espera ($timeout): um dono vivo pode não ser reclamado por idade antes do timeout de quem espera." >&2
+            _sa_warned=1
+          fi
+          if [ "$_fhm_age" -gt "$stale_after" ]; then
+            if _fhm_escalate_and_reclaim "$holder" "$htok" "posse com ${_fhm_age}s, acima do teto de posse declarado (${stale_after}s)"; then
+              waited=$((waited + _FHM_ESCALATE_CONSUMED))
+              continue
+            fi
+            waited=$((waited + _FHM_ESCALATE_CONSUMED))
+            if [ "$waited" -ge "$timeout" ]; then
+              echo "heavy-mutex: TIMEOUT após ${waited}s esperando o mutex da máquina (recolhimento por idade tentado e falhou)." >&2
+              echo "  lock ........ $_FHM_LOCK (âncora: $prov)" >&2
+              echo "  detentor .... PID ${holder}" >&2
+              _fhm_leave_queue
+              return 75
+            fi
+            continue
+          fi
+        fi
       fi
     fi
 

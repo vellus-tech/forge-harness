@@ -1,0 +1,22 @@
+{
+  "skill": "red-first-bugfix",
+  "iteration": 1,
+  "eval": "eval-1",
+  "test_cases": [
+    {
+      "id": "TC-01",
+      "variant_expectations": [
+        { "expectation": "Escreveu um teste que reproduz o bug antes de alterar o código de produção", "status": "passed" },
+        { "expectation": "Mostrou o teste falhando (vermelho) antes de aplicar a correção", "status": "passed" }
+      ]
+    },
+    {
+      "id": "TC-02",
+      "variant_expectations": [
+        { "expectation": "Escreveu um teste que reproduz o bug antes de alterar o código de produção", "status": "unverified", "note": "results.json registra exit_code 124 (timeout) sem output capturado do teste criado; sem evidência gravada de que o EstornoServiceTest foi concluído." },
+        { "expectation": "Mostrou o teste falhando (vermelho) antes de aplicar a correção", "status": "unverified", "note": "operador relata em conversa ter visto a falha 'expected saldo >= 0, but was -12.50' antes do timeout, mas esse relato não está no log capturado pelo runner; não incorporado ao veredito sem re-execução ou confirmação por log." }
+      ]
+    }
+  ],
+  "observacoes": "TC-02 variant terminou em timeout (exit_code 124) antes de capturar output do teste. Recomenda-se re-executar com timeout maior ou capturar o log completo antes de dar veredito 'passed' às duas expectativas do TC-02. Relato do operador sobre o teste ter falhado com saldo negativo é plausível mas não verificado pelo artefato; não foi incorporado como fato registrado."
+}

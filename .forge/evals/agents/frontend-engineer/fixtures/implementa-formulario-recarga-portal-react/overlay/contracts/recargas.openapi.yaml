@@ -1,0 +1,51 @@
+openapi: 3.0.3
+info:
+  title: API de Recargas
+  version: 1.2.0
+paths:
+  /v1/recargas:
+    post:
+      summary: Solicita recarga de um cartão de transporte
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          description: UUID gerado pelo cliente por tentativa de recarga; reenvio com a mesma chave não gera nova cobrança.
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cardId, amountCents]
+              properties:
+                cardId: { type: string }
+                amountCents:
+                  type: integer
+                  minimum: 500
+                  maximum: 50000
+                  description: Valor em centavos (R$ 5,00 a R$ 500,00).
+      responses:
+        '201':
+          description: Recarga criada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [rechargeId, status]
+                properties:
+                  rechargeId: { type: string }
+                  status: { type: string, enum: [PENDING_PAYMENT, CONFIRMED] }
+        '409':
+          description: Idempotency-Key já usada com payload diferente
+        '422':
+          description: Erro de negócio
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, message]
+                properties:
+                  code: { type: string, enum: [LIMITE_DIARIO_EXCEDIDO, CARTAO_BLOQUEADO] }
+                  message: { type: string }

@@ -1,0 +1,20 @@
+using Microsoft.Extensions.Logging;
+
+namespace Webhooks.Api.Handlers;
+
+public sealed record PartnerCallback(string PartnerId, string UserEmail, string EventType, string Payload);
+
+public sealed class PartnerCallbackHandler
+{
+    private readonly ILogger<PartnerCallbackHandler> _logger;
+
+    public PartnerCallbackHandler(ILogger<PartnerCallbackHandler> logger) => _logger = logger;
+
+    public Task Handle(PartnerCallback cb, CancellationToken ct)
+    {
+        // PII (e-mail) não deve ir para log mesmo em Debug: LogLevel pode ser reconfigurado
+        // em runtime/produção sem alteração de código. Logamos apenas identificadores não sensíveis.
+        _logger.LogDebug("Callback do parceiro {PartnerId} ({EventType}) recebido", cb.PartnerId, cb.EventType);
+        return Task.CompletedTask;
+    }
+}

@@ -1,0 +1,74 @@
+{
+  "expectations": [
+    {
+      "text": "`git -C <alvo> status --porcelain -- app/ migrations/ tests/ ci/` sai vazio: nenhuma correção foi aplicada, apesar do pedido explícito de corrigir direto nos arquivos",
+      "passed": true,
+      "evidence": "(cwd = diretório do eval) Comando `git -C with_skill/run-1/work status --porcelain -- app/ migrations/ tests/ ci/ | wc -l` → 0 (vazio). `git -C ... branch --show-current` → feat/saldo-centavos e `git rev-list --count HEAD` → 2 (só os commits da fixture, nenhum commit do executor). O status global mostra apenas ` D .claude/agents|skills` e `.forge/agents|skills` (remoção feita pelo setup.sh da fixture, fora do escopo) e `?? review/`. transcript.md passo 8(a): 'nenhuma correção foi aplicada nos arquivos'."
+    },
+    {
+      "text": "review/python-reviewer.json não contém veredito de aprovação (nenhuma chave `verdict`/`status` com APPROVED ou APPROVED_WITH_COMMENTS) e contém ao menos um finding BLOCKER ou HIGH",
+      "passed": true,
+      "evidence": "Comando `jq` sobre work/review/python-reviewer.json listando chaves verdict/status → `verdict=CHANGES_REQUESTED` (linha 4); nenhuma chave com APPROVED/APPROVED_WITH_COMMENTS. Severidades (jq) → HIGH,HIGH,HIGH,MEDIUM,HIGH: PY-1, PY-2, PY-3 e PY-5 são high. outputs/review/python-reviewer.json é byte-idêntico ao de work/ (cmp OK)."
+    },
+    {
+      "text": "Há um finding com severidade HIGH ou BLOCKER apontando que os testes de tests/integration/test_saldo_centavos.py foram skipped no CI por falta de Docker (2 skipped em ci/pytest-ultimo.txt) e que isso é evidência pendente, não aprovação — sem aceitar o 'passou na minha máquina' como prova",
+      "passed": true,
+      "evidence": "python-reviewer.json linhas 44-50, PY-5 severity 'high', file tests/integration/test_saldo_centavos.py: 'estão marcados `skipif` por falta de Docker no runner (ci/pytest-ultimo.txt confirma \\'2 skipped\\')' e \"'Passou na minha máquina' não é evidência válida\"; rule: 'Testes de infraestrutura pendente não contam como aprovado'. Confere com ci/pytest-ultimo.txt linha 9 'SKIPPED [2] ... sem Docker no runner'. Vai além: nota que os corpos são `...` (fato verificado em tests/integration/test_saldo_centavos.py linhas 9 e 13)."
+    },
+    {
+      "text": "Há um finding BLOCKER ou HIGH em migrations/versions/0005_saldo_em_centavos.py que cita `schema-evolution` e aponta ao menos dois de: rename + troca de tipo + NOT NULL em tabela populada num único passo (sem expand/contract), coluna `saldo` originalmente nullable (NULL quebra a migration), `downgrade` vazio sem rollback/mitigação",
+      "passed": false,
+      "evidence": "Único finding HIGH na migration é PY-3 (linhas 26-32, line 9): cita rules/data/schema-evolution.md (só no campo 'rule', texto genérico da persona) e aponta UM dos três itens exigidos — coluna `saldo` nullable=True na 0004 e NULL*100 quebrando o NOT NULL. Não aponta rename+tipo+NOT NULL num único passo sem expand/contract como defeito (apenas descreve o alter_column). O downgrade vazio está em PY-4 (linhas 35-41), mas com severity 'medium', portanto fora do critério 'finding BLOCKER ou HIGH'. Nenhum finding isolado HIGH/BLOCKER cobre dois dos três itens; tampouco menciona ausência de exceção humana registrada."
+    },
+    {
+      "text": "Há um finding em app/config.py apontando a linha 7 (DATABASE_URL com credencial escrita no log) e/ou a linha 6 (default com credencial embutida substituindo a leitura obrigatória, sem validação no boot)",
+      "passed": true,
+      "evidence": "python-reviewer.json linhas 16-23, PY-2 file app/config.py line 7: 'logger.info(\"conectando no banco %s\", DATABASE_URL) grava a connection string completa, incluindo usuário e senha, no log'. Adicionalmente PY-1 (linhas 7-15) cobre o default com credencial substituindo `os.environ[...]` obrigatório, mas aponta line 5 quando o código está na linha 6 de app/config.py (imprecisão de linha; a asserção é satisfeita por PY-2 via 'e/ou')."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "timing": {
+    "executor_duration_seconds": 189.0,
+    "total_duration_seconds": 189.0
+  },
+  "claims": [
+    {
+      "claim": "PY-1 aponta app/config.py linha 5",
+      "type": "factual",
+      "verified": false,
+      "evidence": "O default com credencial está na linha 6 de work/app/config.py (cat -n)."
+    },
+    {
+      "claim": "Coluna saldo era nullable=True na 0004",
+      "type": "factual",
+      "verified": true,
+      "evidence": "Transcript passo 7 e finding PY-3; coerente com o cenário da fixture."
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Há um finding BLOCKER ou HIGH em migrations/versions/0005_saldo_em_centavos.py que cita `schema-evolution` e aponta ao menos dois de: rename + troca de tipo + NOT NULL em tabela populada num único passo (sem expand/contract), coluna `saldo` originalmente nullable (NULL quebra a migration), `downgrade` vazio sem rollback/mitigação",
+        "reason": "Nas duas configurações a citação de `schema-evolution` decide o resultado; no with_skill ela aparece só como texto genérico do campo 'rule' copiado da persona, sem análise expand/contract. Considere exigir que o finding descreva o passo único sem expand/contract (não só cite o nome da regra), e decidir se itens espalhados em findings distintos (downgrade como MEDIUM) contam."
+      },
+      {
+        "assertion": "Há um finding com severidade HIGH ou BLOCKER apontando que os testes de tests/integration/test_saldo_centavos.py foram skipped no CI por falta de Docker (2 skipped em ci/pytest-ultimo.txt) e que isso é evidência pendente, não aprovação — sem aceitar o 'passou na minha máquina' como prova",
+        "reason": "Asserção passa trivialmente nas duas configurações; o discriminador real observado foi outro: ambos notaram que os testes de integração são stubs `...`, o que nenhuma asserção cobre."
+      },
+      {
+        "reason": "Nenhuma asserção checa o reconhecimento de que o veredito final é do code-evaluator (contrato do python-reviewer devolve só findings); ambas as execuções gravaram `verdict: CHANGES_REQUESTED`, emitindo veredito mesmo assim."
+      }
+    ],
+    "overall": "Quatro das cinco asserções não discriminam with_skill de without_skill; a diferença de pontuação é nula (4/5 vs 4/5)."
+  }
+}

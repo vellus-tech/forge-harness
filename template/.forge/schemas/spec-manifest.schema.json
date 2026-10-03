@@ -34,6 +34,11 @@
     },
     "affected_capabilities": { "type": "array", "items": { "type": "string" } },
     "affected_paths": { "type": "array", "items": { "type": "string" } },
+    "fixes_defects": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Ids de defeito que este change corrige, declarados sem recategorizar `type` (issue #138). Um change `type: feature` (ou qualquer type != bugfix) que declara esta lista não-vazia entra na política red-first (rule testing/regression-red-first.md) pelo predicado isDefectFixing (lib/defect-scope.mjs) — 'bugfix' continua sendo suficiente sozinho; esta lista é o caminho para quem corrige defeito sem mudar de type. Cada id declarado exige uma entrada de evidence/red/red-evidence.json#entries[] resolvida (observed|waived) com o mesmo id."
+    },
     "affects_surfaces": {
       "type": "array",
       "items": { "type": "string" },

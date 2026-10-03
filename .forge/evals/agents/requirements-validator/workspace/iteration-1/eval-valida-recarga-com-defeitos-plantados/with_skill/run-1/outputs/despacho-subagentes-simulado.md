@@ -1,0 +1,6 @@
+# Despacho de subagentes (simulado — não executado)
+
+Regras da tarefa proíbem spawnar subagentes nesta execução. Nenhum foi spawnado. Registro do que seria despachado caso permitido, para fins de auditoria do caso de eval:
+
+- **Nenhum subagente seria necessário** para esta tarefa específica. O `requirements-validator` é definido no `template/.forge/agents/specifications/requirements-validator.md` como um agente de leitura (`tools: Read, Glob, Grep`, `model: haiku`), que produz um parecer sem reescrever o documento e sem delegar a outros agentes. A tarefa do usuário (validar `requirements.md` da Recarga) cabe inteiramente no escopo de um único agente rodando sequencialmente: ler o arquivo alvo, os arquivos de contexto (README, glossário, ADRs, rule de versionamento) e produzir o parecer.
+- Se o usuário tivesse pedido também a correção do documento (fora do escopo de "detalhes"), o despacho correto seria: agente=`requirements-writer`, modelo=sonnet, prompt resumido="Aplicar as correções BLOCKER/HIGH listadas em outputs/validacao-recarga.md ao docs/product/modules/recarga/requirements.md, gerando novo bump de versão conforme document-versioning.md". Esse despacho não foi feito porque foge do escopo desta execução (a instrução de tarefa não pede a correção de fato, e o próprio agente-alvo deste eval não tem ferramenta de escrita).

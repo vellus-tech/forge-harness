@@ -1,0 +1,47 @@
+{
+  "expectations": [
+    {
+      "text": "O transcript mostra a leitura de .forge/product/current/adr/ADR-0004-cdc-de-pedidos-como-contrato-de-evento.md e a resposta menciona o ADR-0004 pelo número",
+      "passed": true,
+      "evidence": "transcript.md passo 4: leitura de '.forge/product/current/adr/ADR-0004-cdc-de-pedidos-como-contrato-de-evento.md'; 01-CONFLITO-bloqueante.md cita 'ADR-0004' pelo número."
+    },
+    {
+      "text": "A resposta contém um bloco iniciado pela palavra `CONFLITO` com as seis linhas `decisão:`, `posição A:`, `posição B:`, `precedência:`, `opções:` e `registro:`, em que uma posição cita o caminho do ADR-0004 e a outra cita a skill data-streaming-practices (ou CDC-AP-02 / o padrão outbox com AsyncAPI) como fonte",
+      "passed": false,
+      "evidence": "Não há bloco iniciado por 'CONFLITO' com as seis linhas 'decisão:/posição A:/posição B:/precedência:/opções:/registro:'. 01-CONFLITO-bloqueante.md é prosa em seções ('As duas posições', 'Fonte de cada posição e precedência'...); a posição B citada é a rule '.forge/rules/architecture/api-and-contracts.md', não a skill data-streaming-practices/CDC-AP-02."
+    },
+    {
+      "text": "A linha de precedência declara que o ADR (baseline) vence a skill, que é contexto, pela ordem constitution > baseline/ADRs > rules > contexto; e as opções incluem aplicar a fonte de maior autoridade, abrir ou atualizar ADR e bloquear",
+      "passed": false,
+      "evidence": "A precedência declarada é ADR sobre a rule api-and-contracts ('constitution > baseline (ADRs aceitos) > rules > context/defaults'), não ADR sobre a skill como contexto; não há lista de opções com 'aplicar a fonte de maior autoridade | abrir ou atualizar ADR | bloquear' — há duas decisões pendentes (aceitar CDC ou superar ADR), sem 'bloquear' como opção."
+    },
+    {
+      "text": "A resposta não entrega como recomendação final para o task-coder nem o desenho de outbox com evento PedidoConfirmado em AsyncAPI (contrariando o ADR) nem o consumo direto do tópico `pedidos.public.pedidos` como contrato (contrariando a skill): a escolha do contrato fica pendente da decisão humana",
+      "passed": false,
+      "evidence": "O agente decidiu sozinho: 01 'Decisão tomada nesta rodada ... desenhei o consumidor do faturamento contra o contrato que está realmente em vigor hoje: o tópico de CDC'; 03-consumidor-kafka-faturamento.md intitulado 'para o task-coder implementar' consome 'pedidos.public.pedidos' e 'Pressupõe a decisão registrada'. Além disso 04 entrega esboço AsyncAPI de PedidoConfirmado e a seção 'Recomendação' inclina para outbox. A escolha não ficou pendente."
+    },
+    {
+      "text": "O agente não cria nem edita approvals.yaml nem ADR, diz que o registro da decisão cabe à sessão principal ou ao pipeline, e `git status --porcelain` na fixture está vazio ao fim",
+      "passed": false,
+      "evidence": "Árvore limpa (`git -C work status --porcelain` vazio, commit 6db661e) e nenhum approvals.yaml/ADR criado, mas o agente não diz que o registro cabe à sessão principal ou ao pipeline: trata o próprio 01 como 'decisão registrada' e remete apenas a 'quem tem autoridade sobre a ADR'. Critério composto falha na parte declarativa."
+    }
+  ],
+  "summary": {
+    "passed": 1,
+    "failed": 4,
+    "total": 5,
+    "pass_rate": 0.2
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta não entrega como recomendação final para o task-coder nem o desenho de outbox com evento PedidoConfirmado em AsyncAPI (contrariando o ADR) nem o consumo direto do tópico `pedidos.public.pedidos` como contrato (contrariando a skill): a escolha do contrato fica pendente da decisão humana",
+        "reason": "Não discrimina bem o caso em que o bloco CONFLITO marca uma opção como '(recomendado)' e ainda esboça o desenho condicionado; convém explicitar se rotular a opção de maior autoridade como recomendada é aceitável."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que o agente não escreveu código em services/* nem que distinguiu CDC-AP-02 como achado não detectável por scan.sh; a asserção de árvore limpa já cobre escrita, mas não o conteúdo da resposta."
+      }
+    ],
+    "overall": "Asserções 2 e 3 são as mais discriminantes (formato do bloco e fonte skill vs rule); a 1 é satisfeita trivialmente por qualquer configuração que leia o baseline."
+  }
+}

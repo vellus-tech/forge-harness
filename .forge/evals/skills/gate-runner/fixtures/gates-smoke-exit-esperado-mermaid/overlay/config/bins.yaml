@@ -1,0 +1,7 @@
+bins:
+  - prefixo: "411111"
+    bandeira: visa
+    tokenizavel: true
+  - prefixo: "555555"
+    bandeira: mastercard
+    tokenizavel: true

@@ -1,0 +1,56 @@
+{
+  "expectations": [
+    {
+      "text": "Existe um arquivo novo em services/api-recarga/migrations/ além do 001 (ex.: 002_*.sql) que adiciona idempotency_key com constraint UNIQUE (ou índice único), e `git -C <alvo> diff --quiet HEAD -- services/api-recarga/migrations/001_create_recargas.sql` sai 0 (a 001 não foi alterada)",
+      "passed": true,
+      "evidence": "rc=0 em `git -C work diff --quiet HEAD -- services/api-recarga/migrations/001_create_recargas.sql`; `ls work/services/api-recarga/migrations` = 001_create_recargas.sql, 002_add_idempotency_key.sql; 002_add_idempotency_key.sql:5-6 `ALTER TABLE recargas ADD COLUMN idempotency_key UUID;` + `ADD CONSTRAINT recargas_idempotency_key_key UNIQUE (idempotency_key);`"
+    },
+    {
+      "text": "contracts/openapi/api-recarga.yaml passou a ter a operação post em /recargas com um parâmetro de header Idempotency-Key obrigatório e o valor no corpo como integer (valorCentavos), com minimum 100 e maximum 50000",
+      "passed": true,
+      "evidence": "`git -C work diff HEAD -- contracts/openapi/api-recarga.yaml` adiciona `/recargas: post:` (operationId criarRecarga) com parâmetro `name: Idempotency-Key, in: header, required: true` e `valorCentavos: type: integer, minimum: 100, maximum: 50000`; respostas 201/200/400 (400 via $ref Error). Cópia idêntica em outputs/contracts/openapi/api-recarga.yaml."
+    },
+    {
+      "text": "Nenhum arquivo alterado ou criado em services/ ou apps/ usa parseFloat, toFixed, NUMERIC/DECIMAL/REAL/DOUBLE em SQL ou campo de valor em reais (ex.: `valor:` number) no payload enviado à API; o corpo do POST e a coluna usam valorCentavos/valor_centavos inteiro",
+      "passed": true,
+      "evidence": "grep -nE 'parseFloat|toFixed|NUMERIC|DECIMAL|\\bREAL\\b|DOUBLE|\\bvalor\\s*:' nos 7 arquivos alterados/novos de services/ e apps/ retorna só NovaRecargaForm.test.tsx:17 `preencherEEnviar(valor: string)` (parâmetro de helper de teste, não payload). client.ts:39 `body: JSON.stringify({ cartaoId, valorCentavos })`; repository.ts:59 INSERT em `valor_centavos` (coluna INTEGER na 001:4); migration 002 não introduz tipo decimal."
+    },
+    {
+      "text": "Existe teste em services/api-recarga (arquivo *.test.ts) que envia duas vezes o mesmo Idempotency-Key e verifica que a segunda resposta não cria nova recarga (status 200 ou mesmo id), e outro que verifica rejeição 400 para valor fora de 100..50000",
+      "passed": false,
+      "evidence": "routes.test.ts:43-59 cobre 400 para valorCentavos abaixo de 100 e 50001 (ok). Mas o teste de idempotência (routes.test.ts:79-88) faz UMA única requisição com Idempotency-Key 1111…, com o repositório mockado para devolver `created: false`, e espera 200; não há teste que envie duas vezes a mesma chave nem que confira que a segunda não cria nova recarga. Metade exigida da asserção não é satisfeita à letra."
+    },
+    {
+      "text": "O componente NovaRecargaForm em apps/web/portal-recarga/src/components/ não chama fetch diretamente (a chamada vem de uma função exportada em src/api/client.ts), desabilita o envio durante a requisição, exibe erro com role=\"alert\" e associa label ao input de valor (htmlFor/id ou label envolvendo o input)",
+      "passed": true,
+      "evidence": "NovaRecargaForm.tsx:3 `import { ApiError, criarRecarga } from \"../api/client\"` e `grep fetch` no componente não retorna nada (fetch só em client.ts:18, criarRecarga exportada em client.ts:35); `disabled={isSubmitting}` no input (69) e no botão (73), com guarda `if (isSubmitting) return` (37); `<p id=\"valor-recarga-erro\" role=\"alert\">` (77); `<label htmlFor=\"valor-recarga\">` (61) + `<input id=\"valor-recarga\"` (63)."
+    },
+    {
+      "text": "relatorio/task-04.md contém, nesta ordem, os cabeçalhos '## Resumo do que foi alterado', '## Arquivos alterados', '## Testes executados', '## Testes recomendados', '## Riscos conhecidos' e '## Pendências'; a seção 'Testes executados' ou traz saída/contagem real de testes ou declara explicitamente que os testes não foram executados; e `git -C <alvo> rev-list --count HEAD` continua 1 (nenhum commit feito)",
+      "passed": true,
+      "evidence": "`grep -n '^## ' work/relatorio/task-04.md` → 3 Resumo do que foi alterado, 11 Arquivos alterados, 40 Testes executados, 48 Testes recomendados, 63 Riscos conhecidos, 80 Pendências (ordem exata); linha 42 'Nenhum. ... nada foi rodado de fato'; `git -C work rev-list --count HEAD` = 1; outputs/relatorio idêntico ao de work/ (diff -rq vazio)."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.83
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Existe teste em services/api-recarga (arquivo *.test.ts) que envia duas vezes o mesmo Idempotency-Key e verifica que a segunda resposta não cria nova recarga (status 200 ou mesmo id), e outro que verifica rejeição 400 para valor fora de 100..50000",
+        "reason": "Nenhuma das duas configurações envia de fato duas requisições com a mesma chave: ambas mockam o repositório devolvendo created:false e disparam UMA requisição. A asserção, lida à letra, falha nas duas e não discrimina; se a intenção é aceitar teste de rota com mock, reescrever para 'teste que simula reenvio (repositório devolve created:false) e espera 200'; se a intenção é provar a idempotência pelo banco, exigir teste de repositório/integração com ON CONFLICT."
+      },
+      {
+        "reason": "Nenhuma asserção verifica que a idempotência é garantida no SQL (ON CONFLICT (idempotency_key) / tratamento de 23505), que é o DD-002; ambas as configurações o fazem (repository.ts), mas uma implementação com checagem em memória passaria em todas as asserções."
+      },
+      {
+        "assertion": "Nenhum arquivo alterado ou criado em services/ ou apps/ usa parseFloat, toFixed, NUMERIC/DECIMAL/REAL/DOUBLE em SQL ou campo de valor em reais (ex.: `valor:` number) no payload enviado à API; o corpo do POST e a coluna usam valorCentavos/valor_centavos inteiro",
+        "reason": "Ambas usam Math.round(Number(x)*100) no formulário; a asserção proíbe só parseFloat/toFixed, então 'sem aritmética de ponto flutuante acumulada' do expected_output não é realmente medido (é uma única multiplicação, aceitável, mas a asserção não distingue de parsing inteiro por string)."
+      }
+    ],
+    "overall": "Asserções 1, 2, 5 e 6 são objetivas e checáveis por comando; a 6 foi a única que discriminou (relatório fora do contrato no baseline)."
+  }
+}

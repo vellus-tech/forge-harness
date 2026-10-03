@@ -1,0 +1,56 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta final (ou o relatório salvo em outputs/) tem um achado '[BLOCKER-NN]' que aponta a inexistência de docs/product/modules/validacao/requirements.md (ou 'requirements.md inexistente'), explicando que o design não pode ser validado sem sua fonte de requisitos.",
+      "passed": false,
+      "evidence": "`grep -nE '\\[BLOCKER-[0-9]+\\]' outputs/*.md` sem nenhuma ocorrência em validation-report.md nem transcript.md. O relatório aponta a inexistência do requirements.md (validation-report.md:13 'O arquivo citado como base não existe... isso por si só é motivo de bloqueio'), mas não como achado '[BLOCKER-NN]', que é o formato exigido."
+    },
+    {
+      "text": "A resposta tem 'Status: Reprovado'; não emite 'Aprovado' nem 'Aprovado com ressalvas', mesmo com o usuário pedindo aprovação para puxar o tasks-writer.",
+      "passed": false,
+      "evidence": "`grep -nE 'Status: *(Reprovado|Aprovado)' outputs/*.md` sem ocorrência. O veredito é '**Não aprovo.**' (validation-report.md:9) e o título diz 'RECUSADA', mas não há 'Status: Reprovado' como a asserção exige."
+    },
+    {
+      "text": "A seção 'Decisão para o Pipeline' tem 'Pode seguir para `tasks.md`: Não' e 'Requer ajuste no `requirements.md`: Sim' (com ou sem crases).",
+      "passed": false,
+      "evidence": "`grep -c 'Decisão para o Pipeline'` = 0 em validation-report.md e transcript.md; não há a seção nem as linhas 'Pode seguir para tasks.md: Não' / 'Requer ajuste no requirements.md: Sim'. A recomendação (linhas 35-41) é prosa livre."
+    },
+    {
+      "text": "A resposta não usa os objetivos do PRD (OBJ-01, OBJ-02 etc.) nem REQs inventados como linhas com Status 'OK' na Matriz de Rastreabilidade: a matriz está ausente, vazia, ou marcada como Falhou/não verificável por falta do requirements.md, e a resposta declara que o PRD não substitui o requirements aprovado.",
+      "passed": true,
+      "evidence": "Não há Matriz de Rastreabilidade no relatório (`grep 'Matriz de Rastreabilidade'` sem ocorrência), portanto nenhum OBJ ou REQ inventado aparece como linha 'OK' de matriz; OBJ-01/OBJ-04 aparecem em 'Conformidade' (linhas 28-29) explicitamente ressalvados na linha 21: 'Isto não substitui a validação formal contra requirements'. Linha 15 também rejeita derivar requirements do design como 'validação circular'."
+    },
+    {
+      "text": "No diretório do projeto, `git status --porcelain -- docs/` está vazio: não existe docs/product/modules/validacao/requirements.md (nem outro rascunho de requirements em docs/) e o design.md não foi alterado, apesar do pedido de rascunhar um requirements a partir do design.",
+      "passed": true,
+      "evidence": "`git -C without_skill/run-1/work status --porcelain -- docs/` retornou vazio (HEAD e0e32b7 'fixture: estado inicial'); `find work/docs -iname '*requirement*'` sem resultado. As cópias em outputs/evidence/docs/ são só os arquivos lidos (design.md, README.md, prd.md, 3 ADRs), sem requirements; transcript.md:19 registra a recusa de rascunhar."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  "timing": {
+    "executor_duration_seconds": 108,
+    "total_duration_seconds": 108
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A seção 'Decisão para o Pipeline' tem 'Pode seguir para `tasks.md`: Não' e 'Requer ajuste no `requirements.md`: Sim' (com ou sem crases).",
+        "reason": "A configuração com skill respondeu 'Requer ajuste no requirements.md: Não aplicável — ainda precisa ser criado pelo PO', o que é semanticamente correto e até mais preciso que 'Sim'. Se a intenção é checar que o pipeline aponta o requirements como pendência, aceite 'Sim' ou 'Não aplicável/criação' com menção ao PO; se a intenção é conformidade literal ao template do agente, mantenha e ajuste o template para prever o caso 'inexistente'."
+      },
+      {
+        "assertion": "A resposta não usa os objetivos do PRD (OBJ-01, OBJ-02 etc.) nem REQs inventados como linhas com Status 'OK' na Matriz de Rastreabilidade: a matriz está ausente, vazia, ou marcada como Falhou/não verificável por falta do requirements.md, e a resposta declara que o PRD não substitui o requirements aprovado.",
+        "reason": "Passa trivialmente quando a matriz está ausente (caso do baseline); a parte discriminante é só a declaração de que o PRD não substitui o requirements, que é frouxa. Considere exigir a linha da matriz explicitamente marcada como não verificável."
+      },
+      {
+        "assertion": "No diretório do projeto, `git status --porcelain -- docs/` está vazio: não existe docs/product/modules/validacao/requirements.md (nem outro rascunho de requirements em docs/) e o design.md não foi alterado, apesar do pedido de rascunhar um requirements a partir do design.",
+        "reason": "Não discrimina: ambas as configurações passam, e o papel do agente é read-only. Continua útil como guarda de regressão, mas não diferencia skill de baseline."
+      }
+    ],
+    "overall": "As asserções 1-3 são de formato do template do agente e discriminam bem (baseline recusou com boa substância mas falhou no formato). A asserção 3 pune a skill por uma resposta defensável."
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "expectations": [
+    {
+      "text": "Existe .forge/specs/active/recarga-pix-cartao-transporte/epic_context.md cuja primeira linha é '# Epic context — recarga-pix-cartao-transporte' e que contém, nesta ordem, os cabeçalhos '## Objetivo', '## Decisões de design', '## Contratos externos', '## ADRs', '## Rules' e '## Invariantes críticas'.",
+      "passed": true,
+      "evidence": "`head -1 with_skill/run-1/work/.forge/specs/active/recarga-pix-cartao-transporte/epic_context.md` → '# Epic context — recarga-pix-cartao-transporte'; `grep -n '^## '` → 5:## Objetivo, 9:## Decisões de design, 18:## Contratos externos, 25:## ADRs, 30:## Rules, 35:## Invariantes críticas (ordem exata). Linha 3 traz '> Gerado por epic-context agent.'; `cmp` com outputs/epic_context.md: idêntico."
+    },
+    {
+      "text": "O epic_context.md não menciona Kafka, Debezium, migra-eventos-para-kafka, ADR-0021 (do outro change ativo), ADR-0020 ou cache Redis de saldo (da baseline em .forge/product/current/adr/), nem Redlock/lock distribuído (do TODO em src/recarga/NOTAS.md).",
+      "passed": true,
+      "evidence": "`grep -niE 'kafka|debezium|migra-eventos|ADR-0021|ADR-0020|redis|redlock|lock distribu'` no epic_context.md: zero ocorrências. Transcript passo 6 registra a exclusão deliberada do change de Kafka e do TODO de Redlock."
+    },
+    {
+      "text": "A seção ADRs lista ADR-0012 e ADR-0015, cada um com resumo de uma linha, e nenhum outro ID de ADR; a seção Rules cita .forge/rules/architecture/internal-grpc-communication.md e .forge/rules/architecture/pii-pci-classification.md como paths.",
+      "passed": true,
+      "evidence": "`grep -oE 'ADR-[0-9]{4}' | sort | uniq -c` → só ADR-0012 e ADR-0015; seção ADRs (linhas 27-28) com um resumo de uma linha cada ('Idempotência de crédito por chave natural do provedor (o `txid`)', 'Comunicação interna via gRPC; REST/webhook reservados a parceiros externos'). Rules nas linhas 32-33 citam `.forge/rules/architecture/internal-grpc-communication.md` e `.forge/rules/architecture/pii-pci-classification.md` como paths."
+    },
+    {
+      "text": "O epic_context.md tem no máximo 150 linhas, não contém cerca de código (```) e não transcreve o DDL do design (nenhuma linha com 'CREATE TABLE' ou 'PRIMARY KEY').",
+      "passed": true,
+      "evidence": "`wc -l` → 42 linhas; `grep -c '```'` → 0; `grep -cE 'CREATE TABLE|PRIMARY KEY'` → 0. A estratégia de concorrência aparece em prosa (linha 16), sem transcrever DDL."
+    },
+    {
+      "text": "Fora das remoções de .forge/skills, .forge/agents, .claude/skills, .claude/agents e plugin/ feitas pelo setup, git status do projeto mostra como único arquivo novo ou alterado o epic_context.md do change; spec-manifest.yaml (sem bloco dev_loop), os demais artefatos do change, o outro change e src/ ficam idênticos ao commit da fixture.",
+      "passed": true,
+      "evidence": "`git -C with_skill/run-1/work status --porcelain --untracked-files=all | grep -vE '^ D (\\.forge/(skills|agents)|\\.claude/(skills|agents)|plugin)/'` → única linha '?? .forge/specs/active/recarga-pix-cartao-transporte/epic_context.md'. `git diff HEAD --stat -- .forge/specs src` vazio (manifest, demais artefatos, outro change e src/ idênticos ao commit 879e490 'fixture: estado inicial'); `grep -c dev_loop spec-manifest.yaml` → 0, sem bloco dev_loop adicionado."
+    },
+    {
+      "text": "A resposta final ao chamador é uma única linha no formato 'epic_context.md gerado — <N> decisões, <M> contratos, <K> invariantes.' com N, M e K inteiros, sem despejar o conteúdo do resumo no chat.",
+      "passed": false,
+      "evidence": "outputs/final_response.txt contém uma linha no formato ('epic_context.md gerado — 6 decisões, 4 contratos, 6 invariantes.', contagens batem com o arquivo: 6/4/6 bullets), mas o próprio transcript (seção 'Retomada (2026-09-28)', linha 19) admite que a execução original de 26/09 não persistiu a mensagem final e que esse arquivo foi escrito dois dias depois, por uma retomada que leu o grading anterior e escreveu o arquivo para satisfazer a sugestão do grader. É uma reconstrução, não evidência da resposta real ao chamador; na dúvida, falha."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.83
+  },
+  "execution_metrics": {
+    "output_chars": 3335,
+    "transcript_chars": 5295,
+    "note": "metrics.json ausente; total_tokens=0 em timing.json (não medido)"
+  },
+  "timing": {
+    "executor_duration_seconds": 105,
+    "total_duration_seconds": 105
+  },
+  "claims": [
+    {
+      "claim": "42 linhas, abaixo do limite de 150",
+      "type": "factual",
+      "verified": true,
+      "evidence": "wc -l → 42"
+    },
+    {
+      "claim": "6 decisões, 4 contratos, 6 invariantes",
+      "type": "factual",
+      "verified": true,
+      "evidence": "linhas 11-16, 20-23 e 37-42 do epic_context.md"
+    },
+    {
+      "claim": "spec-manifest.yaml não foi editado",
+      "type": "process",
+      "verified": true,
+      "evidence": "git diff HEAD -- .forge/specs vazio"
+    },
+    {
+      "claim": "final_response.txt reflete a resposta final ao chamador",
+      "type": "process",
+      "verified": false,
+      "evidence": "Transcript linha 19: escrito na retomada de 28/09, não na execução original"
+    }
+  ],
+  "user_notes_summary": {
+    "uncertainties": [
+      "Transcript passo 4 assume template/.forge/agents/specifications/epic-context.md como definição do agente"
+    ],
+    "needs_review": [
+      "final_response.txt reconstruído em retomada após leitura do grading anterior"
+    ],
+    "workarounds": [
+      "Não atualizou dev_loop.epic_context_compiled porque o manifest da fixture não tem o campo"
+    ]
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "A resposta final ao chamador é uma única linha no formato 'epic_context.md gerado — <N> decisões, <M> contratos, <K> invariantes.' com N, M e K inteiros, sem despejar o conteúdo do resumo no chat.",
+        "reason": "Não é verificável a partir de outputs/ a menos que o executor persista a mensagem final literal no momento da execução; um arquivo escrito a posteriori (como na retomada do with_skill) passa por formato sem provar comportamento. Exigir final_response.txt com mtime anterior ao timing.json ou capturar a resposta pelo harness."
+      },
+      {
+        "assertion": "O epic_context.md não menciona Kafka, Debezium, migra-eventos-para-kafka, ADR-0021 (do outro change ativo), ADR-0020 ou cache Redis de saldo (da baseline em .forge/product/current/adr/), nem Redlock/lock distribuído (do TODO em src/recarga/NOTAS.md).",
+        "reason": "Penaliza igualmente vazamento de conteúdo e exclusão declarada (o baseline só cita Kafka/Redlock para dizer que os excluiu). Se a intenção é medir vazamento, a asserção poderia distinguir; se é medir o formato enxuto do contrato, está correta como está."
+      },
+      {
+        "reason": "Nenhuma asserção confere o conteúdo das invariantes esperadas (crédito só na liquidação, idempotência por txid, CPF só em HMAC) nem os quatro contratos REST/webhook/gRPC/evento listados no expected_output; um arquivo com os seis cabeçalhos certos e seções vazias passaria nas asserções 1, 3 (se tivesse os ADRs/paths), 4 e 5."
+      }
+    ],
+    "overall": "Asserções estruturais e de escopo são discriminantes (0/6 vs 5/6); falta cobertura de conteúdo das invariantes/contratos e a asserção de resposta final depende de evidência que o executor nem sempre persiste."
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "expectations": [
+    {
+      "text": "A resposta final (ou o relatório salvo em outputs/) começa com o título '# Validação do tasks.md' e contém, nesta ordem, as seções '## Resultado' (com a linha 'Status: Reprovado' e as quatro contagens BLOCKER/HIGH/MEDIUM/LOW), '## Veredito', '## Achados', '## Matriz de Rastreabilidade', '## Checks Executados', '## Recomendações para o tasks-writer' e '## Decisão para o Pipeline'.",
+      "passed": true,
+      "evidence": "with_skill/run-1/outputs/validacao-tasks-carteira.md:1 '# Validação do tasks.md'; `grep -n '^#'` retorna na ordem: :3 '## Resultado', :13 '## Veredito', :17 '## Achados', :82 '## Matriz de Rastreabilidade (auditoria)', :102 '## Checks Executados', :126 '## Recomendações para o tasks-writer', :133 '## Decisão para o Pipeline'. :5 'Status: Reprovado'; :8-11 contagens BLOCKER 5 / HIGH 2 / MEDIUM 2 / LOW 0 (batem com os cabeçalhos [BLOCKER-01..05], [HIGH-01..02], [MEDIUM-01..02]). Ressalva: há uma seção extra '## Achados adicionais (MEDIUM)' (:68) entre Achados e Matriz, e o título da Matriz tem sufixo '(auditoria)'; a ordem exigida se mantém."
+    },
+    {
+      "text": "Há um achado com cabeçalho '[BLOCKER-NN]' apontando que PBT-02 (idempotência do crédito de recarga por txid) não tem TASK correspondente, e a tabela da seção 'Matriz de Rastreabilidade' tem uma linha para PBT-02 com status 'Falhou'.",
+      "passed": true,
+      "evidence": "with_skill/run-1/outputs/validacao-tasks-carteira.md:19 '### [BLOCKER-01] PBT-02 (idempotência do crédito) sem TASK correspondente', :22 cita 'aplicar o mesmo `txid` N vezes credita o valor exatamente uma vez'; tabela da Matriz :92 '| PBT-02 | — | Falhou (sem TASK) |'. Fato conferido na fixture: `grep -n PBT-0 work/.../tasks.md` só acha PBT-01 (linhas 36, 69-77, 165)."
+    },
+    {
+      "text": "Há um achado '[BLOCKER-NN]' que identifica a divergência entre Status Geral e Tarefas nomeando TASK-06 (Consulta de saldo) como presente na seção Tarefas e ausente do Status Geral.",
+      "passed": true,
+      "evidence": "with_skill/run-1/outputs/validacao-tasks-carteira.md:33 '### [BLOCKER-03] Status Geral divergente da seção de Tarefas — TASK-06 ausente', :36 'A TASK-06 (\"Consulta de saldo\"), que existe integralmente na seção \"Tarefas\" ... não aparece no Status Geral'. Conferido na fixture: `grep -n '^| TASK-0' tasks.md` lista só TASK-01..05 (linhas 25-29)."
+    },
+    {
+      "text": "Há um achado '[BLOCKER-NN]' apontando que na TASK-03 a implementação (subtask 3.1) vem antes do teste (subtask 3.2), violando TDD-first, E há um achado '[BLOCKER-NN]' apontando o ciclo de dependência entre TASK-04 e TASK-05 (TASK-04 depende de TASK-05 e TASK-05 depende de TASK-04).",
+      "passed": true,
+      "evidence": "with_skill/run-1/outputs/validacao-tasks-carteira.md:47 '### [BLOCKER-05] TASK-03 inverte TDD-first — implementação antes do teste', :50 'a subtask 3.1 é \"Implementar `Carteira.DebitarEmbarque`...\" e só depois, em 3.2, vem \"Escrever testes unitários de débito\"'; :40 '### [BLOCKER-04] Ciclo de dependência entre TASK-04 e TASK-05', :43 'TASK-04 declara `Depende de: TASK-05`, e TASK-05 declara `Depende de: TASK-04`'. Conferido na fixture: tasks.md:92-93 (3.1 implementar, 3.2 testes), :106 'Depende de | TASK-05', :126 'Depende de | TASK-04'."
+    },
+    {
+      "text": "A resposta tem um achado de severidade BLOCKER sobre a orientação de push direto em `main` na TASK-05 e um achado de severidade BLOCKER ou HIGH sobre RNF 2 (mascaramento de CPF/PII em logs) sem TASK correspondente.",
+      "passed": false,
+      "evidence": "O push direto em main foi classificado como HIGH, não BLOCKER: with_skill/run-1/outputs/validacao-tasks-carteira.md:54 '### [HIGH-01] Orientação de push direto em `main` na TASK-05'. A metade de RNF 2 passaria (with_skill/run-1/outputs/validacao-tasks-carteira.md:26 '### [BLOCKER-02] RNF 2 (mascaramento de PII em logs) sem TASK'), mas a asserção exige BLOCKER para o push, e o relatório não o dá. Sem crédito parcial."
+    },
+    {
+      "text": "A seção 'Decisão para o Pipeline' contém 'Pode seguir para execução: Não' e 'Requer nova execução do `tasks-writer`: Sim' (com ou sem crases); e `git status --porcelain -- docs/` no projeto está vazio, ou seja, o tasks.md e demais documentos não foram reescritos pelo validador.",
+      "passed": true,
+      "evidence": "with_skill/run-1/outputs/validacao-tasks-carteira.md:135 '- Pode seguir para execução: Não', :136 '- Requer nova execução do `tasks-writer`: Sim'. `git -C with_skill/run-1/work status --porcelain -- docs/` retornou vazio (rc=0); `git log` mostra um único commit 'b8cd44b fixture: estado inicial', logo os documentos não foram reescritos."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.83
+  },
+  "timing": {
+    "total_tokens": 0,
+    "duration_ms": 194000,
+    "total_duration_seconds": 194
+  },
+  "claims": [
+    {
+      "claim": "tasks.md tem 192 linhas",
+      "type": "factual",
+      "verified": true,
+      "evidence": "`wc -l` = 192"
+    },
+    {
+      "claim": "Nenhum arquivo em work/ foi alterado",
+      "type": "process",
+      "verified": true,
+      "evidence": "git status --porcelain -- docs/ vazio"
+    },
+    {
+      "claim": "CRT-001 sem TASK explícita (MEDIUM-02)",
+      "type": "factual",
+      "verified": false,
+      "evidence": "Não verificado contra design.md; não é defeito plantado."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "Há um achado com cabeçalho '[BLOCKER-NN]' apontando que PBT-02 (idempotência do crédito de recarga por txid) não tem TASK correspondente, e a tabela da seção 'Matriz de Rastreabilidade' tem uma linha para PBT-02 com status 'Falhou'.",
+        "reason": "O without_skill achou os seis defeitos plantados e falhou em quatro asserções só por formato ([BLOCKER-NN], tabela de Matriz). As asserções medem mais aderência ao contrato de saída do que capacidade de detecção; considere uma asserção separada de detecção (os seis defeitos nomeados, qualquer formato) para o delta A/B não inflar."
+      },
+      {
+        "assertion": "A resposta tem um achado de severidade BLOCKER sobre a orientação de push direto em `main` na TASK-05 e um achado de severidade BLOCKER ou HIGH sobre RNF 2 (mascaramento de CPF/PII em logs) sem TASK correspondente.",
+        "reason": "A asserção exige BLOCKER para push direto em main; o with_skill deu HIGH justificando pelo contrato do agente. Vale checar se a definição de severidade do tasks-validator coloca violação de ADR como BLOCKER; se não, a asserção cobra algo que o artefato não pede, ou o artefato tem uma lacuna real a corrigir."
+      },
+      {
+        "reason": "Nenhuma asserção penaliza achados fabricados. O with_skill somou MEDIUM-02 (CRT-001 sem TASK) e HIGH-02 (gates Security/Observability) não plantados; não foram verificados contra o design.md e podem ser ruído."
+      }
+    ],
+    "overall": "Detecção dos defeitos plantados empatou entre as configurações; o discriminante real é o formato do contrato e a classificação de severidade."
+  }
+}

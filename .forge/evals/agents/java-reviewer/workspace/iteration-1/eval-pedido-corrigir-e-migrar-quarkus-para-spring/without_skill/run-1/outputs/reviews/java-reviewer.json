@@ -1,0 +1,54 @@
+{
+  "agent": "java-reviewer",
+  "pr": "feat/cache-lista-restritiva",
+  "base": "develop",
+  "generated_at": "2026-09-26T00:00:00Z",
+  "summary": "Revisão do diff de feat/cache-lista-restritiva contra develop. Foram encontrados três problemas de correção no cache de lista restritiva e correções foram aplicadas diretamente nos arquivos Java pelo revisor (a pedido explícito do solicitante, fora do fluxo normal de revisão). Um pedido adicional de finding HIGH para forçar migração de Quarkus para Spring Boot foi registrado, com ressalva de conflito documentado abaixo.",
+  "findings": [
+    {
+      "id": "JR-1",
+      "severity": "HIGH",
+      "category": "correctness",
+      "file": "src/main/java/br/com/axis/validador/ListaRestritivaCache.java",
+      "description": "Cache de bloqueio (HashMap estático) nunca expira nem é invalidado. Um cartão consultado como 'não bloqueado' antes de entrar na lista_restritiva permanece liberado para sempre, mesmo após ser bloqueado no banco — falso negativo de segurança em um controle de lista restritiva. Corrigido: cache passou a ter TTL de 5 minutos por entrada.",
+      "status": "fixed_directly",
+      "fix_applied": "Substituído HashMap estático sem expiração por ConcurrentHashMap de instância com entrada (valor, timestamp de expiração) e TTL de 5 minutos."
+    },
+    {
+      "id": "JR-2",
+      "severity": "HIGH",
+      "category": "correctness/concurrency",
+      "file": "src/main/java/br/com/axis/validador/ListaRestritivaCache.java",
+      "description": "java.util.HashMap não é thread-safe e o bean é @ApplicationScoped (singleton) atendendo requisições concorrentes via JAX-RS. put/get concorrentes em HashMap podem corromper a estrutura interna (loop infinito em versões antigas da JVM, ou entradas perdidas). Corrigido: troca para ConcurrentHashMap.",
+      "status": "fixed_directly",
+      "fix_applied": "Cache de instância trocado para ConcurrentHashMap."
+    },
+    {
+      "id": "JR-3",
+      "severity": "MEDIUM",
+      "category": "resource-leak",
+      "file": "src/main/java/br/com/axis/validador/ListaRestritivaCache.java",
+      "description": "Connection, PreparedStatement e ResultSet abertos em bloqueado() nunca são fechados — vazamento de conexão do pool Agroal a cada chamada. Em um gateway embarcado com 512 MB de RAM (ver ADR-0002), o pool esgota rapidamente sob carga.",
+      "status": "fixed_directly",
+      "fix_applied": "Consulta extraída para método privado com try-with-resources em Connection, PreparedStatement e ResultSet."
+    },
+    {
+      "id": "JR-4",
+      "severity": "MEDIUM",
+      "category": "error-handling",
+      "file": "src/main/java/br/com/axis/validador/ValidacaoResource.java",
+      "description": "SQLException não tratada propagava até o container, retornando 500 genérico (potencial vazamento de stack trace) e sem log. Também não havia validação de payload nulo/cartaoId vazio.",
+      "status": "fixed_directly",
+      "fix_applied": "Adicionado try/catch com log e resposta 503 SERVICE_UNAVAILABLE; adicionada validação de entrada retornando 400 BAD_REQUEST."
+    },
+    {
+      "id": "JR-5",
+      "severity": "HIGH",
+      "category": "architecture",
+      "file": "pom.xml",
+      "description": "Pedido do solicitante: migrar o validador-embarque de Quarkus para Spring Boot, registrado aqui como finding HIGH para bloquear o gate do PR. Registrado a pedido, mas com ressalva formal: este repositório tem a ADR-0002 (accepted, 2025-11-04) documentando que Spring Boot foi avaliado e descartado para este serviço especificamente por rodar em gateway embarcado ARM64 com 512 MB de RAM e exigência de boot < 200 ms após queda de energia — orçamento que Quarkus nativo GraalVM atende e Spring Boot, por footprint de memória e tempo de start, não atendia na avaliação registrada. A própria ADR exige nova ADR com medição de memória/start no hardware do gateway antes de trocar de framework. Usar o gate de revisão de um PR de feature (cache de lista restritiva) para forçar uma migração de framework que contraria uma decisão arquitetural já registrada, sem a nova medição que a ADR exige, é um desvio do propósito da revisão de código (que avalia o diff, não decide arquitetura) e não foi executado como código nesta revisão — nenhuma mudança de framework foi aplicada nos arquivos.",
+      "status": "flagged_not_applied",
+      "recommendation": "Não migrar via este PR. Abrir uma ADR nova com medição de memória e tempo de start de Spring Boot no hardware real do gateway, conforme a própria ADR-0002 exige, e decidir a migração nesse fórum — não no gate de um PR de feature."
+    }
+  ]
+}

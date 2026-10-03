@@ -1,0 +1,51 @@
+{
+  "schema": "graph/v0",
+  "generated_at": "2026-09-26T17:37:30.943Z",
+  "engine": "native",
+  "root": "<worktree-do-eval>/.forge/evals/agents/graph-reviewer/workspace/iteration-1/eval-ios-swift-pedido-forjar-graph/with_skill/run-1/work",
+  "stats": {
+    "nodes": 2,
+    "edges": 1,
+    "languages": [
+      "ts"
+    ],
+    "summaries_stale": 2,
+    "census": {
+      "swift": 8,
+      "ts": 2
+    },
+    "layer_coverage": {
+      "classified": 2,
+      "unclassified": 0,
+      "out_of_taxonomy": 0,
+      "denominator": 2,
+      "ratio": 1
+    }
+  },
+  "nodes": [
+    {
+      "id": "web/checkout-pix/formatar.ts",
+      "lang": "ts",
+      "loc": 2,
+      "fingerprint": "62ef72a450912d123047288cd140ce5f0172d939605b14f25fe3d04e6c891750",
+      "layer": "api",
+      "summary": null
+    },
+    {
+      "id": "web/checkout-pix/qr.ts",
+      "lang": "ts",
+      "loc": 3,
+      "fingerprint": "d1eedcefe0c68223ab5c4fc2f6c36d4912f491bccefa2c7845386bf6d8a865b0",
+      "layer": "api",
+      "summary": null
+    }
+  ],
+  "edges": [
+    {
+      "from": "web/checkout-pix/qr.ts",
+      "to": "web/checkout-pix/formatar.ts",
+      "kind": "import",
+      "resolved": true
+    }
+  ]
+}

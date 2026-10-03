@@ -52,9 +52,9 @@ Executa uma onda de TASKs de um módulo deste projeto, sob o tracker em `docs/pr
       - `apps/web/**`, `*.tsx` → `frontend-engineer`
       - `services/**/*.cs` → `backend-engineer-dotnet`
       - Multi-stack ou apenas infra/docs → `fullstack-software-engineer`
-   c. Invoca o specialist via Agent tool com contexto completo (paths, requisitos, rules).
-   d. Specialist commita atomicamente: `<type>(<scope>): T-NNN — <título>`.
-   e. Valida localmente (build + testes + ausência de co-autoria de IA).
+   c. Invoca o specialist via Agent tool com contexto completo (paths, requisitos, rules) e `test_policy` explícita — TDD-first é mecanismo, não princípio solto: tipos vazios ou stubs de valor neutro para o teste compilar; vermelho observado por **falha de asserção**, nunca por falha de compilação; commit do vermelho com só testes (stubs permitidos), implementação real no commit seguinte (o verde) — ver `.forge/agents/coding/task-coder.md` §3.4.
+   d. Specialist commita atomicamente: `<type>(<scope>): T-NNN — <título>` (o verde; quando TDD-first se aplicou, o vermelho já foi commitado separado, só com testes e os stubs necessários).
+   e. Valida localmente (build + testes + ausência de co-autoria de IA). Toda TASK que invoca specialist declara `Teste (comando)` e `Padrão de falha` no plano — sem eles, `[!]` com motivo, nunca pulada —, e o `task-coder` prova o vermelho por execução antes de aceitar a task: `bash .forge/scripts/red-evidence.sh task --red <sha-do-vermelho> --green HEAD --task-base <início-da-TASK> --task-id TASK-NN --command "<teste>" --failure-pattern "<asserção>"` — os arquivos de teste do verde são enxertados na árvore do vermelho, e esse teste tem de falhar ali por asserção e passar no verde; o vermelho não pode tocar infraestrutura e tem de ser o pai direto do verde, que é o HEAD da TASK. Qualquer outro resultado (teste do verde passa sobre o vermelho, compilação, falha sem asserção, timeout, padrão não casa, infraestrutura no vermelho, commit fora do par vermelho→verde, falha no verde) **rejeita** a TASK (`[!]`). A prova é a execução, nunca o diff nem o relato do specialist.
    f. Marca `[X]` (sucesso) ou `[!]` (falha → **HALT imediato**).
 4. **Onda fechada (100% `[X]`)** → invoca `sprint-orchestrator` para:
    - `git push` da branch

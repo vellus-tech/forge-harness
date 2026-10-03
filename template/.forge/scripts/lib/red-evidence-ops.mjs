@@ -53,7 +53,7 @@ import {
   loadRedEvidence, REL_PATH, ENTRY_SCALAR_FIELDS,
   emptyEntry, deriveEntries, computeProjection, deriveTopStatus, nextAutoId, resolveEntryId,
 } from './red-evidence.mjs';
-import { replay as runReplay } from './red-replay.mjs';
+import { replay as runReplay, replayTask } from './red-replay.mjs';
 import { isDefectFixing } from './defect-scope.mjs';
 
 const root = resolve(process.env.FORGE_ROOT || '.');
@@ -499,6 +499,38 @@ async function cmdEnsure(changeDir, argv) {
   console.log(`OK ensure — ${replayed} entrada(s) replayada(s), ${skippedWaived} dispensada(s), ${skippedIncomplete} incompleta(s) (status do topo: ${current.status})`);
 }
 
+// cmdTask (issue #156): vermelho/verde de uma TASK delegada, por execução — enxerto do teste do
+// verde, infraestrutura intocada no vermelho e topologia, ver replayTask em red-replay.mjs. Sem
+// change-id e sem artefato: o veredito é o rc e a linha impressa. Flags
+// estritas — desconhecida ou sem valor recusa; o valor é literal (um failure-pattern pode começar
+// com "--", ex.: "--- FAIL:" do Go).
+async function cmdTask(taskRoot, argv) {
+  const known = new Set(['red', 'green', 'task-base', 'task-id', 'command', 'failure-pattern', 'setup-command', 'timeout']);
+  const f = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    const name = a.startsWith('--') ? a.slice(2) : null;
+    if (!name || !known.has(name)) { console.log(`FAIL task [entrada] argumento desconhecido: ${a}`); process.exit(1); }
+    if (i + 1 >= argv.length) { console.log(`FAIL task [entrada] --${name} sem valor`); process.exit(1); }
+    f[name] = argv[++i];
+  }
+  let timeoutS;
+  if (f.timeout !== undefined) {
+    timeoutS = Number(f.timeout);
+    if (!Number.isInteger(timeoutS) || timeoutS < 1) { console.log(`FAIL task [entrada] --timeout inválido: ${f.timeout}`); process.exit(1); }
+  }
+  const res = await replayTask({
+    root: resolve(taskRoot), red: f.red, green: f.green || null,
+    taskBase: f['task-base'] || null, taskId: f['task-id'] || null, command: f.command,
+    failurePattern: f['failure-pattern'], setupCommand: f['setup-command'] || null,
+    ...(timeoutS ? { timeoutS } : {}),
+  });
+  if (res.ok) { console.log(`OK task — ${res.reason}`); process.exit(0); }
+  console.log(`FAIL task [${res.code}] ${res.reason}`);
+  if (res.excerpt) console.log(res.excerpt.split('\n').slice(-15).map((l) => `  | ${l}`).join('\n'));
+  process.exit(1);
+}
+
 // ── main guard (mesmo padrão de sync-adapters.mjs, issue #130/w216) ────────────────────────────
 // Sem isto, `import { applyRecord } from './red-evidence-ops.mjs'` (o que o PBT do gate w218 e
 // qualquer leitor futuro de `applyRecord` precisam fazer) executava o bloco de dispatch abaixo
@@ -516,13 +548,14 @@ function isMainModule() {
 if (isMainModule()) {
   const [, , cmd, changeDir, ...rest] = process.argv;
   if (!cmd || !changeDir) {
-    console.log('FAIL (usage: red-evidence-ops.mjs record|replay|ensure <change-dir> [...])');
+    console.log('FAIL (usage: red-evidence-ops.mjs record|replay|ensure <change-dir> [...] | task <root> --red <sha> [...])');
     process.exit(1);
   }
   switch (cmd) {
     case 'record': cmdRecord(changeDir, rest); break;
     case 'replay': await cmdReplay(changeDir, rest); break;
     case 'ensure': await cmdEnsure(changeDir, rest); break;
+    case 'task': await cmdTask(changeDir, rest); break;
     default: console.log(`FAIL (unknown subcommand: ${cmd})`); process.exit(1);
   }
 }

@@ -18,10 +18,12 @@
 #       'design-system' ENVOLVE o controle: elemento aberto antes e fechado depois dele, ou o
 #       próprio controle é a tag do componente (`<DsInput type="color" />`). Coexistir no mesmo
 #       bloco (irmão) não conta.
-# Comentários CSS e JS/TSX (`/* */`, `//`, `<!-- -->`) são removidos e o conteúdo de strings literais
-# (', ", `) é neutralizado antes de qualquer busca de DS ou de controle; o valor de type/class/className
-# continua lido. Texto em comentário ou string nunca conta como tag do DS; o CSS-in-JS do próprio
-# arquivo segue valendo para domesticação (lido sem neutralizar).
+# Comentários CSS e JS/TSX (`/* */`, `//`, `<!-- -->`) são removidos e o texto literal de strings é
+# neutralizado antes de qualquer busca de DS ou de controle; o valor de type/class/className continua
+# lido. Só se neutraliza string de aspas simples/duplas com fechamento na mesma linha e o texto de
+# template literal fora de `${...}` (as expressões ficam cruas); na dúvida o texto fica cru
+# (fail-closed: prefere WARN a OK indevido). O CSS-in-JS do próprio arquivo segue valendo para
+# domesticação (lido sem neutralizar).
 # Se um dos dois escapes está presente para aquele tipo de controle: OK. Senão: WARN.
 #
 # Limites conhecidos (heurística por regex, não parser): o envolvimento é contado por pares de
@@ -29,7 +31,9 @@
 # arquivo não é seguido; aninhamento de CSS (SCSS `&`) aceita o sujeito `&::pseudo` sem resolver
 # o pai; `appearance: none` sem prefixo não domestica checkbox/radio (só a forma -webkit- e
 # accent-color); seletores com combinador dentro de `:not(...)`/`:is(...)` podem ter o sujeito
-# mal recortado; `type` vindo de variável (`type={tipo}`) não é detectado.
+# mal recortado; `type` vindo de variável (`type={tipo}`) não é detectado; uma aspa de texto JSX não
+# colada a palavra que fecha por coincidência na aspa de `type='x'` da mesma linha ainda esconde o
+# controle, e numa linha deixada crua (aspa sem fechamento) tag do DS dentro de string volta a contar.
 import re
 import sys
 import pathlib
@@ -74,37 +78,129 @@ def strip_comments(text: str) -> str:
 _KEEP_BEFORE = re.compile(r"(?:\b(?:type|class|className)\s*=\s*\{?\s*|styles\[\s*)$")
 
 
-def neutralize_strings(text: str) -> str:
-    # troca o conteúdo de cada string literal (', ", `) por espaços, preservando quebras de linha e
-    # o comprimento do texto. Aspas simples e duplas não atravessam linha (apóstrofo em texto JSX
-    # só afeta a própria linha); template literal atravessa linhas. Escapes `\x` são pulados.
-    out = list(text)
-    n = len(text)
-    i = 0
-    while i < n:
-        quote = text[i]
-        if quote not in "\"'`":
-            i += 1
+_WORD = re.compile(r"\w")
+
+
+def _opens_simple_string(text: str, i: int) -> bool:
+    # aspas colada a uma palavra (`Don't`, `Users'`) nunca abre string em JS/TS: é texto
+    return not (i > 0 and _WORD.match(text[i - 1]))
+
+
+def _simple_string_end(text: str, i: int) -> int:
+    # índice da aspa que fecha a string aberta em `i` NA MESMA LINHA, ou -1 se não houver
+    quote = text[i]
+    j = i + 1
+    while j < len(text):
+        c = text[j]
+        if c == "\\":
+            j += 2
             continue
-        j = i + 1
-        closed = False
-        while j < n:
-            c = text[j]
-            if c == "\\":
-                j += 2
+        if c == "\n":
+            return -1
+        if c == quote:
+            return j
+        j += 1
+    return -1
+
+
+def _expr_end(text: str, i: int) -> int:
+    # índice da `}` que fecha a expressão `${` iniciada antes de `i`, ou -1 se não fechar
+    depth = 1
+    j = i
+    while j < len(text):
+        c = text[j]
+        if c in "\"'" and _opens_simple_string(text, j):
+            k = _simple_string_end(text, j)
+            if k >= 0:
+                j = k + 1
                 continue
-            if c == quote:
-                closed = True
-                break
-            if c == "\n" and quote != "`":
-                break
-            j += 1
-        end = min(j, n)
-        if not _KEEP_BEFORE.search(text[max(0, i - 40):i]):
-            for k in range(i + 1, end):
-                if out[k] != "\n":
-                    out[k] = " "
-        i = j + 1 if closed else end
+        elif c == "`":
+            r = _template_literal(text, j)
+            if r is None:
+                return -1
+            j = r[0] + 1
+            continue
+        elif c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return j
+        j += 1
+    return -1
+
+
+def _template_literal(text: str, i: int):
+    # template aberto em `i`: (índice da crase que fecha, trechos de texto literal fora de `${...}`)
+    # ou None se a crase ou alguma `${` não fechar
+    spans = []
+    seg = j = i + 1
+    while j < len(text):
+        c = text[j]
+        if c == "\\":
+            j += 2
+            continue
+        if c == "`":
+            spans.append((seg, j))
+            return j, spans
+        if c == "$" and text.startswith("{", j + 1):
+            spans.append((seg, j))
+            k = _expr_end(text, j + 2)
+            if k < 0:
+                return None
+            seg = j = k + 1
+            continue
+        j += 1
+    return None
+
+
+def neutralize_strings(text: str) -> str:
+    # troca por espaços o texto literal de strings, preservando quebras de linha e o comprimento.
+    # Fail-closed: na dúvida o texto fica cru (um controle visto a mais vira WARN, nunca OK).
+    #   - aspas simples/duplas: só abrem string se não estiverem coladas a uma palavra e se houver
+    #     a aspa de fechamento na MESMA linha; uma aspa sem fechamento deixa a linha inteira crua
+    #     (apóstrofo em texto JSX como `<p>Don't</p>` nunca engole o resto da linha);
+    #   - template literal: atravessa linhas, mas só o texto entre as expressões é neutralizado — o
+    #     conteúdo de `${...}` (JSX inclusive) fica cru; template ou `${` sem fechamento fica cru.
+    out = list(text)
+    raw_lines: set[int] = set()
+
+    def blank(a: int, b: int) -> None:
+        for k in range(a, b):
+            if out[k] != "\n":
+                out[k] = " "
+
+    i = 0
+    while i < len(text):
+        c = text[i]
+        if c in "\"'":
+            if not _opens_simple_string(text, i):
+                i += 1
+                continue
+            j = _simple_string_end(text, i)
+            if j < 0:
+                raw_lines.add(text.rfind("\n", 0, i) + 1)
+                i += 1
+                continue
+            if not _KEEP_BEFORE.search(text[max(0, i - 40):i]):
+                blank(i + 1, j)
+            i = j + 1
+        elif c == "`":
+            r = _template_literal(text, i)
+            if r is None:
+                i += 1
+                continue
+            end, spans = r
+            if not _KEEP_BEFORE.search(text[max(0, i - 40):i]):
+                for a, b in spans:
+                    blank(a, b)
+            i = end + 1
+        else:
+            i += 1
+    for start in raw_lines:
+        end = text.find("\n", start)
+        end = len(text) if end < 0 else end
+        out[start:end] = text[start:end]
     return "".join(out)
 
 

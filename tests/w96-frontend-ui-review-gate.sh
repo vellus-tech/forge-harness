@@ -10,7 +10,8 @@
 #   [7] A4/#140 — PBT-lite: tipo × presença do pseudo × encapsulamento no DS → OK sse um escapa presente
 #   [8] A4/#140 — import sem uso, CSS alheio, appearance global, aspas simples → WARN (com positivas)
 #   [9] A4/#140 — propriedade real vs pseudo inexistente, DS que ENVOLVE vs irmão, comentário não
-#       domestica, seletor que não alcança o controle, linha em branco no JSX, type={"file"}
+#       domestica, seletor que não alcança o controle, linha em branco no JSX, type={"file"}, tag do
+#       DS dentro de string, apóstrofo em texto JSX e controle dentro de ${...} de template literal
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -224,6 +225,14 @@ expect9 "(B6) template literal com tag do DS não envolve -> WARN" color WARN Br
 expect9 "(B6) DS aberto sem fechar, fechamento só em {\"</DsBox>\"} -> WARN" color WARN Brecha.tsx 'import { DsBox } from "@x/design-system";\nexport const C = () => <div><DsBox><input type="color" />{"</DsBox>"}</div>;\n'
 # B6 positiva — uma string antes do DS não atrapalha o envolvimento real
 expect9 "(B6) const s = \"x\" antes do DS que envolve -> OK (positiva)" color OK Field.tsx 'import { DsBox } from "@x/design-system";\nconst s = "x";\nexport const C = () => <DsBox><input type="color" /></DsBox>;\n'
+# B8 — neutralização fail-closed: apóstrofo em texto JSX não abre string que engula o controle
+expect9 "(B8) <p>Don't</p> antes do controle, sem DS -> WARN" color WARN C.tsx "export const C = () => <div><p>Don't</p><input type=\"color\" /></div>;\n"
+expect9 "(B8) <p>Don't</p> antes de type='color', sem DS -> WARN" color WARN C.tsx "export const C = () => <div><p>Don't</p><input type='color' /></div>;\n"
+expect9 "(B8) apóstrofos em par (Don't ... It's) em volta de type='color' -> WARN" color WARN C.tsx "export const C = () => <div><p>Don't</p><input type='color' /><p>It's</p></div>;\n"
+expect9 "(B8) aspa solta sem fechamento na linha (<p>'90s</p>) -> WARN" color WARN C.tsx "export const C = () => <div><p>'90s</p><input type=\"color\" /></div>;\n"
+# B9 — em template literal só o texto entre expressões é neutralizado; o conteúdo de \${...} fica cru
+expect9 "(B9) controle dentro de \${...} num template -> WARN" color WARN C.tsx 'export const C = ({ on }) => <div>{`${on ? <input type="color" /> : null}`}</div>;\n'
+expect9 "(B9) DS envolve o controle dentro de \${...} -> OK (positiva)" color OK C.tsx 'import { DsBox } from "@x/design-system";\nexport const C = ({ on }) => <div>{`a ${on ? <DsBox><input type="color" /></DsBox> : null} b`}</div>;\n'
 echo "OK [9] — $n9 casos conferidos"
 
 echo "[4] artefatos + fiação presentes"

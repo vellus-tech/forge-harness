@@ -230,7 +230,7 @@ template/.forge/        # o harness instalável (fonte única)
 ├── commands/ (56)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
 ├── contracts/ (5)      # contratos de I/O por estágio (verify, archive, eval, …)
 ├── capabilities/       # packs opt-in por stack (C#/.NET, Node, Java, Python)
-├── skills/   (44)      # skills especialistas (gate-runner, capability-dispatcher, dotnet-quality-scan, data-*-practices, …)
+├── skills/   (46)      # skills especialistas (gate-runner, capability-dispatcher, dotnet-quality-scan, data-*-practices, …)
 ├── rules/   (50)       # convenções (arquitetura, domínio, testing, …)
 ├── schemas/ (27)       # JSON Schemas (manifest, run-manifest, benchmark, graph, …)
 └── scripts/ (144)      # engine determinista (graph, archive, eval, provenance, hooks, …) — inclui lib/ e tests/

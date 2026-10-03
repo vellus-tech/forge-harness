@@ -128,7 +128,7 @@ bash "$WS/installer/install.sh" --target "$I2" --slug p2 --name P2 --desc t >"$T
 
 # não sobrescreve workflow existente do projeto
 printf 'name: meu-proprio\n' > "$I1/.github/workflows/red-first.yml"
-node "$WS/bin/forge.mjs" update --target "$I1" --source "$WS/template/.forge" --no-plugin --no-backup >/dev/null 2>&1 || true
+node "$WS/bin/forge.mjs" update --target "$I1" --source "$WS/template/.forge" --no-plugin --skip-postcheck --no-backup >/dev/null 2>&1 || true
 grep -q 'meu-proprio' "$I1/.github/workflows/red-first.yml" || { echo "FAIL [6] (workflow do projeto foi sobrescrito)"; exit 1; }
 echo "OK [6]"
 

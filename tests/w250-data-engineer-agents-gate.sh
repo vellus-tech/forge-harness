@@ -1041,7 +1041,7 @@ confere_19() {
   perl -0pi -e 's/template_version: "[^"]*"/template_version: "0.0.1-old"/' "$t/.forge/forge.yaml"
   antes="$( { find "$t/.forge/agents/data" "$t"/.forge/skills/data-*-practices "$t/.forge/scripts/data-agent-allowlist.sh" "$t/.forge/scripts/data-agent-bash-guard.sh" -type f 2>/dev/null; grep -l 'forge:especialistas-de-dados' "$t/.forge/templates/AGENTS.md" 2>/dev/null; } | wc -l | tr -d ' ')"
   [ "$antes" -eq 0 ] || { echo "FAIL [19] controle: a instalação simulada ainda tem $antes arquivo(s) de dados antes do update"; return 1; }
-  node "$WS/bin/forge.mjs" update --target "$t" --no-plugin --source "$TEMPLATE" > "$t.update.log" 2>&1 || { echo "FAIL [19] forge update falhou:"; tail -8 "$t.update.log" | sed 's/^/      /'; return 1; }
+  node "$WS/bin/forge.mjs" update --target "$t" --no-plugin --skip-postcheck --source "$TEMPLATE" > "$t.update.log" 2>&1 || { echo "FAIL [19] forge update falhou:"; tail -8 "$t.update.log" | sed 's/^/      /'; return 1; }
   for rel in $(cd "$TEMPLATE" && find agents/data skills/data-*-practices scripts/data-agent-allowlist.sh scripts/data-agent-bash-guard.sh templates/AGENTS.md -type f 2>/dev/null | LC_ALL=C sort); do
     cmp -s "$TEMPLATE/$rel" "$t/.forge/$rel" || { echo "FAIL [19] depois do update .forge/$rel não é byte-idêntico ao template"; rc=1; }
   done

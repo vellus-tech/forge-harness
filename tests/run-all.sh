@@ -8,6 +8,7 @@
 #   tests/run-all.sh            # roda tudo; exit 0 só se 100% verde
 #   tests/run-all.sh --list     # apenas lista o que seria executado, em ordem
 #   tests/run-all.sh -v         # ecoa a saída de cada gate (default: só PASS/FAIL + tail no erro)
+#   tests/run-all.sh --shard K/N  # só o shard K de N (CI paralelo); combina com --list e -v
 set -uo pipefail
 # Isolamento git (LDG-0201): GIT_DIR herdado do ambiente (de uma sessão paralela mal isolada) faria
 # os gates que criam repositório git temporário obedecerem ao repositório de quem invocou a suíte,
@@ -24,12 +25,23 @@ cd "$WS"
 
 VERBOSE=0
 LIST=0
-for a in "$@"; do
-  case "$a" in
+SHARD_K=0; SHARD_N=0
+while [ "$#" -gt 0 ]; do
+  case "$1" in
     -v|--verbose) VERBOSE=1 ;;
     --list) LIST=1 ;;
-    *) echo "arg desconhecido: $a" >&2; exit 2 ;;
+    --shard)
+      [ "$SHARD_N" -eq 0 ] || { echo "--shard repetido" >&2; exit 2; }
+      [ "$#" -ge 2 ] || { echo "--shard exige K/N (ex.: --shard 1/3)" >&2; exit 2; }
+      # Só dígitos sem zero à esquerda: `08` seria octal inválido na aritmética do bash, e aceitar
+      # `01/3` como sinônimo de `1/3` não compra nada além de uma segunda grafia para o mesmo shard.
+      [[ "$2" =~ ^[1-9][0-9]*/[1-9][0-9]*$ ]] || { echo "--shard inválido: '$2' (esperado K/N com 1 <= K <= N)" >&2; exit 2; }
+      SHARD_K="${2%/*}"; SHARD_N="${2#*/}"
+      [ "$SHARD_K" -le "$SHARD_N" ] || { echo "--shard inválido: '$2' (K maior que N)" >&2; exit 2; }
+      shift ;;
+    *) echo "arg desconhecido: $1" >&2; exit 2 ;;
   esac
+  shift
 done
 
 # Desliga a manutenção automática do git em TODO fixture da suíte.
@@ -62,7 +74,30 @@ BATS_SUITES=()
 [ -f tests/validators.bats ] && BATS_SUITES+=("tests/validators.bats")
 [ -f tests/snapshot/claude-contract.bats ] && BATS_SUITES+=("tests/snapshot/claude-contract.bats")
 
+# Shard (CI paralelo): fica o gate cujo índice na lista ordenada acima satisfaz índice mod N == K-1.
+# Round-robin sobre a MESMA lista do --list: determinista, sem tabela de custos para envelhecer, e
+# um gate novo entra num shard sem editar nada. NÃO equilibra custo — medido em 2026-10-03 com N=3,
+# o shard 1 concentra por coincidência de índice w151, w214, w217, w250 e w253 (os mais pesados
+# depois do w239); se o shard 1 virar o gargalo do CI, o próximo passo é ponderar por custo medido.
+# As suítes bats ficam fixas no shard 1: são poucas e baratas, e dividi-las por índice só abriria
+# espaço para uma suíte cair em shard nenhum se a regra de índice mudar de um lado e não do outro.
+# Partição provada pelo w273 (união dos shards == lista completa, sem repetição).
+if [ "$SHARD_N" -gt 0 ]; then
+  _sel=()
+  _i=0
+  if [ "${#GATES[@]}" -gt 0 ]; then
+    for _g in "${GATES[@]}"; do
+      [ $((_i % SHARD_N)) -eq $((SHARD_K - 1)) ] && _sel+=("$_g")
+      _i=$((_i + 1))
+    done
+  fi
+  GATES=()
+  [ "${#_sel[@]}" -gt 0 ] && GATES=("${_sel[@]}")
+  [ "$SHARD_K" -eq 1 ] || BATS_SUITES=()
+fi
+
 if [ "$LIST" -eq 1 ]; then
+  [ "$SHARD_N" -gt 0 ] && echo "# shard $SHARD_K/$SHARD_N"
   # Guarda de contagem antes de CADA expansão: sob `set -u` no bash 3.2, `"${arr[@]}"` com o array
   # vazio aborta com "unbound variable". Ver a nota longa junto ao laço dos gates, abaixo.
   echo "# gates (${#GATES[@]}):"
@@ -230,6 +265,7 @@ run_one() {
 }
 
 echo "== Forge — suíte consolidada (run-all) =="
+[ "$SHARD_N" -gt 0 ] && echo "-- shard $SHARD_K/$SHARD_N --"
 # GUARDA DE VACUIDADE ANTES DA EXPANSÃO — sob `set -u` no bash 3.2, `"${arr[@]}"` com o array vazio
 # aborta com "unbound variable". Era defeito PRÉ-EXISTENTE nos três sítios (as duas listagens do
 # `--list`, este laço e o dos bats), e é o mesmo colapso de dois estados que esta onda combate: uma

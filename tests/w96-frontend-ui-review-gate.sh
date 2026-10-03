@@ -17,6 +17,10 @@
 #   [11] A4/#140 — fail-closed: .vue/.svelte com interpolação → WARN não analisado; styles.x só do
 #        .module.css irmão; spread em controle → tipo dinâmico; pseudo vazio ou em @media, spread após
 #        className e import de nome intrínseco do DS não domesticam; motivo do helper ausente legível
+#   [12] A4/#140 — origem da regra: classe literal só casa com CSS global e classe de módulo só com o
+#        .module.* importado; nome do DS sombreado por binding local não envolve; template pug (ou
+#        outro lang) sai não analisado; caixa alta não tira o arquivo da varredura; :type.prop, :[k],
+#        .type viram tipo dinâmico; v-pre não compila o DS
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -170,7 +174,7 @@ mkdir -p "$T/c1" "$T/c2"
 printf 'export const S = () => <select className="cru"><option>x</option></select>;\n' > "$T/c1/S.tsx"
 printf '.outro { appearance: none; }\n' > "$T/c1/S.module.css"
 printf 'export const S = () => <select className="cru"><option>x</option></select>;\n' > "$T/c2/S.tsx"
-printf '.cru { appearance: none; }\n' > "$T/c2/S.module.css"
+printf '.cru { appearance: none; }\n' > "$T/c2/S.css"
 expect_verdict "(c) appearance none global/alheio -> WARN" "$T/c1" select WARN
 expect_verdict "(c) appearance none na classe do controle -> OK (positiva)" "$T/c2" select OK
 # (d) checkbox domado por -webkit-appearance (propriedade real) -> OK
@@ -215,8 +219,8 @@ expect9 "(B3) // ::-webkit-color-swatch no SCSS -> WARN" color WARN P.tsx "$COL"
 # B4 — escape de CSS só vale se o seletor alcança o controle (tag ou classe usada no controle)
 expect9 "(B4) .card { -webkit-appearance: none } -> WARN" checkbox WARN Chk.tsx "$CHK" Chk.module.css '.card { -webkit-appearance: none; }\n'
 expect9 "(B4) .card::-webkit-color-swatch -> WARN" color WARN P.tsx "$COL" P.module.css '.card::-webkit-color-swatch { border: none; }\n'
-expect9 "(B4) .box { -webkit-appearance: none } (classe do controle) -> OK (positiva)" checkbox OK Chk.tsx "$CHK" Chk.module.css '.box { -webkit-appearance: none; }\n'
-expect9 "(B4) .wrap .sw::-webkit-color-swatch (classe do controle) -> OK (positiva)" color OK P.tsx "$COL" P.module.css '.wrap .sw::-webkit-color-swatch { border: none; }\n'
+expect9 "(B4) .box { -webkit-appearance: none } (classe do controle) -> OK (positiva)" checkbox OK Chk.tsx "$CHK" Chk.css '.box { -webkit-appearance: none; }\n'
+expect9 "(B4) .wrap .sw::-webkit-color-swatch (classe do controle) -> OK (positiva)" color OK P.tsx "$COL" P.css '.wrap .sw::-webkit-color-swatch { border: none; }\n'
 expect9 "(B4) ::-webkit-color-swatch sem tag nem classe -> OK (positiva)" color OK P.tsx "$COL" P.module.css '::-webkit-color-swatch { border: none; }\n'
 # B5 — linha em branco dentro do JSX entre o DS e o controle não quebra o envolvimento
 expect9 "(B5) DS envolve com linha em branco no meio -> OK" color OK C.tsx 'import { Field } from "@acme/design-system";\nexport const C = () => (\n  <Field>\n\n    <input type="color" />\n\n  </Field>\n);\n'
@@ -261,7 +265,7 @@ expect9 "(f) escape em comentário CSS do arquivo irmão -> WARN" color WARN P.t
 expect9 "(g) controle entre strings \"/*\" e \"*/\" -> WARN" color WARN C.tsx 'const a = "/*";\nexport const C = () => <input type="color" />;\nconst b = "*/";\n'
 # positivas que o parser precisa manter: <style> JSX do próprio componente e escape de CSS aninhado
 expect9 "(h) <style> JSX com escape no seletor do controle -> OK (positiva)" color OK C.tsx 'export const C = () => <div><style>{`.sw::-webkit-color-swatch { border: none; }`}</style><input type="color" className="sw" /></div>;\n'
-expect9 "(h) SCSS aninhado &::pseudo resolvido para a classe do controle -> OK (positiva)" color OK P.tsx "$COL" P.module.scss '.sw {\n  border: 0;\n  &::-webkit-color-swatch { border: none; }\n}\n'
+expect9 "(h) SCSS aninhado &::pseudo resolvido para a classe do controle -> OK (positiva)" color OK P.tsx "$COL" P.scss '.sw {\n  border: 0;\n  &::-webkit-color-swatch { border: none; }\n}\n'
 expect9 "(h) SCSS aninhado em classe alheia -> WARN" color WARN P.tsx "$COL" P.module.scss '.card {\n  &::-webkit-color-swatch { border: none; }\n}\n'
 # arquivo que o parser não lê: nunca OK
 expect9 "(i) TSX com erro de sintaxe -> WARN não analisado" "não-analisado" WARN C.tsx 'import { DsBox } from "@x/design-system";\nexport const C = () => <DsBox><input type="color" /></DsBox;\n'
@@ -314,14 +318,14 @@ expect11 "(3) <input {...p} /> sem type" type-dinâmico I.tsx 'export const I = 
 expect11 "(3) <input type=\"text\" {...p} />" type-dinâmico I.tsx 'export const I = (p) => <input type="text" {...p} />;\n'
 expect11 "(3) <input type=\"color\" className=\"sw\" {...p} /> com escape" type-dinâmico P.tsx 'export const P = (p) => <input type="color" className="sw" {...p} />;\n' P.module.css "$SWCSS"
 expect11 "(3) .vue: v-bind=\"p\" no input" type-dinâmico F.vue '<template>\n  <input v-bind="p" />\n</template>\n'
-expect9 "(3) spread ANTES de type e className, com escape -> OK (positiva)" color OK P.tsx 'export const P = (p) => <input {...p} type="color" className="sw" />;\n' P.module.css "$SWCSS"
+expect9 "(3) spread ANTES de type e className, com escape -> OK (positiva)" color OK P.tsx 'export const P = (p) => <input {...p} type="color" className="sw" />;\n' P.css "$SWCSS"
 # (a) regra de pseudo-elemento vazia, ou condicional (@media/@supports), não domestica
 expect11 "(a) .sw::-webkit-color-swatch {} vazio" color P.tsx "$COL" P.module.css '.sw::-webkit-color-swatch {}\n'
 expect11 "(a) pseudo dentro de @media" color P.tsx "$COL" P.module.css '@media (min-width: 1px) {\n  .sw::-webkit-color-swatch { border: none; }\n}\n'
-expect9 "(a) pseudo dentro de @layer -> OK (positiva)" color OK P.tsx "$COL" P.module.css '@layer base {\n  .sw::-webkit-color-swatch { border: none; }\n}\n'
+expect9 "(a) pseudo dentro de @layer -> OK (positiva)" color OK P.tsx "$COL" P.css '@layer base {\n  .sw::-webkit-color-swatch { border: none; }\n}\n'
 # (b) spread depois de className invalida a classe
 expect11 "(b) <select className=\"cru\" {...rest}>" select S.tsx 'export const S = (rest) => <select className="cru" {...rest}><option>x</option></select>;\n' S.module.css '.cru { appearance: none; }\n'
-expect9 "(b) <select {...rest} className=\"cru\"> -> OK (positiva)" select OK S.tsx 'export const S = (rest) => <select {...rest} className="cru"><option>x</option></select>;\n' S.module.css '.cru { appearance: none; }\n'
+expect9 "(b) <select {...rest} className=\"cru\"> -> OK (positiva)" select OK S.tsx 'export const S = (rest) => <select {...rest} className="cru"><option>x</option></select>;\n' S.css '.cru { appearance: none; }\n'
 # (c) import de nome intrínseco do DS não transforma a tag HTML em componente do DS
 expect11 "(c) import { input } do DS + <input>" color C.tsx 'import { input } from "@x/design-system";\nexport const C = () => <input type="color" />;\n'
 expect11 "(c) import { div } do DS envolvendo o controle" color C.tsx 'import { div } from "@x/design-system";\nexport const C = () => <div><input type="color" /></div>;\n'
@@ -330,6 +334,58 @@ expect11 "(c) .vue: import input do DS + <input>" color F.vue '<script setup>\ni
 grep -q 'helper de AST ausente' <<<"$outsh" || { echo "FAIL [11] (d) motivo do helper ausente ilegível: $outsh"; exit 1; }
 echo "  ok (d) motivo do helper ausente legível"
 echo "OK [11] — $((n9 - n11_antes + 1)) casos conferidos"
+
+echo "[12] origem da regra — CSS Module x global, nome do DS sombreado, template não-HTML, caixa alta"
+# expect12 <rótulo> <rótulo-do-veredito> <OK|WARN> <arquivo> <conteúdo> [<arquivo> <conteúdo>]...: WARN
+# exige o rótulo e NENHUM OK (nem o resumo "OK controles-nativos"); OK exige o rótulo e nenhum WARN.
+n12=0
+expect12() {
+  local label="$1" tipo="$2" esperado="$3" dir out
+  shift 3
+  n12=$((n12 + 1)); dir="$T/n12-$n12"; mkdir -p "$dir"
+  while [ "$#" -ge 2 ]; do printf '%b' "$2" > "$dir/$1"; shift 2; done
+  out="$(python3 "$SCAN_NATIVE" "$dir")" || { echo "FAIL [12] $label (advisory deve sair 0)"; exit 1; }
+  if [ "$esperado" = "OK" ]; then
+    grep -q "^OK $tipo" <<<"$out" || { echo "FAIL [12] $label — esperava OK $tipo: $out"; exit 1; }
+    grep -q '^WARN' <<<"$out" && { echo "FAIL [12] $label — nenhum WARN permitido: $out"; exit 1; }
+  else
+    grep -q "^WARN $tipo" <<<"$out" || { echo "FAIL [12] $label — esperava WARN $tipo: $out"; exit 1; }
+    grep -q '^OK ' <<<"$out" && { echo "FAIL [12] $label — nenhum OK permitido: $out"; exit 1; }
+  fi
+  echo "  ok $label"
+}
+SMOD='import s from "./P.module.css";\nexport const P = () => <input type="color" className={s.sw} />;\n'
+VDS='<script setup>\nimport DsBox from "@x/design-system/DsBox.vue";\n</script>\n'
+# (1) classe literal só casa com CSS global; regra de X.module.css não alcança className="sw"
+expect12 "(1) className=\"sw\" com .sw só no P.module.css" color WARN P.tsx "$COL" P.module.css "$SWCSS"
+expect12 "(1) className=\"sw\" literal, P.module.css importado como s" color WARN P.tsx 'import s from "./P.module.css";\nexport const P = () => <input type="color" className="sw" />;\n' P.module.css "$SWCSS"
+expect12 "(1) className=\"sw\" com .sw no P.css global -> OK (positiva)" color OK P.tsx "$COL" P.css "$SWCSS"
+# (2) classe de módulo só casa com o .module.* importado como default
+expect12 "(2) s.sw com .sw só no P.css global" color WARN P.tsx "$SMOD" P.module.css '.outro { color: red; }\n' P.css "$SWCSS"
+expect12 "(2) s.sw com .sw no P.module.css importado -> OK (positiva)" color OK P.tsx "$SMOD" P.module.css "$SWCSS"
+# (3) Vue <style module>: regra de módulo não casa class literal; $style.sw casa
+expect12 "(3) .vue: class=\"sw\" literal com <style module>" color WARN F.vue '<template>\n  <input type="color" class="sw">\n</template>\n<style module>\n.sw::-webkit-color-swatch { border: none; }\n</style>\n'
+expect12 "(3) .vue: :class=\"\$style.sw\" com <style module> -> OK (positiva)" color OK F.vue '<template>\n  <input type="color" :class="$style.sw">\n</template>\n<style module>\n.sw::-webkit-color-swatch { border: none; }\n</style>\n'
+expect12 "(3) .vue: class=\"sw\" com <style scoped> -> OK (positiva)" color OK F.vue '<template>\n  <input type="color" class="sw">\n</template>\n<style scoped>\n.sw::-webkit-color-swatch { border: none; }\n</style>\n'
+# (4) template em linguagem que não é HTML: arquivo inteiro não analisado
+expect12 "(4) .vue: <template lang=\"pug\">" "não-analisado" WARN F.vue "${VDS}"'<template lang="pug">\nDsBox\n  input(type="color")\n</template>\n'
+expect12 "(4) .vue: <template lang=\"jade\"> com select" "não-analisado" WARN F.vue '<template lang="jade">\nselect\n  option x\n</template>\n'
+# (5) nome do DS sombreado por parâmetro, variável ou função local não é componente do DS
+expect12 "(5) DsBox sombreado por parâmetro" color WARN C.tsx 'import { DsBox } from "@x/design-system";\nexport const C = ({ DsBox }) => <DsBox><input type="color" /></DsBox>;\n'
+expect12 "(5) DsBox sombreado por variável local" color WARN C.tsx 'import { DsBox } from "@x/design-system";\nexport function C() {\n  const DsBox = "div";\n  return <DsBox><input type="color" /></DsBox>;\n}\n'
+expect12 "(5) DsBox sombreado por função local" color WARN C.tsx 'import { DsBox } from "@x/design-system";\nexport function C() {\n  function DsBox(p) { return <div>{p.children}</div>; }\n  return <DsBox><input type="color" /></DsBox>;\n}\n'
+expect12 "(5) DsBox real do DS envolve o controle -> OK (positiva)" color OK C.tsx 'import { DsBox } from "@x/design-system";\nexport const C = () => <DsBox><input type="color" /></DsBox>;\n'
+# (6) caixa alta não tira o arquivo da varredura
+expect12 "(6) .html: <INPUT TYPE=\"COLOR\">" color WARN i.html '<INPUT TYPE="COLOR">\n'
+expect12 "(6) .vue: <SELECT>" select WARN F.vue '<template>\n  <SELECT><option>x</option></SELECT>\n</template>\n'
+expect12 "(6) .html: <TEXTAREA>" textarea WARN i.html '<TEXTAREA></TEXTAREA>\n'
+# menores: type ligado por modificador ou argumento dinâmico do Vue; v-pre não compila o DS
+expect12 "(m) .vue: :type.prop" type-dinâmico WARN F.vue '<template>\n  <input :type.prop="t">\n</template>\n'
+expect12 "(m) .vue: :[k]" type-dinâmico WARN F.vue '<template>\n  <input :[k]="v">\n</template>\n'
+expect12 "(m) .vue: .type" type-dinâmico WARN F.vue '<template>\n  <input .type="t">\n</template>\n'
+expect12 "(m) .vue: v-pre em volta do DS" color WARN F.vue "${VDS}"'<template>\n  <div v-pre><DsBox><input type="color"></DsBox></div>\n</template>\n'
+expect12 "(m) .vue: DS sem v-pre envolve -> OK (positiva)" color OK F.vue "${VDS}"'<template>\n  <div><DsBox><input type="color"></DsBox></div>\n</template>\n'
+echo "OK [12] — $n12 casos conferidos"
 
 echo "[4] artefatos + fiação presentes"
 SK="$WS/template/.forge/skills/frontend-ui-review/SKILL.md"

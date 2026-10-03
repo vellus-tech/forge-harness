@@ -11,7 +11,7 @@
 # html.parser da stdlib (tags, atributos, <style> e <script> de topo), e os imports dos blocos
 # <script> pelo mesmo helper. O html.parser não entende interpolação de template, então .vue com
 # `{{` e .svelte com `{` fora dos blocos de topo (texto, atributo, spread) saem inteiros como WARN
-# "não analisado" (fail-closed). CSS (arquivo irmão, <style> JSX ou de SFC) é lido por um tokenizador
+# "não analisado" (fail-closed), assim como <template lang="pug"> (ou qualquer lang que não seja html). CSS (arquivo irmão, <style> JSX ou de SFC) é lido por um tokenizador
 # próprio que respeita comentários, strings e aninhamento SCSS (`&` resolvido contra o seletor pai).
 #
 # Controle nativo: <input type=file|color|date|time|datetime-local|month|week|range|checkbox|radio>,
@@ -20,7 +20,8 @@
 #   (1) está DENTRO de um elemento cujo nome vem de import de caminho com 'design-system' — um
 #       ancestral na árvore que o contém pelos filhos (irmão, atributo ou texto não envolvem) —, ou
 #       o próprio elemento é esse componente. Tag HTML (<input>, <div>) nunca é componente do DS,
-#       mesmo com import homônimo; ou
+#       mesmo com import homônimo; nome do DS sombreado por binding local (parâmetro, variável,
+#       função) não é o componente; DS sob v-pre (Vue) não é compilado e não envolve; ou
 #   (2) um escape de aparência real alcança o controle: regra incondicional (fora de @media,
 #       @supports, @container, @scope) e com ao menos uma declaração, do CSS irmão com o nome do
 #       componente (X.css/X.module.css/.scss/.less para X.tsx), de <style> do próprio arquivo, ou o
@@ -30,9 +31,12 @@
 #       pseudo-classe; ou propriedade (appearance/-webkit-appearance/-moz-appearance: none para
 #       checkbox, radio, select e textarea; accent-color para checkbox e radio) numa regra cujo
 #       sujeito é a tag do controle, classe usada nele ou [type=<tipo>], sem pseudo-elemento nem
-#       pseudo-classe. Classe do controle é só a estática: className literal, ou styles.x /
-#       styles["x"] quando `styles` é o default import do ./X.module.css irmão e não é redeclarado;
-#       spread depois de className/style apaga classe e style conhecidos.
+#       pseudo-classe. Classe do controle é só a estática, e casa por ORIGEM da regra: className /
+#       class literal só com CSS global (X.css não-module, <style> sem `module`); classe de módulo
+#       (styles.x / styles["x"] quando `styles` é o default import do ./X.module.css irmão e não é
+#       redeclarado; $style.x no Vue) só com o .module.* importado (ou o <style module> do nome).
+#       Seletor sem classe (tag, atributo, pseudo solto) de um .module.* vale como global. Spread
+#       depois de className/style apaga classe e style conhecidos.
 # Tudo o mais: WARN. Arquivo que o parser não lê (erro de sintaxe, interpolação de template, Node
 # ou @babel/parser ausente): WARN "não analisado", nunca OK.
 #
@@ -321,12 +325,14 @@ def _type_attr_matches(attr: str, ctype: str):
     return value == ctype
 
 
-def reaches(comp, ctrl: dict, kind: str) -> bool:
+def reaches(comp, ctrl: dict, kind: str, classes: set) -> bool:
+    # `classes`: as classes do controle que a ORIGEM da regra pode nomear (literais para CSS global,
+    # as do objeto de módulo para o .module.* dele; vazio para módulo sem objeto referenciado)
     if comp is None or comp["ids"]:
         return False
     if comp["element"] not in (None, "*", ctrl["tag"]):
         return False
-    if not comp["classes"] <= ctrl["classes"]:
+    if not comp["classes"] <= classes:
         return False
     if not all(_type_attr_matches(a, ctrl["type"]) for a in comp["attrs"]):
         return False
@@ -339,17 +345,19 @@ def reaches(comp, ctrl: dict, kind: str) -> bool:
     return comp["element"] == ctrl["tag"] or bool(comp["classes"]) or bool(comp["attrs"])
 
 
-def tamed_by_css(ctrl: dict, rules: list) -> bool:
+def tamed_by_css(ctrl: dict, groups: list) -> bool:
+    """groups: [(regras, classes do controle que essas regras podem nomear)]."""
     prop_ok = TAME_PROPS.get(ctrl["type"])
-    for selectors, decls, cond in rules:
-        if cond:
-            continue  # regra condicional (@media, @supports...) não doma o controle sempre
-        for sel in selectors:
-            comp = parse_compound(subject_compound(sel))
-            if decls and reaches(comp, ctrl, "pseudo"):  # pseudo sem declaração não doma nada
-                return True
-            if prop_ok and prop_ok(decls) and reaches(comp, ctrl, "prop"):
-                return True
+    for rules, classes in groups:
+        for selectors, decls, cond in rules:
+            if cond:
+                continue  # regra condicional (@media, @supports...) não doma o controle sempre
+            for sel in selectors:
+                comp = parse_compound(subject_compound(sel))
+                if decls and reaches(comp, ctrl, "pseudo", classes):  # pseudo sem declaração não doma nada
+                    return True
+                if prop_ok and prop_ok(decls) and reaches(comp, ctrl, "prop", classes):
+                    return True
     return False
 
 
@@ -358,15 +366,31 @@ def tamed_inline(ctrl: dict) -> bool:
     return bool(prop_ok and prop_ok({_norm_prop(k): str(v).strip().lower() for k, v in ctrl["style"].items()}))
 
 
-def sibling_css_rules(file_path: pathlib.Path) -> list:
-    # só CSS com o nome do componente: X.css ou X.module.css (ou equivalente) para X.tsx
+def css_file_rules(path: pathlib.Path) -> list:
+    if not path.is_file():
+        return []
+    return parse_css(path.read_text(errors="ignore"), path.suffix in (".scss", ".less"))
+
+
+def sibling_css_rules(file_path: pathlib.Path):
+    """(regras globais, regras de módulo) do CSS com o nome do componente: X.css (global) e
+    X.module.css (módulo), ou equivalente .scss/.less, para X.tsx."""
     stem = file_path.stem
-    names = {stem + ext for ext in CSS_EXTS} | {stem + ".module" + ext for ext in CSS_EXTS}
-    rules = []
-    for sib in sorted(file_path.parent.iterdir()):
-        if sib.is_file() and sib.name in names:
-            rules += parse_css(sib.read_text(errors="ignore"), sib.suffix in (".scss", ".less"))
-    return rules
+    glob = [file_path.with_name(stem + ext) for ext in CSS_EXTS]
+    mod = [file_path.with_name(stem + ".module" + ext) for ext in CSS_EXTS]
+    return [r for f in glob for r in css_file_rules(f)], [r for f in mod for r in css_file_rules(f)]
+
+
+def css_groups(el: dict, global_rules: list, module_rules: list, by_object: dict) -> list:
+    """grupos (regras, classes alcançáveis) por origem: classe literal só com CSS global; classe de
+    módulo só com as regras do módulo do próprio objeto; demais regras de módulo só sem classe."""
+    groups = [(global_rules, set(el["classes"])), (module_rules, set())]
+    per_obj = {}
+    for obj, cls in el.get("moduleClasses", []):
+        per_obj.setdefault(obj, set()).add(cls)
+    for obj, classes in per_obj.items():
+        groups.append((by_object.get(obj, []), classes))
+    return groups
 
 
 # ---------------------------------------------------------------- .vue / .svelte / .html
@@ -396,6 +420,8 @@ class Markup(HTMLParser):
         # `{` fora de <script>/<style> de topo (texto, nome ou valor de atributo): em .svelte é
         # interpolação/diretiva/spread que o html.parser não entende
         self.braces = False
+        # <template lang="pug"> (ou outro lang que não seja html): o corpo não é HTML
+        self.foreign = None
 
     def handle_starttag(self, tag, attrs):
         self._element(tag, attrs, False)
@@ -407,19 +433,21 @@ class Markup(HTMLParser):
         if any("{" in k or "{" in (v or "") for k, v in attrs):
             self.braces = True
         a = dict(attrs)
+        if tag == "template" and (a.get("lang") or "html").strip().lower() != "html":
+            self.foreign = a.get("lang")
         typ = None
         if "type" in a:
             v = a["type"] or ""
             typ = {"kind": "dynamic"} if v.startswith("{") else {"kind": "literal", "value": v}
-        if ":type" in a or "v-bind:type" in a:
-            typ = {"kind": "dynamic"}
-        if tag == "input" and "v-bind" in a:  # spread do Vue (v-bind="obj"): type pode vir do objeto
+        # :type, v-bind:type, :type.prop, .type, :[k] e v-bind="obj" (spread): o tipo vem de expressão
+        if any(_binds_type(k) for k in a):
             typ = {"kind": "dynamic"}
         style = parse_decls((a.get("style") or "").split(";"))
-        entry = {"tag": tag, "norm": _norm_tag(tag), "closed": False}
+        entry = {"tag": tag, "norm": _norm_tag(tag), "closed": False, "vpre": "v-pre" in a}
         self.elements.append({
             "line": self.getpos()[0], "tag": tag, "norm": entry["norm"], "type": typ,
             "classes": (a.get("class") or "").split(), "style": style, "wrappers": list(self.stack),
+            "vpre": entry["vpre"], "class_expr": a.get(":class") or a.get("v-bind:class") or "",
         })
         if tag in ("style", "script") and not selfclosing:
             self._raw = (tag, a, [], not self.stack)  # último campo: bloco de topo do arquivo?
@@ -435,13 +463,40 @@ class Markup(HTMLParser):
     def handle_endtag(self, tag):
         if self._raw and tag == self._raw[0]:
             kind, a, data, top = self._raw
-            (self.styles if kind == "style" else self.scripts).append((a.get("lang") or "", "".join(data), top))
+            if kind == "style":
+                # <style module> (Vue): regras de módulo, alcançáveis só por $style.x (ou <nome>.x)
+                module = ((a.get("module") or "$style") if "module" in a else None)
+                self.styles.append((a.get("lang") or "", "".join(data), top, module))
+            else:
+                self.scripts.append((a.get("lang") or "", "".join(data), top))
             self._raw = None
         for idx in range(len(self.stack) - 1, -1, -1):
             if self.stack[idx]["tag"] == tag:
                 self.stack[idx]["closed"] = True  # só o fechamento explícito conta
                 del self.stack[idx:]
                 break
+
+
+def _binds_type(name: str) -> bool:
+    # v-bind="obj" / v-bind.prop="obj": spread; :type / v-bind:type / .type com modificadores; :[k]
+    if name == "v-bind" or name.startswith("v-bind."):
+        return True
+    for pre in ("v-bind:", ":", "."):
+        if name.startswith(pre):
+            arg = name[len(pre):]
+            return arg.startswith("[") or arg.split(".")[0] == "type"
+    return False
+
+
+_MODULE_REF = re.compile(r"^\s*([A-Za-z_$][\w$]*)\s*(?:\.\s*([A-Za-z_][\w-]*)|\[\s*(['\"])([\w-]+)\3\s*\])\s*$")
+
+
+def module_class_of(expr: str, objects) -> list:
+    # :class="$style.sw" / :class="$style['sw']" com objeto de <style module> → [[objeto, classe]]
+    m = _MODULE_REF.match(expr or "")
+    if not m or m.group(1) not in objects:
+        return []
+    return [[m.group(1), m.group(2) or m.group(4)]]
 
 
 # ---------------------------------------------------------------- helper Node (AST de JSX)
@@ -494,7 +549,7 @@ def control_of(el: dict):
     return None
 
 
-def judge(el: dict, rules: list, is_ds, inside_ds: bool):
+def judge(el: dict, groups: list, is_ds, inside_ds: bool):
     """(veredito, rótulo, motivo) — ou None se o elemento não é controle nativo."""
     found = control_of(el)
     if found is None:
@@ -508,10 +563,10 @@ def judge(el: dict, rules: list, is_ds, inside_ds: bool):
         return "WARN", label, "componente fora do DS com type nativo"
     if label == "type-dinâmico":
         return "WARN", label, "type dinâmico: tipo não determinado, sem encapsulamento no DS"
-    ctrl = {"tag": ctag, "type": label, "classes": set(el["classes"]), "style": el["style"]}
+    ctrl = {"tag": ctag, "type": label, "style": el["style"]}
     if tamed_inline(ctrl):
         return "OK", label, "escape de aparência no style do controle"
-    if tamed_by_css(ctrl, rules):
+    if tamed_by_css(ctrl, groups):
         return "OK", label, "escape de aparência no CSS que alcança o controle"
     return "WARN", label, "sem escape de aparência nem encapsulamento no DS"
 
@@ -530,8 +585,10 @@ def main() -> int:
         if not p.is_file() or (p.suffix not in JSX_LANG and p.suffix not in MARKUP_EXTS):
             continue
         text = p.read_text(errors="ignore")
-        # filtro negativo: sem estas palavras não há tag de controle nem atributo type
-        if not any(w in text for w in ("input", "select", "textarea", "type")):
+        # filtro negativo: sem estas palavras (em qualquer caixa — HTML não distingue <INPUT> de <input>)
+        # não há tag de controle nem atributo type
+        low = text.lower()
+        if not any(w in low for w in ("input", "select", "textarea", "type")):
             continue
         if p.suffix in JSX_LANG:
             files.append(p)
@@ -553,6 +610,11 @@ def main() -> int:
             (p.suffix == ".vue" and "{{" in text) or (p.suffix == ".svelte" and m.braces)
         ):
             m = "interpolação de template ({{ }} / {…}) que o html.parser não entende"
+        if isinstance(m, Markup) and m.foreign is not None:
+            # pug & cia.: o corpo não é HTML, e o CONTROL_HINT (sintaxe HTML) não vale para ele
+            files.append(p)
+            markups[p] = f'<template lang="{m.foreign}"> não é HTML: o html.parser não lê o template'
+            continue
         if not isinstance(m, Markup) and not CONTROL_HINT.search(text):
             continue  # nenhum texto que possa formar controle: não há o que reportar
         files.append(p)
@@ -581,11 +643,13 @@ def main() -> int:
             if not res.get("ok"):
                 report("WARN", "não-analisado", p, f"não analisado: {res.get('reason')}")
                 continue
-            rules = sibling_css_rules(p)
+            global_rules, module_rules = sibling_css_rules(p)
             for css in res["styles"]:
-                rules += parse_css(css, False)
+                global_rules += parse_css(css, False)  # <style> JSX é folha global
+            by_object = {obj: css_file_rules(p.parent / src) for obj, src in res.get("modules", {}).items()}
             for el in res["elements"]:
-                v = judge(el, rules, el["isDs"], el["insideDs"])
+                groups = css_groups(el, global_rules, module_rules, by_object)
+                v = judge(el, groups, el["isDs"], el["insideDs"])
                 if v:
                     report(v[0], v[1], f"{p}:{el['line']}", v[2])
             continue
@@ -603,20 +667,30 @@ def main() -> int:
                 ds |= {_norm_tag(n) for n in res["dsNames"]}
             else:
                 ds_fail = res.get("reason")
-        rules = sibling_css_rules(p)
-        for lang, css, top in m.styles:
+        global_rules, module_rules = sibling_css_rules(p)
+        by_object = {}
+        for lang, css, top, module in m.styles:
             if sfc and not top:
                 continue  # <style> dentro do template de SFC não é a folha do componente
-            rules += parse_css(css, lang.lower() in ("scss", "less"))
+            parsed = parse_css(css, lang.lower() in ("scss", "less"))
+            if module is None:
+                global_rules += parsed
+            else:
+                module_rules += parsed
+                by_object.setdefault(module, []).extend(parsed)
 
         def from_ds(e):
             return e["tag"] not in HTML_TAGS and e["norm"].split(".")[0] in ds
 
         for el in m.elements:
             el["intrinsic"] = True
-            is_ds = from_ds(el)
-            inside = any(w["closed"] and from_ds(w) for w in el["wrappers"])
-            v = judge(el, rules, is_ds, inside)
+            # v-pre: o Vue não compila o elemento nem os descendentes — DS ali dentro é HTML cru
+            chain = el["wrappers"] + [el]
+            pre = next((i for i, w in enumerate(chain) if w.get("vpre")), len(chain))
+            is_ds = pre == len(chain) and from_ds(el)
+            inside = any(w["closed"] and from_ds(w) for w in el["wrappers"][:pre])
+            el["moduleClasses"] = module_class_of(el["class_expr"], by_object)
+            v = judge(el, css_groups(el, global_rules, module_rules, by_object), is_ds, inside)
             if v is None:
                 continue
             if v[0] == "WARN" and ds_fail:

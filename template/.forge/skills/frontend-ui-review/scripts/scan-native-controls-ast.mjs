@@ -3,13 +3,15 @@
 // JSON [{id, code, lang, mode, stem}] e devolve no stdout um JSON {id: resultado}. Faz a análise de
 // JSX/TSX sobre a AST do @babel/parser (resolvido primeiro a partir de <project_dir>, depois a
 // partir deste arquivo), nunca sobre o texto: comentário e string não são nós JSX.
-//   mode "jsx"     → {ok, elements: [...], styles: [css de <style> JSX]}
+//   mode "jsx"     → {ok, elements: [...], styles: [css de <style> JSX], modules: {objeto: "./X.module.css"}}
 //   mode "imports" → {ok, dsNames: [...]}   (bloco <script> de .vue/.svelte)
 //   falha de parse ou parser ausente → {ok: false, reason}
 // Um elemento está DENTRO de um componente do DS só quando um ancestral JSXElement cujo nome vem
 // de import de caminho com 'design-system' o contém pelos `children` — atributo não envolve, e tag
-// intrínseca (<input>, <div>) nunca é componente do DS. Classe via objeto (styles.x) só conta quando
-// o objeto é o default import do ./<stem>.module.css irmão; spread {...p} apaga o que veio antes.
+// intrínseca (<input>, <div>) nunca é componente do DS, nem um nome do DS sombreado por binding local.
+// Classe literal (className="x") e classe de módulo (styles.x, só quando o objeto é o default import do
+// ./<stem>.module.css irmão) saem separadas, com o arquivo de origem do módulo: o .py casa a primeira
+// só com CSS global e a segunda só com o .module.* importado. Spread {...p} apaga o que veio antes.
 import { createRequire } from "node:module";
 import path from "node:path";
 import { readFileSync } from "node:fs";
@@ -120,36 +122,40 @@ function localBindings(ast) {
 // objetos de CSS module que valem como fonte de classe estática: SÓ o default (ou namespace) import
 // do .module.css/.scss/.less IRMÃO do próprio componente (./X.module.css para X.tsx), e só se o nome
 // não é redeclarado em nenhum escopo do arquivo. Qualquer outro objeto (theme.sw, styles de outro
-// módulo) não é classe conhecida.
-function moduleNamesOf(ast, stem) {
-  const names = new Set();
+// módulo) não é classe conhecida. Devolve nome local -> caminho importado.
+function moduleNamesOf(ast, stem, locals) {
+  const names = new Map();
   if (!stem) return names;
   const esc = stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const own = new RegExp(`^\\./${esc}\\.module\\.(css|scss|less)$`);
   for (const node of ast.program.body) {
     if (node.type !== "ImportDeclaration" || !own.test(String(node.source.value))) continue;
     for (const spec of node.specifiers) {
-      if (spec.type === "ImportDefaultSpecifier" || spec.type === "ImportNamespaceSpecifier") names.add(spec.local.name);
+      if (spec.type === "ImportDefaultSpecifier" || spec.type === "ImportNamespaceSpecifier")
+        names.set(spec.local.name, String(node.source.value));
     }
   }
-  for (const n of localBindings(ast)) names.delete(n);
+  for (const n of locals) names.delete(n);
   return names;
 }
 
-// classes estaticamente conhecidas: "a b", {"a b"}, {`a b`} e, do CSS module irmão, {styles.a}, {styles["a"]}
+// classes estaticamente conhecidas, separadas por origem: literais ("a b", {"a b"}, {`a b`}) em
+// `classes`; do CSS module irmão ({styles.a}, {styles["a"]}) em `moduleClasses` como [objeto, classe]
 function classesOf(attr, moduleNames) {
+  const none = { classes: [], moduleClasses: [] };
   const v = attr.value;
-  if (v == null) return [];
-  if (v.type === "StringLiteral") return v.value.split(/\s+/).filter(Boolean);
-  if (v.type !== "JSXExpressionContainer") return [];
+  if (v == null) return none;
+  if (v.type === "StringLiteral") return { classes: v.value.split(/\s+/).filter(Boolean), moduleClasses: [] };
+  if (v.type !== "JSXExpressionContainer") return none;
   const e = v.expression;
   const s = staticString(e);
-  if (s !== undefined) return s.split(/\s+/).filter(Boolean);
+  if (s !== undefined) return { classes: s.split(/\s+/).filter(Boolean), moduleClasses: [] };
   if (e.type === "MemberExpression" && e.object.type === "Identifier" && moduleNames.has(e.object.name)) {
-    if (!e.computed && e.property.type === "Identifier") return [e.property.name];
-    if (e.computed && e.property.type === "StringLiteral") return [e.property.value];
+    const obj = e.object.name;
+    if (!e.computed && e.property.type === "Identifier") return { classes: [], moduleClasses: [[obj, e.property.name]] };
+    if (e.computed && e.property.type === "StringLiteral") return { classes: [], moduleClasses: [[obj, e.property.value]] };
   }
-  return [];
+  return none;
 }
 
 // style={{ appearance: "none", WebkitAppearance: "none", accentColor: "..." }} — só pares estáticos
@@ -167,8 +173,12 @@ function styleOf(attr) {
 }
 
 function analyzeJsx(ast, stem) {
+  // binding local (parâmetro, variável, função, classe) com o nome de um import sombreia o import:
+  // <DsBox> com `DsBox` local não é o componente do DS, `styles` local não é o CSS module
+  const locals = localBindings(ast);
   const dsNames = dsNamesOf(ast);
-  const moduleNames = moduleNamesOf(ast, stem);
+  for (const n of locals) dsNames.delete(n);
+  const moduleNames = moduleNamesOf(ast, stem, locals);
   const elements = [];
   const styles = [];
 
@@ -185,6 +195,7 @@ function analyzeJsx(ast, stem) {
         insideDs: wrappers.some((w) => w),
         type: null,
         classes: [],
+        moduleClasses: [],
         style: {},
       };
       // atributos em ordem: o último vence, e um spread {...p} pode sobrescrever o que veio antes —
@@ -193,13 +204,15 @@ function analyzeJsx(ast, stem) {
         if (attr.type === "JSXSpreadAttribute") {
           if (info.intrinsic && info.name === "input") el.type = { kind: "dynamic" };
           el.classes = [];
+          el.moduleClasses = [];
           el.style = {};
           continue;
         }
         if (attr.type !== "JSXAttribute" || attr.name.type !== "JSXIdentifier") continue;
         const an = attr.name.name;
-        if (an === "type") el.type = attrValue(attr);
-        else if (an === "className" || an === "class") el.classes = classesOf(attr, moduleNames);
+        // atributo HTML não distingue caixa: <input TYPE="color"> é um input color no DOM
+        if (an === "type" || (info.intrinsic && an.toLowerCase() === "type")) el.type = attrValue(attr);
+        else if (an === "className" || an === "class") Object.assign(el, classesOf(attr, moduleNames));
         else if (an === "style") el.style = styleOf(attr);
       }
       elements.push(el);
@@ -241,7 +254,7 @@ function analyzeJsx(ast, stem) {
   }
 
   walk(ast.program, []);
-  return { ok: true, dsNames: [...dsNames], elements, styles };
+  return { ok: true, dsNames: [...dsNames], elements, styles, modules: Object.fromEntries(moduleNames) };
 }
 
 function main() {

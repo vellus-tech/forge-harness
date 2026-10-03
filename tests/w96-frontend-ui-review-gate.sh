@@ -12,6 +12,8 @@
 #   [9] A4/#140 — propriedade real vs pseudo inexistente, DS que ENVOLVE vs irmão, comentário não
 #       domestica, seletor que não alcança o controle, linha em branco no JSX, type={"file"}, tag do
 #       DS dentro de string, apóstrofo em texto JSX e controle dentro de ${...} de template literal
+#   [10] A4/#140 — análise por AST: string, comentário e texto de template não são elementos JSX;
+#        .vue/.html pelo html.parser; arquivo não lido pelo parser ou helper ausente → WARN não analisado
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -222,7 +224,7 @@ expect9 "(B7) type={'file'} domado -> OK (positiva)" file OK U.tsx "export const
 expect9 "(B6) <DsBox> e </DsBox> dentro de strings não envolvem -> WARN" color WARN Brecha.tsx 'import { DsBox } from "@x/design-system";\nconst s = "<DsBox>";\nexport const C = () => <><input type="color" /></>;\nconst t = "</DsBox>";\n'
 expect9 "(B6) string simples com tag do DS não envolve -> WARN" color WARN Brecha.tsx "import { DsBox } from \"@x/design-system\";\nconst s = '<DsBox>';\nexport const C = () => <><input type=\"color\" /></>;\nconst t = '</DsBox>';\n"
 expect9 "(B6) template literal com tag do DS não envolve -> WARN" color WARN Brecha.tsx 'import { DsBox } from "@x/design-system";\nconst s = `<DsBox>`;\nexport const C = () => <><input type="color" /></>;\nconst t = `</DsBox>`;\n'
-expect9 "(B6) DS aberto sem fechar, fechamento só em {\"</DsBox>\"} -> WARN" color WARN Brecha.tsx 'import { DsBox } from "@x/design-system";\nexport const C = () => <div><DsBox><input type="color" />{"</DsBox>"}</div>;\n'
+expect9 "(B6) DS aberto sem fechar, fechamento só em {\"</DsBox>\"} (JSX inválido) -> WARN não analisado" "não-analisado" WARN Brecha.tsx 'import { DsBox } from "@x/design-system";\nexport const C = () => <div><DsBox><input type="color" />{"</DsBox>"}</div>;\n'
 # B6 positiva — uma string antes do DS não atrapalha o envolvimento real
 expect9 "(B6) const s = \"x\" antes do DS que envolve -> OK (positiva)" color OK Field.tsx 'import { DsBox } from "@x/design-system";\nconst s = "x";\nexport const C = () => <DsBox><input type="color" /></DsBox>;\n'
 # B8 — neutralização fail-closed: apóstrofo em texto JSX não abre string que engula o controle
@@ -234,6 +236,46 @@ expect9 "(B8) aspa solta sem fechamento na linha (<p>'90s</p>) -> WARN" color WA
 expect9 "(B9) controle dentro de \${...} num template -> WARN" color WARN C.tsx 'export const C = ({ on }) => <div>{`${on ? <input type="color" /> : null}`}</div>;\n'
 expect9 "(B9) DS envolve o controle dentro de \${...} -> OK (positiva)" color OK C.tsx 'import { DsBox } from "@x/design-system";\nexport const C = ({ on }) => <div>{`a ${on ? <DsBox><input type="color" /></DsBox> : null} b`}</div>;\n'
 echo "OK [9] — $n9 casos conferidos"
+
+echo "[10] análise por AST — texto de string, comentário e template não é elemento JSX"
+SCEN=10
+n9_antes=$n9
+# (a) apóstrofo em texto JSX abre "string" que engole o type='color' -> o controle continua visto
+expect9 "(a) <p>'Oi</p><input type='color' /> sem DS -> WARN" color WARN C.tsx "export const C = () => <div><p>'Oi</p><input type='color' /></div>;\n"
+# (b) linha deixada crua por aspa solta não pode reativar tag do DS dentro de {\"...\"}
+expect9 "(b) {\"<DsBox>\"} com '90s na linha, controle fora do DS -> WARN" color WARN C.tsx 'import { DsBox } from "@x/design-system";\nexport const C = () => <div><p>'"'"'90s</p>{"<DsBox>"}<input type="color" />{"</DsBox>"}</div>;\n'
+# (c) controle dentro de ${} de um template: o texto do template não é elemento do DS
+expect9 "(c) controle dentro de \${} entre <DsBox> e </DsBox> de template -> WARN" color WARN C.tsx 'import { DsBox } from "@x/design-system";\nexport const C = () => <div className={`<DsBox> ${<input type="color" />} </DsBox>`} />;\n'
+# (d) DS que envolve o controle, com string (e apóstrofo) antes -> OK
+expect9 "(d) DS envolve o controle, string antes -> OK (positiva)" color OK C.tsx 'import { DsBox } from "@x/design-system";\nconst aviso = "Oi, '"'"'90s";\nexport const C = () => <DsBox>{"texto"}<input type="color" /></DsBox>;\n'
+# (e) DS irmão do controle no mesmo bloco (autofechado com espaço) -> WARN
+expect9 "(e) <DsBox / > irmão e outro DsBox depois -> WARN" color WARN C.tsx 'import { DsBox } from "@x/design-system";\nexport const C = () => <div><DsBox / ><input type="color" /><DsBox>x</DsBox></div>;\n'
+# (f) escape em comentário JS ou em string do próprio arquivo não domestica
+expect9 "(f) escape em comentário // colado a palavra -> WARN" color WARN C.tsx 'export const C = () => <input type="color" />;\nconst n = 1//input::-webkit-color-swatch { border: none }\n'
+expect9 "(f) escape em string literal do TSX -> WARN" color WARN C.tsx 'const doc = "input::-webkit-color-swatch { border: none }";\nexport const C = () => <input type="color" />;\n'
+expect9 "(f) escape em comentário CSS do arquivo irmão -> WARN" color WARN P.tsx "$COL" P.module.css '.sw { border: 0; }\n/* .sw::-webkit-color-swatch { border: none } */\n'
+# (g) "/*" e "*/" dentro de strings não formam comentário que esconda o controle
+expect9 "(g) controle entre strings \"/*\" e \"*/\" -> WARN" color WARN C.tsx 'const a = "/*";\nexport const C = () => <input type="color" />;\nconst b = "*/";\n'
+# positivas que o parser precisa manter: <style> JSX do próprio componente e escape de CSS aninhado
+expect9 "(h) <style> JSX com escape no seletor do controle -> OK (positiva)" color OK C.tsx 'export const C = () => <div><style>{`.sw::-webkit-color-swatch { border: none; }`}</style><input type="color" className="sw" /></div>;\n'
+expect9 "(h) SCSS aninhado &::pseudo resolvido para a classe do controle -> OK (positiva)" color OK P.tsx "$COL" P.module.scss '.sw {\n  border: 0;\n  &::-webkit-color-swatch { border: none; }\n}\n'
+expect9 "(h) SCSS aninhado em classe alheia -> WARN" color WARN P.tsx "$COL" P.module.scss '.card {\n  &::-webkit-color-swatch { border: none; }\n}\n'
+# arquivo que o parser não lê: nunca OK
+expect9 "(i) TSX com erro de sintaxe -> WARN não analisado" "não-analisado" WARN C.tsx 'import { DsBox } from "@x/design-system";\nexport const C = () => <DsBox><input type="color" /></DsBox;\n'
+# .vue/.html pelo html.parser: envolvimento real, irmão, <style> do SFC e comentário HTML
+expect9 "(j) .vue: DS envolve o controle -> OK (positiva)" color OK F.vue '<script setup lang="ts">\nimport DsField from "@x/design-system/DsField.vue";\n</script>\n<template>\n  <DsField><input type="color" /></DsField>\n</template>\n'
+expect9 "(j) .vue: DS irmão do controle -> WARN" color WARN F.vue '<script setup lang="ts">\nimport DsField from "@x/design-system/DsField.vue";\n</script>\n<template>\n  <div><DsField /><input type="color" /></div>\n</template>\n'
+expect9 "(j) .vue: <style scoped> com escape na classe do controle -> OK (positiva)" color OK F.vue '<template>\n  <input type="color" class="sw" />\n</template>\n<style scoped lang="scss">\n.sw { &::-webkit-color-swatch { border: none; } }\n</style>\n'
+expect9 "(j) .html: escape só em comentário HTML -> WARN" color WARN i.html '<!-- <style>input::-webkit-color-swatch { border: none }</style> -->\n<input type="color">\n'
+# helper de AST ausente: o arquivo fica "não analisado", nunca OK
+mkdir -p "$T/semhelper/scripts" "$T/semhelper/src"
+cp "$SCAN_NATIVE" "$T/semhelper/scripts/"
+printf 'import { DsBox } from "@x/design-system";\nexport const C = () => <DsBox><input type="color" /></DsBox>;\n' > "$T/semhelper/src/C.tsx"
+outsh="$(python3 "$T/semhelper/scripts/scan-native-controls.py" "$T/semhelper/src")" || { echo "FAIL [10] (k) advisory deve sair 0"; exit 1; }
+grep -q '^WARN não-analisado' <<<"$outsh" || { echo "FAIL [10] (k) helper ausente deveria dar WARN não analisado: $outsh"; exit 1; }
+grep -q '^OK color' <<<"$outsh" && { echo "FAIL [10] (k) helper ausente não pode dar OK: $outsh"; exit 1; }
+echo "  ok (k) helper de AST ausente -> WARN não analisado"
+echo "OK [10] — $((n9 - n9_antes + 1)) casos conferidos"
 
 echo "[4] artefatos + fiação presentes"
 SK="$WS/template/.forge/skills/frontend-ui-review/SKILL.md"

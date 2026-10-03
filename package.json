@@ -45,6 +45,7 @@
   "author": "Milton Antonio da Silva Jr <milton@vellus.tech>",
   "license": "MIT",
   "devDependencies": {
+    "@babel/parser": "^7.29.9",
     "ajv": "^8.20.0",
     "eslint": "^10.9.1",
     "yaml": "^2.9.0"

@@ -108,7 +108,7 @@ for caso in "${casos[@]}"; do
   dir="$T/pbt$i"
   mkdir -p "$dir"
   if [ "$encapsulado" = "sim" ]; then
-    printf 'import { NativeDate } from "@acme/design-system";\nexport const C = () => <input type="%s" />;\n' "$tipo" > "$dir/C.tsx"
+    printf 'import { NativeDate } from "@acme/design-system";\nexport const C = () => <NativeDate><input type="%s" /></NativeDate>;\n' "$tipo" > "$dir/C.tsx"
   else
     printf 'export const C = () => <input type="%s" />;\n' "$tipo" > "$dir/C.tsx"
   fi
@@ -128,6 +128,52 @@ for caso in "${casos[@]}"; do
   fi
 done
 echo "OK [7] — ${#casos[@]} combinações conferidas"
+
+echo "[8] falsos OK da revisão #140 — contrafactuais: exigem WARN (ou OK onde o escape é legítimo)"
+# expect_verdict <rótulo> <dir> <tipo> <OK|WARN>: advisory sai 0 e o veredito do tipo confere
+expect_verdict() {
+  local label="$1" dir="$2" tipo="$3" esperado="$4" out
+  out="$(python3 "$SCAN_NATIVE" "$dir")" || { echo "FAIL [8] $label (advisory deve sair 0)"; exit 1; }
+  if [ "$esperado" = "OK" ]; then
+    grep -q "^OK $tipo" <<<"$out" || { echo "FAIL [8] $label — esperava OK: $out"; exit 1; }
+  else
+    grep -q "^WARN $tipo" <<<"$out" || { echo "FAIL [8] $label — esperava WARN: $out"; exit 1; }
+  fi
+  echo "  ok $label"
+}
+# (a) encapsulamento: import sem uso, menção solta, uso em outro bloco -> WARN; uso no mesmo bloco -> OK
+mkdir -p "$T/a1" "$T/a2" "$T/a4" "$T/a3"
+printf 'import { Btn } from "@acme/design-system";\nexport const C = () => <input type="color" />;\n' > "$T/a1/C.tsx"
+printf '// design-system\n\nexport const C = () => <input type="color" />;\n' > "$T/a2/C.tsx"
+printf 'import { Btn } from "@acme/design-system";\n\nexport const C = () => <Btn>ok</Btn>;\n\nexport const D = () => <input type="color" />;\n' > "$T/a4/D.tsx"
+printf 'import { Btn } from "@acme/design-system";\nexport const C = () => <Btn><input type="color" /></Btn>;\n' > "$T/a3/C.tsx"
+expect_verdict "(a) import sem uso no bloco -> WARN" "$T/a1" color WARN
+expect_verdict "(a) menção 'design-system' sem import -> WARN" "$T/a2" color WARN
+expect_verdict "(a) DS usado em outro bloco -> WARN" "$T/a4" color WARN
+expect_verdict "(a) DS usado no mesmo bloco -> OK (positiva)" "$T/a3" color OK
+# (b) CSS irmão de OUTRO componente não domestica
+mkdir -p "$T/b"
+printf 'export const Cru = () => <input type="color" />;\n' > "$T/b/Cru.tsx"
+printf 'input::-webkit-color-swatch { border: none; }\n' > "$T/b/Outro.module.css"
+expect_verdict "(b) CSS de outro componente -> WARN" "$T/b" color WARN
+# (c) appearance none em seletor global, sem alcançar o select ou a classe do controle -> WARN; com a classe -> OK
+mkdir -p "$T/c1" "$T/c2"
+printf 'export const S = () => <select className="cru"><option>x</option></select>;\n' > "$T/c1/S.tsx"
+printf '.outro { appearance: none; }\n' > "$T/c1/S.module.css"
+printf 'export const S = () => <select className="cru"><option>x</option></select>;\n' > "$T/c2/S.tsx"
+printf '.cru { appearance: none; }\n' > "$T/c2/S.module.css"
+expect_verdict "(c) appearance none global/alheio -> WARN" "$T/c1" select WARN
+expect_verdict "(c) appearance none na classe do controle -> OK (positiva)" "$T/c2" select OK
+# (d) checkbox domado por -webkit-appearance (propriedade real) -> OK
+mkdir -p "$T/d"
+printf 'export const Chk = () => <input type="checkbox" />;\n' > "$T/d/Chk.tsx"
+printf 'input { -webkit-appearance: none; }\n' > "$T/d/Chk.module.css"
+expect_verdict "(d) checkbox com -webkit-appearance -> OK" "$T/d" checkbox OK
+# (e) aspas simples no atributo type -> o controle é detectado e, sem domesticação, WARN
+mkdir -p "$T/e"
+printf "export const Q = () => <input type='color' />;\n" > "$T/e/Q.tsx"
+expect_verdict "(e) aspas simples, cru -> WARN" "$T/e" color WARN
+echo "OK [8] — 9 contrafactuais conferidos"
 
 echo "[4] artefatos + fiação presentes"
 SK="$WS/template/.forge/skills/frontend-ui-review/SKILL.md"

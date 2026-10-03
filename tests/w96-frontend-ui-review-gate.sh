@@ -217,6 +217,13 @@ expect9 "(B5) DS envolve com linha em branco no meio -> OK" color OK C.tsx 'impo
 # B7 — type={"file"} e type={'"'"'file'"'"'} são detectados
 expect9 "(B7) type={\"file\"} cru -> WARN" file WARN U.tsx 'export const U = () => <input type={"file"} />;\n'
 expect9 "(B7) type={'file'} domado -> OK (positiva)" file OK U.tsx "export const U = () => <input type={'file'} />;\n" U.module.css 'input::file-selector-button { border: none; }\n'
+# B6 — conteúdo de string literal não conta como tag do DS: "<DsBox>" e "</DsBox>" soltos não envolvem
+expect9 "(B6) <DsBox> e </DsBox> dentro de strings não envolvem -> WARN" color WARN Brecha.tsx 'import { DsBox } from "@x/design-system";\nconst s = "<DsBox>";\nexport const C = () => <><input type="color" /></>;\nconst t = "</DsBox>";\n'
+expect9 "(B6) string simples com tag do DS não envolve -> WARN" color WARN Brecha.tsx "import { DsBox } from \"@x/design-system\";\nconst s = '<DsBox>';\nexport const C = () => <><input type=\"color\" /></>;\nconst t = '</DsBox>';\n"
+expect9 "(B6) template literal com tag do DS não envolve -> WARN" color WARN Brecha.tsx 'import { DsBox } from "@x/design-system";\nconst s = `<DsBox>`;\nexport const C = () => <><input type="color" /></>;\nconst t = `</DsBox>`;\n'
+expect9 "(B6) DS aberto sem fechar, fechamento só em {\"</DsBox>\"} -> WARN" color WARN Brecha.tsx 'import { DsBox } from "@x/design-system";\nexport const C = () => <div><DsBox><input type="color" />{"</DsBox>"}</div>;\n'
+# B6 positiva — uma string antes do DS não atrapalha o envolvimento real
+expect9 "(B6) const s = \"x\" antes do DS que envolve -> OK (positiva)" color OK Field.tsx 'import { DsBox } from "@x/design-system";\nconst s = "x";\nexport const C = () => <DsBox><input type="color" /></DsBox>;\n'
 echo "OK [9] — $n9 casos conferidos"
 
 echo "[4] artefatos + fiação presentes"

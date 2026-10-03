@@ -18,7 +18,10 @@
 #       'design-system' ENVOLVE o controle: elemento aberto antes e fechado depois dele, ou o
 #       próprio controle é a tag do componente (`<DsInput type="color" />`). Coexistir no mesmo
 #       bloco (irmão) não conta.
-# Comentários CSS e JS/TSX (`/* */`, `//`, `<!-- -->`) são removidos antes de qualquer busca.
+# Comentários CSS e JS/TSX (`/* */`, `//`, `<!-- -->`) são removidos e o conteúdo de strings literais
+# (', ", `) é neutralizado antes de qualquer busca de DS ou de controle; o valor de type/class/className
+# continua lido. Texto em comentário ou string nunca conta como tag do DS; o CSS-in-JS do próprio
+# arquivo segue valendo para domesticação (lido sem neutralizar).
 # Se um dos dois escapes está presente para aquele tipo de controle: OK. Senão: WARN.
 #
 # Limites conhecidos (heurística por regex, não parser): o envolvimento é contado por pares de
@@ -63,6 +66,46 @@ COMMENT_RE = re.compile(r"/\*.*?\*/|<!--.*?-->|(?<![:(\"'\w\\])//[^\n]*", re.S)
 def strip_comments(text: str) -> str:
     # troca cada comentário pelas suas quebras de linha — preserva a numeração das linhas
     return COMMENT_RE.sub(lambda m: "\n" * m.group(0).count("\n"), text)
+
+
+# valor de atributo type/class/className e chave de styles[...] não são neutralizados: são o que o
+# scanner lê do próprio controle. Qualquer outra string literal (const s = "..." ou JSX `{"..."}`)
+# vira espaços, para que um `<DsBox>` ou `</DsBox>` dentro dela não conte como tag.
+_KEEP_BEFORE = re.compile(r"(?:\b(?:type|class|className)\s*=\s*\{?\s*|styles\[\s*)$")
+
+
+def neutralize_strings(text: str) -> str:
+    # troca o conteúdo de cada string literal (', ", `) por espaços, preservando quebras de linha e
+    # o comprimento do texto. Aspas simples e duplas não atravessam linha (apóstrofo em texto JSX
+    # só afeta a própria linha); template literal atravessa linhas. Escapes `\x` são pulados.
+    out = list(text)
+    n = len(text)
+    i = 0
+    while i < n:
+        quote = text[i]
+        if quote not in "\"'`":
+            i += 1
+            continue
+        j = i + 1
+        closed = False
+        while j < n:
+            c = text[j]
+            if c == "\\":
+                j += 2
+                continue
+            if c == quote:
+                closed = True
+                break
+            if c == "\n" and quote != "`":
+                break
+            j += 1
+        end = min(j, n)
+        if not _KEEP_BEFORE.search(text[max(0, i - 40):i]):
+            for k in range(i + 1, end):
+                if out[k] != "\n":
+                    out[k] = " "
+        i = j + 1 if closed else end
+    return "".join(out)
 
 
 def control_type_from_match(m: "re.Match") -> str:
@@ -220,16 +263,19 @@ def main() -> int:
     for p in sorted(src.rglob("*")):
         if not (p.is_file() and p.suffix in exts):
             continue
-        text = strip_comments(p.read_text(errors="ignore"))
+        raw = strip_comments(p.read_text(errors="ignore"))
+        # busca de DS e de controle sobre o texto sem conteúdo de string; o CSS-in-JS continua no
+        # texto cru (sem comentários), porque o pseudo-elemento domesticado pode morar num template
+        text = neutralize_strings(raw)
         siblings = None
-        ds_names = design_system_names(text)
+        ds_names = design_system_names(raw)  # o caminho do import é string: lê-se do texto cru
         for m in CONTROL_RE.finditer(text):
             ctype = control_type_from_match(m)
             lineno = text.count("\n", 0, m.start()) + 1
             if siblings is None:
                 siblings = sibling_css_texts(p)
             tag_start, tag_text = own_tag(text, m.start())
-            tamed = is_tamed(ctype, [text] + siblings, classes_in(tag_text))
+            tamed = is_tamed(ctype, [raw] + siblings, classes_in(tag_text))
             encapsulated = tag_start >= 0 and is_encapsulated(text, tag_start, tag_text, ds_names)
             if tamed or encapsulated:
                 ok_count += 1

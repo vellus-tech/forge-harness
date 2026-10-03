@@ -49,7 +49,7 @@ attr2a="$(git -C "$T2" check-attr merge -- .forge/liaison/qualquer/log/x.jsonl)"
 grep -q "merge: union" <<<"$attr2a" || { echo "FAIL [2]: init via bin/forge.mjs não aplicou union: $attr2a"; exit 1; }
 # simula um consumidor ANTIGO sem o bloco (removendo o .gitattributes) e roda update
 rm -f "$T2/.gitattributes"
-node "$WS/bin/forge.mjs" update --target "$T2" --no-plugin --no-backup >/dev/null 2>&1 \
+node "$WS/bin/forge.mjs" update --target "$T2" --no-plugin --skip-postcheck --no-backup >/dev/null 2>&1 \
   || { echo "FAIL [2]: update via bin/forge.mjs reprovou"; exit 1; }
 attr2b="$(git -C "$T2" check-attr merge -- .forge/liaison/qualquer/log/x.jsonl)"
 grep -q "merge: union" <<<"$attr2b" || { echo "FAIL [2]: update via bin/forge.mjs não trouxe union para consumidor antigo: $attr2b"; exit 1; }

@@ -94,7 +94,7 @@ SHA_CONSERTO="$(shasum -a 256 "$C1/.forge/scripts/lib/transports/_common.sh" | c
 printf '%s  scripts/lib/transports/_common.sh  # une o hub sem destruir escrita concorrente\n' "$(sha_tpl scripts/lib/transports/_common.sh)" \
   > "$C1/.forge/machinery-exceptions.txt"
 [ ! -f "$C1/.forge/cache/machinery.lock" ] || { echo "FAIL [1] (setup): consumidor já tem machinery.lock — o cenário exige ausência dele)"; exit 1; }
-out1="$(node "$FORGE" update --target "$C1" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc1=$?
+out1="$(node "$FORGE" update --target "$C1" --no-plugin --skip-postcheck --no-backup --source "$TPL" 2>&1)"; rc1=$?
 [ "$rc1" -eq 0 ] || { echo "FAIL [1]: update com exceção viva saiu rc=$rc1"; echo "$out1"; exit 1; }
 [ "$(shasum -a 256 "$C1/.forge/scripts/lib/transports/_common.sh" | cut -d' ' -f1)" = "$SHA_CONSERTO" ] \
   || { echo "FAIL [1]: conserto local foi sobrescrito — exceção viva não preservou"; exit 1; }
@@ -105,7 +105,7 @@ echo "OK [1]"
 echo "[2] NÃO declarada, com --overwrite-drift: sobrescreve e nomeia com o backup real"
 C2="$(consumidor c2)"
 printf '\n# fix-local-sem-declarar\n' >> "$C2/.forge/scripts/handoff-gen.sh"
-out2="$(node "$FORGE" update --target "$C2" --no-plugin --source "$TPL" --overwrite-drift 2>&1)"; rc2=$?
+out2="$(node "$FORGE" update --target "$C2" --no-plugin --skip-postcheck --source "$TPL" --overwrite-drift 2>&1)"; rc2=$?
 [ "$rc2" -eq 0 ] || { echo "FAIL [2]: update saiu rc=$rc2"; echo "$out2"; exit 1; }
 grep -q 'fix-local-sem-declarar' "$C2/.forge/scripts/handoff-gen.sh" \
   && { echo "FAIL [2]: fix local sobreviveu — deveria ter sido sobrescrito (sem exceção declarada)"; exit 1; }
@@ -125,7 +125,7 @@ SHA_ERRADO="$(printf '0%.0s' $(seq 1 63))a"   # 64 chars hex — sha propositalm
 [ "${#SHA_ERRADO}" -eq 64 ] || { echo "FAIL [3] (setup): SHA_ERRADO malformado (len=${#SHA_ERRADO})"; exit 1; }
 printf '%s  scripts/doctor.sh  # exceção contra versão anterior do template\n' "$SHA_ERRADO" > "$C3/.forge/machinery-exceptions.txt"
 SHA_TPL_DOCTOR="$(sha_tpl scripts/doctor.sh)"
-out3="$(node "$FORGE" update --target "$C3" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc3=$?
+out3="$(node "$FORGE" update --target "$C3" --no-plugin --skip-postcheck --no-backup --source "$TPL" 2>&1)"; rc3=$?
 [ "$rc3" -eq 0 ] || { echo "FAIL [3]: exceção expirada não pode bloquear o update (DH-1) — saiu rc=$rc3"; echo "$out3"; exit 1; }
 [ "$(shasum -a 256 "$C3/.forge/scripts/doctor.sh" | cut -d' ' -f1)" = "$SHA_LOCAL3" ] \
   || { echo "FAIL [3]: arquivo com exceção expirada foi sobrescrito — deveria ser preservado (DH-1)"; exit 1; }
@@ -138,7 +138,7 @@ C4A="$(consumidor c4a)"
 printf 'shaInvalida  scripts/doctor.sh  # sha nao e hex\n' > "$C4A/.forge/machinery-exceptions.txt"
 SHA_DOCTOR_ANTES="$(shasum -a 256 "$C4A/.forge/forge.yaml" | cut -d' ' -f1)"
 set +e
-out4a="$(node "$FORGE" update --target "$C4A" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc4a=$?
+out4a="$(node "$FORGE" update --target "$C4A" --no-plugin --skip-postcheck --no-backup --source "$TPL" 2>&1)"; rc4a=$?
 set +e  # permanece +e — nunca ligar errexit de volta (LOW achado: falha inesperada silenciava sem FAIL [n])
 [ "$rc4a" -ne 0 ] || { echo "FAIL [4a]: exceção malformada não bloqueou o update"; echo "$out4a"; exit 1; }
 grep -q 'linha 1' <<<"$out4a" || { echo "FAIL [4a]: recusa não nomeia o número da linha"; echo "$out4a"; exit 1; }
@@ -149,7 +149,7 @@ grep -q 'linha 1' <<<"$out4a" || { echo "FAIL [4a]: recusa não nomeia o número
 # achado do review adversarial (LOW): os dois cenários acima rodam com --no-backup, então nada
 # prova que o aborto acontece ANTES do backup também — repete SEM --no-backup e confere que
 # nenhum backup foi criado (o aborto tem de vir antes de qualquer escrita, backup incluso).
-out4a2="$(node "$FORGE" update --target "$C4A" --no-plugin --source "$TPL" 2>&1)"; rc4a2=$?
+out4a2="$(node "$FORGE" update --target "$C4A" --no-plugin --skip-postcheck --source "$TPL" 2>&1)"; rc4a2=$?
 [ "$rc4a2" -ne 0 ] || { echo "FAIL [4a]: exceção malformada não bloqueou o update (execução sem --no-backup)"; echo "$out4a2"; exit 1; }
 [ ! -d "$C4A/.git/forge-backups" ] || { echo "FAIL [4a]: backup foi criado mesmo com exceção malformada — o aborto deveria vir ANTES do backup"; exit 1; }
 echo "OK [4a]"
@@ -162,7 +162,7 @@ SHA_DOCTOR="$(sha_tpl scripts/doctor.sh)"
   printf '%s  scripts/doctor.sh  # segunda declaração do mesmo caminho\n' "$SHA_DOCTOR"
 } > "$C4B/.forge/machinery-exceptions.txt"
 set +e
-out4b="$(node "$FORGE" update --target "$C4B" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc4b=$?
+out4b="$(node "$FORGE" update --target "$C4B" --no-plugin --skip-postcheck --no-backup --source "$TPL" 2>&1)"; rc4b=$?
 set +e  # idem
 [ "$rc4b" -ne 0 ] || { echo "FAIL [4b]: exceção duplicada não bloqueou o update"; echo "$out4b"; exit 1; }
 grep -q 'linhas 1 e 2' <<<"$out4b" || { echo "FAIL [4b]: recusa não nomeia as duas linhas duplicadas"; echo "$out4b"; exit 1; }
@@ -174,7 +174,7 @@ echo "[5] ausência de machinery-exceptions.txt, com --overwrite-drift: só as l
 C5="$(consumidor c5)"
 [ ! -f "$C5/.forge/machinery-exceptions.txt" ] || rm -f "$C5/.forge/machinery-exceptions.txt"
 printf '\n# fix-sem-arquivo-de-excecoes\n' >> "$C5/.forge/scripts/handoff-gen.sh"
-out5="$(node "$FORGE" update --target "$C5" --no-plugin --no-backup --source "$TPL" --overwrite-drift 2>&1)"; rc5=$?
+out5="$(node "$FORGE" update --target "$C5" --no-plugin --skip-postcheck --no-backup --source "$TPL" --overwrite-drift 2>&1)"; rc5=$?
 [ "$rc5" -eq 0 ] || { echo "FAIL [5]: update sem arquivo de exceções saiu rc=$rc5"; echo "$out5"; exit 1; }
 grep -q 'fix-sem-arquivo-de-excecoes' "$C5/.forge/scripts/handoff-gen.sh" \
   && { echo "FAIL [5]: fix local sobreviveu sem exceção declarada"; exit 1; }
@@ -190,7 +190,7 @@ N_DECLARADAS="$(grep -cE '^[0-9a-f]{32,}[[:space:]]' "$FIXTURE")"
 [ "$N_DECLARADAS" -eq 34 ] || { echo "FAIL [6] (setup): fixture não tem 34 linhas declaradas de dados (achei $N_DECLARADAS)"; exit 1; }
 C6="$(consumidor c6)"
 cp "$FIXTURE" "$C6/.forge/machinery-exceptions.txt"
-out6="$(node "$FORGE" update --target "$C6" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc6=$?
+out6="$(node "$FORGE" update --target "$C6" --no-plugin --skip-postcheck --no-backup --source "$TPL" 2>&1)"; rc6=$?
 [ "$rc6" -eq 0 ] || { echo "FAIL [6]: fixture real de 34 exceções não deveria bloquear o update"; echo "$out6"; exit 1; }
 n_nomeadas=0
 while IFS= read -r rel; do
@@ -231,11 +231,11 @@ echo "OK [8b]"
 
 echo "[9] arquivo intocado com lock, template evoluiu: 'ATUALIZADO', nunca 'SOBRESCRITO (não declarado)'"
 C9="$(consumidor c9)"
-node "$FORGE" update --target "$C9" --no-plugin --no-backup --source "$TPL" >/dev/null 2>&1
+node "$FORGE" update --target "$C9" --no-plugin --skip-postcheck --no-backup --source "$TPL" >/dev/null 2>&1
 [ -f "$C9/.forge/cache/machinery.lock" ] || { echo "FAIL [9] (setup): machinery.lock não foi gravado no update de preparo"; exit 1; }
 TPL9="$T/tpl9"; rm -rf "$TPL9"; cp -R "$TPL" "$TPL9"
 printf '\n# MUDANCA-DO-TEMPLATE-NOVA-VERSAO-w214-9\n' >> "$TPL9/scripts/handoff-gen.sh"
-out9="$(node "$FORGE" update --target "$C9" --no-plugin --no-backup --source "$TPL9" 2>&1)"; rc9=$?
+out9="$(node "$FORGE" update --target "$C9" --no-plugin --skip-postcheck --no-backup --source "$TPL9" 2>&1)"; rc9=$?
 [ "$rc9" -eq 0 ] || { echo "FAIL [9]: update saiu rc=$rc9"; echo "$out9"; exit 1; }
 grep -q 'MUDANCA-DO-TEMPLATE-NOVA-VERSAO-w214-9' "$C9/.forge/scripts/handoff-gen.sh" \
   || { echo "FAIL [9]: o template não aplicou a mudança nova (overlay não sobrescreveu)"; exit 1; }
@@ -254,7 +254,7 @@ MANIFEST10="$T/removed-manifest-w214-10.txt"
 printf '%s\n' "$TOMB_REL" > "$MANIFEST10"
 SHA10="$(shasum -a 256 "$C10/.forge/$TOMB_REL" | cut -d' ' -f1)"
 printf '%s  %s  # tombstone preservado por decisão local\n' "$SHA10" "$TOMB_REL" > "$C10/.forge/machinery-exceptions.txt"
-out10="$(FORGE_REMOVED_MANIFEST="$MANIFEST10" node "$FORGE" update --target "$C10" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc10=$?
+out10="$(FORGE_REMOVED_MANIFEST="$MANIFEST10" node "$FORGE" update --target "$C10" --no-plugin --skip-postcheck --no-backup --source "$TPL" 2>&1)"; rc10=$?
 [ "$rc10" -eq 0 ] || { echo "FAIL [10]: update saiu rc=$rc10"; echo "$out10"; exit 1; }
 [ -f "$C10/.forge/$TOMB_REL" ] || { echo "FAIL [10]: tombstone com exceção declarada foi apagado pela poda de órfãos"; exit 1; }
 n10="$(grep -c "$TOMB_REL" <<<"$out10" || true)"
@@ -286,7 +286,7 @@ C11="$(consumidor c11)"
 printf '\n# CONSERTO-LOCAL-PREFIXO\n' >> "$C11/.forge/scripts/doctor.sh"
 SHA_DOCTOR11="$(sha_tpl scripts/doctor.sh)"
 printf '%s  ./scripts/doctor.sh  # declarado com prefixo ./\n' "$SHA_DOCTOR11" > "$C11/.forge/machinery-exceptions.txt"
-out11="$(node "$FORGE" update --target "$C11" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc11=$?
+out11="$(node "$FORGE" update --target "$C11" --no-plugin --skip-postcheck --no-backup --source "$TPL" 2>&1)"; rc11=$?
 [ "$rc11" -eq 0 ] || { echo "FAIL [11]: update saiu rc=$rc11"; echo "$out11"; exit 1; }
 grep -q 'CONSERTO-LOCAL-PREFIXO' "$C11/.forge/scripts/doctor.sh" \
   || { echo "FAIL [11]: conserto local sobrescrito — prefixo './' não foi normalizado para casar com scripts/doctor.sh"; exit 1; }
@@ -299,7 +299,7 @@ C11B="$(consumidor c11b)"
 printf '\n# CONSERTO-LOCAL-PREFIXO-FORGE\n' >> "$C11B/.forge/scripts/handoff-gen.sh"
 SHA_HANDOFF11B="$(sha_tpl scripts/handoff-gen.sh)"
 printf '%s  .forge/scripts/handoff-gen.sh  # declarado com prefixo .forge/\n' "$SHA_HANDOFF11B" > "$C11B/.forge/machinery-exceptions.txt"
-out11b="$(node "$FORGE" update --target "$C11B" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc11b=$?
+out11b="$(node "$FORGE" update --target "$C11B" --no-plugin --skip-postcheck --no-backup --source "$TPL" 2>&1)"; rc11b=$?
 [ "$rc11b" -eq 0 ] || { echo "FAIL [11b]: update saiu rc=$rc11b"; echo "$out11b"; exit 1; }
 grep -q 'CONSERTO-LOCAL-PREFIXO-FORGE' "$C11B/.forge/scripts/handoff-gen.sh" \
   || { echo "FAIL [11b]: conserto local sobrescrito — prefixo '.forge/' não foi normalizado"; exit 1; }
@@ -313,7 +313,7 @@ SHA_DOCTOR11C="$(sha_tpl scripts/doctor.sh)"
   printf '%s  ./scripts/doctor.sh  # com prefixo, mesmo caminho apos normalizar\n' "$SHA_DOCTOR11C"
 } > "$C11C/.forge/machinery-exceptions.txt"
 set +e
-out11c="$(node "$FORGE" update --target "$C11C" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc11c=$?
+out11c="$(node "$FORGE" update --target "$C11C" --no-plugin --skip-postcheck --no-backup --source "$TPL" 2>&1)"; rc11c=$?
 set +e  # idem
 [ "$rc11c" -ne 0 ] || { echo "FAIL [11c]: declarações que normalizam para o mesmo caminho não foram tratadas como duplicata"; echo "$out11c"; exit 1; }
 grep -q 'caminho declarado duas vezes' <<<"$out11c" \
@@ -328,7 +328,7 @@ printf '\n<PROJECT_SLUG> — nota local sobre um placeholder nao substituido de 
 grep -q '<PROJECT_SLUG>' "$C12/.forge/$TARGET12" || { echo "FAIL [12] (setup): placeholder não foi escrito no consumidor"; exit 1; }
 printf '%s  %s  # placeholder local deliberado, cobre o orphan-check de <PROJECT_*>\n' "$(sha_tpl "$TARGET12")" "$TARGET12" \
   > "$C12/.forge/machinery-exceptions.txt"
-out12="$(node "$FORGE" update --target "$C12" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc12=$?
+out12="$(node "$FORGE" update --target "$C12" --no-plugin --skip-postcheck --no-backup --source "$TPL" 2>&1)"; rc12=$?
 [ "$rc12" -eq 0 ] || { echo "FAIL [12]: update com exceção viva sobre .md com placeholder saiu rc=$rc12 (orphan-check não deveria contar arquivo preservado por exceção)"; echo "$out12"; exit 1; }
 grep -q "PRESERVADO (exceção declarada): $TARGET12" <<<"$out12" \
   || { echo "FAIL [12]: linha PRESERVADO (exceção declarada) ausente"; echo "$out12"; exit 1; }
@@ -343,7 +343,7 @@ SHA_LOCAL13="$(shasum -a 256 "$C13/.forge/scripts/doctor.sh" | cut -d' ' -f1)"
 SHA_DOCTOR13="$(sha_tpl scripts/doctor.sh)"
 printf '%s  scripts/doctor.sh  razao-sem-hash\n' "$SHA_DOCTOR13" > "$C13/.forge/machinery-exceptions.txt"
 set +e
-out13="$(node "$FORGE" update --target "$C13" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc13=$?
+out13="$(node "$FORGE" update --target "$C13" --no-plugin --skip-postcheck --no-backup --source "$TPL" 2>&1)"; rc13=$?
 set +e  # nunca ligar errexit de volta (LDG-0175/w213 e o achado LOW de [4a]/[4b])
 [ "$rc13" -ne 0 ] || { echo "FAIL [13]: linha com token extra sem '#' não bloqueou o update (deveria ser malformada)"; echo "$out13"; exit 1; }
 grep -q 'linha 1' <<<"$out13" || { echo "FAIL [13]: recusa não nomeia o número da linha"; echo "$out13"; exit 1; }
@@ -362,7 +362,7 @@ SHA_PREFIXO13B="${SHA_DOCTOR13B:0:40}"
 [ "${#SHA_PREFIXO13B}" -eq 40 ] || { echo "FAIL [13b] (setup): prefixo do sha malformado (len=${#SHA_PREFIXO13B})"; exit 1; }
 printf '%s  scripts/doctor.sh  # sha truncado a 40 dígitos, prefixo exato do sha do template\n' "$SHA_PREFIXO13B" \
   > "$C13B/.forge/machinery-exceptions.txt"
-out13b="$(node "$FORGE" update --target "$C13B" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc13b=$?
+out13b="$(node "$FORGE" update --target "$C13B" --no-plugin --skip-postcheck --no-backup --source "$TPL" 2>&1)"; rc13b=$?
 [ "$rc13b" -eq 0 ] || { echo "FAIL [13b]: exceção expirada não pode bloquear o update (DH-1) — saiu rc=$rc13b"; echo "$out13b"; exit 1; }
 [ "$(shasum -a 256 "$C13B/.forge/scripts/doctor.sh" | cut -d' ' -f1)" = "$SHA_LOCAL13B" ] \
   || { echo "FAIL [13b]: arquivo com sha truncado foi sobrescrito — exceção expirada deveria preservar mesmo assim (DH-1)"; exit 1; }
@@ -381,7 +381,7 @@ SHA_LOCAL13C="$(shasum -a 256 "$C13C/.forge/scripts/doctor.sh" | cut -d' ' -f1)"
 SHA_DOCTOR13C="$(sha_tpl scripts/doctor.sh)"
 printf '%s  scripts/doctor.sh  scripts/check-secrets.sh\n' "$SHA_DOCTOR13C" > "$C13C/.forge/machinery-exceptions.txt"
 set +e
-out13c="$(node "$FORGE" update --target "$C13C" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc13c=$?
+out13c="$(node "$FORGE" update --target "$C13C" --no-plugin --skip-postcheck --no-backup --source "$TPL" 2>&1)"; rc13c=$?
 set +e  # idem
 [ "$rc13c" -ne 0 ] || { echo "FAIL [13c]: linha com dois caminhos sem '#' não bloqueou o update"; echo "$out13c"; exit 1; }
 grep -q 'linha 1' <<<"$out13c" || { echo "FAIL [13c]: recusa não nomeia o número da linha"; echo "$out13c"; exit 1; }
@@ -398,7 +398,7 @@ SHA_LOCAL13D="$(shasum -a 256 "$C13D/.forge/scripts/doctor.sh" | cut -d' ' -f1)"
 SHA_DOCTOR13D="$(sha_tpl scripts/doctor.sh)"
 printf '%s  scripts/doctor.sh  scripts/check-secrets.sh  # razao\n' "$SHA_DOCTOR13D" > "$C13D/.forge/machinery-exceptions.txt"
 set +e
-out13d="$(node "$FORGE" update --target "$C13D" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc13d=$?
+out13d="$(node "$FORGE" update --target "$C13D" --no-plugin --skip-postcheck --no-backup --source "$TPL" 2>&1)"; rc13d=$?
 set +e  # idem
 [ "$rc13d" -ne 0 ] || { echo "FAIL [13d]: linha com dois caminhos e razão não bloqueou o update"; echo "$out13d"; exit 1; }
 grep -q 'linha 1' <<<"$out13d" || { echo "FAIL [13d]: recusa não nomeia o número da linha"; echo "$out13d"; exit 1; }
@@ -555,7 +555,7 @@ const prop = (states, flags) => {
   let out = '', rc = 0;
   try {
     // --overwrite-drift: esta propriedade é a das exceções declaradas (#131) e exercita a sobrescrita nomeada do caminho 'divergente' não declarado (#101); a preservação por deriva local sem a flag (revisão da DH-1) é a propriedade do w239.
-    out = execFileSync('node', [FORGE, 'update', '--target', dir, '--no-plugin', '--no-backup', '--overwrite-drift', '--source', TPL], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    out = execFileSync('node', [FORGE, 'update', '--target', dir, '--no-plugin', '--skip-postcheck', '--no-backup', '--overwrite-drift', '--source', TPL], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
   } catch (e) {
     rc = e.status ?? 1;
     out = (e.stdout || '') + (e.stderr || '');

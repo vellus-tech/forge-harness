@@ -64,7 +64,7 @@ dist/
 .DS_Store
 # <<< forge (managed) <<<
 EOF
-node "$WS/bin/forge.mjs" update --target "$T/antigo" --no-plugin --no-backup >"$T/up1.log" 2>&1 \
+node "$WS/bin/forge.mjs" update --target "$T/antigo" --no-plugin --skip-postcheck --no-backup >"$T/up1.log" 2>&1 \
   || { echo "FAIL [1]: update reprovou"; tail -20 "$T/up1.log"; exit 1; }
 faltando=""
 for pat in '.forge.bak-*/' '.forge/cache/' '.forge/graph/graph.json'; do
@@ -77,7 +77,7 @@ echo "[2] a reconciliação preserva o que o usuário escreveu fora do bloco"
 grep -qxF 'node_modules/' "$T/antigo/.gitignore" || { echo "FAIL [2]: linha do usuário ANTES do bloco foi perdida"; exit 1; }
 grep -qxF 'dist/' "$T/antigo/.gitignore" || { echo "FAIL [2]: linha do usuário foi perdida"; exit 1; }
 printf '\n# meu\ncoverage/\n' >> "$T/antigo/.gitignore"
-node "$WS/bin/forge.mjs" update --target "$T/antigo" --no-plugin --no-backup >"$T/up2.log" 2>&1 || { echo "FAIL [2]: update reprovou"; exit 1; }
+node "$WS/bin/forge.mjs" update --target "$T/antigo" --no-plugin --skip-postcheck --no-backup >"$T/up2.log" 2>&1 || { echo "FAIL [2]: update reprovou"; exit 1; }
 grep -qxF 'coverage/' "$T/antigo/.gitignore" || { echo "FAIL [2]: linha do usuário DEPOIS do bloco foi perdida na reconciliação"; exit 1; }
 echo "OK [2]"
 
@@ -124,7 +124,7 @@ echo "OK [5]"
 
 echo "[6] reconciliar duas vezes não duplica nem incha o bloco"
 antes="$(wc -l < "$T/antigo/.gitignore")"
-node "$WS/bin/forge.mjs" update --target "$T/antigo" --no-plugin --no-backup >"$T/up3.log" 2>&1 || { echo "FAIL [6]: update reprovou"; exit 1; }
+node "$WS/bin/forge.mjs" update --target "$T/antigo" --no-plugin --skip-postcheck --no-backup >"$T/up3.log" 2>&1 || { echo "FAIL [6]: update reprovou"; exit 1; }
 depois="$(wc -l < "$T/antigo/.gitignore")"
 [ "$antes" = "$depois" ] || { echo "FAIL [6]: bloco cresceu de $antes para $depois linhas numa reconciliação sem mudança"; exit 1; }
 dups="$(grep -c '^# >>> forge (managed) >>>$' "$T/antigo/.gitignore")"

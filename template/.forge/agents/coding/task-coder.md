@@ -162,6 +162,9 @@ A TASK em `tasks.md` segue padrão (estrutura definida pelo `tasks-writer`):
 
 **Branch de execução:** feat/payment-processing/wave-3
 **Specialist sugerido:** backend-engineer-dotnet (opcional)
+**Teste (comando):** `dotnet test --filter FullyQualifiedName~MoneyTests.Split`
+**Padrão de falha:** `Assert\.Equal\(\) Failure`
+**Setup do teste:** `dotnet restore` (opcional)
 ```
 
 Extraia:
@@ -170,6 +173,7 @@ Extraia:
 - `criterios_aceite`
 - `specialist_sugerido` (se declarado)
 - `requisitos_cobertos` (para passar ao specialist como contexto)
+- `test_command` (`Teste (comando)`), `failure_pattern` (`Padrão de falha`) e `setup_command` (`Setup do teste`, opcional) — vão para `TEST_CMD`, `FAILURE_PATTERN` e `SETUP_CMD` na validação §3.5. Os dois primeiros são obrigatórios em toda TASK que invoca specialist (TDD-first é obrigatório): o `Padrão de falha` é a assinatura da asserção que o teste emite ao falhar (ex.: `AssertionError`, `Expected.*Received`, `Assert\.Equal\(\) Failure`, `--- FAIL:`). TASK sem um deles **não é pulada**: a §3.5 marca `[!]` com o motivo (`campo do plano ausente`), e o conserto é no `tasks.md`, nunca no relato do specialist. Só TASKs de Encerramento (§3.2.4) não declaram teste — `TASK_ENCERRAMENTO=1`. Os três vêm do plano; o comando passou pelo gate humano do plano, e a §3.5 não tenta detectar comando que não roda o teste de verdade (ex.: `grep -q ... || exit 1`) — isso é responsabilidade de quem aprova o plano.
 
 #### 3.2 Detectar specialist
 
@@ -241,7 +245,7 @@ Quando a TASK não tem path explícito (ex.: título "Escrever 5 testes: Domain 
 
 ##### 3.2.4 TASKs de "Encerramento"
 
-TASKs cujo título contém "Encerramento", "build verde + commit", "push final" ou similar **não invocam specialist**. São tratadas pelo próprio task-coder na §3.5 (validação local) + §3.6 (commit do tracker e push da branch). Marque-as como `[X]` automaticamente após o build local passar.
+TASKs cujo título contém "Encerramento", "build verde + commit", "push final" ou similar **não invocam specialist**. São tratadas pelo próprio task-coder na §3.5 (validação local, com `TASK_ENCERRAMENTO=1` — sem prova de vermelho, porque não há commit de código) + §3.6 (commit do tracker e push da branch). Marque-as como `[X]` automaticamente após o build local passar.
 
 #### 3.3 Marcar `[-]` no tracker
 
@@ -262,6 +266,7 @@ Commit imediato:
 ```bash
 git add docs/product/modules/<modulo>/PROGRESS-TRACKING.md
 git commit -m "chore(specs): TASK-01 — marcar em progresso"
+TASK_BASE=$(git rev-parse HEAD)   # início da TASK: o vermelho tem de ser filho direto deste commit (§3.5)
 ```
 
 #### 3.4 Invocar specialist
@@ -285,8 +290,8 @@ Via Agent tool, com payload estruturado:
     ".forge/rules/domain/money-as-cents.md",
     ".forge/rules/domain/nbr-5891-rounding.md"
   ],
-  "commit_policy": "Commit atômico ao final com mensagem: 'feat(<scope>): TASK-01 — <título conciso pt-BR>'. NÃO push (task-coder controla push). Sem co-autoria de IA.",
-  "test_policy": "TDD-first quando aplicável. Build local + testes locais devem passar antes de commitar. PBT obrigatória em Money.* conforme .forge/rules/testing/quality-gates.md."
+  "commit_policy": "Commit atômico ao final com mensagem: 'feat(<scope>): TASK-01 — <título conciso pt-BR>'. Quando test_policy aplicou TDD-first, este é o commit do verde — o vermelho já foi commitado separado ('test(<scope>): TASK-01 — vermelho'). NÃO push (task-coder controla push). Sem co-autoria de IA.",
+  "test_policy": "TDD-first quando a TASK declara teste no plano — mecanismo, não só princípio: escreva primeiro o teste declarado (<test_command>); para ele compilar sem a implementação real, use tipos vazios ou stubs que devolvem valor neutro (default, vazio, zero) — nunca deixe o teste vermelho por falha de compilação ou import quebrado; o vermelho é uma falha de asserção que casa <failure_pattern>, com o stub no lugar (stub que lança 'não implementado' faz o teste falhar por exceção, não por asserção, e é reprovado); commite o vermelho separado ('test(<scope>): TASK-01 — vermelho') como o PRIMEIRO commit da TASK, contendo só testes, mais os stubs de produção necessários para compilar — nunca infraestrutura (package.json, lockfile, .csproj/.sln, config de teste, scripts/, dotfiles, arquivo citado pelo comando do teste); a implementação de verdade vai no commit seguinte, o verde, que é o ÚLTIMO commit da TASK (nada entre os dois, nada depois). O teste que vale é o do verde: o task-coder enxerta os arquivos de teste do verde na árvore do vermelho e roda (red-evidence.sh task) — reprova se o verde não muda nenhum arquivo fora dos testes, se esse teste passa sobre o vermelho, falha por compilação, por exceção sem asserção, por timeout ou sem casar o padrão, se não passa no verde, se o vermelho toca infraestrutura ou se há commit fora do par vermelho→verde. Build local + testes locais devem passar antes do commit do verde. PBT obrigatória em Money.* conforme .forge/rules/testing/quality-gates.md."
 }
 ```
 
@@ -304,6 +309,35 @@ COMMIT_MSG=$(git log -1 --format=%s)
 # Validar formato do commit message
 echo "$COMMIT_MSG" | grep -qE "^(feat|fix|refactor|test|chore|docs|style|perf|build|ci|revert)\([a-z-]+\): TASK-[0-9]+ — " \
   || { echo "Commit message inválido: $COMMIT_MSG"; mark_failed; }
+
+# TDD-first, por execução — nunca por leitura do diff nem pelo relato do specialist. O teste do
+# commit de implementação (HEAD, o verde) tem de FALHAR por asserção sobre a árvore do vermelho (os
+# arquivos de teste do verde são enxertados nela) e PASSAR no verde. TASK_ID, TEST_CMD,
+# FAILURE_PATTERN e SETUP_CMD vêm da TASK no tasks.md (3.1); TASK_BASE, do commit de 3.3. Reprova:
+# campo do plano ausente, vermelho ausente ou duplicado entre TASK_BASE e HEAD, commit fora do par
+# vermelho→verde, vermelho que toca infraestrutura, verde que não muda nenhum arquivo fora dos
+# testes, teste que passa sobre o vermelho, falha de
+# compilação/import ou sem assinatura de asserção, timeout, falha que não casa FAILURE_PATTERN,
+# teste que não passa no verde.
+: "${TASK_ID:?TASK_ID não preenchido — informe o id da task corrente}"
+if [ "${TASK_ENCERRAMENTO:-0}" = 1 ]; then
+  echo "TDD-first não se aplica a ${TASK_ID}: TASK de Encerramento (3.2.4), sem specialist nem commit de código"
+elif [ -z "${TEST_CMD:-}" ]; then
+  echo "${TASK_ID}: campo do plano ausente — Teste (comando); a prova do vermelho não é pulada, corrija a TASK no tasks.md"; mark_failed
+elif [ -z "${FAILURE_PATTERN:-}" ]; then
+  echo "${TASK_ID}: campo do plano ausente — Padrão de falha; a prova do vermelho não é pulada, corrija a TASK no tasks.md"; mark_failed
+elif [ -z "${TASK_BASE:-}" ]; then
+  echo "${TASK_ID}: TASK_BASE não preenchido (3.3) — sem o início da TASK não há intervalo para achar o vermelho"; mark_failed
+else
+  RED_SHAS=$(git log --format=%H --fixed-strings --grep="${TASK_ID} — vermelho" --max-count=2 "${TASK_BASE}..HEAD")
+  RED_N=$(printf '%s' "$RED_SHAS" | grep -c . || true)
+  if [ "$RED_N" -ne 1 ]; then
+    echo "Commit do vermelho de ${TASK_ID} entre TASK_BASE e HEAD: ${RED_N} encontrado(s), exigido exatamente 1 — falha"; mark_failed
+  elif ! bash .forge/scripts/red-evidence.sh task --red "$RED_SHAS" --green HEAD --task-base "$TASK_BASE" --task-id "$TASK_ID" \
+      --command "$TEST_CMD" --failure-pattern "$FAILURE_PATTERN" ${SETUP_CMD:+--setup-command "$SETUP_CMD"}; then
+    echo "Vermelho/verde de ${TASK_ID} reprovado pelo replay — motivo na linha FAIL task acima"; mark_failed
+  fi
+fi
 
 # Build + test locais (cheap gate)
 case "$DOMINANT_STACK" in
@@ -327,6 +361,10 @@ esac
 git log -1 --format=%B | grep -iE "Co-Authored-By:\s*(Claude|Anthropic|GPT)|Generated with.*Claude" \
   && { echo "Co-autoria de IA detectada"; mark_failed; }
 ```
+
+O commit de vermelho deve conter só testes; stubs de produção são permitidos, e o replay é a prova. O teste que conta é o do verde, enxertado na árvore do vermelho: um vermelho que já traz a lógica é reprovado porque o teste do verde passa sobre ele (`FAIL task [vermelho-passa]`), mesmo que o teste do próprio vermelho tenha sido forjado para falhar (expectativa errada, `assert.fail()` incondicional). Arquivo de teste é reconhecido por convenção de diretório (`test/`, `tests/`, `__tests__/`, `spec/`, `e2e/`, `testdata/`, `fixtures/`, `test-utils/`, `testutil/`, `testutils/`, `testing/`, `support/`, `golden/`, `snapshots/`, `__snapshots__/`, `*.Tests/`) ou de nome (`*.test.*`, `*.spec.*`, `*_test.*`, `test_*.py`, `conftest.py`, `*.snap`, `*Test(s).cs/.java/.kt`), e tudo o que a convenção reconhece é enxertado do verde — uma fixture ou snapshot forjado no vermelho é substituído pelo do verde. Vermelho e verde idênticos fora dos arquivos de teste reprovam com `FAIL task [vermelho-vazio]` antes de o teste rodar: o verde não implementa nada, e uma falha do vermelho viria do ambiente (teste que lê o assunto do commit, que grava arquivo fora da worktree), não do código. Infraestrutura (manifesto, lockfile, `.csproj`/`.sln`, config de build/teste, `scripts/`, dotfiles, arquivo citado pelo comando) no vermelho reprova com `FAIL task [vermelho-infra]` — mudança de setup ou dependência vai numa TASK anterior; commit fora do par vermelho→verde reprova com `FAIL task [topologia]`.
+
+**Limites declarados.** O replay prova por execução; o que a execução não distingue fica para a revisão do diff do verde, para o gate humano do plano e para os testes das próximas TASKs: (1) um stub que imprime `AssertionError` e chama `process.exit(1)` produz a saída de uma falha por asserção sem asserção nenhuma ter rodado; (2) um comando do plano que roda outro teste, ou nenhum (`grep -q ... || exit 1`), não é detectado — o comando passou pelo gate humano do plano; (3) lógica num arquivo de produção que o teste declarado não exercita pode vir inteira no vermelho sem que o teste perceba; (4) sabotagem em `src/` que o verde remove — lógica quebrada de propósito num arquivo de produção do vermelho — é indistinguível de um stub por execução, e não há classificação de "stub vs lógica" por texto. A checagem de verde vazio prova que o verde muda algum arquivo de produção, não que essa mudança é a causa de o teste passar.
 
 Se tudo passou → 3.6 sucesso.
 Se algo falhou → 3.7 falha.

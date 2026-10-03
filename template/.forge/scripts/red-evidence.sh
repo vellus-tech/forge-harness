@@ -24,6 +24,17 @@
 #            se o diff tocar código no grafo; no-test-infra/external-unreproducible/
 #            hotfix-under-incident abrem deferral (+ ledger quando aplicável) atomicamente.
 #            Delegado, não reimplementado — uma fonte só de política de waiver.
+#   task   — issue #156: vermelho/verde de uma TASK delegada (task-coder §3.5, /forge:implement),
+#            sem change-id nem artefato. Mesmo motor de `replay` (worktree efêmero, um comando,
+#            timeout explícito, classificador). Os arquivos de teste do --green são enxertados na
+#            árvore do --red: o teste do verde tem de FALHAR sobre o vermelho por asserção (rc ≠ 0,
+#            classificação 'behavioral', saída casando --failure-pattern) e PASSAR no verde.
+#            Vermelho e verde idênticos fora dos arquivos de teste reprovam antes de o teste rodar
+#            (`vermelho-vazio`: o verde não implementa nada). O vermelho não pode tocar infraestrutura (manifesto, lockfile, config de teste,
+#            scripts/, dotfiles, arquivo citado pelo comando) e tem de ser o pai direto do verde;
+#            --task-base exige que o pai do vermelho seja o início da TASK e --task-id confere o
+#            assunto dos dois commits. Sem --green é só pré-checagem (sem enxerto, não prova o
+#            TDD). rc 0 aceita, rc 1 reprova com `FAIL task [<código>] <motivo>`.
 #   init   — item 3e (auditoria, brownfield sem saída): escaffolda evidence/red/red-evidence.json
 #            (status:pending) num change type:bugfix EXISTENTE que nunca teve o scaffold (harness
 #            atualizado por cima de um change já em andamento, ou o arquivo apagado à mão). As
@@ -39,6 +50,8 @@
 #        red-evidence.sh status <change-id>
 #        red-evidence.sh waive  <change-id> --reason <r> [--note <n>]
 #        red-evidence.sh init   <change-id>
+#        red-evidence.sh task --red <sha> [--green <sha>] [--task-base <sha>] [--task-id <TASK-NN>]
+#                             --command <c> --failure-pattern <p> [--setup-command <c>] [--timeout <segundos>]
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${FORGE_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
@@ -61,10 +74,17 @@ _manifest_is_defect_fixing() {
 
 CMD="${1:-}"; shift || true
 case "$CMD" in
-  -h|--help|help) echo "Usage: red-evidence.sh record|replay|status|waive|init <change-id> [...] | ci"; exit 0 ;;
+  -h|--help|help) echo "Usage: red-evidence.sh record|replay|status|waive|init <change-id> [...] | ci | task --red <sha> [--green <sha>] [--task-base <sha>] [--task-id <TASK-NN>] --command <c> --failure-pattern <p> [--setup-command <c>] [--timeout <s>]"; exit 0 ;;
 esac
 
-# `ci` é o único subcomando SEM change-id, e a exceção é deliberada (LDG-0004): quem escolhe o
+# `task` também não tem change-id: o escopo são os dois commits que o chamador aponta (issue #156),
+# resolvidos no repositório do diretório corrente (o worktree da onda), não em FORGE_ROOT.
+if [ "$CMD" = "task" ]; then
+  TASK_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || { echo "FAIL task [entrada] o diretório corrente não é um repositório git"; exit 1; }
+  exec node "$SCRIPT_DIR/lib/red-evidence-ops.mjs" task "$TASK_ROOT" "$@"
+fi
+
+# `ci` não tem change-id (como `task`, acima), e a exceção é deliberada (LDG-0004): quem escolhe o
 # escopo tem de ser o estado do repositório, não quem invoca. Um `ci --change X` devolveria ao
 # autor a capacidade de apontar a verificação para o change que lhe convém — que é exatamente o
 # grau de controle que mover a execução para o CI existe para tirar.
@@ -157,5 +177,5 @@ JSON
     fi
     echo "OK init — evidence/red/red-evidence.json escaffoldado em $CHID (status: pending) — rode /forge:red record + replay, ou dispense com /forge:red waive"
     ;;
-  *) echo "FAIL (unknown subcommand: $CMD — use record|replay|ensure|status|waive|init)"; exit 1 ;;
+  *) echo "FAIL (unknown subcommand: $CMD — use record|replay|ensure|status|waive|init|ci|task)"; exit 1 ;;
 esac

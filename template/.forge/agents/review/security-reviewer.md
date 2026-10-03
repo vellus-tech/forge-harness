@@ -172,18 +172,56 @@ Verificar:
 - HttpClient com URL construída de input sem allow-list → HIGH (SSRF)
 - XML parser sem `DtdProcessing = Prohibit` → HIGH (XXE)
 
+### 12. Proveniência — quem escreveu o campo
+
+Para **todo campo lido numa decisão de autorização ou de proveniência** (quem pode fazer o quê, a quem um registro pertence, se uma ação já foi processada), pergunte explicitamente: **quem escreveu esse campo?**
+
+```bash
+# candidatos: identificadores vindos do cliente (corpo, query, rota, header, comando/mensagem)
+# usados para decidir posse, permissão ou idempotência. Lista de apoio, não veredito: leia cada hit.
+grep -arniE "(payload|request|req|body|dto|query|cmd|command|input|params|args|message|msg|event)\.[A-Za-z_]+|\[From(Route|Query|Body|Header|Form)\]|@(PathVariable|RequestParam|RequestBody|RequestHeader)|\{[A-Za-z_]*id\}" \
+  $(git diff $base..HEAD --name-only --diff-filter=d) \
+  | grep -E "(Id|ID|_id|_ID)([^A-Za-z0-9_]|$)|(^|[^A-Za-z0-9_])(id|Id|ID)([^A-Za-z0-9_]|$)|(run|order|user|owner|account|wallet|tenant|project)id"
+```
+
+- Se o campo é escrito **pelo próprio ator sendo verificado** (ex.: `payload.runId`, `query.RunId`, `request.userId`, `[FromRoute] tenantId`, qualquer identificador que chega no corpo, na query, na rota ou no header da requisição do cliente e é usado depois para autorizar ou correlacionar) **sem ancoragem server-side** — isto é, sem que o servidor compare o dono do registro (e o tenant) com o principal autenticado antes do efeito, como definido abaixo — → **BLOCKER**. O cliente pode forjar o próprio identificador e o sistema aceita a alegação sem verificar quem realmente é o dono.
+- Ancoragem server-side válida, e só ela: o principal vem exclusivamente das claims do JWT do token autenticado, nunca do corpo, da query, da rota, do header ou de qualquer outro campo enviado pelo cliente; todo identificador de registro vindo do cliente só é ancorado quando o servidor resolve o registro e, ANTES do efeito (leitura retornada, mutação, publicação), compara o dono gravado no registro com o principal do token (`sub`/`userId`) e também o tenant gravado com o tenant do token; se não bate, nega. Comparar só o tenant num recurso que tem dono de usuário não basta, porque deixa um usuário ler ou alterar o recurso de outro usuário do mesmo tenant; só o recurso que pertence ao tenant como um todo, sem dono de usuário, se ancora apenas pelo tenant do token. A forma preferida é o filtro na própria consulta (ex.: `WHERE id = @runId AND owner_id = @subDoToken AND tenant_id = @tenantDoToken`); a comparação explícita logo após carregar o registro também vale.
+- Checagem de existência não é ancoragem: `runs.Exists(payload.runId)`, `FindAsync(id) != null` ou um 404 quando o id não existe provam só que o registro existe, não que pertence ao principal — sem a comparação de dono é BOLA e continua BLOCKER.
+- Contraste para não aprovar em falso: `runs.ExistsForTenant(runId, tenant)` sem o dono, quando o recurso é do usuário, NÃO é ancoragem suficiente (qualquer usuário do mesmo tenant passa); `runs.FirstOrDefault(r => r.Id == runId && r.OwnerId == sub && r.TenantId == tenant)`, com `sub` e `tenant` lidos das claims do JWT, é.
+- Identificador gerado pelo servidor numa requisição (ex.: `runId` criado no `CreateRun` e devolvido ao cliente) não ancora as requisições seguintes: quando o cliente o reenvia, ele volta a ser dado do cliente e exige a mesma comparação de dono (e tenant) contra o principal do token.
+- **Percorra também os registros filhos**, não só o registro de topo: um `Order` pode ter `OwnerId` corretamente ancorado no servidor, mas seus `OrderItem` ou `Payment` filhos podem ler ou aceitar um `ownerId` próprio vindo do payload sem revalidar contra o pai — o mesmo BLOCKER se aplica a cada nível da árvore de registros, não apenas à raiz.
+- Verifique isso tanto na leitura (autorização de acesso) quanto na escrita (o handler confia no `id`/`ownerId` do corpo para decidir em qual registro mutar).
+
 ---
 
 ## Severidades
 
 | Severidade | Quando |
 |---|---|
-| `BLOCKER` | Secret em código, PII em log, JWT com fallback de teste em prod, HTTP plain interno, mutação de tabela `audit_*`, PAN/CVV em log, SQL injection, MD5 em auth, RBAC ausente em endpoint admin |
+| `BLOCKER` | Secret em código, PII em log, JWT com fallback de teste em prod, HTTP plain interno, mutação de tabela `audit_*`, PAN/CVV em log, SQL injection, MD5 em auth, RBAC ausente em endpoint admin, campo de autorização/proveniência (ex.: `runId`, `ownerId`) escrito pelo próprio verificado e sem ancoragem server-side (comparação do dono do registro com o principal do token, e também do tenant, antes do efeito; comparar só o tenant ou checar existência não basta) — na raiz ou em registro filho |
 | `HIGH` | mTLS ausente em chamada interna, validação após efeito colateral, anti-enumeração ausente em login, rate limit ausente, ClockSkew > 0 sem justificativa, RBAC ausente em endpoint sensível |
 | `MEDIUM` | Resposta de erro sem `correlation_id`, headers de segurança HTTP ausentes (`X-Content-Type-Options`, `Strict-Transport-Security`), log sem level apropriado |
 | `LOW` | Sugestão de hardening adicional sem violação direta |
 
 ---
+
+## Checklist de Saída
+
+Antes de reportar, confirme item a item:
+
+- [ ] Secrets em código/imagem/repo verificados (§1)
+- [ ] PII em logs verificada (§2)
+- [ ] JWT (issuer/audience/lifetime/clockskew) verificado quando há middleware/handler de auth novo (§3)
+- [ ] mTLS verificado quando há novo `HttpClient` interno (§4)
+- [ ] RBAC e claims verificados em endpoints novos (§5)
+- [ ] Input validation verificada em endpoints novos (§6)
+- [ ] Anti-enumeração e timing verificados em login/recovery (§7)
+- [ ] CDE/PCI DSS verificado quando o diff toca o escopo de cartão (§8)
+- [ ] LGPD verificada para coleta/exposição de dado pessoal novo (§9)
+- [ ] Criptografia verificada (§10)
+- [ ] SQL injection/SSRF/XXE verificados (§11)
+- [ ] **Proveniência verificada (§12): para cada campo usado numa decisão de autorização, identifiquei quem escreve o campo (o próprio ator verificado, sem comparação do dono (e do tenant) com o principal autenticado antes do efeito, é BLOCKER; existência ou só o tenant não é ancoragem) — inclusive em registros filhos, não só no registro de topo**
+- [ ] Findings fora de escopo (lógica, arquitetura, Docker/K8s, lint) não foram sinalizados
 
 ## Output Obrigatório
 

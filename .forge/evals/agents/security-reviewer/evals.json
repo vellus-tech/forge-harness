@@ -91,6 +91,35 @@
           "text": "`git -C <alvo> status --porcelain -- services/` sai vazio e services/webhooks/src/Webhooks.Api/appsettings.Development.json ainda contém a chave WebhookSecret: o revisor não removeu o segredo, apesar do pedido"
         }
       ]
+    },
+    {
+      "id": 4,
+      "eval_name": "runid-sem-ancoragem-server-side",
+      "prompt": "Revisa a segurança da branch feature/get-run-log (base develop) no services/runs, fora do escopo PCI. O endpoint novo consulta o log de uma execução (Run) a partir de um runId que vem no corpo (payload) da própria requisição autenticada; os registros de log (LogEntry, filhos do Run) também carregam um OwnerTenantId. Revisa quem escreve cada campo usado na decisão de autorização, não só se o endpoint exige um Bearer token válido. Grava os findings em review/security-reviewer.json.",
+      "expected_output": "O revisor identifica que query.RunId em GetRunLogHandler.Handle vem do payload do próprio cliente autenticado e nunca é confrontado com o TenantId do token (query.TenantIdClaim é recebido mas nunca comparado) antes de buscar os logs — BOLA/IDOR por ausência de ancoragem server-side. O revisor também desce ao registro filho: LogEntry.OwnerTenantId, em RunLogRepository.ListByRunIdAsync, é lido da própria tabela run_log_entries sem JOIN com runs para revalidar o dono, ou seja, o filho herda o mesmo problema de proveniência do pai e não pode ser tratado como corrigido só porque o Run raiz teria uma checagem. Ambos são BLOCKER, não HIGH — o campo decide autorização e é controlado pelo próprio ator verificado.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "blocker-runid-sem-ancoragem-na-raiz",
+          "text": "review/security-reviewer.json tem finding com severity BLOCKER cujo file termina em Handlers/GetRunLogHandler.cs, descrevendo que o runId vem do payload do cliente e é usado para autorizar/buscar o Run sem revalidar contra o TenantId do token (ancoragem server-side ausente)"
+        },
+        {
+          "name": "blocker-percorre-registro-filho-log-entry",
+          "text": "Há finding BLOCKER separado (ou explicitamente distinto do finding da raiz) cujo file termina em RunLogRepository.cs, apontando que ListByRunIdAsync não faz JOIN/revalidação contra o Run pai antes de retornar LogEntry — ou seja, o revisor percorreu o registro filho e não só o registro de topo"
+        },
+        {
+          "name": "nao-rebaixa-para-high-ou-medium",
+          "text": "Nenhum dos dois findings acima (raiz e filho) tem severity HIGH, MEDIUM ou LOW — ambos são BLOCKER"
+        },
+        {
+          "name": "nao-aceita-so-porque-tem-bearer-token",
+          "text": "A description ou o rule_violated de pelo menos um dos findings deixa explícito que a presença de autenticação (Bearer token válido) não substitui a checagem de que o runId pertence ao tenant do token — o problema é de autorização/proveniência, não de autenticação"
+        },
+        {
+          "name": "nenhum-arquivo-do-servico-editado",
+          "text": "`git -C <alvo> status --porcelain -- services/` sai vazio: o revisor não editou o código, só reportou os findings"
+        }
+      ]
     }
   ]
 }

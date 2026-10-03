@@ -8,16 +8,21 @@
 # dependência em runtime e com API estável, enquanto o pacote `typescript` 7 deixou de expor o
 # createSourceFile; o harness o declara só como devDependency (o gate precisa dele) e, no consumidor,
 # o helper o resolve a partir do projeto escaneado. .vue/.svelte/.html são lidos pelo
-# html.parser da stdlib (tags, atributos, <style> e <script>), e os imports dos blocos <script>
-# pelo mesmo helper. CSS (arquivo irmão, <style> JSX ou de SFC) é lido por um tokenizador próprio
-# que respeita comentários, strings e aninhamento SCSS (`&` resolvido contra o seletor pai).
+# html.parser da stdlib (tags, atributos, <style> e <script> de topo), e os imports dos blocos
+# <script> pelo mesmo helper. O html.parser não entende interpolação de template, então .vue com
+# `{{` e .svelte com `{` fora dos blocos de topo (texto, atributo, spread) saem inteiros como WARN
+# "não analisado" (fail-closed). CSS (arquivo irmão, <style> JSX ou de SFC) é lido por um tokenizador
+# próprio que respeita comentários, strings e aninhamento SCSS (`&` resolvido contra o seletor pai).
 #
 # Controle nativo: <input type=file|color|date|time|datetime-local|month|week|range|checkbox|radio>,
-# <select>, <textarea>, <input type={dinâmico}> e componente com type nativo literal. É DOMADO só se:
+# <select>, <textarea>, <input type={dinâmico}>, <input> com spread ({...p} ou v-bind="obj") depois
+# do type ou sem type, e componente com type nativo literal. É DOMADO só se:
 #   (1) está DENTRO de um elemento cujo nome vem de import de caminho com 'design-system' — um
 #       ancestral na árvore que o contém pelos filhos (irmão, atributo ou texto não envolvem) —, ou
-#       o próprio elemento é esse componente; ou
-#   (2) um escape de aparência real alcança o controle: regra de CSS do arquivo irmão com o nome do
+#       o próprio elemento é esse componente. Tag HTML (<input>, <div>) nunca é componente do DS,
+#       mesmo com import homônimo; ou
+#   (2) um escape de aparência real alcança o controle: regra incondicional (fora de @media,
+#       @supports, @container, @scope) e com ao menos uma declaração, do CSS irmão com o nome do
 #       componente (X.css/X.module.css/.scss/.less para X.tsx), de <style> do próprio arquivo, ou o
 #       style inline do controle. Pseudo-elemento do tipo (::-webkit-color-swatch,
 #       ::file-selector-button, ::-webkit-file-upload-button, ::-webkit-slider-thumb...) cujo
@@ -25,18 +30,20 @@
 #       pseudo-classe; ou propriedade (appearance/-webkit-appearance/-moz-appearance: none para
 #       checkbox, radio, select e textarea; accent-color para checkbox e radio) numa regra cujo
 #       sujeito é a tag do controle, classe usada nele ou [type=<tipo>], sem pseudo-elemento nem
-#       pseudo-classe.
-# Tudo o mais: WARN. Arquivo que o parser não lê (erro de sintaxe, Node ou @babel/parser
-# ausente): WARN "não analisado", nunca OK.
+#       pseudo-classe. Classe do controle é só a estática: className literal, ou styles.x /
+#       styles["x"] quando `styles` é o default import do ./X.module.css irmão e não é redeclarado;
+#       spread depois de className/style apaga classe e style conhecidos.
+# Tudo o mais: WARN. Arquivo que o parser não lê (erro de sintaxe, interpolação de template, Node
+# ou @babel/parser ausente): WARN "não analisado", nunca OK.
 #
 # Limites conhecidos: JSX montado por função, variável ou string em outro ponto não é seguido (o
-# controle fica sem envoltório → WARN); classes só contam quando estáticas (className literal,
-# styles.x, styles["x"]) — clsx(...) e template com expressão não domesticam; os compostos
-# ancestrais do seletor (`.wrap` em `.wrap .sw`) não são confrontados com o DOM real; .sass
-# (sintaxe indentada) não tem regras legíveis; o envolvimento em .vue/.svelte só conta com
+# controle fica sem envoltório → WARN); clsx(...) e template com expressão não domesticam; os
+# compostos ancestrais do seletor (`.wrap` em `.wrap .sw`) não são confrontados com o DOM real;
+# .sass (sintaxe indentada) não tem regras legíveis; o envolvimento em .vue/.svelte só conta com
 # fechamento explícito da tag do DS.
 import json
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -78,6 +85,8 @@ TAME_PROPS = {
 CSS_EXTS = (".css", ".scss", ".sass", ".less")
 JSX_LANG = {".tsx": "tsx", ".ts": "ts", ".jsx": "jsx", ".js": "jsx"}
 MARKUP_EXTS = (".vue", ".svelte", ".html")
+# só para decidir se um arquivo NÃO analisável merece WARN (pode conter controle) ou silêncio
+CONTROL_HINT = re.compile(r"<\s*(input|select|textarea)\b|\btype\s*=|v-bind", re.I)
 VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr", "param"}
 
 
@@ -138,15 +147,18 @@ def _resolve(prelude: str, parents: list) -> list:
 
 
 _KEEP_AT = {"media", "supports", "layer", "container", "document", "scope"}
+# at-rules que só valem sob condição (viewport, suporte, contêiner, escopo): regra dentro delas não
+# domestica — o controle fica cru fora da condição. @layer vale sempre.
+_COND_AT = {"media", "supports", "container", "document", "scope"}
 
 
 def parse_css(text: str, line_comments: bool) -> list:
-    """[(seletores resolvidos, declarações)] — comentários e strings nunca viram regra."""
+    """[(seletores resolvidos, declarações, condicional?)] — comentários e strings nunca viram regra."""
     rules = []
     n = len(text)
     pos = [0]
 
-    def block(parents):
+    def block(parents, cond=False):
         buf, chunks, paren = [], [], 0
         while pos[0] < n:
             i = pos[0]
@@ -187,14 +199,15 @@ def parse_css(text: str, line_comments: bool) -> list:
                 if prelude.startswith("@"):
                     name = prelude[1:].split(None, 1)[0].lower() if len(prelude) > 1 else ""
                     child = parents if name in _KEEP_AT else None
-                    decls = block(child)
+                    child_cond = cond or name in _COND_AT
+                    decls = block(child, child_cond)
                     if child:  # @media dentro de regra aninhada: declarações valem para o pai
-                        rules.append((child, decls))
+                        rules.append((child, decls, child_cond))
                 elif parents is None or not prelude:
-                    block(None)
+                    block(None, cond)
                 else:
                     sels = _resolve(prelude, parents)
-                    rules.append((sels, block(sels)))
+                    rules.append((sels, block(sels, cond), cond))
                 continue
             elif c == "}":
                 chunks.append("".join(buf))
@@ -328,10 +341,12 @@ def reaches(comp, ctrl: dict, kind: str) -> bool:
 
 def tamed_by_css(ctrl: dict, rules: list) -> bool:
     prop_ok = TAME_PROPS.get(ctrl["type"])
-    for selectors, decls in rules:
+    for selectors, decls, cond in rules:
+        if cond:
+            continue  # regra condicional (@media, @supports...) não doma o controle sempre
         for sel in selectors:
             comp = parse_compound(subject_compound(sel))
-            if reaches(comp, ctrl, "pseudo"):
+            if decls and reaches(comp, ctrl, "pseudo"):  # pseudo sem declaração não doma nada
                 return True
             if prop_ok and prop_ok(decls) and reaches(comp, ctrl, "prop"):
                 return True
@@ -359,11 +374,28 @@ def _norm_tag(name: str) -> str:
     return name.lower().replace("-", "")
 
 
+# elementos HTML: em .vue/.svelte a tag nativa vence um import homônimo, então nunca é componente do DS
+HTML_TAGS = VOID | {
+    "a", "abbr", "address", "article", "aside", "audio", "b", "bdi", "bdo", "blockquote", "body", "button",
+    "canvas", "caption", "cite", "code", "colgroup", "data", "datalist", "dd", "del", "details", "dfn",
+    "dialog", "div", "dl", "dt", "em", "fieldset", "figcaption", "figure", "footer", "form", "h1", "h2",
+    "h3", "h4", "h5", "h6", "head", "header", "hgroup", "html", "i", "iframe", "ins", "kbd", "label",
+    "legend", "li", "main", "map", "mark", "menu", "meter", "nav", "noscript", "object", "ol", "optgroup",
+    "option", "output", "p", "picture", "pre", "progress", "q", "rp", "rt", "ruby", "s", "samp", "script",
+    "search", "section", "select", "slot", "small", "span", "strong", "style", "sub", "summary", "sup",
+    "table", "tbody", "td", "template", "textarea", "tfoot", "th", "thead", "time", "title", "tr", "u",
+    "ul", "var", "video", "svg", "math",
+}
+
+
 class Markup(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.stack, self.elements, self.styles, self.scripts = [], [], [], []
         self._raw = None
+        # `{` fora de <script>/<style> de topo (texto, nome ou valor de atributo): em .svelte é
+        # interpolação/diretiva/spread que o html.parser não entende
+        self.braces = False
 
     def handle_starttag(self, tag, attrs):
         self._element(tag, attrs, False)
@@ -372,12 +404,16 @@ class Markup(HTMLParser):
         self._element(tag, attrs, True)
 
     def _element(self, tag, attrs, selfclosing):
+        if any("{" in k or "{" in (v or "") for k, v in attrs):
+            self.braces = True
         a = dict(attrs)
         typ = None
         if "type" in a:
             v = a["type"] or ""
             typ = {"kind": "dynamic"} if v.startswith("{") else {"kind": "literal", "value": v}
         if ":type" in a or "v-bind:type" in a:
+            typ = {"kind": "dynamic"}
+        if tag == "input" and "v-bind" in a:  # spread do Vue (v-bind="obj"): type pode vir do objeto
             typ = {"kind": "dynamic"}
         style = parse_decls((a.get("style") or "").split(";"))
         entry = {"tag": tag, "norm": _norm_tag(tag), "closed": False}
@@ -386,18 +422,20 @@ class Markup(HTMLParser):
             "classes": (a.get("class") or "").split(), "style": style, "wrappers": list(self.stack),
         })
         if tag in ("style", "script") and not selfclosing:
-            self._raw = (tag, a, [])
+            self._raw = (tag, a, [], not self.stack)  # último campo: bloco de topo do arquivo?
         if not selfclosing and tag not in VOID:
             self.stack.append(entry)
 
     def handle_data(self, data):
         if self._raw:
             self._raw[2].append(data)
+        elif "{" in data:
+            self.braces = True
 
     def handle_endtag(self, tag):
         if self._raw and tag == self._raw[0]:
-            kind, a, data = self._raw
-            (self.styles if kind == "style" else self.scripts).append((a.get("lang") or "", "".join(data)))
+            kind, a, data, top = self._raw
+            (self.styles if kind == "style" else self.scripts).append((a.get("lang") or "", "".join(data), top))
             self._raw = None
         for idx in range(len(self.stack) - 1, -1, -1):
             if self.stack[idx]["tag"] == tag:
@@ -412,7 +450,9 @@ def run_helper(project: pathlib.Path, requests: list) -> dict:
         return {}
     node = shutil.which("node")
     fail = None
-    if node is None:
+    if not HELPER.is_file():
+        fail = f"helper de AST ausente: {HELPER}"
+    elif node is None:
         fail = "Node ausente"
     else:
         try:
@@ -422,10 +462,20 @@ def run_helper(project: pathlib.Path, requests: list) -> dict:
             )
             if proc.returncode == 0:
                 return json.loads(proc.stdout)
-            fail = f"helper de AST falhou: {(proc.stderr.strip().splitlines() or [str(proc.returncode)])[-1]}"
+            fail = f"helper de AST falhou (rc {proc.returncode}): {_stderr_reason(proc.stderr)}"
         except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError) as err:
             fail = f"helper de AST falhou: {err}"
     return {r["id"]: {"ok": False, "reason": fail} for r in requests}
+
+
+def _stderr_reason(stderr: str) -> str:
+    # a linha do erro (Error: ..., SyntaxError: ...), não o rodapé "Node.js vXX" do stack trace
+    lines = [ln.strip() for ln in stderr.splitlines() if ln.strip()]
+    for ln in lines:
+        head = ln.split(":", 1)[0]
+        if head.endswith("Error") or head == "Error":
+            return ln[:300]
+    return " | ".join(lines[:3])[:300] or "sem saída de erro"
 
 
 def control_of(el: dict):
@@ -483,20 +533,34 @@ def main() -> int:
         # filtro negativo: sem estas palavras não há tag de controle nem atributo type
         if not any(w in text for w in ("input", "select", "textarea", "type")):
             continue
-        files.append(p)
         if p.suffix in JSX_LANG:
-            requests.append({"id": f"jsx:{p}", "code": text, "lang": JSX_LANG[p.suffix], "mode": "jsx"})
+            files.append(p)
+            requests.append({
+                "id": f"jsx:{p}", "code": text, "lang": JSX_LANG[p.suffix], "mode": "jsx", "stem": p.stem,
+            })
             continue
         m = Markup()
         try:
             m.feed(text)
             m.close()
         except Exception as err:  # noqa: BLE001 — qualquer falha do parser vira "não analisado"
-            markups[p] = err
-            continue
+            m = f"html.parser falhou: {err}"
+        # interpolação de template ({{ }} no Vue; {…} no Svelte, inclusive spread e atributo) é JS que o
+        # html.parser lê como texto e tag: '<DsBox>', '<style>' ou '<!--' dentro dela viram nós falsos.
+        # Fail-closed: o arquivo inteiro sai não analisado se pode conter controle — o filtro textual só
+        # decide entre WARN e silêncio, nunca produz OK.
+        if isinstance(m, Markup) and (
+            (p.suffix == ".vue" and "{{" in text) or (p.suffix == ".svelte" and m.braces)
+        ):
+            m = "interpolação de template ({{ }} / {…}) que o html.parser não entende"
+        if not isinstance(m, Markup) and not CONTROL_HINT.search(text):
+            continue  # nenhum texto que possa formar controle: não há o que reportar
+        files.append(p)
         markups[p] = m
-        if p.suffix != ".html":
-            for k, (lang, code) in enumerate(m.scripts):
+        if isinstance(m, Markup) and p.suffix != ".html":
+            for k, (lang, code, top) in enumerate(m.scripts):
+                if not top:
+                    continue  # <script> dentro do template não é o bloco do componente
                 lang = lang.lower() if lang.lower() in ("ts", "tsx") else "js"
                 requests.append({"id": f"imp:{p}:{k}", "code": code, "lang": lang, "mode": "imports"})
     results = run_helper(src, requests)
@@ -530,19 +594,28 @@ def main() -> int:
             report("WARN", "não-analisado", p, f"não analisado: {m}")
             continue
         ds, ds_fail = set(), None
-        for k in range(len(m.scripts)):
+        sfc = p.suffix != ".html"
+        for k, (_, _, top) in enumerate(m.scripts):
+            if sfc and not top:
+                continue
             res = results.get(f"imp:{p}:{k}", {"ok": False, "reason": "sem resposta do helper"})
             if res.get("ok"):
                 ds |= {_norm_tag(n) for n in res["dsNames"]}
             else:
                 ds_fail = res.get("reason")
         rules = sibling_css_rules(p)
-        for lang, css in m.styles:
+        for lang, css, top in m.styles:
+            if sfc and not top:
+                continue  # <style> dentro do template de SFC não é a folha do componente
             rules += parse_css(css, lang.lower() in ("scss", "less"))
+
+        def from_ds(e):
+            return e["tag"] not in HTML_TAGS and e["norm"].split(".")[0] in ds
+
         for el in m.elements:
             el["intrinsic"] = True
-            is_ds = el["norm"].split(".")[0] in ds
-            inside = any(w["closed"] and w["norm"].split(".")[0] in ds for w in el["wrappers"])
+            is_ds = from_ds(el)
+            inside = any(w["closed"] and from_ds(w) for w in el["wrappers"])
             v = judge(el, rules, is_ds, inside)
             if v is None:
                 continue

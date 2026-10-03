@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 // scan-native-controls-ast.mjs <project_dir> — helper de scan-native-controls.py: lê do stdin um
-// JSON [{id, code, lang, mode}] e devolve no stdout um JSON {id: resultado}. Faz a análise de
+// JSON [{id, code, lang, mode, stem}] e devolve no stdout um JSON {id: resultado}. Faz a análise de
 // JSX/TSX sobre a AST do @babel/parser (resolvido primeiro a partir de <project_dir>, depois a
 // partir deste arquivo), nunca sobre o texto: comentário e string não são nós JSX.
 //   mode "jsx"     → {ok, elements: [...], styles: [css de <style> JSX]}
 //   mode "imports" → {ok, dsNames: [...]}   (bloco <script> de .vue/.svelte)
 //   falha de parse ou parser ausente → {ok: false, reason}
 // Um elemento está DENTRO de um componente do DS só quando um ancestral JSXElement cujo nome vem
-// de import de caminho com 'design-system' o contém pelos `children` — atributo não envolve.
+// de import de caminho com 'design-system' o contém pelos `children` — atributo não envolve, e tag
+// intrínseca (<input>, <div>) nunca é componente do DS. Classe via objeto (styles.x) só conta quando
+// o objeto é o default import do ./<stem>.module.css irmão; spread {...p} apaga o que veio antes.
 import { createRequire } from "node:module";
 import path from "node:path";
 import { readFileSync } from "node:fs";
@@ -83,8 +85,59 @@ function attrValue(attr) {
   return { kind: "dynamic" };
 }
 
-// classes estaticamente conhecidas: "a b", {"a b"}, {`a b`}, {styles.a}, {styles["a"]}
-function classesOf(attr) {
+// nomes declarados fora de import (variável, parâmetro, catch, função, classe), em qualquer escopo
+function localBindings(ast) {
+  const names = new Set();
+  function pattern(p) {
+    if (!p) return;
+    if (p.type === "Identifier") names.add(p.name);
+    else if (p.type === "ObjectPattern") for (const q of p.properties) pattern(q.type === "RestElement" ? q.argument : q.value);
+    else if (p.type === "ArrayPattern") for (const q of p.elements) pattern(q);
+    else if (p.type === "RestElement") pattern(p.argument);
+    else if (p.type === "AssignmentPattern") pattern(p.left);
+    else if (p.type === "TSParameterProperty") pattern(p.parameter);
+  }
+  function walk(node) {
+    if (!node || typeof node.type !== "string") return;
+    if (node.type === "VariableDeclarator") pattern(node.id);
+    if (node.type === "CatchClause") pattern(node.param);
+    if (/Function|ObjectMethod|ClassMethod|ClassPrivateMethod/.test(node.type) && Array.isArray(node.params)) {
+      for (const p of node.params) pattern(p);
+    }
+    if (/^(FunctionDeclaration|FunctionExpression|ClassDeclaration|ClassExpression)$/.test(node.type) && node.id)
+      names.add(node.id.name);
+    for (const key of Object.keys(node)) {
+      if (key === "loc") continue;
+      const val = node[key];
+      if (Array.isArray(val)) for (const item of val) walk(item);
+      else if (val && typeof val.type === "string") walk(val);
+    }
+  }
+  walk(ast.program);
+  return names;
+}
+
+// objetos de CSS module que valem como fonte de classe estática: SÓ o default (ou namespace) import
+// do .module.css/.scss/.less IRMÃO do próprio componente (./X.module.css para X.tsx), e só se o nome
+// não é redeclarado em nenhum escopo do arquivo. Qualquer outro objeto (theme.sw, styles de outro
+// módulo) não é classe conhecida.
+function moduleNamesOf(ast, stem) {
+  const names = new Set();
+  if (!stem) return names;
+  const esc = stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const own = new RegExp(`^\\./${esc}\\.module\\.(css|scss|less)$`);
+  for (const node of ast.program.body) {
+    if (node.type !== "ImportDeclaration" || !own.test(String(node.source.value))) continue;
+    for (const spec of node.specifiers) {
+      if (spec.type === "ImportDefaultSpecifier" || spec.type === "ImportNamespaceSpecifier") names.add(spec.local.name);
+    }
+  }
+  for (const n of localBindings(ast)) names.delete(n);
+  return names;
+}
+
+// classes estaticamente conhecidas: "a b", {"a b"}, {`a b`} e, do CSS module irmão, {styles.a}, {styles["a"]}
+function classesOf(attr, moduleNames) {
   const v = attr.value;
   if (v == null) return [];
   if (v.type === "StringLiteral") return v.value.split(/\s+/).filter(Boolean);
@@ -92,7 +145,7 @@ function classesOf(attr) {
   const e = v.expression;
   const s = staticString(e);
   if (s !== undefined) return s.split(/\s+/).filter(Boolean);
-  if (e.type === "MemberExpression" && e.object.type === "Identifier") {
+  if (e.type === "MemberExpression" && e.object.type === "Identifier" && moduleNames.has(e.object.name)) {
     if (!e.computed && e.property.type === "Identifier") return [e.property.name];
     if (e.computed && e.property.type === "StringLiteral") return [e.property.value];
   }
@@ -113,8 +166,9 @@ function styleOf(attr) {
   return out;
 }
 
-function analyzeJsx(ast) {
+function analyzeJsx(ast, stem) {
   const dsNames = dsNamesOf(ast);
+  const moduleNames = moduleNamesOf(ast, stem);
   const elements = [];
   const styles = [];
 
@@ -126,17 +180,26 @@ function analyzeJsx(ast) {
         line: opening.loc.start.line,
         tag: info.name,
         intrinsic: info.intrinsic,
-        isDs: dsNames.has(info.root),
+        // tag intrínseca (<input>, <div>) é sempre o elemento HTML, mesmo com import homônimo do DS
+        isDs: !info.intrinsic && dsNames.has(info.root),
         insideDs: wrappers.some((w) => w),
         type: null,
         classes: [],
         style: {},
       };
+      // atributos em ordem: o último vence, e um spread {...p} pode sobrescrever o que veio antes —
+      // type do <input> vira dinâmico, classe e style deixam de ser conhecidos (fail-closed)
       for (const attr of opening.attributes) {
+        if (attr.type === "JSXSpreadAttribute") {
+          if (info.intrinsic && info.name === "input") el.type = { kind: "dynamic" };
+          el.classes = [];
+          el.style = {};
+          continue;
+        }
         if (attr.type !== "JSXAttribute" || attr.name.type !== "JSXIdentifier") continue;
         const an = attr.name.name;
         if (an === "type") el.type = attrValue(attr);
-        else if (an === "className" || an === "class") el.classes.push(...classesOf(attr));
+        else if (an === "className" || an === "class") el.classes = classesOf(attr, moduleNames);
         else if (an === "style") el.style = styleOf(attr);
       }
       elements.push(el);
@@ -203,7 +266,7 @@ function main() {
       results[req.id] = { ok: false, reason: `erro de parse${where}: ${String(err.message).split("\n")[0]}` };
       continue;
     }
-    results[req.id] = req.mode === "imports" ? { ok: true, dsNames: [...dsNamesOf(ast)] } : analyzeJsx(ast);
+    results[req.id] = req.mode === "imports" ? { ok: true, dsNames: [...dsNamesOf(ast)] } : analyzeJsx(ast, req.stem);
   }
   process.stdout.write(JSON.stringify(results));
 }

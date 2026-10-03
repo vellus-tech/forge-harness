@@ -85,20 +85,18 @@ alcança (`::file-selector-button`, `::-webkit-color-swatch`, `::-webkit-slider-
 Todo controle nativo é ponto de fuga do DS até ser explicitamente domado **ou** encapsulado num
 componente do DS.
 
-A receita antiga (`rg 'type="color"...' | grep -v design-system`) casava o atributo sozinho,
-qualquer que fosse o CSS irmão — poder discriminante zero, sempre WARN, nunca reconhecia um
-controle já corretamente estilizado. O scanner abaixo distingue **domado** de **não domado**
-checando, para cada instância, os dois escapes da regra 12 de `design-system.md`: (1) o
-pseudo-elemento correto no CSS do próprio componente (mesmo diretório do arquivo, ou embutido nele)
-ou (2) encapsulamento em componente do design system.
+A receita antiga (`rg 'type="color"...' | grep -v design-system`) casava o atributo sozinho, qualquer que fosse o CSS irmão — poder discriminante zero, sempre WARN, nunca reconhecia um controle já corretamente estilizado. O scanner abaixo distingue **domado** de **não domado** checando, para cada instância (`type="x"`, `type='x'`, `type={"x"}`, `type={'x'}` ou `<select>`), os dois escapes da regra 12 de `design-system.md`, depois de remover comentários CSS e JS/TSX (`/* */`, `//`, `<!-- -->`) — texto comentado nunca domestica:
+
+1. **Domesticação no CSS do próprio componente** (`X.css`/`X.module.css`, ou `.scss`/`.sass`/`.less`, de mesmo nome para `X.tsx`, ou CSS embutido no arquivo). Só conta uma regra cujo seletor **alcança o controle**: o sujeito do seletor (último composto) é a tag do controle (`input`/`select`) ou uma classe usada na própria tag do controle. O pseudo-elemento do tipo (`::-webkit-color-swatch`, `::file-selector-button`…) também vale num sujeito sem tag nem classe (`::x`, `[type=color]::x`, `&::x`), porque só existe naquele controle. Propriedade (`accent-color`/`-webkit-appearance` para checkbox/radio, `appearance: none` para select) só conta como declaração real no corpo da regra — o pseudo inexistente `input::-webkit-appearance` não domestica, nem `.card { -webkit-appearance: none }` quando `.card` não está no controle.
+2. **Encapsulamento em componente do DS**: um identificador importado de caminho com `design-system` **envolve** o controle — elemento aberto antes e fechado depois dele (linhas em branco no meio não importam), ou o próprio controle é a tag do componente (`<ColorInput type="color" />`). Um componente do DS irmão no mesmo bloco não conta.
 
 ```bash
 python3 .forge/skills/frontend-ui-review/scripts/scan-native-controls.py <src_dir>
 ```
 
-Imprime `OK` por instância domada/encapsulada e `WARN` por instância crua, mais um resumo. **É
-advisory — nunca bloqueia (exit sempre 0)**: o discriminante correto reduz ruído, mas a metade
-bloqueante (fazer o WARN reprovar o merge) é decisão do consumidor, opt-in, fora desta skill.
+Imprime `OK` por instância domada/encapsulada e `WARN` por instância crua, mais um resumo. **É advisory — nunca bloqueia (exit sempre 0)**: o discriminante correto reduz ruído, mas a metade bloqueante (fazer o WARN reprovar o merge) é decisão do consumidor, opt-in, fora desta skill.
+
+Limites conhecidos (heurística por regex, não parser): o envolvimento é contado por pares de tags na ordem textual do arquivo, então JSX montado por função ou variável em outro ponto do arquivo não é seguido; o sujeito `&::pseudo` do SCSS aninhado é aceito sem resolver o seletor pai; `appearance: none` sem prefixo não domestica checkbox/radio; seletores com combinador dentro de `:not(...)`/`:is(...)` podem ter o sujeito mal recortado; `type` vindo de variável (`type={tipo}`) não é detectado.
 
 ### A5 — Gate de cobertura (superfície inteira, não o diff)
 A1/A2 têm que dar **zero no app inteiro**, não só nos arquivos alterados. Padronização é propriedade

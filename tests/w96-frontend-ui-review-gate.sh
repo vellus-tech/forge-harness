@@ -8,6 +8,9 @@
 #   [5] A4/#140 — controle nativo DOMADO (pseudo-elemento correto no CSS irmão) → OK
 #   [6] A4/#140 — mesmo tipo de controle CRU (sem o pseudo) → WARN (contrafactual de [5])
 #   [7] A4/#140 — PBT-lite: tipo × presença do pseudo × encapsulamento no DS → OK sse um escapa presente
+#   [8] A4/#140 — import sem uso, CSS alheio, appearance global, aspas simples → WARN (com positivas)
+#   [9] A4/#140 — propriedade real vs pseudo inexistente, DS que ENVOLVE vs irmão, comentário não
+#       domestica, seletor que não alcança o controle, linha em branco no JSX, type={"file"}
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -133,11 +136,11 @@ echo "[8] falsos OK da revisão #140 — contrafactuais: exigem WARN (ou OK onde
 # expect_verdict <rótulo> <dir> <tipo> <OK|WARN>: advisory sai 0 e o veredito do tipo confere
 expect_verdict() {
   local label="$1" dir="$2" tipo="$3" esperado="$4" out
-  out="$(python3 "$SCAN_NATIVE" "$dir")" || { echo "FAIL [8] $label (advisory deve sair 0)"; exit 1; }
+  out="$(python3 "$SCAN_NATIVE" "$dir")" || { echo "FAIL [${SCEN:-8}] $label (advisory deve sair 0)"; exit 1; }
   if [ "$esperado" = "OK" ]; then
-    grep -q "^OK $tipo" <<<"$out" || { echo "FAIL [8] $label — esperava OK: $out"; exit 1; }
+    grep -q "^OK $tipo" <<<"$out" || { echo "FAIL [${SCEN:-8}] $label — esperava OK: $out"; exit 1; }
   else
-    grep -q "^WARN $tipo" <<<"$out" || { echo "FAIL [8] $label — esperava WARN: $out"; exit 1; }
+    grep -q "^WARN $tipo" <<<"$out" || { echo "FAIL [${SCEN:-8}] $label — esperava WARN: $out"; exit 1; }
   fi
   echo "  ok $label"
 }
@@ -174,6 +177,47 @@ mkdir -p "$T/e"
 printf "export const Q = () => <input type='color' />;\n" > "$T/e/Q.tsx"
 expect_verdict "(e) aspas simples, cru -> WARN" "$T/e" color WARN
 echo "OK [8] — 9 contrafactuais conferidos"
+
+echo "[9] seletor e envolvimento reais — contrafactuais exigem WARN; casos legítimos exigem OK"
+SCEN=9
+# expect9 <rótulo> <tipo> <OK|WARN> <arquivo-componente> <conteúdo> [<arquivo-css> <conteúdo-css>]
+n9=0
+expect9() {
+  local label="$1" tipo="$2" esperado="$3" dir
+  n9=$((n9 + 1)); dir="$T/n9-$n9"; mkdir -p "$dir"
+  printf '%b' "$5" > "$dir/$4"
+  if [ "$#" -ge 7 ]; then printf '%b' "$7" > "$dir/$6"; fi
+  expect_verdict "$label" "$dir" "$tipo" "$esperado"
+}
+CHK='export const Chk = () => <input type="checkbox" className="box" />;\n'
+COL='export const P = () => <input type="color" className="sw" />;\n'
+# (d) pseudo inexistente ::-webkit-appearance não é a propriedade -webkit-appearance
+expect9 "(d) input::-webkit-appearance { appearance: none } -> WARN" checkbox WARN Chk.tsx "$CHK" Chk.module.css 'input::-webkit-appearance { appearance: none; }\n'
+expect9 "(d) input { -webkit-appearance: none } -> OK (positiva)" checkbox OK Chk.tsx "$CHK" Chk.module.css 'input {\n  -webkit-appearance: none;\n}\n'
+# B1 — DS irmão do controle no mesmo bloco não envolve; DS que envolve (ou é a tag do controle) envolve
+expect9 "(B1) <Button> irmão no mesmo bloco -> WARN" color WARN C.tsx 'import { Button } from "@acme/design-system";\nexport const C = () => (\n  <div>\n    <Button>ok</Button>\n    <input type="color" />\n  </div>\n);\n'
+expect9 "(B1) <Button /> autofechado antes do controle -> WARN" color WARN C.tsx 'import { Button } from "@acme/design-system";\nexport const C = () => <div><Button onClick={() => x > 1} /><input type="color" /></div>;\n'
+expect9 "(B1) DS envolve o controle -> OK (positiva)" color OK C.tsx 'import { Field } from "@acme/design-system";\nexport const C = () => <Field label="Cor"><input type="color" /></Field>;\n'
+expect9 "(B1) o controle é a tag do DS -> OK (positiva)" color OK C.tsx 'import { ColorInput } from "@acme/design-system";\nexport const C = () => <ColorInput type="color" />;\n'
+# B2/B3 — texto em comentário (CSS ou JSX) não domestica
+expect9 "(B2) /* accent-color */ no CSS -> WARN" checkbox WARN Chk.tsx "$CHK" Chk.module.css 'input { /* accent-color */ border: 0; }\n'
+expect9 "(B2) /* accent-color: red */ no CSS -> WARN" checkbox WARN Chk.tsx "$CHK" Chk.module.css 'input { /* accent-color: red; */ border: 0; }\n'
+expect9 "(B2) input { accent-color: x } -> OK (positiva)" checkbox OK Chk.tsx "$CHK" Chk.module.css 'input { accent-color: var(--color-primary-500); }\n'
+expect9 "(B3) /* ::-webkit-color-swatch */ no CSS -> WARN" color WARN P.tsx "$COL" P.module.css '/* input::-webkit-color-swatch { border: none } */\ninput { border: 0; }\n'
+expect9 "(B3) {/* ::-webkit-color-swatch */} no JSX -> WARN" color WARN P.tsx 'export const P = () => (\n  <div>\n    {/* input::-webkit-color-swatch { border: none } */}\n    <input type="color" />\n  </div>\n);\n'
+expect9 "(B3) // ::-webkit-color-swatch no SCSS -> WARN" color WARN P.tsx "$COL" P.module.scss '// input::-webkit-color-swatch { border: none }\n.sw { background: url(//cdn.x/y.png); }\n'
+# B4 — escape de CSS só vale se o seletor alcança o controle (tag ou classe usada no controle)
+expect9 "(B4) .card { -webkit-appearance: none } -> WARN" checkbox WARN Chk.tsx "$CHK" Chk.module.css '.card { -webkit-appearance: none; }\n'
+expect9 "(B4) .card::-webkit-color-swatch -> WARN" color WARN P.tsx "$COL" P.module.css '.card::-webkit-color-swatch { border: none; }\n'
+expect9 "(B4) .box { -webkit-appearance: none } (classe do controle) -> OK (positiva)" checkbox OK Chk.tsx "$CHK" Chk.module.css '.box { -webkit-appearance: none; }\n'
+expect9 "(B4) .wrap .sw::-webkit-color-swatch (classe do controle) -> OK (positiva)" color OK P.tsx "$COL" P.module.css '.wrap .sw::-webkit-color-swatch { border: none; }\n'
+expect9 "(B4) ::-webkit-color-swatch sem tag nem classe -> OK (positiva)" color OK P.tsx "$COL" P.module.css '::-webkit-color-swatch { border: none; }\n'
+# B5 — linha em branco dentro do JSX entre o DS e o controle não quebra o envolvimento
+expect9 "(B5) DS envolve com linha em branco no meio -> OK" color OK C.tsx 'import { Field } from "@acme/design-system";\nexport const C = () => (\n  <Field>\n\n    <input type="color" />\n\n  </Field>\n);\n'
+# B7 — type={"file"} e type={'"'"'file'"'"'} são detectados
+expect9 "(B7) type={\"file\"} cru -> WARN" file WARN U.tsx 'export const U = () => <input type={"file"} />;\n'
+expect9 "(B7) type={'file'} domado -> OK (positiva)" file OK U.tsx "export const U = () => <input type={'file'} />;\n" U.module.css 'input::file-selector-button { border: none; }\n'
+echo "OK [9] — $n9 casos conferidos"
 
 echo "[4] artefatos + fiação presentes"
 SK="$WS/template/.forge/skills/frontend-ui-review/SKILL.md"

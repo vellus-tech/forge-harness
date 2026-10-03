@@ -1,10 +1,10 @@
-# Changelog
-
-Todas as mudanças notáveis deste projeto são documentadas aqui.
-O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
-e o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
-
 ## [Unreleased]
+
+## [0.17.0] — 2026-10-03
+
+### Atenção para quem atualiza
+
+- **Planos (`tasks.md`) criados antes desta versão não declaram `Teste (comando)` nem `Padrão de falha`.** Sem esses campos, o `task-coder` marca cada TASK como `[!]` em vez de executar o vermelho: o motor de replay do TDD não tem como provar o teste. Regere o `tasks.md` com o template atual ou acrescente os dois campos nas TASKs do módulo antes de retomar a onda.
 
 ### Added
 
@@ -848,7 +848,8 @@ consolidação (Fase 8) + code graph com insights de arquitetura.
 - Toda a camada Quality (eval/meta) é **opt-in** (`quality.evals_enabled: false` por default).
 - Pendente para v0.1.0 final: teste manual em Claude Code real (contrato C10) + remoção dos wrappers deprecados.
 
-[Unreleased]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc12...HEAD
+[Unreleased]: https://github.com/vellus-tech/forge-harness/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/vellus-tech/forge-harness/compare/v0.16.0...v0.17.0
 [0.1.0-rc12]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc11...v0.1.0-rc12
 [0.1.0-rc11]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc10...v0.1.0-rc11
 [0.1.0-rc10]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc9...v0.1.0-rc10

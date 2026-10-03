@@ -44,6 +44,8 @@ Grave `verification.md` no change:
 ## Desvios e observações
 ```
 
+A coluna `Status` usa só dois tokens, e nenhum outro: `VERIFICADO` quando o nível de teste rodou de verdade contra o comportamento real, e `PENDENTE` quando a saída aplicada foi a 3ª da ordem de `testing/change-test-contract.md` (evidência pendente declarada explicitamente após esgotadas as duas primeiras). Nunca use "não verificado" nem qualquer variante que apenas nega o token positivo — a negação por prefixo passa despercebida numa leitura rápida da tabela; os dois tokens têm de ser palavras inteiras e distintas entre si. Um REQ com `PENDENTE` em qualquer linha impede `## Resultado: APROVADO`.
+
 ## 2.5. Spec delta — autoria com o contexto quente (§10.4)
 
 O script da etapa 1 já gerou um **esqueleto** de `spec-delta.yaml` (determinista: REQ-NN do artefato de requirements + `affected_capabilities` do manifest; nunca sobrescreve delta já autorado). Sua parte é preencher os payloads **agora** — você acabou de conferir requirements × código REQ a REQ, e o delta é subproduto direto dessa conferência (deixá-lo para a sessão de archive obriga alguém a reconstruir tudo frio):

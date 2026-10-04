@@ -35,6 +35,9 @@ runtime:
   # `source` é a fase da árvore de fontes — a única que o pre-push e o fechamento de wave
   # executam. Ela NÃO cobre o artefato implantável: digest publicado, manifesto renderizado,
   # cluster no ar. Ver rules/testing/gate-delivery-channel.md.
+  #
+  # Invocação (pre-push, /forge:verify e fechamento de wave, igual nos três): `bash <gate>.sh
+  # --path <raiz>`, sem posicional; o change em foco, quando há, vem em FORGE_CHANGE_ID.
   gates:
 codegraph:
   # Mapa de camadas do code graph. Vazio = heurística embutida do engine (convenções de pasta +

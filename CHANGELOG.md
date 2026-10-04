@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Fixed
+
+- **`validate-spec.sh --path <dir>` sobre um change `type: bugfix` em `verified` não regrava mais o `red-evidence.json` do change real (Closes #189).** O replay (`red-evidence.sh ensure`) só roda quando o diretório validado é o change ativo `.forge/specs/active/<id>/` (comparação por realpath); fora dele a evidência é avaliada como está, sem replay nem escrita, com uma linha `WARN` dizendo isso — escolhido em vez de passar o `--path` ao `ensure` porque o replay cria worktrees no repositório e regravaria a evidência de changes arquivados. Ajuda do validador (`--help`) explica o efeito colateral. Gate novo: `tests/w276-validate-spec-path-gate.sh`; badge do README sobe para 173 gates.
+
 ## [0.17.0] — 2026-10-03
 
 ### Atenção para quem atualiza

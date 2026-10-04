@@ -3,6 +3,7 @@
 ### Fixed
 
 - **`approval-log.sh` gravava YAML inválido a partir de `approvals: []` literal e reportava `OK`; `spec-close.sh` não repassava `--autonomous` (Closes #188).** A lista vazia inline vira chave em bloco antes de anexar, a escrita passa por temporário validado (estrutura estrita + semântica, mais PyYAML quando disponível) e, se o resultado não for YAML válido, o script sai com FAIL sem tocar o arquivo; `spec-close.sh --autonomous` repassa a flag e mostra a recusa do approval-log em vez de falhar mudo. Gate `tests/w275-approval-log-yaml-gate.sh`.
+- **`check-secrets.sh` ignorava `FORGE_SECRETS_ENFORCE` em silêncio (Refs #174, conserto de campo devolvido ao template).** A variável (`warn|block`) passa a sobrepor o `secrets.enforce` do forge.yaml por invocação, para que o hook de push bloqueie o segredo que entra enquanto o passivo herdado só avisa; valor inválido reprova com rc 2. Gate `w276-secrets-enforce-override`.
 
 ## [0.17.0] — 2026-10-03
 

@@ -29,7 +29,7 @@ Grave `{{RUN}}/grading.json`, JSON válido, exatamente neste formato:
 }
 ```
 
-Uma entrada em `expectations` por asserção, na mesma ordem e com o texto literal. `passed` é booleano. `pass_rate` é um NÚMERO entre 0 e 1 igual a `passed/total`, com até 4 casas decimais, nunca texto como `"2/5"`. Não inclua campo `timing`. Depois de gravar, rode `jq -e '(.summary.pass_rate|type)=="number" and (.expectations|length)=={{N}} and ([.expectations[]|select(.passed==true)]|length)==.summary.passed' {{RUN}}/grading.json` e corrija o arquivo se falhar. A sua resposta a quem o chamou é só `OK` ou `FALHA: <motivo>`.
+Uma entrada em `expectations` por asserção, na mesma ordem e com o texto literal. `passed` é booleano. `pass_rate` é um NÚMERO entre 0 e 1 igual a `passed/total`, com até 4 casas decimais, nunca texto como `"2/5"`. Não inclua campo `timing`. Depois de gravar, rode `jq -e '(.summary.pass_rate|type)=="number" and (.expectations|length)=={{N}} and ([.expectations[]|select(.passed==true)]|length)==.summary.passed' {{RUN}}/grading.json` e corrija o arquivo se falhar. A sua resposta a quem o chamou é só `OK` quando o grading.json estiver gravado e validado, mesmo com asserções reprovadas, ou `FALHA: <motivo>` se não conseguiu gravá-lo.
 
 ## Pedido original do usuário
 

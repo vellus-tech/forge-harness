@@ -1,0 +1,26 @@
+{
+  "eval_id": 2,
+  "eval_name": "validador-desktop-baseline-furado",
+  "prompt": "O time do validador desktop (src/Validador.Desktop, WinForms .NET 8) jura que o código está limpo porque o CI passa verde e a IDE até mostra sublinhado vermelho quando alguém nomeia interface sem o I. Revisa a qualidade desse projeto e me escreve o parecer em parecer-validador.md na raiz. Se tiver coisa que é falso alarme, quero saber também — não quero uma lista que o time vai ignorar.",
+  "assertions": [
+    "Em parecer-validador.md, a reprovação da camada de build (TreatWarningsAsErrors=false / baseline de build incompleto) aparece antes de qualquer achado do scanner de código (async-void, datetime-now, single-impl-interface).",
+    "parecer-validador.md explica que a severidade declarada em dotnet_naming_rule.*.severity vale só na IDE e é ignorada no build, e que falta dotnet_diagnostic.IDE1006.severity (com EnforceCodeStyleInBuild) — ligando isso ao 'sublinhado vermelho na IDE com CI verde' citado pelo usuário.",
+    "parecer-validador.md não afirma que rodar dotnet-baseline.sh --apply resolve tudo: deixa claro que Directory.Build.props e .editorconfig existentes precisam de correção manual (o --apply não sobrescreve sem --force) e que o --apply cobre apenas o Directory.Packages.props ausente.",
+    "parecer-validador.md classifica o async void btnSincronizar_Click em UI/MainForm.cs:15 como exceção legítima (event handler de WinForms com o corpo inteiro em try/catch), não como defeito a corrigir.",
+    "parecer-validador.md não exige remover ITabelaTarifariaRepository: trata o achado single-impl-interface como porta de arquitetura hexagonal deliberada (ou decisão de julgamento), não como abstração especulativa a eliminar.",
+    "parecer-validador.md aponta DateTime.Now em Domain/TabelaTarifaria.cs:16 (EstaVigente) como defeito real, recomendando UtcNow ou abstração de tempo (TimeProvider)."
+  ],
+  "fixture": "fixtures/validador-desktop-baseline-furado/setup.sh",
+  "fixture_tree": "7128cd2a8c36a8d676b50fc59ed67fd90959e9e9",
+  "machinery_sha": "c65840e5e9996f54a1531964099ce6cf92223981",
+  "sandbox": {
+    "git_local": "permitido (branch, worktree, commit, merge local)",
+    "push": "só para remotes que apontam para dentro do projeto",
+    "build_e_teste_local": "permitido sem rede",
+    "rede": "proibida",
+    "subagentes": "permitidos, Agent com model sonnet e general-purpose, mesma política repassada",
+    "docker": "proibido",
+    "tmp": "/tmp/<x> é mapeado para o diretório tmp da execução",
+    "igual_nas_duas_configuracoes": true
+  }
+}

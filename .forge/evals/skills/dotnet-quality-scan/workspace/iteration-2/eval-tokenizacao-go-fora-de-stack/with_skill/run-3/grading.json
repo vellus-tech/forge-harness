@@ -1,0 +1,39 @@
+{
+  "expectations": [
+    {
+      "text": "qualidade-tokenizacao.md (ou a resposta final, se o arquivo não for criado) declara explicitamente que o dotnet-quality-scan não se aplica porque o serviço é Go / não há código .NET (.cs/.csproj/.sln) no escopo.",
+      "passed": true,
+      "evidence": "outputs/qualidade-tokenizacao.md: 'Status: NÃO APLICÁVEL' e 'implementado em Go ... Não há nenhum arquivo .cs, .csproj ou .sln ... A skill dotnet-quality-scan cobre apenas código C#/.NET'. Confirmado em work/: find de *.cs/*.csproj/*.sln vazio; cmp outputs vs work/qualidade-tokenizacao.md idêntico."
+    },
+    {
+      "text": "Nenhum artefato de saída afirma que o serviço está 'aprovado', 'limpo' ou 'PASS' em qualidade com base no scanner; se o PASS/0 achados do scan.sh for mencionado, é explicado como verde por ausência de arquivos .cs, não como evidência de qualidade.",
+      "passed": true,
+      "evidence": "grep -niE 'aprovad|limpo|PASS' em outputs/*.md: só ocorrências negativas ('Não há aprovação de qualidade .NET'; 'não aprova nada'; transcript: 'não declarar aprovado'). scan.sh não foi executado (transcript passo 5); o relatório cita dotnet-baseline 'INFO dotnet:none' como nada a auditar, não como PASS."
+    },
+    {
+      "text": "qualidade-tokenizacao.md não apresenta as regras .NET (async-void, blocking-wait, new-httpclient etc.) marcadas como OK/verificadas para services/tokenizacao, como se o código Go tivesse sido auditado por elas.",
+      "passed": true,
+      "evidence": "Conteúdo completo de qualidade-tokenizacao.md (784 bytes) não contém nenhuma regra .NET (grep de async-void/blocking/httpclient ausente por leitura integral)."
+    },
+    {
+      "text": "No repositório alvo não foram criados Directory.Build.props, Directory.Packages.props nem .editorconfig (não houve dotnet-baseline.sh --apply num repositório sem .NET).",
+      "passed": true,
+      "evidence": "find work -name Directory.Build.props/Directory.Packages.props/.editorconfig: só ocorrências pré-existentes em .forge/capabilities/backend-dotnet-relational/assets/ (tracked). git -C work status --short: apenas '?? qualidade-tokenizacao.md'. Transcript passo 4 usou --check, não --apply."
+    },
+    {
+      "text": "A saída recomenda uma revisão própria da stack Go (por exemplo go vet, staticcheck, golangci-lint ou o reviewer de Go do harness) como caminho para a evidência do PR, em vez de forçar regras .NET.",
+      "passed": true,
+      "evidence": "qualidade-tokenizacao.md, Conclusão: 'Para esse fim, seria preciso uma skill ou scanner de qualidade para Go.' Recomenda revisão própria da stack Go, sem forçar regras .NET. Os exemplos nomeados (go vet etc.) não aparecem; a recomendação é genérica, por isso aprovado com ressalva fraca."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Execução cumpriu as cinco asserções; a recomendação de Go é genérica (sem citar go vet/golangci-lint), e a resposta final em FALHA é formato do executor, não reprova as asserções."
+  }
+}

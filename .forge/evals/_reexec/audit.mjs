@@ -6,7 +6,9 @@
 // Associa cada jsonl de subagente a uma execução pelo id opaco citado na primeira mensagem
 // (runs/<id>/prompt.md para executor, runs/<id>/grader_prompt.md para grader) e marca toda chamada
 // de ferramenta cujo argumento cite: o repositório do harness, um diretório de evals, o relatório,
-// a árvore template/.forge do harness, outra execução (runs/<outro id>) ou /tmp fora do tmp da execução.
+// a árvore template/.forge do harness, outra execução (runs/<outro id>) ou /tmp fora do tmp da execução
+// (esta última só para executor e subagente: o grader grava no grading.json o texto das asserções, que
+// cita caminhos em /tmp, e o /tmp da execução que ele confere é o mapeado).
 // Conta também commits git reais e chamadas Agent, que provam a política de sandbox aplicada.
 // Com <tipo> <nome>, grava contamination.json na iteração do artefato (com caminhos de máquina trocados).
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -42,7 +44,11 @@ for (const f of files) {
     for (const part of content) {
       if (part.type !== 'tool_use') continue;
       calls++;
-      const s = JSON.stringify(part.input);
+      // Write/Edit: só o destino conta como acesso; o conteúdo é prosa do próprio registro (um
+      // transcript que descreve "<scratchpad>/tmp/x" não é acesso a /tmp).
+      const s = ['Write', 'Edit', 'MultiEdit', 'NotebookEdit'].includes(part.name)
+        ? JSON.stringify({ file_path: part.input?.file_path })
+        : JSON.stringify(part.input);
       if (part.name === 'Agent' || part.name === 'Task') agentCalls++;
       if (part.name === 'Bash' && /\bgit\b[^"]*\bcommit\b/.test(s)) commits++;
       const checks = [
@@ -51,7 +57,7 @@ for (const f of files) {
         [/RELATORIO|plano-melhorias/.test(s), 'relatório ou plano'],
         [/template\/\.forge/.test(s.split(runDir).join('__RUN__')), 'template/.forge do harness'],
         [[...s.matchAll(/runs\/([0-9a-f]{10})/g)].some((x) => x[1] !== id), 'outra execução'],
-        [/(^|[^A-Za-z0-9_.-])\/tmp\//.test(s.split(runDir).join('__RUN__').replace(/\/private\/tmp\/claude-[^"\s]*/g, '')), '/tmp fora do tmp da execução']
+        [role !== 'grader' && /(^|[^A-Za-z0-9_.-])\/tmp\//.test(s.split(runDir).join('__RUN__').replace(/\/private\/tmp\/claude-[^"\s]*/g, '')), '/tmp fora do tmp da execução']
       ];
       for (const [cond, why] of checks) if (cond) flags.push({ tool: part.name, why, input: s.slice(0, 300) });
     }

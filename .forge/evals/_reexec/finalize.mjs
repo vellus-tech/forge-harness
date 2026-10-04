@@ -85,6 +85,9 @@ if (opt.collect) {
 }
 
 // 2. validação ----------------------------------------------------------------------------------
+// O grader às vezes devolve o texto sem a crase de código ou com espaço diferente; a identidade da
+// asserção é a posição, e o texto só confere que é a mesma asserção, então a comparação ignora isso.
+const norm = (t) => String(t || '').replace(/`/g, '').replace(/\s+/g, ' ').trim();
 const counts = {};
 for (const ev of evals) {
   const caseDir = join(ITER, `eval-${ev.eval_name}`);
@@ -102,7 +105,7 @@ for (const ev of evals) {
       if (ex.length !== texts.length) fail(`${where}: ${ex.length} expectativas, esperado ${texts.length}`);
       ex.forEach((x, i) => {
         if (typeof x.passed !== 'boolean') fail(`${where}: expectativa ${i + 1} com passed não booleano`);
-        if (texts[i] !== undefined && (x.text || '').trim() !== texts[i].trim()) fail(`${where}: expectativa ${i + 1} com texto diferente da asserção`);
+        if (texts[i] !== undefined && norm(x.text) !== norm(texts[i])) fail(`${where}: expectativa ${i + 1} com texto diferente da asserção`);
       });
       const s = g.summary || {};
       const trues = ex.filter((x) => x.passed === true).length;
@@ -176,12 +179,30 @@ if (existsSync(refBp)) {
   const d = rb.with_skill.pass_rate.mean - rb.without_skill.pass_rate.mean;
   ref = { iteration: Number(opt['iteration-ref']), with: rb.with_skill.pass_rate.mean, without: rb.without_skill.pass_rate.mean, delta: r4(d) };
 }
+// Contagem por asserção (descritiva, para o analista não recontar): aprovações / execuções em cada
+// configuração nesta iteração e na de referência, na ordem das asserções do caso.
+function assertionTable(b) {
+  const t = {};
+  for (const r of b.runs) {
+    (r.expectations || []).forEach((x, i) => {
+      const k = `${r.eval_id}|${i + 1}`;
+      t[k] ||= { with_skill: [0, 0], without_skill: [0, 0] };
+      const c = t[k][r.configuration]; if (!c) return;
+      c[1]++; if (x.passed === true) c[0]++;
+    });
+  }
+  return t;
+}
+const a2 = assertionTable(bench);
+const a1 = existsSync(refBp) ? assertionTable(JSON.parse(readFileSync(refBp, 'utf8'))) : {};
+const assertions = Object.keys(a2).sort((x, y) => { const [e1, i1] = x.split('|').map(Number); const [e2, i2] = y.split('|').map(Number); return e1 - e2 || i1 - i2; })
+  .map((k) => { const [e, i] = k.split('|').map(Number); return { eval_id: e, assertion: i, with: a2[k].with_skill.join('/'), without: a2[k].without_skill.join('/'), ref_with: a1[k] ? a1[k].with_skill.join('/') : null, ref_without: a1[k] ? a1[k].without_skill.join('/') : null }; });
 const rs = bench.run_summary;
 const out = {
   artifact: `${kind}/${name}`, iteration: Number(opt.iteration), runs_per_configuration: runsPerConfig,
   with: rs.with_skill.pass_rate.mean, without: rs.without_skill.pass_rate.mean, delta: r4(point),
   ci95: [r4(lo), r4(hi)], bootstrap: { replicas: B, seed: 176, strata: 'caso × configuração' },
-  verdict, defects, per_case: perCase,
+  verdict, defects, per_case: perCase, assertions,
   time_seconds: { with: rs.with_skill.time_seconds.mean, without: rs.without_skill.time_seconds.mean },
   tokens: { with: rs.with_skill.tokens.mean, without: rs.without_skill.tokens.mean },
   reference: ref, delta_vs_reference: ref ? r4(point - ref.delta) : null

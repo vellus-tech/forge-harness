@@ -63,6 +63,8 @@ A **ausência** do bloco resolve para `warn`, e a razão é de rollout, não de 
 
 O default brando vale só para quem **herda** o gate. Projeto novo nasce com `enforce: block` explícito no `forge.yaml` do template, e um repositório existente que rodou `check-secrets.sh report`, mediu o passivo e saneou declara `block` — que é o estado final esperado de todo mundo. Falha de **integridade** (conjunto varrido vazio, allowlist malformada) reprova nos dois modos: um gate que não rodou não pode se reportar verde.
 
+Entre o `warn` do passivo e o `block` final existe a assimetria por invocação: `FORGE_SECRETS_ENFORCE=warn|block` sobrepõe o `forge.yaml` naquela chamada. Com o `forge.yaml` em `warn`, o hook de push pode rodar `FORGE_SECRETS_ENFORCE=block check-secrets.sh range <push>` — o segredo que **entra** bloqueia, o passivo herdado só avisa. Valor fora de `warn|block` reprova com rc 2, nunca cai em silêncio no `forge.yaml`; o modo `report` segue inventário com qualquer valor.
+
 ## Falso positivo: allowlist com justificativa obrigatória
 
 Fixture de teste que precisa carregar um segredo sintético para provar que o detector detecta, e documentação que exibe um valor de exemplo completo, são exceções legítimas. Elas vão para `.forge/secrets-allowlist.txt`, uma por linha:

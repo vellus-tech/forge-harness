@@ -47,7 +47,9 @@ function sanitize(text, runDir) {
   let t = text;
   for (const p of [runDir, runDir.replace(/^\/private/, '')]) t = t.split(p).join('<RUN>');
   for (const p of [SCRATCH, SCRATCH.replace(/^\/private/, '')]) t = t.split(p).join('<SCRATCH>');
-  return t.split(process.env.HOME).join('<HOME>');
+  // Literal que o secret-scan casa é redigido na evidência (D-1 do plano): a fixture do dotnet-reviewer
+  // planta uma AWS Access Key ID falsa, e executor e grader a citam.
+  return t.split(process.env.HOME).join('<HOME>').replace(/\b(AKIA|ASIA)[A-Z0-9]{16}\b/g, '<AWS_KEY_ID_REDIGIDA>');
 }
 function copyText(src, dst, runDir) {
   const buf = readFileSync(src);

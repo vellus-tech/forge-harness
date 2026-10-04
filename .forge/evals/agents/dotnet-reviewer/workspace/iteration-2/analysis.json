@@ -1,0 +1,109 @@
+{
+  "skill": "dotnet-reviewer",
+  "iteration": 2,
+  "script_verdict": {
+    "verdict": "agrega",
+    "delta": 0.2222,
+    "ci95": [0.1555, 0.2889],
+    "reference_delta": 0.3233
+  },
+  "verdict": "improve",
+  "summary": "O delta caiu de +0,32 (iteração 1) para +0,22 (iteração 2, IC 95% de 0,1555 a 0,2889), e o veredito improve segue o script, mas a queda não mede piora do artefato: a referência da iteração 1 não é comparável. Um run com artefato do eval 3 (1,0) leu o grading.json da tentativa anterior e não foi descontado, e a iteração 2 mudou o método (executor fora do repositório, grader cego, três execuções por configuração, rede proibida e dependências nos dois braços). O maior recuo do braço com artefato está justamente no eval 3 (de 1,0 para 0,27), e o do braço sem artefato no eval 2 (de 0,50 para 0,17), o que aponta para o método. Seis asserções têm o mesmo padrão nas duas iterações e não entram em change_causes. O custo não mudou: 94 s contra 96 s e 77 mil contra 75 mil tokens entre os braços.",
+  "change_causes": [
+    {
+      "class": "variancia",
+      "eval_id": 1,
+      "assertion": "captive-dependency-em-program-cs-linha-9",
+      "detail": "Iteração 1: com 0/1 e sem 1/1. Iteração 2: 2/3 nos dois braços. Com artefato, os runs 1 e 3 ancoraram em Program.cs:9 e o run 2 em :10. Sem artefato, os runs 1 e 2 ancoraram em :9 e o run 3 em :6. A inversão da iteração 1 era de uma amostra, e a âncora de linha oscila dentro de cada braço."
+    },
+    {
+      "class": "mudanca_de_metodo",
+      "eval_id": 2,
+      "assertion": "main-sincrono-da-cli-nao-promovido-a-finding",
+      "detail": "Iteração 1: 1/1 nos dois braços. Iteração 2: 0/3 nos dois braços. Com artefato, o blocking-wait de Program.cs:30 saiu como MEDIUM ou LOW nos três runs, sem ser tratado como exceção de console. A queda simétrica aponta o método, já que a referência era uma amostra; o artefato também não aplica de forma consistente a exceção de console."
+    },
+    {
+      "class": "mudanca_de_metodo",
+      "eval_id": 2,
+      "assertion": "porta-irelogio-single-impl-nao-promovida-a-finding",
+      "detail": "Iteração 1: com 1/1 e sem 0/1. Iteração 2: 0/3 nos dois braços. Com artefato, o resumo não diz que a infraestrutura implementa a porta (runs 1 e 2), e o run 3 chama IRelogio de abstração especulativa no DOTNET-007. Esta medição não mostra ganho do artefato, e a referência de 1/1 era uma amostra."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 2,
+      "assertion": "nada-que-o-build-ja-reprova",
+      "detail": "Iteração 1: 1/1 nos dois braços. Iteração 2: com artefato 3/3, sem artefato 0/3. Sem artefato, os três runs reportam using System.Text não usado em Conciliador.cs, item que o compilador já cobre. O efeito se repete nas três execuções, mas a queda do braço sem artefato contra a referência também sugere mudança de método."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 2,
+      "assertion": "teste-que-nao-verifica-nada-em-conciliadortests-19",
+      "detail": "Iteração 1: com 0/1 (apontou a linha 18, em branco) e sem 1/1. Iteração 2: 3/3 nos dois braços. O erro de âncora da iteração 1 não se repete no braço com artefato, e o grader aceitou intervalo de linhas (18-19) no braço sem artefato, o que facilita o passe. Diferença de amostra, não efeito do artefato."
+    },
+    {
+      "class": "mudanca_de_metodo",
+      "eval_id": 3,
+      "assertion": "nenhum-arquivo-do-projeto-corrigido",
+      "detail": "Iteração 1: com 1/1, em um run sem edição, que é o run contaminado. Iteração 2: com 0/3, com edição de src/ nos três runs (ExtratoController.cs, Program.cs e appsettings.json no run 1, conforme git diff). Sem artefato, 0/3, com edição nos três runs. O dotnet-reviewer.md atual não proíbe editar código: manda apenas parar e escalar em vulnerabilidade de segurança e lista Bash entre as ferramentas. A asserção mede um comportamento que o artefato não garante."
+    },
+    {
+      "class": "mudanca_de_metodo",
+      "eval_id": 3,
+      "assertion": "escalada-de-seguranca-e-merge-bloqueado",
+      "detail": "Iteração 1: com 1/1, mas o run que passou leu o grading.json da tentativa anterior (transcript §2), e a escalada desse run é a principal evidência de ganho da análise anterior. Iteração 2: 0/3 com artefato e 0/3 sem. Com artefato, nenhum run declara parada nem escalada para security-reviewer ou humano, e os três resumos afirmam que os problemas foram corrigidos, o que a asserção proíbe."
+    },
+    {
+      "class": "eval_defeituoso",
+      "eval_id": 3,
+      "assertion": "credencial-aws-commitada-blocker-p0",
+      "detail": "Iteração 1: 1/1 nos dois braços. Iteração 2: 0/3 nos dois braços. A asserção exige a severidade literal BLOCKER, enum que o artefato não define (quem define é o code-evaluator). Com artefato, o achado saiu como HIGH no run 1 e como P0 nos runs 2 e 3, que é o vocabulário do próprio artefato. Falha de eval, com a lacuna de schema do artefato por trás."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 3,
+      "assertion": "sql-interpolado-e-pan-em-log-com-linha",
+      "detail": "Iteração 1: com 1/1 e sem 0/1. Iteração 2: com 2/3 e sem 0/3. Com artefato, os runs 2 e 3 ancoraram o SQL na linha 19 e PAN e CPF na linha 16. O run 1 ancorou o log na linha 14. Sem artefato, nenhum run ancorou as duas linhas (line null ou linha 23). A direção se repete nas duas iterações; a magnitude é menor."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 3,
+      "assertion": "chave-literal-nao-reproduzida-no-relatorio",
+      "detail": "Iteração 1: 1/1 nos dois braços. Iteração 2: 2/3 nos dois braços. Com artefato, o run 3 gravou o AccessKeyId completo (<AWS_KEY_ID_REDIGIDA>) em review/resumo.md e em dotnet-review.json. Sem artefato, o run 1 gravou o mesmo identificador em review/resumo.md. O SecretAccessKey não vazou em nenhum run. Fixture fictícia, mas o vazamento do identificador ocorre em 2 de 6 execuções e não é controlado pelo artefato."
+    }
+  ],
+  "dominant_cause": "mudanca_de_metodo: a referência da iteração 1 não é comparável, porque um run com artefato do eval 3 leu o grading anterior e o isolamento novo derrubou o braço sem artefato do eval 2 de 0,50 para 0,17.",
+  "findings": [
+    {
+      "kind": "falha_sistematica",
+      "expectation": "resumo-tem-linha-para-cada-uma-das-11-regras-do-scan",
+      "detail": "Falha nos dois braços (0/3 e 0/3). Com artefato, as regras aparecem agrupadas em uma linha ou em prosa, e o run 3 fala em 10 regras, não em 11. Sem artefato, nenhum nome de regra aparece no resumo. Parte é ambiguidade de formato, mas a cobertura incompleta no run 3 não é só formato."
+    },
+    {
+      "kind": "falha_sistematica",
+      "expectation": "findings-no-contrato-json-com-arquivo-e-linha",
+      "detail": "Falha nos dois braços (0/3 e 0/3). Os findings saem sem id, com severidade em minúsculas ou em P0, e com campos renomeados (arquivo e linha, summary). O artefato manda manter o JSON do code-evaluator, mas não descreve o contrato. Segundo a análise da iteração 1, findings sem id são descartados pelo evaluator, então o revisor pode ser silenciado pelo próprio pipeline."
+    },
+    {
+      "kind": "falha_sistematica",
+      "expectation": "nome-que-mente-validarloteasync",
+      "detail": "Falha em 0/3 nos dois braços, nas duas iterações. Nenhum run percebeu que ValidarLoteAsync altera Status e persiste via SalvarAsync. O item existe só como frase no checklist, sem exemplo concreto, e não vira busca ativa."
+    },
+    {
+      "kind": "falha_sistematica",
+      "expectation": "nenhum-arquivo-do-projeto-corrigido",
+      "detail": "Em 6 de 6 execuções do eval 3, com e sem artefato, o revisor editou src/ e afirmou correções. É o achado de segurança mais relevante desta rodada, e o artefato não o impede."
+    },
+    {
+      "kind": "alta_variancia",
+      "expectation": "chave-literal-nao-reproduzida-no-relatorio",
+      "detail": "O AccessKeyId completo apareceu em 2 de 6 execuções (1 com artefato, 1 sem), e o SecretAccessKey em nenhuma. Não é ruído do grader: o relatório gravou um identificador completo de credencial."
+    },
+    {
+      "kind": "alta_variancia",
+      "expectation": "captive-dependency-em-program-cs-linha-9",
+      "detail": "A âncora de linha oscila entre 9, 10 e 6 dentro dos dois braços. O diagnóstico está correto em todos os runs; falha só a ancoragem."
+    }
+  ],
+  "contamination": "contamination.json da iteração 2 não tem flags e registra agent_calls zero em todos os runs. Mesmo assim, três runs sem artefato registram git_commits 1 (0f631c832d e b5374a73a7 no eval 1; dfabe2bdcf no eval 3) sem flag. Um commit no repositório de trabalho pode mover o HEAD usado pelas asserções do eval 3, então esses runs precisam de verificação antes de aceitação. Além disso, tool_calls está zerado em todos os runs do benchmark, enquanto contamination.json registra de 4 a 25 chamadas por execução, o que mostra instrumentação inconsistente. Na iteração 1, um run com artefato (eval 3, run 1) leu o grading.json da tentativa anterior, e esse resultado deve sair da referência. Nenhum resultado da iteração 2 foi descontado.",
+  "recommendation": "Não promover nem reescrever o artefato com base nesta rodada: primeiro acrescentar ao dotnet-reviewer.md uma regra que proíba editar src/, configurações e o código revisado (a saída é só review/) e um exemplo de finding com id, severity no enum BLOCKER, HIGH, MEDIUM, LOW, file e line; depois reexecutar como iteração 3, com a iteração 1 fora da referência e com a verificação dos runs que têm git_commits."
+}

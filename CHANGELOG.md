@@ -3,6 +3,7 @@
 ### Fixed
 
 - **`validate-spec.sh --path <dir>` sobre um change `type: bugfix` em `verified` não regrava mais o `red-evidence.json` do change real (Closes #189).** O replay (`red-evidence.sh ensure`) só roda quando o diretório validado é o change ativo `.forge/specs/active/<id>/` (comparação por realpath); fora dele a evidência é avaliada como está, sem replay nem escrita, com uma linha `WARN` dizendo isso — escolhido em vez de passar o `--path` ao `ensure` porque o replay cria worktrees no repositório e regravaria a evidência de changes arquivados. Ajuda do validador (`--help`) explica o efeito colateral. Gate novo: `tests/w276-validate-spec-path-gate.sh`; badge do README sobe para 173 gates.
+- **`approval-log.sh` gravava YAML inválido a partir de `approvals: []` literal e reportava `OK`; `spec-close.sh` não repassava `--autonomous` (Closes #188).** A lista vazia inline vira chave em bloco antes de anexar, a escrita passa por temporário validado (estrutura estrita + semântica, mais PyYAML quando disponível) e, se o resultado não for YAML válido, o script sai com FAIL sem tocar o arquivo; `spec-close.sh --autonomous` repassa a flag e mostra a recusa do approval-log em vez de falhar mudo. Gate `tests/w275-approval-log-yaml-gate.sh`.
 
 ## [0.17.0] — 2026-10-03
 

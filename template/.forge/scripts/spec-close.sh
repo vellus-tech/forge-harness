@@ -18,18 +18,22 @@
 # The script touches nothing outside the change folder EXCEPT the durable ledger
 # (.forge/ledger/): it harvests open/wont-fix deferrals + findings there before the move
 # (non-blocking — the change's discoveries survive; see ledger-consultation.md).
-# Usage: spec-close.sh <change-id> --reason <r> --note "<text>" [--superseded-by <id>]
+# --autonomous (§12.2, modo yolo): a disposição foi decidida pelo revisor autônomo (agent
+# yolo-gate), não por humano — repassado ao approval-log.sh, que grava autonomous: true e o
+# decided_by do decisor autônomo (nunca o git user) e impõe autonomy.human_hard_stops.
+# Usage: spec-close.sh <change-id> --reason <r> --note "<text>" [--superseded-by <id>] [--autonomous]
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${FORGE_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 
 ID="${1:-}"; shift || true
-REASON=""; NOTE=""; SUPERSEDED_BY=""
+REASON=""; NOTE=""; SUPERSEDED_BY=""; AUTONOMOUS=0
 while [ $# -gt 0 ]; do case "$1" in
   --reason) REASON="${2:-}"; shift 2 ;;
   --note) NOTE="${2:-}"; shift 2 ;;
   --superseded-by) SUPERSEDED_BY="${2:-}"; shift 2 ;;
+  --autonomous) AUTONOMOUS=1; shift ;;
   *) echo "FAIL (unknown argument: $1)"; exit 2 ;;
 esac; done
 
@@ -58,7 +62,14 @@ case "$REASON" in abandoned) DEC="abandon" ;; rejected) DEC="reject" ;; supersed
 # ${arr[@]+...} guard: empty array + set -u explodes on macOS bash 3.2
 extra=()
 [ -n "$SUPERSEDED_BY" ] && extra=(--superseded-by "$SUPERSEDED_BY")
-bash "$SCRIPT_DIR/approval-log.sh" "$ID" --gate close --decision "$DEC" --reason "$NOTE" ${extra[@]+"${extra[@]}"} >/dev/null
+[ "$AUTONOMOUS" -eq 1 ] && extra+=(--autonomous)
+# A saída do approval-log só é descartada no sucesso: na recusa (hard-stop, YAML inválido) a
+# linha FAIL dele é a explicação, e o close para antes de tocar manifest ou mover a pasta.
+if ! AL_OUT="$(bash "$SCRIPT_DIR/approval-log.sh" "$ID" --gate close --decision "$DEC" --reason "$NOTE" ${extra[@]+"${extra[@]}"} 2>&1)"; then
+  echo "$AL_OUT"
+  echo "FAIL (approval-log recusou a decisão de close — change $ID continua ativo)"
+  exit 1
+fi
 
 # manifest: status + archive block (kind/reason), inside the change folder only
 TODAY="$(date +%F)"

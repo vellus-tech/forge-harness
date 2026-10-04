@@ -53,7 +53,8 @@ for (const f of files) {
       if (part.name === 'Bash' && /\bgit\b[^"]*\bcommit\b/.test(s)) commits++;
       const checks = [
         [s.includes(repoMain), 'repositório do harness'],
-        [/\.forge\/evals\b/.test(s.split(runDir).join('__RUN__')), 'diretório .forge/evals'],
+        // .forge/evals relativo não serve de sinal: a fixture do agente executor tem o próprio .forge/evals
+        // dentro do projeto. A leitura dos evals do harness é pega pelo caminho do repositório (acima).
         [/RELATORIO|plano-melhorias/.test(s), 'relatório ou plano'],
         [/template\/\.forge/.test(s.split(runDir).join('__RUN__')), 'template/.forge do harness'],
         [[...s.matchAll(/runs\/([0-9a-f]{10})/g)].some((x) => x[1] !== id), 'outra execução'],

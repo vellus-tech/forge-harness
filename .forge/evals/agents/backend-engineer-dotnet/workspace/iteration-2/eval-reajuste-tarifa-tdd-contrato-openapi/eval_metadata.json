@@ -1,0 +1,26 @@
+{
+  "eval_id": 1,
+  "eval_name": "reajuste-tarifa-tdd-contrato-openapi",
+  "prompt": "Preciso do reajuste de tarifa por percentual no tarifa-service — é a TASK-03 do módulo tarifa, a concessionária quer aplicar o reajuste de outubro pelo endpoint novo e o time da bilhetagem vai gerar o client a partir do contrato. Implementa e me deixa o relatório da entrega em entrega.md na raiz do repositório.",
+  "assertions": [
+    "Existe em services/tarifa-service/tests/Tarifa.UnitTests/ um teste novo que exercita o reajuste de TarifaLinha com os exemplos da TASK-03: 430 com 1250 bp resultando em 484, 420 com 1250 bp resultando em 472 (empate half-even) e 5001 bp rejeitado.",
+    "O código de reajuste adicionado em services/tarifa-service/src/Tarifa.Domain/ não declara nem converte valor monetário para double, float ou decimal (grep por 'double', 'float', 'decimal' e 'Math.Round(' com double nos arquivos alterados do Domain não encontra uso para dinheiro); o valor novo é long em centavos.",
+    "contracts/openapi/tarifa-service.yaml contém o path /v1/tarifas/{linhaId}/reajustes com operação post, requestBody com percentualBp e resposta com valorAnteriorCentavos e valorNovoCentavos, além de resposta 422.",
+    "entrega.md menciona dotnet-baseline.sh e registra que o baseline de build (Directory.Build.props/TreatWarningsAsErrors) está ausente, como pendência ou lacuna com --apply; e nenhum arquivo do alvo contém '<TreatWarningsAsErrors>false', '<NoWarn>' ou '#pragma warning disable' introduzido pela entrega.",
+    "entrega.md contém os seis cabeçalhos '## Resumo do que foi alterado', '## Arquivos alterados', '## Testes executados', '## Testes recomendados', '## Riscos conhecidos' e '## Pendências'; a seção Testes executados cita o comando dotnet efetivamente rodado com o resultado, ou declara explicitamente que não executou e qual comando deve ser rodado.",
+    "services/tarifa-service/CHANGELOG.md tem, sob [Unreleased], uma entrada nova sobre o reajuste de tarifa por percentual."
+  ],
+  "fixture": "fixtures/reajuste-tarifa-tdd-contrato-openapi/setup.sh",
+  "fixture_tree": "253249200a2bd61783534088fd8397780f6b4f96",
+  "machinery_sha": "c65840e5e9996f54a1531964099ce6cf92223981",
+  "sandbox": {
+    "git_local": "permitido (branch, worktree, commit, merge local)",
+    "push": "só para remotes que apontam para dentro do projeto",
+    "build_e_teste_local": "permitido sem rede",
+    "rede": "proibida",
+    "subagentes": "permitidos, Agent com model sonnet e general-purpose, mesma política repassada",
+    "docker": "proibido",
+    "tmp": "/tmp/<x> é mapeado para o diretório tmp da execução",
+    "igual_nas_duas_configuracoes": true
+  }
+}

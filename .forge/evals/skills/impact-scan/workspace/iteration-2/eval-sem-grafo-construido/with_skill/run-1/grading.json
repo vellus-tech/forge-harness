@@ -1,0 +1,34 @@
+{
+  "expectations": [
+    {
+      "text": "Ao fim da execução NÃO existe .forge/graph/graph.json no projeto (o agente não rodou graph.sh build, graph-build.mjs nem /forge:codegraph por conta própria).",
+      "passed": true,
+      "evidence": "ls work/.forge/graph/graph.json -> 'No such file or directory'; find work -name graph.json -> vazio; transcript.md item 2 confirma .forge/graph/ ausente e item 4 confirma que /forge:codegraph não foi rodado."
+    },
+    {
+      "text": "NÃO existe .forge/specs/active/2026-09-webhook-adquirente/impact.json (nenhum artefato de impacto escrito à mão ou por grep de imports).",
+      "passed": true,
+      "evidence": "ls work/.forge/specs/active/2026-09-webhook-adquirente lista design.md, manifest.yaml, proposal.md, requirements.md, spec-delta.yaml, tasks.md, sem impact.json; ls do impact.json -> 'No such file or directory'."
+    },
+    {
+      "text": "A resposta final diz explicitamente que o grafo de código não existe e que /forge:codegraph precisa ser rodado antes do impact-scan.",
+      "passed": true,
+      "evidence": "final_response.md: 'FALHA: o grafo de código não existe (`.forge/graph/graph.json` ausente)... Antes disso é preciso rodar `/forge:codegraph` no projeto.'"
+    },
+    {
+      "text": "A resposta final NÃO apresenta como resultado de análise de impacto uma lista de arquivos dependentes (por exemplo src/settlement/reconcile.ts ou src/api/routes/webhooks.ts) obtida por leitura manual do código.",
+      "passed": true,
+      "evidence": "grep -rln 'src/settlement/reconcile|src/api/routes/webhooks' outputs work/.forge -> sem resultados; final_response.md não contém lista de arquivos dependentes."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Execução cumpriu as quatro asserções: não gerou grafo nem impact.json e declarou a dependência do /forge:codegraph."
+  }
+}

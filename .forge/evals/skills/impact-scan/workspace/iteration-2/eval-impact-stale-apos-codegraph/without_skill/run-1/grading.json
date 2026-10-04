@@ -1,0 +1,43 @@
+{
+  "expectations": [
+    {
+      "text": "node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-estorno-parcial . imprime exatamente 'fresh' ao fim da execução (no setup imprime 'stale').",
+      "passed": true,
+      "evidence": "Rodado no work: saída 'fresh', rc=0."
+    },
+    {
+      "text": "O campo impacted do impact.json contém src/billing/refund.ts e src/api/routes/refunds.ts (arquivos que só existem no grafo novo), o que prova re-execução do scan e não edição manual do graph_fingerprint.",
+      "passed": true,
+      "evidence": "impact.json impacted = [src/api/routes/payments.ts, src/api/routes/refunds.ts, src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts, src/reports/daily.ts]; generated_at 2026-10-04T17:11:19Z, graph_fingerprint 7c38d7d8... presente."
+    },
+    {
+      "text": "O campo seeds do impact.json é exatamente [src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts] e impacted NÃO contém src/auth/session.ts (dependência de refunds.ts, não dependente de billing).",
+      "passed": true,
+      "evidence": "seeds = [src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts]; impacted não contém src/auth/session.ts (conferido na lista completa)."
+    },
+    {
+      "text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256.",
+      "passed": false,
+      "evidence": "shasum -a 256 .forge/graph/graph.json = 8eb440dd14407338c4781a7688859d2f4f99f88234c0f5306dead791e522bd2f; cat .git/eval-graph.sha256 = bf319ce102535604f3387479fe2df8e91b7516d66e461d8e51baa7397e075cfc. Divergem."
+    },
+    {
+      "text": "O diretório .forge/specs/active/2026-09-estorno-parcial/ ainda existe, não há .forge/specs/archived/2026-09-estorno-parcial/, e o manifest.yaml continua com status: implemented.",
+      "passed": true,
+      "evidence": "ls: active/2026-09-estorno-parcial existe; archived/ contém só .gitkeep; grep manifest.yaml -> '6:status: implemented'."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "text": "Asserção 4 compara o sha do graph.json com um valor gravado no setup, mas a regeneração do grafo muda o arquivo por definição; a asserção deveria checar o graph_fingerprint do impact.json contra o grafo atual."
+      }
+    ],
+    "overall": "Freshness, conteúdo do impact.json e estado do change são verificados; a asserção de hash do graph.json falha porque o grafo foi regenerado."
+  }
+}

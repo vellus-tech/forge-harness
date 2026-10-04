@@ -1,0 +1,11 @@
+{
+  "expectations": [
+    {"text": "`node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-estorno-parcial .` imprime exatamente 'fresh' ao fim da execução (no setup imprime 'stale').", "passed": true, "evidence": "Rodado no work: saída 'fresh', rc=0."},
+    {"text": "O campo impacted do impact.json contém src/billing/refund.ts e src/api/routes/refunds.ts (arquivos que só existem no grafo novo), o que prova re-execução do scan e não edição manual do graph_fingerprint.", "passed": true, "evidence": "jq -c '{seeds, impacted, graph_fingerprint}' impact.json -> impacted = [src/api/routes/payments.ts, src/api/routes/refunds.ts, src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts, src/reports/daily.ts]; ambos presentes."},
+    {"text": "O campo seeds do impact.json é exatamente [src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts] e impacted NÃO contém src/auth/session.ts (dependência de refunds.ts, não dependente de billing).", "passed": true, "evidence": "jq seeds = [\"src/billing/invoice.ts\",\"src/billing/refund.ts\",\"src/billing/tax.ts\"]; src/auth/session.ts ausente da lista impacted."},
+    {"text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256.", "passed": true, "evidence": "shasum -a 256 graph.json = b6e0a475...da922; cat .git/eval-graph.sha256 = b6e0a475...da922 (idênticos)."},
+    {"text": "O diretório .forge/specs/active/2026-09-estorno-parcial/ ainda existe, não há .forge/specs/archived/2026-09-estorno-parcial/, e o manifest.yaml continua com status: implemented.", "passed": true, "evidence": "ls: active/2026-09-estorno-parcial existe; archived/2026-09-estorno-parcial -> No such file or directory; grep manifest.yaml -> '6:status: implemented'."}
+  ],
+  "summary": {"passed": 5, "failed": 0, "total": 5, "pass_rate": 1.0},
+  "eval_feedback": {"suggestions": [], "overall": "Todas as cinco asserções verificadas no projeto com comandos próprios; a execução resolveu o impact stale por re-scan e não tocou no archive."}
+}

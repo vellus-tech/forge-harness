@@ -56,7 +56,7 @@ import { loadRedEvidence, WAIVER_REASONS, REL_PATH, deriveTopStatus, resolvedEnt
 import { upsertSingleEntry } from './red-evidence-ops.mjs';
 import { checkReachability } from './red-level.mjs';
 import { applyMode } from './gate-mode.mjs';
-import { classify } from './red-classify.mjs';
+import { classify, countsAsRed } from './red-classify.mjs';
 import { isDefectFixing, defectIds } from './defect-scope.mjs';
 
 const RULE_REF = 'rule testing/regression-red-first.md';
@@ -336,8 +336,13 @@ export function evaluateRedFirst(changeDir) {
     // mais (Furo 3) — e uma declaração que diverge da classificação real também é sinalizada.
     if (entry.excerpt && String(entry.excerpt).trim()) {
       const classified = classify(entry.excerpt);
-      if (classified !== 'behavioral') {
-        findings.push({ enforceable: true, msg: `${tag}excerpt classifica como '${classified}' via red-classify — não é comportamental, independente do campo 'classification' declarado ('${entry.classification ?? 'null'}') (item 3, ${RULE_REF})` });
+      // issue #191 — mesma política do replay (countsAsRed): 'setup-exception' só conta com
+      // failure_pattern declarado que casa com o excerpt.
+      if (!countsAsRed(classified, entry.excerpt, entry.failure_pattern)) {
+        const why = classified === 'setup-exception'
+          ? 'exceção de setup sem failure_pattern declarado que case com o excerpt'
+          : 'não é comportamental';
+        findings.push({ enforceable: true, msg: `${tag}excerpt classifica como '${classified}' via red-classify — ${why}, independente do campo 'classification' declarado ('${entry.classification ?? 'null'}') (item 3, ${RULE_REF})` });
       } else if (entry.classification && entry.classification !== classified) {
         findings.push({ enforceable: true, msg: `${tag}classification declarada ('${entry.classification}') diverge da classificação real do excerpt ('${classified}') (item 3, ${RULE_REF})` });
       }

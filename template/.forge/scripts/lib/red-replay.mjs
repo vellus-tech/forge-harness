@@ -47,7 +47,8 @@
 // Veredito 'observed' exige, na ordem: (0) comando passa em HEAD (Green real, não presumido);
 // (1) o test_id declarado (quando presente) existe no arquivo de teste na árvore base — senão a
 // base está errada por construção (Furo 2); (2) o teste FALHA na base (exit≠0); (3) a falha
-// classifica como 'behavioral' via red-classify.mjs (nunca 'build-error'/'unknown'); (4) a saída
+// classifica como 'behavioral' via red-classify.mjs (nunca 'build-error'/'unknown'), ou como
+// 'setup-exception' com failure_pattern declarado que casa — countsAsRed, issue #191; (4) a saída
 // casa com failure_pattern quando declarado; (5) a saída MENCIONA o test_id declarado — o caso
 // que falhou precisa ser o caso declarado, não uma falha histórica adjacente que por acaso casa
 // com o padrão (Furo 2). Qualquer ausência aborta com motivo nomeado — ver replay() abaixo.
@@ -69,7 +70,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'node
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { execFileSync, spawn } from 'node:child_process';
-import { classify } from './red-classify.mjs';
+import { classify, countsAsRed } from './red-classify.mjs';
 
 const DEFAULT_TIMEOUT_S = 120;
 const EXCERPT_MAX_CHARS = 6000;
@@ -691,10 +692,12 @@ export async function replay({ root, evidence, timeoutS = DEFAULT_TIMEOUT_S }) {
     if (baseRun.exitCode === 0) {
       return finish({ verdict: 'fail', ruleItem: '2', reason: 'teste já passa na árvore base — não reproduz o defeito relatado (item 2)', strategy: effective.strategy, base: baseInfo, base_result: 'passed', diagnostic: { classification, excerpt } });
     }
-    if (classification !== 'behavioral') {
+    if (!countsAsRed(classification, baseRun.output, failurePattern)) {
       return finish({
         verdict: 'fail', ruleItem: '3',
-        reason: `falha na base classificada como '${classification}' — erro de build/compilação, não comportamento (item 3)`,
+        reason: classification === 'setup-exception'
+          ? `falha na base classificada como 'setup-exception' — exceção de setup só conta como Red com failure_pattern declarado que case com a saída; sem isso, exceção de ambiente (Docker parado, porta ocupada) passaria por defeito (item 3, issue #191)`
+          : `falha na base classificada como '${classification}' — erro de build/compilação, não comportamento (item 3)`,
         strategy: effective.strategy, base: baseInfo, base_result: 'failed', diagnostic: { classification, excerpt },
       });
     }

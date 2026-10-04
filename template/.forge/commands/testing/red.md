@@ -126,7 +126,9 @@ declaração que qualquer agente poderia fabricar. O motor (`lib/red-replay.mjs`
 2. **Roda UM teste** — o `command` declarado, nunca a suíte — num worktree git efêmero, com
    timeout explícito, sempre limpo ao final (sucesso ou erro).
 3. **Exige, para `observed`**: falha na base (exit≠0) + classificação `behavioral` (não
-   `build-error`) + saída casando com `failure_pattern` quando declarado + passagem em HEAD
+   `build-error`), ou `setup-exception` (exceção de setup de fixture, ex.: xUnit
+   `InitializeAsync` que lança — issue #191) somente com `failure_pattern` declarado que case +
+   saída casando com `failure_pattern` quando declarado + passagem em HEAD
    (exit 0). Qualquer ausência vira `FAIL` com o item da rule citado, e a evidência **volta**
    para `pending` (nunca fica um `observed` falso na árvore).
 4. **Recusa `failure_pattern` ausente/vazio** com `not-possible` (issue #150) — uma âncora que

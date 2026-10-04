@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gate W281 — issue #191: exceção de setup de fixture xUnit (IAsyncLifetime.InitializeAsync,
+# Gate W283 — issue #191: exceção de setup de fixture xUnit (IAsyncLifetime.InitializeAsync,
 # construtor) ficava classificada como 'unknown' por lib/red-classify.mjs — não produz
 # `Xunit.Sdk.` nem `Assert.X() Failure` — e o `/forge:red replay` nunca chegava a `observed`
 # num bugfix cujo defeito É o setup falhar (imagem de Testcontainers que não pode ser puxada).
@@ -27,7 +27,7 @@ set -euo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-T="$(mktemp -d /tmp/forge-w281.XXXXXX)"
+T="$(mktemp -d /tmp/forge-w283.XXXXXX)"
 trap 'rm -rf "$T"' EXIT
 
 LIB="$WS/template/.forge/scripts/lib"
@@ -219,5 +219,5 @@ set -e
 grep -q "setup-exception.*item 3" <<<"$chk" || fail 8 "check-red-first não acusou item 3 com failure_pattern que não casa: $chk"
 ok 8
 
-[ "$CASES" -eq 8 ] || { echo "FAIL w281/contador — $CASES caso(s) executado(s), esperava 8"; exit 1; }
-echo "OK w281/red-xunit-setup-exception — $CASES caso(s) examinado(s)"
+[ "$CASES" -eq 8 ] || { echo "FAIL w283/contador — $CASES caso(s) executado(s), esperava 8"; exit 1; }
+echo "OK w283/red-xunit-setup-exception — $CASES caso(s) examinado(s)"

@@ -10,8 +10,18 @@ ROOT="${FORGE_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 # do repositório errado.
 export FORGE_ROOT="$ROOT"
 command -v node >/dev/null 2>&1 || { echo "FAIL (node >= 20 required)"; exit 1; }
+# Com FORGE_CHANGE_ID (definido por spec-verify.sh e run-gates.sh, issue #192), o modo --path
+# também varre os artefatos do change em foco: a varredura de árvore pula .forge/, e sem isto o
+# verify deixaria de ver o anti-padrão literal do incidente ("RLS opcional" num requirements.md),
+# que o modo <change-id> sempre viu. No pre-push a variável não existe e nada muda.
 case "${1:-}" in
-  --path) shift; node "$SCRIPT_DIR/lib/check-data-governance.mjs" "$@" ;;
+  --path)
+    shift
+    extra=()
+    if [ -n "${FORGE_CHANGE_ID:-}" ] && [ -d "$ROOT/.forge/specs/active/$FORGE_CHANGE_ID" ]; then
+      extra=("$ROOT/.forge/specs/active/$FORGE_CHANGE_ID")
+    fi
+    node "$SCRIPT_DIR/lib/check-data-governance.mjs" "$@" ${extra[@]+"${extra[@]}"} ;;
   "") echo "FAIL (usage: check-data-governance.sh <change-id> | --path <dir|file>)"; exit 1 ;;
   *) node "$SCRIPT_DIR/lib/check-data-governance.mjs" "$ROOT/.forge/specs/active/$1" ;;
 esac

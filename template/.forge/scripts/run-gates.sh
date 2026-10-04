@@ -98,7 +98,9 @@ for gate in "${gates[@]}"; do
     fail=1
     continue
   fi
-  if forge_run_gate "$gate" "bash '$script' '$ID'" "$log" "$ROOT"; then
+  # Contrato de invocação único (issue #192) — o mesmo de spec-verify.sh e do pre-push: sem
+  # posicional; change-id em FORGE_CHANGE_ID para o gate que precisar dele.
+  if forge_run_gate "$gate" "FORGE_CHANGE_ID='$ID' bash '$script' --path '$ROOT'" "$log" "$ROOT"; then
     echo "  $gate: passed (log: $log)"
   else
     echo "  $gate: failed (log: $log)"

@@ -47,7 +47,7 @@ bash .forge/scripts/approval-log.sh <change-id> --gate design_reviewed --decisio
 ```
 
 - **Approve** → `bash .forge/scripts/spec-transition.sh <change-id> design-ready`; próximo: `/forge:tasks`.
-- **Review** → motivo vira instrução; volte ao passo 1.
+- **Review** → motivo vira instrução; volte ao passo 1 (registre com `--iteration <n>`), sujeito ao mesmo teto de 3 rodadas, à régua de severidade estável e à regra de convergência do `/forge:requirements` (§4, Teto e convergência do Review): no teto, a escalada ao dono é obrigatória.
 - **Reject**/**Block** → registre e pare (close/blocked conforme o caso).
 
 ## Modo autônomo (--yolo)

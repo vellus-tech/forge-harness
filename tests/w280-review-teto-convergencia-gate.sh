@@ -98,7 +98,7 @@ for f in "$DES" "$TSK"; do
   b="$(grep -E '^- \*\*Review\*\*' "$f" || true)"
   [ -n "$b" ] || { falha "[6] bullet '- **Review**' ausente em $f"; continue; }
   printf '%s' "$b" | grep -qi 'teto' && printf '%s' "$b" | grep -q '/forge:requirements' || falha "[6] o bullet Review de $f não remete ao teto do /forge:requirements: $b"
-  grep -E 'approval-log\.sh .*--gate (design|tasks)_reviewed' "$f" | grep -q -- '--iteration' || falha "[6] o comando approval-log de $f não passa --iteration (o freio mecânico não alcança este gate)"
+  out_it="$(grep -E 'approval-log\.sh .*--gate (design|tasks)_reviewed' "$f" || true)"; grep -q -- '--iteration' <<<"$out_it" || falha "[6] o comando approval-log de $f não passa --iteration (o freio mecânico não alcança este gate)"
 done
 [ "$FALHAS" -eq "$F6" ] && ok "[6]"
 

@@ -3,6 +3,7 @@
 ### Fixed
 
 - **`approval-log.sh` gravava YAML inválido a partir de `approvals: []` literal e reportava `OK`; `spec-close.sh` não repassava `--autonomous` (Closes #188).** A lista vazia inline vira chave em bloco antes de anexar, a escrita passa por temporário validado (estrutura estrita + semântica, mais PyYAML quando disponível) e, se o resultado não for YAML válido, o script sai com FAIL sem tocar o arquivo; `spec-close.sh --autonomous` repassa a flag e mostra a recusa do approval-log em vez de falhar mudo. Gate `tests/w275-approval-log-yaml-gate.sh`.
+- **O `Review` dos gates de spec e as rodadas do `/forge:analyze` não tinham teto nem regra de convergência (Closes #159).** `requirements.md` §4 ganha "Teto e convergência do Review" (herdado por `design.md` e `tasks.md`, que agora registram `--iteration`): teto de 3 rodadas delegadas ou não com escalada obrigatória ao dono, régua de severidade fixa, achado derivado da correção anterior no mesmo mecanismo vira nota, e causa raiz pedida na segunda rodada; `autonomy-yolo.md` e o agent `yolo-gate` remetem à mesma regra; `analyze.md` separa defeito de artefato de pendência operacional (que não bloqueia e vai para ledger ou handoff). Gate `tests/w280-review-teto-convergencia-gate.sh`; badge do README sobe para 174 gates.
 
 ## [0.17.0] — 2026-10-03
 

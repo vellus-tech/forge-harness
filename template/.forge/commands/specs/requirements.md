@@ -48,9 +48,18 @@ bash .forge/scripts/approval-log.sh <change-id> --gate requirements_reviewed --d
 ```
 
 - **Approve** → `bash .forge/scripts/spec-transition.sh <change-id> requirements-ready` e reporte o próximo comando (`/forge:design` em scale ≥2; `/forge:tasks` em scale 1; `type: bugfix` scale ≥2 pode ir direto a `/forge:tasks` — design é opcional para esse tipo, sugira `/forge:design` só se a correção tiver decisão arquitetural).
-- **Review** → use o motivo como instrução e volte ao passo 1 (conta como nova rodada de loop; o registro fica no approvals.yaml).
+- **Review** → use o motivo como instrução e volte ao passo 1 (conta como nova rodada de loop; registre com `--iteration <n>` e o registro fica no approvals.yaml), sujeito ao teto e à regra de convergência abaixo: no teto, a escalada ao dono é obrigatória.
 - **Reject** → registre e pare; sugira `/forge:close --reason rejected` se o change não segue.
 - **Block** → registre a causa e pare (`spec-transition.sh <id> blocked --reason "<causa>"`).
+
+### Teto e convergência do Review
+
+Vale para este gate e, por remissão, para `design_reviewed` e `tasks_reviewed`. Existe porque um revisor adversarial sempre acha o próximo caso de borda de um mecanismo que cresce a cada correção: sem teto e sem régua estável, o loop delegado já chegou a 14 rodadas num mesmo gate.
+
+- **Teto.** O gate tem teto de 3 rodadas de Review consecutivas, delegadas ou não (humano decidindo, humano que delegou a decisão a um revisor adversarial, ou `yolo-gate`), o mesmo número do loop builder→validator do §3. Cada Review é registrado com `--iteration <n>`, sendo `n` a posição da rodada na série consecutiva de Review deste gate, e o `approval-log.sh --iteration` recusa `n` acima de 3, de modo que uma quarta rodada não tem como ser registrada como Review. Ao atingir o teto (terceiro Review ainda com pendência), a escalada ao dono é obrigatória: apresente a série (achados de cada rodada e o mecanismo que cada um tocou) e peça a decisão de causa raiz — simplificar o mecanismo, mover a fronteira ou aceitar o risco —, registrada no approvals.yaml com o motivo começando por `escalada-teto:`. O dono decide Approve, Reject, Block ou um Review que abre série nova (`--iteration 1`) com a causa raiz escolhida como instrução; revisor delegado e `yolo-gate` nunca abrem série nova por conta própria.
+- **Régua de severidade estável.** A régua de severidade (o que é BLOCKER, o que é MAJOR, o que é nota) é fixada na primeira rodada e repetida literalmente no prompt de cada rodada seguinte, junto com a lista dos achados anteriores e o mecanismo de cada um; uma régua que muda entre rodadas impede até de reconhecer a série.
+- **Convergência.** Uma rodada de Review só pode abrir BLOCKER novo se o achado não for consequência direta da correção da rodada anterior no mesmo mecanismo; se for, ele entra como nota no motivo e não reabre o ciclo, e quem decide sobre ele é o dono, no Approve ou na escalada.
+- **Causa raiz.** Quando o mesmo mecanismo reaparece pela segunda rodada seguida, o prompt do decisor (revisor delegado ou `yolo-gate`) pede causa raiz em vez de correção pontual: por que o mecanismo gera um caso de borda novo a cada correção, e se a saída é simplificá-lo ou mover a fronteira; a resposta vai no motivo do Review.
 
 ## Regras
 

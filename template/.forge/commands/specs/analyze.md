@@ -29,6 +29,8 @@ Grave `analysis.md` no change com:
 ## Status: PASS | FAIL
 ## Achados
 | ID | Severidade (BLOCKER/HIGH/MEDIUM) | Tipo (coverage/conflict/drift/risk) | Onde | Recomendação |
+## Pendências operacionais (não bloqueiam o artefato)
+- <pendência> — destino: ledger (`/forge:ledger`) ou handoff (`/forge:handoff`)
 ## Síntese (2-3 linhas)
 ## Revisão
 Revisor: <subagente> (<modelo>) | Transcrito por: <sessão orquestradora>
@@ -69,6 +71,10 @@ Mesma fórmula de fingerprint usada pelo pré-flight do `/forge:archive` (`impac
 - **Não corrija nada** neste comando — achados são insumo; correções acontecem nos comandos de fase (ou via Review no gate correspondente).
 - Sem transição de estado (analyze é checkpoint, não fase).
 - Conflito relevante **nunca** é rebaixado para HIGH para "destravar" — isso é o anti-padrão que originou o guardrail.
+- **Defeito de artefato × pendência operacional.** Todo achado é classificado como defeito de artefato (algo errado em proposal, requirements, design ou tasks, que entra na tabela de Achados com severidade) ou pendência operacional (estado de execução fora do artefato: recibo de outra sessão, ledger ainda não levado ao tronco, merge ou push pendente, ambiente indisponível); a pendência operacional não bloqueia o artefato, nunca recebe severidade e vai para a seção `## Pendências operacionais` com destino ledger ou handoff.
+- **Régua de severidade estável.** A régua de severidade (o critério de BLOCKER, HIGH e MEDIUM) é fixada na primeira rodada de analyze do change e não muda entre rodadas: o prompt de cada rodada seguinte, inclusive a delegada a um revisor, repete a régua da primeira e a lista dos achados anteriores com o mecanismo de cada um.
+- **Teto e convergência entre rodadas** (mesma regra do `/forge:requirements` §4, Teto e convergência do Review). Teto de 3 rodadas de analyze consecutivas com BLOCKER no mesmo change, delegadas ou não; ao atingir, escala ao dono a decisão de causa raiz (simplificar o mecanismo ou mover a fronteira) em vez de rodar a quarta.
+- **Convergência.** Uma rodada só abre BLOCKER novo se o achado não for consequência direta da correção da rodada anterior no mesmo mecanismo; se for, ele entra como nota na Síntese e não reabre o ciclo, e quando o mesmo mecanismo reaparece pela segunda rodada o prompt do revisor pede causa raiz em vez de correção pontual. Exceção: conflito arquitetural relevante (G1) e achado das checagens deterministas (`SRF-01`, G4, G5) nunca viram nota — continuam BLOCKER, e a série vai direto ao dono como decisão de causa raiz.
 - **Gate de marco:** nenhum módulo/change é declarado concluído (marco) sem um `/forge:analyze`
   **verde** (Status: PASS, sem BLOCKER) cruzando requirements×design×tasks — incluindo a
   cobertura de superfície do item 6. "Concluído" dito em chat sem esse `analysis.md` limpo não

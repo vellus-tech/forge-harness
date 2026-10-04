@@ -18,7 +18,7 @@
 // (exit 1), precedida por zero ou mais linhas "WARN (<achado>)" para achados
 // rebaixáveis, que não alteram o exit code. Usage:
 //   node validate-spec.mjs <path-to-change-dir>
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, realpathSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { parseYamlSubset } from './yaml-lite.mjs';
@@ -152,9 +152,22 @@ if (reached('verified') && !has('verification.yaml'))
 // transição sob validação é para 'verified' ou além (reached('verified')) — no resto do ciclo de
 // vida (idea..implemented) valida sem custo de execução, como sempre. best-effort (nunca lança) —
 // evaluateRedFirst decide com o que sobrar, inclusive se ensure falhar ao rodar.
+//
+// Issue #189: `red-evidence.sh ensure <id>` resolve o change PELO ID em .forge/specs/active/ do
+// repositório, não pelo diretório validado. Validar um diretório que não é o change ativo daquele
+// id (uma cópia num scratchpad, um change arquivado) regravava em silêncio a evidência do change
+// REAL. O replay agora só roda quando o diretório validado É o change ativo (comparação por
+// realpath); fora dele a evidência é avaliada como está, sem replay e sem escrita, e a saída diz
+// isso numa linha WARN — o OK de um diretório que não é o ativo não é um OK sustentado por replay.
+function isActiveChangeDir(id) {
+  const activeDir = join(process.env.FORGE_ROOT || root, '.forge/specs/active', String(id));
+  try { return realpathSync(activeDir) === realpathSync(root); } catch { return false; }
+}
 if (reached('verified') && man.type === 'bugfix') {
   const ensureScript = join(process.env.FORGE_ROOT || root, '.forge/scripts/red-evidence.sh');
-  if (existsSync(ensureScript) && man.id) {
+  if (man.id && !isActiveChangeDir(man.id)) {
+    warnings.push(`red-first: replay não executado — ${root} não é o change ativo .forge/specs/active/${man.id}/; evidência avaliada como está, nada gravado (issue #189)`);
+  } else if (existsSync(ensureScript) && man.id) {
     try {
       execFileSync('bash', [ensureScript, 'ensure', String(man.id)], {
         cwd: process.env.FORGE_ROOT || root,

@@ -31,7 +31,7 @@ printf '\n> **Diretiva do owner (fixture):** camada de domínio nunca importa in
 SHA_CUSTOM="$(shasum -a 256 "$T/$RULE" | cut -d' ' -f1)"
 mkdir -p "$T/.forge/rules/domain"
 printf '# regra local do projeto — não existe no template\n' > "$T/.forge/rules/domain/regra-local.md"
-node "$WS/bin/forge.mjs" update --target "$T" --no-plugin --source "$WS/template/.forge" >"$T/up1.log" 2>&1 \
+node "$WS/bin/forge.mjs" update --target "$T" --no-plugin --skip-postcheck --source "$WS/template/.forge" >"$T/up1.log" 2>&1 \
   || { echo "FAIL (update 1 falhou)"; cat "$T/up1.log"; exit 1; }
 [ "$(shasum -a 256 "$T/$RULE" | cut -d' ' -f1)" = "$SHA_CUSTOM" ] \
   || { echo "FAIL [1]: customização da rule foi sobrescrita (issue #16 regrediu)"; exit 1; }
@@ -47,7 +47,7 @@ echo "OK [1]"
 echo "[2] upgrade limpo via lock: rule intocada + template novo → sobrescreve"
 SRC2="$T/src2"; cp -R "$WS/template/.forge" "$SRC2"
 printf '\n<!-- template v2: parágrafo novo -->\n' >> "$SRC2/rules/architecture/ddd.md"
-node "$WS/bin/forge.mjs" update --target "$T" --no-plugin --no-backup --source "$SRC2" >"$T/up2.log" 2>&1 \
+node "$WS/bin/forge.mjs" update --target "$T" --no-plugin --skip-postcheck --no-backup --source "$SRC2" >"$T/up2.log" 2>&1 \
   || { echo "FAIL (update 2 falhou)"; cat "$T/up2.log"; exit 1; }
 grep -q 'template v2' "$T/.forge/rules/architecture/ddd.md" \
   || { echo "FAIL [2]: rule não-customizada não recebeu o template novo (lock quebrou o upgrade limpo)"; exit 1; }
@@ -55,7 +55,7 @@ echo "OK [2]"
 
 echo "[3] com lock: rule customizada + template novo → preservada"
 printf '\n<!-- template v3: mudança que NÃO deve chegar -->\n' >> "$SRC2/rules/architecture/clean-architecture.md"
-node "$WS/bin/forge.mjs" update --target "$T" --no-plugin --no-backup --source "$SRC2" >"$T/up3.log" 2>&1 \
+node "$WS/bin/forge.mjs" update --target "$T" --no-plugin --skip-postcheck --no-backup --source "$SRC2" >"$T/up3.log" 2>&1 \
   || { echo "FAIL (update 3 falhou)"; cat "$T/up3.log"; exit 1; }
 [ "$(shasum -a 256 "$T/$RULE" | cut -d' ' -f1)" = "$SHA_CUSTOM" ] \
   || { echo "FAIL [3]: rule customizada foi revertida mesmo com lock"; exit 1; }
@@ -64,7 +64,7 @@ echo "OK [3]"
 
 echo "[4] script com fix local e --overwrite-drift → sobrescrito com WARN de drift"
 printf '\n# fix local no script (deveria ser upstream)\n' >> "$T/.forge/scripts/handoff-gen.sh"
-node "$WS/bin/forge.mjs" update --target "$T" --no-plugin --no-backup --overwrite-drift --source "$SRC2" >"$T/up4.log" 2>&1 \
+node "$WS/bin/forge.mjs" update --target "$T" --no-plugin --skip-postcheck --no-backup --overwrite-drift --source "$SRC2" >"$T/up4.log" 2>&1 \
   || { echo "FAIL (update 4 falhou)"; cat "$T/up4.log"; exit 1; }
 grep -q 'fix local no script' "$T/.forge/scripts/handoff-gen.sh" && { echo "FAIL [4]: script não foi sobrescrito (scripts são maquinaria própria)"; exit 1; }
 grep -q 'WARN: drift local em scripts/handoff-gen.sh' "$T/up4.log" || { echo "FAIL [4]: drift de script sobrescrito sem aviso"; grep -i drift "$T/up4.log"; exit 1; }
@@ -86,7 +86,7 @@ cat > "$T/tombstones.txt" <<'EOF'
 rules/architecture/clean-architecture.md
 rules/architecture/ddd.md
 EOF
-FORGE_REMOVED_MANIFEST="$T/tombstones.txt" node "$WS/bin/forge.mjs" update --target "$T" --no-plugin --no-backup --source "$SRC3" >"$T/up6.log" 2>&1 \
+FORGE_REMOVED_MANIFEST="$T/tombstones.txt" node "$WS/bin/forge.mjs" update --target "$T" --no-plugin --skip-postcheck --no-backup --source "$SRC3" >"$T/up6.log" 2>&1 \
   || { echo "FAIL (update 6 falhou)"; cat "$T/up6.log"; exit 1; }
 # customizada → mantida, com aviso; intocada (hash == lock) → removida
 [ -f "$T/$RULE" ] || { echo "FAIL [6]: tombstone deletou rule CUSTOMIZADA (invariante do overlay violada)"; exit 1; }
@@ -104,7 +104,7 @@ printf '{"msg_id":"peer-0001","subject":"nao pode ser tocado"}\n' > "$T/.forge/l
 printf 'self:\n  id: local-repo\nchannels:\n  contracts-fare:\n    participants:\n      - local-repo\n      - peer\n' > "$T/.forge/liaison/liaison.yaml"
 printf 'blob de anexo\n' > "$T/.forge/liaison/contracts-fare/blobs/anexo.txt"
 LIAISON_SHA_BEFORE="$(find "$T/.forge/liaison" -type f | LC_ALL=C sort | xargs shasum -a 256 | shasum -a 256 | cut -d' ' -f1)"
-node "$WS/bin/forge.mjs" update --target "$T" --no-plugin --no-backup >"$T/up7.log" 2>&1 \
+node "$WS/bin/forge.mjs" update --target "$T" --no-plugin --skip-postcheck --no-backup >"$T/up7.log" 2>&1 \
   || { echo "FAIL [7]: update falhou"; cat "$T/up7.log"; exit 1; }
 LIAISON_SHA_AFTER="$(find "$T/.forge/liaison" -type f | LC_ALL=C sort | xargs shasum -a 256 | shasum -a 256 | cut -d' ' -f1)"
 [ "$LIAISON_SHA_BEFORE" = "$LIAISON_SHA_AFTER" ] \

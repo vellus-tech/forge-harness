@@ -53,7 +53,7 @@ consumidor() {  # consumidor <nome> -> ecoa <dir>, com .forge instalado do templ
 
 upd() {  # upd <consumidor> <source> [flags...] -> saída combinada; rc em $UPD_RC
   local c="$1" s="$2"; shift 2
-  UPD_OUT="$(node "$FORGE" update --target "$c" --no-plugin --source "$s" "$@" 2>&1)"; UPD_RC=$?
+  UPD_OUT="$(node "$FORGE" update --target "$c" --no-plugin --skip-postcheck --source "$s" "$@" 2>&1)"; UPD_RC=$?
 }
 
 # Template "evoluído": cópia do template real com uma mudança em $REL (a versão nova do harness).
@@ -67,7 +67,7 @@ SHA_TPLN="$(sha "$TPLN/$REL")"
 # Consumidor com lock gravado (update de preparo contra o template real) e conserto local em $REL.
 com_lock_e_deriva() {  # com_lock_e_deriva <nome> -> ecoa <dir>
   local d; d="$(consumidor "$1")"
-  node "$FORGE" update --target "$d" --no-plugin --no-backup --source "$TPL" >"$d.prep.log" 2>&1 \
+  node "$FORGE" update --target "$d" --no-plugin --skip-postcheck --no-backup --source "$TPL" >"$d.prep.log" 2>&1 \
     || { echo "FAIL (setup): update de preparo falhou para $1"; cat "$d.prep.log"; exit 1; }
   [ "$(lock_sha "$d" "$REL")" = "$SHA_TPL" ] || { echo "FAIL (setup): lock de preparo não registra o sha do template para $REL"; exit 1; }
   printf '\n# CONSERTO-LOCAL-w239-%s\n' "$1" >> "$d/.forge/$REL"
@@ -102,7 +102,7 @@ echo "OK [1b]"
 
 echo "[2] arquivo intocado com lock, template evoluiu: ATUALIZADO, sem pendente, lock avança"
 C2="$(consumidor c2)"
-node "$FORGE" update --target "$C2" --no-plugin --no-backup --source "$TPL" >/dev/null 2>&1
+node "$FORGE" update --target "$C2" --no-plugin --skip-postcheck --no-backup --source "$TPL" >/dev/null 2>&1
 [ "$(lock_sha "$C2" "$REL")" = "$SHA_TPL" ] || { echo "FAIL [2] (setup): lock de preparo ausente"; exit 1; }
 upd "$C2" "$TPLN" --no-backup
 [ "$UPD_RC" -eq 0 ] || { echo "FAIL [2]: update saiu rc=$UPD_RC"; echo "$UPD_OUT"; exit 1; }
@@ -310,7 +310,7 @@ cp -R "$TPLN" "$SRC14/.forge"
 printf '\n# EVOL-14-w239\n' >> "$SRC14/.forge/$REL"
 printf '{"schema":"forge-machinery-history/v1","versions":["v9.0.0","v9.1.0"],"paths":{"%s":["%s","%s"]}}\n' "$REL" "$SHA_TPL" "$SHA_TPLN" > "$SRC14/machinery-history.json"
 C14="$(consumidor c14)"
-node "$FORGE" update --target "$C14" --no-plugin --no-backup --source "$TPL" >"$C14.prep.log" 2>&1 || { echo "FAIL [14] (setup): update de preparo falhou"; exit 1; }
+node "$FORGE" update --target "$C14" --no-plugin --skip-postcheck --no-backup --source "$TPL" >"$C14.prep.log" 2>&1 || { echo "FAIL [14] (setup): update de preparo falhou"; exit 1; }
 [ "$(lock_sha "$C14" "$REL")" = "$SHA_TPL" ] || { echo "FAIL [14] (setup): lock de preparo não registra a versão A"; exit 1; }
 cp "$TPLN/$REL" "$C14/.forge/$REL"   # o pull trouxe a versão B, entregue pelo update feito em outra worktree; o lock deste checkout ficou em A
 upd "$C14" "$SRC14/.forge" --dry-run
@@ -356,7 +356,7 @@ confere15() {  # confere15 <forge.mjs> <com|sem|vazio> -> rc 0 se a linha e o WA
   c="$(consumidor "c15-$N15")"
   [ ! -f "$c/.forge/cache/machinery.lock" ] || { MOTIVO15="(setup) o consumidor já tem machinery.lock"; return 1; }
   printf '\n# CONSERTO-LOCAL-w239-c15-%s\n' "$N15" >> "$c/.forge/$REL"
-  out="$(node "$bin" update --target "$c" --no-plugin --no-backup --source "$src" 2>&1)" || { MOTIVO15="update saiu rc≠0: $(tail -3 <<<"$out")"; return 1; }
+  out="$(node "$bin" update --target "$c" --no-plugin --skip-postcheck --no-backup --source "$src" 2>&1)" || { MOTIVO15="update saiu rc≠0: $(tail -3 <<<"$out")"; return 1; }
   grep -qxF "$linha" <<<"$out" || { MOTIVO15="linha esperada ausente ($caso histórico): $linha | obtido: $(grep -F "): $REL" <<<"$out")"; return 1; }
   grep -qF "$outra" <<<"$out" && { MOTIVO15="linha do outro caso presente ($caso histórico)"; return 1; }
   warnline="$(grep '^WARN: 1 arquivo(s) de maquinaria preservado(s)' <<<"$out" || true)"
@@ -521,7 +521,7 @@ const prop = (s) => {
   const esperaPendente = deriva && !s.flag;
 
   const dry = run(['update', '--target', dir, '--no-plugin', '--source', src, '--dry-run', ...flags]);
-  const real = run(['update', '--target', dir, '--no-plugin', '--no-backup', '--source', src, ...flags]);
+  const real = run(['update', '--target', dir, '--no-plugin', '--skip-postcheck', '--no-backup', '--source', src, ...flags]);
   const agora = readFileSync(join(dir, '.forge', REL));
   const intacto = sha(agora) === localSha;
   const pendente = existsSync(join(dir, PEND_REL));
@@ -546,7 +546,7 @@ const prop = (s) => {
   if (s.seq && esperaPendente && pendente && !falhas.length) {
     cpSync(join(dir, PEND_REL), join(dir, '.forge', REL));
     const dry2 = run(['update', '--target', dir, '--no-plugin', '--source', TPL3, '--dry-run']);
-    const real2 = run(['update', '--target', dir, '--no-plugin', '--no-backup', '--source', TPL3]);
+    const real2 = run(['update', '--target', dir, '--no-plugin', '--skip-postcheck', '--no-backup', '--source', TPL3]);
     if (dry2.rc !== 0 || real2.rc !== 0) falhas.push(`seq: rc dry=${dry2.rc} real=${real2.rc}`);
     if (!dry2.out.includes(`~ ${REL} (o template evoluiu — arquivo intocado, idêntico à versão pendente que o update anterior guardou)`)) falhas.push('seq: dry-run não antecipa a atualização do arquivo reconciliado');
     if (real2.out.split('\n').some((l) => /^PRESERVADO \([^)]*\): /.test(l) && l.includes(`: ${REL} — `))) falhas.push('seq: arquivo reconciliado retido de novo como deriva');

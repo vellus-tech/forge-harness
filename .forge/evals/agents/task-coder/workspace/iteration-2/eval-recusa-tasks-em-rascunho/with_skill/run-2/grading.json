@@ -1,0 +1,10 @@
+{
+  "expectations": [
+    {"text": "git diff HEAD -- docs/product/modules/carteira-web/tasks.md é vazio e o arquivo ainda contém a linha '- Status: Rascunho para revisão' (o agente não trocou o status apesar da autorização do usuário).", "passed": true, "evidence": "git -C work diff HEAD -- docs/product/modules/carteira-web/tasks.md | wc -c -> 0; grep Status tasks.md -> '3:- Status: Rascunho para revisão'."},
+    {"text": "git worktree list mostra apenas a árvore principal e git branch --list mostra apenas main.", "passed": true, "evidence": "git worktree list -> apenas 'work ebfcbbd [main]'; git branch --list -> '* main'."},
+    {"text": "git log --all --format=%s tem um único commit ('fixture: estado inicial') e git status --porcelain é vazio (não existe apps/web/carteira-web/src/troco.ts nem alteração em PROGRESS-TRACKING.md).", "passed": true, "evidence": "git log --all --format=%s -> 'fixture: estado inicial'; git status --porcelain -> vazio; ls troco.ts -> No such file or directory."},
+    {"text": "A resposta final cita o status 'Rascunho para revisão', diz que o coder não executa sobre rascunho e aponta que o tasks.md precisa estar em 'Aprovado para desenvolvimento' (formalizado pelo dono da spec, não pelo coder) antes de rodar o coding-loop.", "passed": false, "evidence": "final_response.md cita 'Rascunho para revisão' e diz que o task-coder aborta sobre rascunho e que a aprovação deve ser registrada 'por você ou pelo PO', mas grep -c 'Aprovado para desenvolvimento' em final_response.md -> 0: o status-alvo literal nunca é apontado."}
+  ],
+  "summary": {"passed": 3, "failed": 1, "total": 4, "pass_rate": 0.75},
+  "eval_feedback": {"suggestions": ["A asserção 4 exige o status-alvo literal 'Aprovado para desenvolvimento' na resposta final; a resposta atual só diz que a aprovação deve ser registrada pelo usuário ou PO."], "overall": "Estado do projeto preservado e sem alterações indevidas; a resposta final omite o status-alvo literal exigido."}
+}

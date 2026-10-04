@@ -1,0 +1,232 @@
+[
+  {
+    "artifact": "dotnet-quality-scan",
+    "exec": {
+      "n": 18,
+      "tokens": 1112964,
+      "minutes": 16.41
+    },
+    "grade": {
+      "n": 18,
+      "tokens": 994669,
+      "minutes": 8.79
+    },
+    "analyze": {
+      "n": 2,
+      "tokens": 141426,
+      "minutes": 2.5
+    },
+    "total": {
+      "n": 38,
+      "tokens": 2249059,
+      "minutes": 27.7
+    }
+  },
+  {
+    "artifact": "TOTAL",
+    "exec": {
+      "n": 164,
+      "tokens": 11325941,
+      "minutes": 210.98
+    },
+    "grade": {
+      "n": 166,
+      "tokens": 9297581,
+      "minutes": 68.57
+    },
+    "analyze": {
+      "n": 12,
+      "tokens": 1187708,
+      "minutes": 19.9
+    },
+    "total": {
+      "n": 342,
+      "tokens": 21811230,
+      "minutes": 299.44
+    }
+  },
+  {
+    "artifact": "android-embedded-kotlin-engineer",
+    "exec": {
+      "n": 18,
+      "tokens": 1350996,
+      "minutes": 25.91
+    },
+    "grade": {
+      "n": 19,
+      "tokens": 1070607,
+      "minutes": 8.77
+    },
+    "analyze": {
+      "n": 1,
+      "tokens": 95516,
+      "minutes": 1.74
+    },
+    "total": {
+      "n": 38,
+      "tokens": 2517119,
+      "minutes": 36.42
+    }
+  },
+  {
+    "artifact": "task-coder",
+    "exec": {
+      "n": 20,
+      "tokens": 1504974,
+      "minutes": 31.55
+    },
+    "grade": {
+      "n": 20,
+      "tokens": 1075070,
+      "minutes": 8.74
+    },
+    "analyze": {
+      "n": 1,
+      "tokens": 89316,
+      "minutes": 1.17
+    },
+    "total": {
+      "n": 41,
+      "tokens": 2669360,
+      "minutes": 41.46
+    }
+  },
+  {
+    "artifact": "backend-engineer-dotnet",
+    "exec": {
+      "n": 18,
+      "tokens": 1638009,
+      "minutes": 43.69
+    },
+    "grade": {
+      "n": 18,
+      "tokens": 1108033,
+      "minutes": 8.24
+    },
+    "analyze": {
+      "n": 1,
+      "tokens": 129496,
+      "minutes": 1.48
+    },
+    "total": {
+      "n": 37,
+      "tokens": 2875538,
+      "minutes": 53.41
+    }
+  },
+  {
+    "artifact": "dotnet-reviewer",
+    "exec": {
+      "n": 18,
+      "tokens": 1370218,
+      "minutes": 28.59
+    },
+    "grade": {
+      "n": 18,
+      "tokens": 1038531,
+      "minutes": 7
+    },
+    "analyze": {
+      "n": 1,
+      "tokens": 154070,
+      "minutes": 3.37
+    },
+    "total": {
+      "n": 37,
+      "tokens": 2562819,
+      "minutes": 38.96
+    }
+  },
+  {
+    "artifact": "impact-scan",
+    "exec": {
+      "n": 18,
+      "tokens": 1024441,
+      "minutes": 9.16
+    },
+    "grade": {
+      "n": 18,
+      "tokens": 902159,
+      "minutes": 4.9
+    },
+    "analyze": {
+      "n": 2,
+      "tokens": 213581,
+      "minutes": 3.25
+    },
+    "total": {
+      "n": 38,
+      "tokens": 2140181,
+      "minutes": 17.31
+    }
+  },
+  {
+    "artifact": "node-quality-scan",
+    "exec": {
+      "n": 18,
+      "tokens": 1076025,
+      "minutes": 14.21
+    },
+    "grade": {
+      "n": 18,
+      "tokens": 982747,
+      "minutes": 6.99
+    },
+    "analyze": {
+      "n": 2,
+      "tokens": 186280,
+      "minutes": 2.87
+    },
+    "total": {
+      "n": 38,
+      "tokens": 2245052,
+      "minutes": 24.07
+    }
+  },
+  {
+    "artifact": "architecture-analyzer",
+    "exec": {
+      "n": 18,
+      "tokens": 1130568,
+      "minutes": 13.89
+    },
+    "grade": {
+      "n": 18,
+      "tokens": 1017962,
+      "minutes": 6.74
+    },
+    "analyze": {
+      "n": 1,
+      "tokens": 82356,
+      "minutes": 1.6
+    },
+    "total": {
+      "n": 37,
+      "tokens": 2230886,
+      "minutes": 22.23
+    }
+  },
+  {
+    "artifact": "executor",
+    "exec": {
+      "n": 18,
+      "tokens": 1117746,
+      "minutes": 27.57
+    },
+    "grade": {
+      "n": 19,
+      "tokens": 1107803,
+      "minutes": 8.39
+    },
+    "analyze": {
+      "n": 1,
+      "tokens": 95667,
+      "minutes": 1.93
+    },
+    "total": {
+      "n": 38,
+      "tokens": 2321216,
+      "minutes": 37.89
+    }
+  }
+]

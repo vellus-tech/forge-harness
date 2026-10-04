@@ -168,7 +168,7 @@ ws_copia() {
 scenario "[1] bloco ausente, sem env, template real — linha nominal SEM WARN, antes == depois"
 C1="$(consumidor c1)"
 strip_heavy_mutex "$C1/.forge/forge.yaml"
-out1="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c1" node "$FORGE" update --target "$C1" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc1=$?
+out1="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c1" node "$FORGE" update --target "$C1" --no-plugin --skip-postcheck --no-backup --source "$TPL" 2>&1)"; rc1=$?
 [ "$rc1" -eq 0 ] || { echo "FAIL [1]: update saiu rc=$rc1"; echo "$out1"; exit 1; }
 linha1="$(grep 'heavy_mutex: recurso resolvido' <<<"$out1")"
 [ -n "$linha1" ] || { echo "FAIL [1]: linha nominal ausente"; echo "$out1"; exit 1; }
@@ -183,7 +183,7 @@ scenario "[2] bloco ausente, template com resource divergente do default hardcod
 C2="$(consumidor c2)"
 strip_heavy_mutex "$C2/.forge/forge.yaml"
 TPL_DIVERGENTE="$(tpl_com_resource custom-heavy-suite)"
-out2="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c2" node "$FORGE" update --target "$C2" --no-plugin --no-backup --source "$TPL_DIVERGENTE" 2>&1)"; rc2=$?
+out2="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c2" node "$FORGE" update --target "$C2" --no-plugin --skip-postcheck --no-backup --source "$TPL_DIVERGENTE" 2>&1)"; rc2=$?
 [ "$rc2" -eq 0 ] || { echo "FAIL [2]: update saiu rc=$rc2"; echo "$out2"; exit 1; }
 linha2="$(grep 'heavy_mutex: recurso resolvido' <<<"$out2")"
 [ -n "$linha2" ] || { echo "FAIL [2]: linha nominal ausente"; echo "$out2"; exit 1; }
@@ -198,7 +198,7 @@ echo "OK [2]"
 scenario "[3] env vence dos dois lados — mesmo template do [2], mas sem WARN porque a env pina antes e depois"
 C3="$(consumidor c3)"
 strip_heavy_mutex "$C3/.forge/forge.yaml"
-out3="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c3" FORGE_HEAVY_MUTEX_RESOURCE=env-pinned node "$FORGE" update --target "$C3" --no-plugin --no-backup --source "$TPL_DIVERGENTE" 2>&1)"; rc3=$?
+out3="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c3" FORGE_HEAVY_MUTEX_RESOURCE=env-pinned node "$FORGE" update --target "$C3" --no-plugin --skip-postcheck --no-backup --source "$TPL_DIVERGENTE" 2>&1)"; rc3=$?
 [ "$rc3" -eq 0 ] || { echo "FAIL [3]: update saiu rc=$rc3"; echo "$out3"; exit 1; }
 linha3="$(grep 'heavy_mutex: recurso resolvido' <<<"$out3")"
 [ -n "$linha3" ] || { echo "FAIL [3]: linha nominal ausente"; echo "$out3"; exit 1; }
@@ -212,7 +212,7 @@ scenario "[4] bloco JÁ declarado (sem root) nunca é tocado — byte-idêntico,
 C4="$(consumidor c4)"
 set_heavy_mutex "$C4/.forge/forge.yaml" "axis-heavy-suite" "__SEM__" "true"
 BLOCO_ANTES="$(bloco_de "$C4/.forge/forge.yaml")"
-out4="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c4" node "$FORGE" update --target "$C4" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc4=$?
+out4="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c4" node "$FORGE" update --target "$C4" --no-plugin --skip-postcheck --no-backup --source "$TPL" 2>&1)"; rc4=$?
 [ "$rc4" -eq 0 ] || { echo "FAIL [4]: update saiu rc=$rc4"; echo "$out4"; exit 1; }
 BLOCO_DEPOIS="$(bloco_de "$C4/.forge/forge.yaml")"
 [ "$BLOCO_ANTES" = "$BLOCO_DEPOIS" ] \
@@ -240,7 +240,7 @@ set_heavy_mutex "$C5/.forge/forge.yaml" "axis-heavy-suite" '"${TMPDIR:-/tmp}"' "
 BLOCO5_ANTES="$(bloco_de "$C5/.forge/forge.yaml")"
 grep -qF 'root: "${TMPDIR:-/tmp}"' <<<"$BLOCO5_ANTES" \
   || { echo "FAIL [5] (setup): a fixture não escreveu a linha de root esperada"; echo "$BLOCO5_ANTES"; exit 1; }
-out5="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c5" node "$FORGE" update --target "$C5" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc5=$?
+out5="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c5" node "$FORGE" update --target "$C5" --no-plugin --skip-postcheck --no-backup --source "$TPL" 2>&1)"; rc5=$?
 [ "$rc5" -eq 0 ] || { echo "FAIL [5]: update saiu rc=$rc5"; echo "$out5"; exit 1; }
 BLOCO5_DEPOIS="$(bloco_de "$C5/.forge/forge.yaml")"
 [ "$BLOCO5_ANTES" = "$BLOCO5_DEPOIS" ] \
@@ -304,7 +304,7 @@ C7F="$(consumidor c7f)"
 strip_heavy_mutex "$C7F/.forge/forge.yaml"
 ROOT_INUTILIZAVEL="$ROOT_ISO/c7f-arquivo-nao-diretorio"
 : > "$ROOT_INUTILIZAVEL"
-out7f="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_INUTILIZAVEL" node "$FORGE" update --target "$C7F" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc7f=$?
+out7f="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_INUTILIZAVEL" node "$FORGE" update --target "$C7F" --no-plugin --skip-postcheck --no-backup --source "$TPL" 2>&1)"; rc7f=$?
 [ "$rc7f" -eq 0 ] \
   || { echo "FAIL [7]: update deveria seguir rc 0 mesmo com a resolução do heavy-mutex falhando (best-effort) — saiu rc=$rc7f"; echo "$out7f"; exit 1; }
 linha7f="$(grep 'heavy_mutex:' <<<"$out7f")"
@@ -323,7 +323,7 @@ perl -pi -e "s/if \(added\.includes\('heavy_mutex'\)\) \{/if (false \&\& added.i
 cmp -s "$WS8_ORIG" "$WS8/bin/forge.mjs" && { echo "FAIL [8] (setup): a mutação não alterou a cópia — o teste não provaria nada"; exit 1; }
 C8="$(consumidor c8)"
 strip_heavy_mutex "$C8/.forge/forge.yaml"
-out8="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c8" node "$WS8/bin/forge.mjs" update --target "$C8" --no-plugin --no-backup --source "$WS8/template/.forge" 2>&1)"; rc8m=$?
+out8="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c8" node "$WS8/bin/forge.mjs" update --target "$C8" --no-plugin --skip-postcheck --no-backup --source "$WS8/template/.forge" 2>&1)"; rc8m=$?
 mut8_ok=1
 if [ "$rc8m" -ne 0 ]; then mut8_ok=0
 elif grep -q 'heavy_mutex: recurso resolvido' <<<"$out8"; then mut8_ok=0; fi
@@ -332,7 +332,7 @@ elif grep -q 'heavy_mutex: recurso resolvido' <<<"$out8"; then mut8_ok=0; fi
 # da mutação na cópia, não de algum efeito colateral do isolamento do teste.
 C8R="$(consumidor c8r)"
 strip_heavy_mutex "$C8R/.forge/forge.yaml"
-out8r="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c8r" node "$FORGE" update --target "$C8R" --no-plugin --no-backup --source "$TPL" 2>&1)"; rc8r=$?
+out8r="$(env -u FORGE_HEAVY_MUTEX_RESOURCE FORGE_HEAVY_MUTEX_ROOT="$ROOT_ISO/c8r" node "$FORGE" update --target "$C8R" --no-plugin --skip-postcheck --no-backup --source "$TPL" 2>&1)"; rc8r=$?
 [ "$rc8r" -eq 0 ] && grep -q 'heavy_mutex: recurso resolvido' <<<"$out8r" \
   || { echo "FAIL [8] (recontrole): com o binário real (não mutado), [1] deveria continuar passando"; echo "$out8r"; exit 1; }
 rm -rf "$WS8"
@@ -346,7 +346,7 @@ perl -pi -e "s/if \(dstKeys\.has\(key\)\) continue;/if (false) continue;/" "$WS9
 cmp -s "$WS9_ORIG" "$WS9/bin/forge.mjs" && { echo "FAIL [9] (setup): a mutação não alterou a cópia"; exit 1; }
 C9="$(consumidor c9)"
 set_heavy_mutex "$C9/.forge/forge.yaml" "axis-heavy-suite" "__SEM__" "true"
-node "$WS9/bin/forge.mjs" update --target "$C9" --no-plugin --no-backup --source "$WS9/template/.forge" >/dev/null 2>&1
+node "$WS9/bin/forge.mjs" update --target "$C9" --no-plugin --skip-postcheck --no-backup --source "$WS9/template/.forge" >/dev/null 2>&1
 N9_DEPOIS="$(n_blocos "$C9/.forge/forge.yaml")"
 mut9_ok=1
 [ "$N9_DEPOIS" -eq 1 ] && mut9_ok=0
@@ -355,7 +355,7 @@ mut9_ok=1
 C9R="$(consumidor c9r)"
 set_heavy_mutex "$C9R/.forge/forge.yaml" "axis-heavy-suite" "__SEM__" "true"
 BLOCO9R_ANTES="$(bloco_de "$C9R/.forge/forge.yaml")"
-node "$FORGE" update --target "$C9R" --no-plugin --no-backup --source "$TPL" >/dev/null 2>&1
+node "$FORGE" update --target "$C9R" --no-plugin --skip-postcheck --no-backup --source "$TPL" >/dev/null 2>&1
 BLOCO9R_DEPOIS="$(bloco_de "$C9R/.forge/forge.yaml")"
 [ "$BLOCO9R_ANTES" = "$BLOCO9R_DEPOIS" ] && [ "$(n_blocos "$C9R/.forge/forge.yaml")" -eq 1 ] \
   || { echo "FAIL [9] (recontrole): com o binário real, [4] deveria continuar passando (bloco byte-idêntico, chave única)"; exit 1; }
@@ -450,7 +450,7 @@ const prop = (blockPresent, divergentFlag, divergentChars, envFlag, envChars) =>
 
   let out = '', rc = 0;
   try {
-    out = execFileSync('node', [FORGE, 'update', '--target', dir, '--no-plugin', '--no-backup', '--source', src], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env });
+    out = execFileSync('node', [FORGE, 'update', '--target', dir, '--no-plugin', '--skip-postcheck', '--no-backup', '--source', src], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env });
   } catch (e) {
     rc = e.status ?? 1;
     out = (e.stdout || '') + (e.stderr || '');

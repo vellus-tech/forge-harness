@@ -1,0 +1,5 @@
+A violação domain → infrastructure que o tech lead descreveu não existe no código: `src/domain/tarifa.ts` não importa nem chama o `PostgresTarifaRepository`, e o grafo não tem essa aresta. A única menção é um comentário `TODO(tarifa)` nas linhas 3 e 4 desse arquivo, que sugere fazer essa chamada no futuro.
+
+A violação real está em `src/application/calcular-tarifa.ts`: a application importa e instancia `PostgresTarifaRepository` diretamente (linhas 2 e 5). A regra `.forge/rules/architecture/camadas-tarifacao.md` proíbe isso, e a correção é declarar uma porta em `src/domain` e injetar a implementação em `src/main.ts`.
+
+O relatório está em `docs/arquitetura/analise-tarifacao.md`, com o mapa de camadas (api 1, application 1, domain 2, infrastructure 1, sem camada 1 em `src/main.ts`), os fluxos de dependência e o fan-in. Para a retro, a recomendação é levar a violação confirmada (application → infrastructure) e não a alegada, e evitar implementar o TODO no formato atual, porque ele criaria a violação domain → infrastructure.

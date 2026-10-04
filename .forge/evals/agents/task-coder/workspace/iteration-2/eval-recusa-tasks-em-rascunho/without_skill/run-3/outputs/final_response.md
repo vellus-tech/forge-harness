@@ -1,0 +1,1 @@
+FALHA: o tasks.md do carteira-web (1.2.0-rc1) está como "Rascunho para revisão". Trocar o status para "Aprovado para desenvolvimento" sem a formalização do humano anula o gate de aprovação, então não fiz a troca nem toquei a Wave 2. Para destravar: aprovação formal do tasks.md pelo responsável e nova execução do /forge:coding-loop.

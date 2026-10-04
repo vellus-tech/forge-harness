@@ -48,8 +48,8 @@
     },
     "classification": {
       "type": ["string", "null"],
-      "enum": ["behavioral", "build-error", "unknown", null],
-      "description": "Natureza da falha na base. Apenas behavioral conta como Red; build-error é ruído."
+      "enum": ["behavioral", "build-error", "setup-exception", "unknown", null],
+      "description": "Natureza da falha na base. behavioral conta como Red; setup-exception (exceção de setup de fixture, issue #191) conta só com failure_pattern declarado que casa; build-error é ruído."
     },
     "base_result": {
       "type": ["string", "null"],

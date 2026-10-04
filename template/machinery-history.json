@@ -36,7 +36,8 @@
   "v0.13.0",
   "v0.14.0",
   "v0.15.0",
-  "v0.16.0"
+  "v0.16.0",
+  "v0.17.0"
  ],
  "paths": {
   "README.md": [
@@ -72,6 +73,7 @@
   "agents/README.md": [
    "0c1d9669e7d01a07914215fcecb2f62ee37b2e132709b0a743909e55708a0d17",
    "5614b0ed88d25acf029478e23531afbdfeec80530f3f2c15a07bca0ee00fee8a",
+   "72835238fe45e6b5e31e9c1c78193f1b48fd5489090b7bed2cdb67a3d5826ede",
    "8f5395e330a55326f339fe162f9f0d8571de2c2b6a8d9242db024d56c9b666b2",
    "bc2611dc1ca4ab3bddc9dc8bd5f46e693bbe51e803ba47cdc46362f953a34e13"
   ],
@@ -125,7 +127,29 @@
   "agents/coding/task-coder.md": [
    "02d7a7bdb99aec6a47859089cc4c74d5cd92053d524f873fd2b481b3a081f70d",
    "64713f783c338af5a03c9640a4bb1658598f8022b6cf4333e898157ee4390594",
-   "d73f5efd212ceebe3d4f13fd450c801a0b8ff1073e911b8fc10918689dd47c68"
+   "d73f5efd212ceebe3d4f13fd450c801a0b8ff1073e911b8fc10918689dd47c68",
+   "df2c2833d29f8726ab1e6e906150dd215608c449a452d5efdc11b29448234412"
+  ],
+  "agents/data/data-analytical.md": [
+   "0c9307442b01711dfd8272d434ca139a8db5f8a39d2045b5769fb4a14ef8ba92"
+  ],
+  "agents/data/data-cache.md": [
+   "66521fc9454cde4ee86396c8f88ae717d207229309773c90c1b35acf6b90bd29"
+  ],
+  "agents/data/data-engineer.md": [
+   "57743b4e8810424d0dda03a4b50714c271f751375c6cc08f72347c9970589dc2"
+  ],
+  "agents/data/data-nosql.md": [
+   "0bd5d44f4ce837d2ae0d1d076962533404cd8d3f6ae43589613cdc82de699b06"
+  ],
+  "agents/data/data-object-storage.md": [
+   "7d6b99892547dab3b1d4be7760db2d2ac4bc2bfa911113af213b05e4e78696b5"
+  ],
+  "agents/data/data-relational.md": [
+   "ca0f537a49fb4339870c55ff75458fdcf015b581ba2fb074823d4caca10a1395"
+  ],
+  "agents/data/data-streaming.md": [
+   "fd5e5eafdd023634f8c5e19f3e368ecd14db41388196100faa35d9080b15d880"
   ],
   "agents/engineering/android-embedded-kotlin-engineer.md": [
    "051f9f2273e98ceb0c873332b665c59f1dc763bf12165fa566d15105038cf4e7",
@@ -200,6 +224,7 @@
    "e88c4063edcaa972d313bcfca35fe11a60f113da03d516aeac7d90e34e1cccaf"
   ],
   "agents/review/security-reviewer.md": [
+   "0a058c126a6c809c3973c20e12d4b44924fe52230e0c5c75a462f6666042a799",
    "884870931f6538b91994b42078fa27b90a4b28149e85d751893521c09fee35dd",
    "f7eb21563c7c569b6be708d47b49b1c212d2f92dd5bd65e1d7a6c08bdd7c73bd"
   ],
@@ -258,7 +283,8 @@
   "agents/specifications/tasks-writer.md": [
    "0d1255af601f6fdbef596297adf9ee19a4c148bec4918d3c268e0306ee1bb660",
    "30a77fbbe6f038daa7eae755065ff99826bd7c673eda9f101e0b5814d4ce7dba",
-   "3a99d67456434744f9795ba9e3ed51fc636985b1fbc078ab443228d6ce9f8998"
+   "3a99d67456434744f9795ba9e3ed51fc636985b1fbc078ab443228d6ce9f8998",
+   "7789cc1757d18a93827df5ae9acf9980e8bda93dc83c11963740f9ffaacfe52e"
   ],
   "agents/specifications/trd-generator.md": [
    "1b7561b404f7abd372d15e2cb786bf147e297a432924b511d846f722d3c69b1a",
@@ -274,6 +300,7 @@
    "8540be65799d3bc563e267e6b47285ba24f3d5272d5397f9b2c6bd8b2e86123e"
   ],
   "capabilities/backend-dotnet-relational/PROFILE.md": [
+   "37f120b102fb654d97f7f177a631c7810fa25788300395770048c0d3fe9f6b2b",
    "50c81ee488bb5b6e76e3eb8ebfc061cc3afc1b83f3ee598b423a17c5e8193513",
    "e70a7e3ae17ba4089939fdd62e016d9c2b21998b2f58774e4a8935991c09bbb8"
   ],
@@ -287,10 +314,12 @@
    "39f5166362ebc140ff7da7a4eab62408d75d870def75f41871692935982fe96b"
   ],
   "capabilities/backend-java-relational/PROFILE.md": [
+   "5579d43878e3b89b1aa56621a7c5e4c3c6c067b646a01ebc6da4fcf3765b71de",
    "e2e25019c23ae4c1d85580340a637c94d412270db3c6ccdc52b95f02a7767e73"
   ],
   "capabilities/backend-node-postgres/PROFILE.md": [
    "5c266ac20358e7da48780601606ad627f6983b3ea25be705a9b898e0e370f6c6",
+   "cefdfa8737eb9aa2cf9f36683c72c7116ee2d018b8d46ddd32b41c27b0804f52",
    "f9b6c9ba49432b85f9b3be47e72b98310529c0865fddc770f52a6a229b34cc19"
   ],
   "capabilities/backend-node-postgres/assets/eslint-rules/core-rules.cjs": [
@@ -309,6 +338,7 @@
    "17ecae7ed6894814143c106631b34c32a06b9f99ab7736f636e0ed65f68f0db4"
   ],
   "capabilities/backend-python-relational/PROFILE.md": [
+   "61a406d1aaa2333874a5efe89dc6d2220a45655fe2c1f8b623499426b63d8a71",
    "9df4dad8cb2443d9b11e30edc3ee795addcda0ea6c309ccf5897eec5f75366b2"
   ],
   "commands/README.md": [
@@ -319,6 +349,7 @@
    "0aaaf10e04772e24600cc06e8888f0ab4a55de41886617dbf1205aa969ddf71c",
    "19ea2374290d77472e6549a7121bc82bac246142ebea69b2784c720fd823cd25",
    "1ebdd68ff35c9830f9dcea5d476df782e08d2d40c5d92a2aa960bfd4430a6522",
+   "66447a1fcbf4e6c00078bf7e59e184f76c8f63f3f093eafdcfb5b2777cb40b46",
    "9250ef7b194e7ddfd9c68e808960f4e9a78dfffa6bbb627e77674e3b0fb8b591"
   ],
   "commands/coding/coding-status.md": [
@@ -422,6 +453,7 @@
   "commands/harness/liaison.md": [
    "14fad61f156906c06fc8fa394e8a0d8098ec97f93ffaf6d28c81a5d2b4b67a49",
    "27cfcee23afd5cdd6e40293151d5f198de2c309ce0da80853a9efe25e669ac5b",
+   "622ad91c3c57077b000efc17c3131d37d5dc6f13ef8f189c20607eb5ef32555b",
    "a42d0826b71de9aa1c811f293319f59681e45a5fb6daa1823323f0fb82ca2d89",
    "ab0f8d6795764616625bdee79619f480bbe787139bafc57388c2aa77fa191c51",
    "c7f5e6ad758bde8cb17e43eebdc358200df3ca60f2095f069cff0990466faf9e"
@@ -448,6 +480,7 @@
    "3b209d583c0aeed71f45023d522d96df6508879fd941417cee3fe68506c6b96b"
   ],
   "commands/harness/upgrade.md": [
+   "06649af4c09a2d82f6c6bb5e3d7f5f92d11ae5a129537728390eb2c357f95c60",
    "0b2ea6492e9efdff61733266e1b7f6fb7829e38cce8ee210958087f2f79db6d9",
    "5c3b1852403ff6ecabde8ab7865f89ac8372d3f883a8c3f2beaf4b10b7ddfc31",
    "ca10a9786ff85a33f366ec1da2b8a4d8a286bc6ad65048bcf878d4eac5960b4e",
@@ -467,6 +500,7 @@
    "d597b097fb5a242092971f262a94f564feb3236902c66fd617abb00dc1c46fe4"
   ],
   "commands/specs/analyze.md": [
+   "46e8858c0ea8aa295985508d1301b0acbe6d16c885b6abe07a35bf2ef3cac2d9",
    "97e4170203f8b7b20789529450c71a126556c057032a9234da8d1389aaddbca9",
    "a0087466e832a43cbca496010177430f7952ad3249b0804445321b82110a0447",
    "b8df1dc3e6c0aff2f1a35fc5855b867d71618ec7fd5569d686a12ebbf7dd6957",
@@ -495,6 +529,7 @@
   ],
   "commands/specs/implement.md": [
    "2993e0b3aa9594d52160a8d295618a7013ea844e071fa16e77c270b1b3d6f519",
+   "2c80c0e9d5e532e73a51c071a13dfe6ceb1e526c06adb6052371ff105caba916",
    "50668ab77e6d3efa486fb05da8256e692f96a9bdffc3720574c92fc8fb9829c7",
    "b727bf6fc6f76eb239c721afed1477b74a06e680bdab3ebebf084682e8ee4a81",
    "bc8b475b050ac4738b4b14fd8fe61c1141377744387fd8fd6b4a683863eae869",
@@ -536,12 +571,14 @@
    "3179be2eb1c7dbe5750949b218c51e49216f1c7a5ec4ffb0ea5713df3f3908fb",
    "671c614406c0efaecf928dd72753d548109e62ba990ae9614f80d297788067eb",
    "dfb9a745ab08d3a096efc72f5508e3a8ee2666e3148a8b1102a8b23f149041dd",
-   "e4356bb839b18d6321d56f7266787684f2a0baa6a3df9a5185696d7acc92738a"
+   "e4356bb839b18d6321d56f7266787684f2a0baa6a3df9a5185696d7acc92738a",
+   "f97df5f17323365d91bf4e81d8bef04949e9b1afa6afee2f8decde85c51b564d"
   ],
   "commands/testing/red.md": [
    "20799b7adee3ed1dd7bb3ab429205f2b14c78e3d0f2f5134ebcecf9fe85af962",
    "cd2e1a432a8183696da633f9ac329f954d1e7522baca00b0992b1e545d8bc20b",
-   "e7c8138be1abdd9b712d99b0a47580ac553b4c019a861aee28acf5c2a3ff11e5"
+   "e7c8138be1abdd9b712d99b0a47580ac553b4c019a861aee28acf5c2a3ff11e5",
+   "fae262c5700713916d6599fc068c31c2131756a344e0cf4e887c3136312f6ddf"
   ],
   "commands/testing/scaffold-tdd.md": [
    "56197b92b30a147b13c28a9a7309c32c141825c4bae11858048a45f1ed92026e",
@@ -556,6 +593,7 @@
   ],
   "commands/waves/pentest.md": [
    "35839e03fba8e48a8f2f7a67682b4b9415d4d7a3eb305399739c7c968a0d4289",
+   "3d53acb6a39690b2fc6a95cc0e966231b77b1a797e76f21ea9476501c4dae03b",
    "4c195df1bb83154d31c43307fa86f385a2fb274ffc33dac7f56892e85b8551aa",
    "6520bfa76877e1dddf82616e282fbc62d86394aa77009b938563c7c1c078d77f"
   ],
@@ -596,6 +634,7 @@
    "9e04512829aaf3579d02011257e098b5bf51aca8fc222d9191820a0412be7cf9"
   ],
   "hooks/git/lib/check-red-first.sh": [
+   "50265891863a7f3169d30c885e042a1d74b237947838c61259e7285cd94869e6",
    "5f0d52d05ef4065cbee979671e5436aecf2dcb4e01620dcc1bd97a34df34e601",
    "93b36bc2e6b35fed6834309f4fa7ec2c5f4ff42393e83e0e1fd4c70e7bba5f5e",
    "ee94db6beed84dba73af4eb1c28ef018d2cdd96c11763c7c956ed94f9a1e591a"
@@ -621,6 +660,7 @@
    "11d78e98f9c9a4daf5ced69600288827d669486df0265686c04bf5b496cb1599",
    "13e61e1b518c78907ff52c2d8b50df37357150b4f46920aae577121e58e982c8",
    "21dec46478d70a9ad1c7002e0e65bb875990f94438a5f859505db63b295dd7ad",
+   "2ed6eb07f0b019bffc623bcda8a01d4b0683f2ec10b8f93935ecb5d3e9893e76",
    "5add0f35d3170477d1d08aeb35eed4d16db18e4080c98fc216ab3a6858ec3435",
    "745a0a50e4cb017d2b023131d73b4ec47f2246523c1139dbdab1dde00b3247f8",
    "82bbdaf678cfc81724fe4f6852535ea187184db81d46c7ccfc37873e1ed69e26",
@@ -651,6 +691,7 @@
    "fb9fafec947c6c5d61a45ef45e7f7a1db75517e49215a2cf0761998baba3449b"
   ],
   "hooks/pre-tool-use/validate-naming-conventions.sh": [
+   "904b699a9d4073ab68fee9f4a133da8c722ebc9671ca3f9d7d54fec8e1182759",
    "b5331cb44f9d80b1d943ce5e010133b00fb86ebc5d97bccd411af3b2211e316d"
   ],
   "hooks/session/on-session-end.sh": [
@@ -673,7 +714,8 @@
    "ff5b8b8755761f2389cb632765fae635118327d8828a8e3ad6bdb8340c88ee6a"
   ],
   "rules/architecture/api-and-contracts.md": [
-   "c69c11382f6137ef84fc069831e06aa923f5d935ab5ead3ab986df72b3af032c"
+   "c69c11382f6137ef84fc069831e06aa923f5d935ab5ead3ab986df72b3af032c",
+   "d6501d9cd8a064f167e7c8b554d43ab29bf4dbda7196d42e584482b8d273b569"
   ],
   "rules/architecture/authz-pdp-pep.md": [
    "2323b48d26478a4dfdb8a027e6c343b146d217c407754811f09303d33947c493"
@@ -818,6 +860,7 @@
    "e6c2010ef875ecc665834e8dd949349ff808c5b926524c563f724dafa2e163b4"
   ],
   "rules/testing/change-test-contract.md": [
+   "231c0a01136231a982f6476235bd0499fd1cac6b59a792324bc7032f3cd7f06a",
    "9448a2c571de4019670b3bb6c6723497bda3d0154574d28f7d0b87930a25676e"
   ],
   "rules/testing/gate-delivery-channel.md": [
@@ -830,11 +873,13 @@
   "rules/testing/quality-gates.md": [
    "4ffe5c95f6a1028ea839559400e547e4bfff47e28ef368b10f355576d9ad1868",
    "5a29b3c07dd036c6244eea14b5e516078e65428c111d26557c7eedc7e0002b52",
+   "a1d7644ab459fbdc6ba151bec3925cf8968af9b9f34bd2ac801cb78b6a1fa250",
    "f991b31323bc13a42447fb921929a88af05ae14fe0f3766f9e09f7141aca95de"
   ],
   "rules/testing/regression-red-first.md": [
    "82b17b4ed7bb0f7825ba8071c5b9885840acde7c6b63d5ea5a0e7e2c4f093f53",
-   "d2af69c0f6b7e0c873e0882084ae7c137560c0bc4c03391d230ba8b4a9316fe0"
+   "d2af69c0f6b7e0c873e0882084ae7c137560c0bc4c03391d230ba8b4a9316fe0",
+   "d350a9e235610788f43ab9f2ac56c089ec98490f1864921fb62455c7635f55d2"
   ],
   "rules/testing/tdd.md": [
    "6193538eb77ce6a41bf2b379bed86e76c14277915301f51faf94c6db6cc73dd0",
@@ -896,6 +941,7 @@
    "979464b691e082d83a0d14d467a971d0b6a974d4d6951fd2ef8eddbc4649b131",
    "a04f3ba62f7cb8ea89629ca6560a0321574baecf61d1398238b1d060141b2843",
    "b28e45663f57a0bff0dffb33e4189e93071dcd1df3cc1f052dc452d96d18cc75",
+   "be6dfb59a480e5d0a0081db4c20b25d7f26ffab73b78f43abdd6f9b0e3d2af52",
    "d55a32f0cd1ca235d7f395f6eb718d1b09b5c6467524bd2943a954eb23f317fb",
    "fde37cb27b014dc3422effc8e4f4aaaf2bd02e10f9fba6bbbe86cc27c234b55e"
   ],
@@ -935,6 +981,7 @@
    "1bf02b6aa6bc25d23d43a9ebd38894a3779fb41fe4fb6d087b715e9d021fa68f"
   ],
   "schemas/red-evidence.schema.json": [
+   "6314f44d42c4d4e883862e798a77e2b255e85dc3fa06620f08da184a51b354df",
    "ab857cb282a3bc2558d24a27dbeecc132b84a915f10ae5a6ad5afbfb6c1b6640",
    "cf33d31fdeb3288b94959b425de9fd1a04009a3af78db39d4f388f2b92117a10",
    "fd1044ac04da6c0e412f846d657acbb5cbbe02a86d5fb4d541749b3c10569673"
@@ -950,6 +997,7 @@
    "18f28d6b2e775eedce3645124651ffaf759015b5bbe203d3a9f77d9c3386b3f7",
    "558f10a816d7747df5efd07650134866302fbad55bef2a9954c95d86d5218afb",
    "682f821e4856aba3b797932fdfdc68a0695be13c31d3defea1e4f06d31d562a6",
+   "9b117c303e7bcaa07cabff50adfd777508361df3038dbdcabc825423efa5d377",
    "b133b8f64ddccdba36109b6695beb7c8f9750136ad3600eb195aed9fd09e74bf",
    "ec5f8006940f18b5a7673c3bfc229142a2ecb1227bff8df5ef195dd0dfff7e85"
   ],
@@ -1006,6 +1054,7 @@
    "3ae727091bab46870eeff9f2dd874afb51b960a3dc8922cd0757124e2c797702"
   ],
   "scripts/check-heavy-mutex.sh": [
+   "87127a4244552c1bbe9f6ed014cf837242d9787b410886bbb59a8dce6bdd62f9",
    "94c31d9a93a1d7adab41f6055075aced5f55e7227bf8621ea1621bc7f4f3c1f2",
    "9b167fb2c8b6ccaab8457fbac9c0234608971c35d55a3fe31ec19b143b591ee9"
   ],
@@ -1048,9 +1097,16 @@
   "scripts/check-worktree-prereqs.sh": [
    "864780f8f1d3bd1e200105c43419cab062f546b8ac1dc8cfbdfd0af534951a96"
   ],
+  "scripts/data-agent-allowlist.sh": [
+   "3964ec4b7d930624bb68a2556c22d10dea16b59ac2f56257cad8adeb311d8956"
+  ],
+  "scripts/data-agent-bash-guard.sh": [
+   "b1a9f2458d32923a9b88ad7e3a8a7dc3e0f951ac535870adde8c907951586e10"
+  ],
   "scripts/deferral-ops.sh": [
    "e020b8ffadb9de1582e0aef1a99800d1d875fb62bfaba405659499062ef5671b",
-   "e9da27b07847caa337ffac9cf4f8bf13faaf6364e01f8e40cb45329a928df1ae"
+   "e9da27b07847caa337ffac9cf4f8bf13faaf6364e01f8e40cb45329a928df1ae",
+   "f1fe6861950c62f93a0291679d6d7e03c76f5df005c37906d62b1d3083731124"
   ],
   "scripts/discover.sh": [
    "891d0fd24acb8c68770bbad20dd6c0cede36fdb6c423e6ac0698b71380cbeac2"
@@ -1058,6 +1114,7 @@
   "scripts/doctor.sh": [
    "17079d5f480233f6db00212fa4873794c27ca66fe2d690ae1e3692316a7e8eb2",
    "29ff54938868cd525786711aea512858ede973f32173629ca47ea636892cc358",
+   "5fc4bcce3068103af627ff22d34f67ba0c8973c01e8cd8aa7aacc4127edaa1ff",
    "648244499ce401afcab701d6dcc338667b518f00e9facfbe801337b3f6b8489f",
    "6b4dbda2d8903437d57ea6b45aacdba132d1686dbecb9fe0a84f7f0b3cf389fe",
    "7540aff095b15facf06b0a42fddb870f21a009c2be23bfd76ebfe68413e376eb",
@@ -1099,7 +1156,8 @@
    "ef465ea3459e0467f3d66de816ad2357237cc3cad341279e7a2a4b7c00ff7bd0"
   ],
   "scripts/heavy-run.sh": [
-   "840053b53430ab32a74f0edd1bac6eecf6b2a62ee2f70682123c27876be75c46"
+   "840053b53430ab32a74f0edd1bac6eecf6b2a62ee2f70682123c27876be75c46",
+   "f8cc376a0ea33a33bb0bec9662e69fc69bad65fdda3ea5bef6c1d558c68cf008"
   ],
   "scripts/impact.sh": [
    "00f92bf2482adea15958fa097c43382e434a84251b2efc246f6f82a43f55dd32",
@@ -1119,6 +1177,7 @@
    "4fd3dbeab43d79c6650ecf59f0a6c90861b9eb151045c423f547a5d499110c4a",
    "60a8beac611c5e0c1ce7b8f471e456577700ca7a899cca144984d496395f2469",
    "93e95a4404e4c6a12ee0bb31a34e65977c1faa0264beb247f4935e1f25df252a",
+   "c7bccb125ab4cf8753c6e72f0dfbc03950f759a427f9cc8d3029117434c1e3b8",
    "d366d7de56277e4c894f159389aebb5077311c4d96a369cc3212b9c3f82b6243",
    "e5420240c790dd0e522e96151bee957356d1c32f5f833a9d78c73e7dfb646283"
   ],
@@ -1129,6 +1188,7 @@
    "8e236d9639909f82726644b86147913a0f6053bf5c8b3ea8b90b23b706fd7968",
    "b7e7423371524c49720831d026ca161a742c6ff1098cb58897ae37936b0442a6",
    "cfe8f2d8f471d860975297e9f0f05a19778557d4ecc3a8e224ff443dbf659332",
+   "d2972b5c750a2b791713cd05304e2653fd47610862d25ba981ca2213ffdc6b80",
    "f748d1e7d03b6b18145241b08f2574393f1506a1bd25246aa901fc03208d853c",
    "fec988b48b9a84313d476dbb2d3b6db8579de7bd14d9ef7bf1b2d99566bc3dd3"
   ],
@@ -1180,11 +1240,15 @@
    "f6c3002e77b89fd596f49cd7ea00060b0a3d6f45b232f93a6fa2296792f6c10d"
   ],
   "scripts/lib/check-red-first.mjs": [
+   "219b97a8d7c04490150f827de4ff47e5eeaa6bfc20becc709883d24860165aba",
    "c345e5dbbb1f0e29fbeba3b68ba1be37e7114c521dbf2b169a4564c2b034c0af",
    "f67383587d21bc5dc9c117baba680d377b722ea6f036c9b45ed21bed0f9cba3a"
   ],
   "scripts/lib/check-worktree-prereqs.mjs": [
    "254286d959a8a11895006e32b571e7d604764c1bd27823154118a4426e66ae09"
+  ],
+  "scripts/lib/defect-scope.mjs": [
+   "560d7a5feb16c482259b6a68c95f5c7bb12a4bdce8f8a89fd54f31005cfd0604"
   ],
   "scripts/lib/delta-apply.mjs": [
    "0032eab1ef9ce69dab3bfa5c88d34aaf6a3a0393fd736ec120e04e7bc266c179",
@@ -1243,6 +1307,7 @@
    "dd2f38bb6ccbda7cc7e3ae46c24d5a4f7c67c53de0abe7a19d7bbe10a0d53063"
   ],
   "scripts/lib/heavy-mutex.sh": [
+   "61271b726995b9e4d16c3a494a2e0079dc2619876ecdbfc37322588826ac18d6",
    "64c57efd66f2ea058e18d494bf05ee0e11fd93ef48eeb0d942ec1f4a95a2029a",
    "f84a84ed55fd80a203eaf331f6b2939a4725cec2cabca617c2c848ad872f1e3a"
   ],
@@ -1279,6 +1344,7 @@
   ],
   "scripts/lib/liaison-import.mjs": [
    "010a5be3273babff0445740059f4d1aa69aef8411584b8d5317cedf49bea2aba",
+   "39e4128d54ece4a31959ef9bb8169dfdfe88f16d2166cf612771f9d0c8ac8a8b",
    "da59042f5124054309d130dd8f4c883ddad4fee311dbdec011f180e41b2951c3",
    "eecd390a35dbcac6e1230205229c7bc918d0d0a8b1b0fc1057a521a27acdef0f"
   ],
@@ -1286,6 +1352,9 @@
    "036c349da59924058f93eb83c677bb503ed24c2be117cb410b56ca9e858f477f",
    "1be70de7d286178a790624cea0c4f30c26e5fa42600eaf8193c8a72d4879add1",
    "71e314bab6a34879db02c46f698663b9bf1825c6ff83c54356c4794c45d075cf"
+  ],
+  "scripts/lib/liaison-publish.mjs": [
+   "1ad39c8f393a01f8bb9b6c2cb5c4c6eeb901ad83806bd77fa8336da0668186df"
   ],
   "scripts/lib/liaison-push-union.mjs": [
    "82f60ea29eac2021e9c8df92ab446f7289bc732df17a8d173ff070a34172d441"
@@ -1325,10 +1394,12 @@
   ],
   "scripts/lib/red-evidence-ops.mjs": [
    "69a7c64497c87527e997d0e4768b30f851b6a19d5edbea058f0049e7479bf794",
+   "77c972e2c3250bfe2b24405a360ace4a64f774a15fcaddc10b7d7ae0c4fe022b",
    "7f3977f104375078fb053bd5bc4c96348fd022cc1158b5432170f8fdd4639996",
    "9f6d1b162c0a443241ad39c5829bccff105fbab963c44781d05c4c7ada1954b0"
   ],
   "scripts/lib/red-evidence.mjs": [
+   "2a9a04cad0e3e751d956ee374540072d3b8fcf1c5048c0d1ce40fb29d73c48b2",
    "43504b6c23fcd63c381ae7f00482b80c2b39ddc920d3f86d886f30aad20302fd",
    "741b86e188c1c2fca7511522c3a9472926c2d8f3157ef6d7b73776a7a887311b",
    "bec7fc787d64d79df33c66d051eb9152777e3b48dd1099da90487596feafecf9"
@@ -1337,6 +1408,7 @@
    "3d022f18449fe6d6dd32fc30ae3afcb7822ed41927a4f19a812923e406d3047c"
   ],
   "scripts/lib/red-replay.mjs": [
+   "1d2b9b18f26d661d7595e9f671b920fb2a04988e800c9d33e25fe4cab20166d7",
    "7b1c27629292272505776389c1633e4e57fcea965635dc86159da604848dc914",
    "e6549198656ae7709fb1fe9b3699176e7b237aa0a9f054e2ce656b7c5fe366ed",
    "ef231b29c6052abd0fd774da89664f2717033a35137c6a953849169b752928c5"
@@ -1348,12 +1420,14 @@
   ],
   "scripts/lib/run-manifest.mjs": [
    "5d340ad74db2c5b15fac45873f85fbe0d9a888eadb5555265ce00a6889cef6c9",
+   "9d8a08c2462bc7fe49a835673465b63f69b77e986b9d5ae1bd93bfad33936e0a",
    "e21d620b5bc973859247842f0f6d90f977baf0b8d4e8c35a401ccb89d07a040d"
   ],
   "scripts/lib/scaffold-markers.mjs": [
    "c166473a2d80d94b72ed30d1b5b09d355f9ae17287c1cf13cb44867bf8167eac"
   ],
   "scripts/lib/scan-exclude.sh": [
+   "40a81c4929beb0891e04721d53d6e6bfa08810261331c8a6a1ce7df4984e8148",
    "75f04f86b8e48a18a2d0a3a16931089424e69cbd7a7a259817859b211f8f082e"
   ],
   "scripts/lib/secret-scan.mjs": [
@@ -1393,6 +1467,7 @@
   "scripts/lib/transports/_common.sh": [
    "28a01adc11c7e9c26ca018ed40399c28b6703627702c8ed6bc6cc8eb5cb5602a",
    "50f684c86a57114a6ba46362e568109c7cf3ac8097709d936c683ca890744da5",
+   "d1d5bdf958e417574792fd8a9f8b2d2551f58e1fc3fe183675bf897a8420552e",
    "ff5efd5049fbffa4920e2c71a33da64963d6834a78d2ae36f93467fd67da2e50"
   ],
   "scripts/lib/transports/fs-union.sh": [
@@ -1465,6 +1540,7 @@
    "a3ea2e7cf0d5132f9c7d64ab9240868a637a39e35806629e5725edd7d9684225"
   ],
   "scripts/pentest-ops.sh": [
+   "40230f18efec0ea1d2aab39f79834083e5b315865347d3ad93f4d40d432eaa7d",
    "720c01b14cbc0aa257303491cb8fb83ab265014b53cd7e6e24cde2a13103766f",
    "a119dc98bb9d72cf6577f0251bfbe258e2e05e61afe56de0a8299ddf806325ce",
    "e5139e37edc91eb760b02c621ec10238b430c6f517871ec3b81af9c5dffc2737"
@@ -1474,6 +1550,7 @@
   ],
   "scripts/red-evidence.sh": [
    "380544e9cb69dc97fffd015bb1d1425a331ada75456f8e9edd27b846c86650ae",
+   "5ea2dfdbc6165fd0ed46cff16368f994822a5d8cf4fc3382e9c1b79f1db10db3",
    "779bbe6accaa9982d9fe1b2e9a731b8cdad117b21704362689b4b168e72dabfe",
    "88f43a9d0999564a3fc8edee1370d80dca92394b7304c5e264d70a31cbd7c58c"
   ],
@@ -1482,7 +1559,8 @@
    "a8a724424dc8456666511e0737b778b8492324f66166daeda99e6fabeb336a78"
   ],
   "scripts/run-manifest.sh": [
-   "3c40478aad749cdddb7984779b3685e69e68d81290b6f56ea0e8789db00c2326"
+   "3c40478aad749cdddb7984779b3685e69e68d81290b6f56ea0e8789db00c2326",
+   "a3724d9e4b46ba1b8c86031474fd6ebd55e313810a6be7e52523feda8e7cf1d1"
   ],
   "scripts/smoke-adapters.sh": [
    "cc69bd042014d35dbc5e1a3d42f2d97be9569efb167b744f33988ee888e74995"
@@ -1512,6 +1590,7 @@
    "d3fd09b970eb8a005d697222934cdbf31f148820b6ccb6374bf92a08af9f5b9a"
   ],
   "scripts/spec-verify.sh": [
+   "0524ae44aeab016a30b1d1ca1c67138aa744660673d6c1214f2e5d8899de29de",
    "5567a791e2d17e8a0dde04f6139fcc0c0c7a2d293361bd6e93ac4a2aad49e4ba",
    "70630a85ae206f5a48b6a7cfa38959b9451dce277d63e049b38ba73284862578",
    "af3dd27ddf348000dc0a873ba2b060a717a08a17bedf75a4145f912bf95cf305",
@@ -1522,6 +1601,7 @@
    "644a19993b7fdde2f4371d459bacccdfaee662eca6fec63fe5f978dd637f117c"
   ],
   "scripts/tests/run-all.sh": [
+   "08230cfd0a076f7fe9ab410f35f561966add1c328df86f1f6916f93b72edd9ea",
    "91ada499ca528561c0f819235c37b00b06cd0b8f13bf1b7179807e8023d0c60d",
    "9ca74dcf1f7690164717732620025124a3da7b3cca500a7dfe05a2abdf8de275"
   ],
@@ -1549,6 +1629,7 @@
   ],
   "scripts/wave-ops.sh": [
    "4773a11a6dc621b3703cab2062ec74315550e4736e60f227906b754743462ee2",
+   "cd7bde5073bc838c7787370638f7c99a525560555d097ae1cb07628641d8305a",
    "d95d5927ae7feed687334678f2819b22e6bfb4720d22847571f1b64b98364fef"
   ],
   "scripts/worktree-reconcile.sh": [
@@ -1561,6 +1642,78 @@
   ],
   "skills/capability-dispatcher/SKILL.md": [
    "c5a5903de5addc69406e2860be550043217256840418b2641d0dbb70c5ede5a5"
+  ],
+  "skills/data-analytical-practices/SKILL.md": [
+   "a5331be5ac1a7a13577e856f0f4944e04105d4be15f0d797fdcddb179ba299ed"
+  ],
+  "skills/data-analytical-practices/references/antipatterns.md": [
+   "cee6bada11e99330067842095688e157dae70e00c382f19b02ba9fc5786cf0c7"
+  ],
+  "skills/data-analytical-practices/references/best-practices.md": [
+   "25b3c94a7ff14e7ba62ac51d041a303584be360c07c35407016935c4767c346c"
+  ],
+  "skills/data-analytical-practices/scripts/scan.sh": [
+   "56f66bee823654b4bebac3f6963b94c881fb75a3533e0616db4737cc3f02e263"
+  ],
+  "skills/data-cache-practices/SKILL.md": [
+   "66b0fe89f949b72f3711fe7f47dec3474c7137a7f6e7e67550d14ddbd4c5f50d"
+  ],
+  "skills/data-cache-practices/references/antipatterns.md": [
+   "5d0cc023c8e9d7a9d6e6e62ebe9b6d2435b4a0e13f1fe62fbc531d032d04c5e4"
+  ],
+  "skills/data-cache-practices/references/best-practices.md": [
+   "4f2a4dc20603a2a3db9b9817a8855e878cb0f8a6d6fd0b4ceb41b3ed90a49936"
+  ],
+  "skills/data-cache-practices/scripts/scan.sh": [
+   "d9671dbe720deca25fc22ba1b46abd9becaba4cd2085f78cc8d4d14693c87584"
+  ],
+  "skills/data-nosql-practices/SKILL.md": [
+   "3eeab3ec6a4021eceea808c73fd3691eebb4213de2e5a471f117ca38fd8d9262"
+  ],
+  "skills/data-nosql-practices/references/antipatterns.md": [
+   "7e8a51a0cf260723aa3039117d2b7d2ef96758a6cfb39683120d0f5f2c836bea"
+  ],
+  "skills/data-nosql-practices/references/best-practices.md": [
+   "256271a17c766ecf629c1fbaedd78390ea5e9a78c758958a8800dad95e40b79a"
+  ],
+  "skills/data-nosql-practices/scripts/scan.sh": [
+   "ff5c3837c5c558561aefda69bc12ef9764692f09290f1f59b00cba00dd3ce467"
+  ],
+  "skills/data-object-storage-practices/SKILL.md": [
+   "328940e9d79be6827ef4c833ca90cb16f5628e948919ca30a05e4c2d7d21a553"
+  ],
+  "skills/data-object-storage-practices/references/antipatterns.md": [
+   "ba207e0f9b3a64fce4cf66f8339c6068a9993ec818f22e1770ce152e06c14190"
+  ],
+  "skills/data-object-storage-practices/references/best-practices.md": [
+   "c5db7814c936411cf52a6cb411e67f4d40fe87104986f037bc6a50a2021f12e9"
+  ],
+  "skills/data-object-storage-practices/scripts/scan.sh": [
+   "bf5802f151b242ebcefb753d963e4741615d78a0608b92076624d13ad1988dd2"
+  ],
+  "skills/data-relational-practices/SKILL.md": [
+   "fe2ab5e2b61ad5f6dac1881e8543a9cf5f9b3380e0fb9f2ee2ab0ef32c0702ca"
+  ],
+  "skills/data-relational-practices/references/antipatterns.md": [
+   "5a44471811bdd61574ca770726603a7d2d628a4338acd16073e7eadf5262f5b6"
+  ],
+  "skills/data-relational-practices/references/best-practices.md": [
+   "716be70a65f836d59fe78222eb10e18e8efe34a740998dd14bd53d568dddbfb8"
+  ],
+  "skills/data-relational-practices/scripts/scan.sh": [
+   "828535ae78ea91aefb7246b88521cf0f02fbf19b52c40e6760b029d9889d5ed4"
+  ],
+  "skills/data-streaming-practices/SKILL.md": [
+   "9f35be6ee8fe4ba64e0160d8f9c837c1263c8f8d224e183b9948872d10120034"
+  ],
+  "skills/data-streaming-practices/references/antipatterns.md": [
+   "2891ee17a6b3d730b69c851fa526b1dab612556921906a657f61ad1f03e51b9d"
+  ],
+  "skills/data-streaming-practices/references/best-practices.md": [
+   "f719327a998b457f4a050d95719dc78685dda2cebed8c84ceb3a5ba1dc55cbc5"
+  ],
+  "skills/data-streaming-practices/scripts/scan.sh": [
+   "87037a2d9d906512e69a7b2aa77f01c09b92874b426429d382dbe9c1aa30dd13"
   ],
   "skills/design-system-creator/SKILL.md": [
    "947c8e3a0c7072591d636fdaa18725be5a6693032532b987310b4f40b05ae791"
@@ -1581,7 +1734,14 @@
   ],
   "skills/frontend-ui-review/SKILL.md": [
    "5a688f790676952ecd1938ca075264360cc4f05554fb4d897506cce096034e7a",
-   "b0bb8f93dff73719dd87582dc01d79fe4ae6ce83981b5a8560d92e81796f607a"
+   "b0bb8f93dff73719dd87582dc01d79fe4ae6ce83981b5a8560d92e81796f607a",
+   "b7f1f0f12bfe713aa884f1c7d11359ef0f61df6fbc23103dec73b66fc5a965ac"
+  ],
+  "skills/frontend-ui-review/scripts/scan-native-controls-ast.mjs": [
+   "8f6e9718a0d7330f4360b93278223ec178b60b34aef511836a89fd75d5a5d3dd"
+  ],
+  "skills/frontend-ui-review/scripts/scan-native-controls.py": [
+   "f89d23ff696fdbb521e97b87589745a11ae995f83536529b6bcaaafca3b92195"
   ],
   "skills/frontend-ui-review/scripts/scan-phantom-tokens.py": [
    "9acc92b06633eb8b85f635f9c33dbd10db478525f938d0c83084407469673fa2"
@@ -1629,6 +1789,7 @@
    "c6280f85b0f3fc3922b86a9b8878dc8a0c8eba979b1da64932729ae3d39d991e"
   ],
   "templates/AGENTS.md": [
+   "5c75db748b6fcbe08850d8b4ee837255d17b47f8f337bd1494c05a9d1d93eb5b",
    "7140208b7505bd67855fe93749b59356c131e43ddc7187fb4c6c26a8e89d62f8",
    "aa3651356353244fee59937e4c474459381f02089be73f7f5fc5f2fe472bb423"
   ],
@@ -1690,7 +1851,8 @@
    "c5ce8feeb9083ca5b2ad587b1b43360b528fe0763cd6cb29493dbbcbe37c101f"
   ],
   "templates/spec/tasks.md": [
-   "45a2a302b893f210b8120b936b8279e343963cc9ed7507c7d4608a12660eb8f9"
+   "45a2a302b893f210b8120b936b8279e343963cc9ed7507c7d4608a12660eb8f9",
+   "6d5f3e94c7af6187e9997b1eefad7896b46ef1e76477b68b71f333af59d0f7eb"
   ],
   "templates/spec/traceability.yaml": [
    "c0887465105aeafd87c85d4853826929ae773fd5adf89c704564af2dfe0417eb"

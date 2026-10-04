@@ -47,7 +47,8 @@
 // Veredito 'observed' exige, na ordem: (0) comando passa em HEAD (Green real, não presumido);
 // (1) o test_id declarado (quando presente) existe no arquivo de teste na árvore base — senão a
 // base está errada por construção (Furo 2); (2) o teste FALHA na base (exit≠0); (3) a falha
-// classifica como 'behavioral' via red-classify.mjs (nunca 'build-error'/'unknown'); (4) a saída
+// classifica como 'behavioral' via red-classify.mjs (nunca 'build-error'/'unknown'), ou como
+// 'setup-exception' com failure_pattern declarado que casa — countsAsRed, issue #191; (4) a saída
 // casa com failure_pattern quando declarado; (5) a saída MENCIONA o test_id declarado — o caso
 // que falhou precisa ser o caso declarado, não uma falha histórica adjacente que por acaso casa
 // com o padrão (Furo 2). Qualquer ausência aborta com motivo nomeado — ver replay() abaixo.
@@ -69,7 +70,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'node
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { execFileSync, spawn } from 'node:child_process';
-import { classify } from './red-classify.mjs';
+import { classify, countsAsRed } from './red-classify.mjs';
 
 const DEFAULT_TIMEOUT_S = 120;
 const EXCERPT_MAX_CHARS = 6000;
@@ -133,12 +134,49 @@ function readFileAt(root, ref, relPath) {
   catch { return null; }
 }
 
+// qualifiedParts: issue #190 — `Classe.Metodo` (ou `Namespace.Classe.Metodo`), a forma com que
+// xUnit/NUnit/`dotnet test --filter FullyQualifiedName~` e specs nomeiam um caso, nunca aparece
+// como substring de um .cs: classe e método ficam em linhas diferentes. Só reconhece a forma
+// qualificada quando TODO segmento é um identificador (nada de espaço, parêntese ou hífen) — um
+// nome de caso em prosa ("soma 1.5 e 2") segue exigindo a substring literal. Devolve as duas
+// últimas partes ({ cls, method }) ou null.
+function qualifiedParts(testId) {
+  if (typeof testId !== 'string' || !/^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+$/.test(testId)) return null;
+  const segs = testId.split('.');
+  return { cls: segs[segs.length - 2], method: segs[segs.length - 1] };
+}
+
+function containsWord(text, word) {
+  return new RegExp(`(?<![\\w])${word}(?![\\w])`).test(text);
+}
+
+// matchesTestId: o texto (arquivo de teste ou nome de caso na linha de falha) identifica o caso
+// declarado? Literal primeiro (comportamento original, cobre runner que imprime o testId como
+// foi declarado); na forma qualificada, exige a CLASSE e o MÉTODO como palavras inteiras — o
+// método não casa como prefixo de outro (`Metodo` × `Metodo_Extra`), e a classe precisa estar lá:
+// o namespace não é conferido (o .cs o declara num `namespace` que pode ser de arquivo ou bloco).
+function matchesTestId(text, testId) {
+  if (text.includes(testId)) return true;
+  const q = qualifiedParts(testId);
+  return Boolean(q && containsWord(text, q.cls) && containsWord(text, q.method));
+}
+
+// searchedDescription: o que exatamente foi procurado, para a mensagem de not-possible (#190,
+// item 3) — sem isto, o operador não sabe se o problema é o caso ou a forma com que o nomeou.
+function searchedDescription(testId) {
+  const q = qualifiedParts(testId);
+  const lit = `test_id ('${testId}') procurado literalmente`;
+  if (!q) return `${lit} — se o runner identifica o caso como Classe.Metodo, declare nessa forma (classe e método são conferidos separadamente)`;
+  return `${lit} e, na forma qualificada, como classe '${q.cls}' e método '${q.method}' (palavras inteiras)`;
+}
+
 // caseExistsInContent: testId ausente ⇒ true (nada declarado, nada a exigir — não é falso
-// positivo, é "não avaliável"). testId presente ⇒ precisa aparecer literalmente no conteúdo.
+// positivo, é "não avaliável"). testId presente ⇒ precisa aparecer literalmente no conteúdo, ou,
+// na forma qualificada (issue #190), classe e método precisam aparecer como palavras inteiras.
 function caseExistsInContent(content, testId) {
   if (!testId) return true;
   if (typeof content !== 'string') return false;
-  return content.includes(testId);
+  return matchesTestId(content, testId);
 }
 
 // commits (mais antigo primeiro) que ADICIONARAM ou MODIFICARAM test_path — cobre tanto "arquivo
@@ -229,7 +267,7 @@ export function deriveBase({ root, testPath, fixFiles, testId }) {
   if (!caseExistsInContent(headContent, testId)) {
     return {
       strategy: 'not-possible',
-      reason: `test_id ('${testId}') declarado não aparece em ${testPath} nem em HEAD — a base não pode conter um caso que não existe (item 3, Verificação)`,
+      reason: `test_id ('${testId}') declarado não aparece em ${testPath} nem em HEAD — a base não pode conter um caso que não existe (item 3, Verificação); ${searchedDescription(testId)}`,
     };
   }
   // (c) descritor do enxerto, quando aplicável — computado aqui (barato, só histórico) para
@@ -536,8 +574,11 @@ function outputMentionsCase(output, testId) {
       if (!re.global) break;
     }
   }
-  if (failingNames.length) return failingNames.some((n) => n.includes(testId));
-  return text.includes(testId);
+  // issue #190 — mesma regra de identificação do caso que vale para o arquivo de teste: literal,
+  // ou classe e método como palavras inteiras na MESMA linha de falha (nunca espalhados pela saída
+  // quando há linhas de falha reconhecidas — senão um caso vizinho da mesma classe passaria).
+  if (failingNames.length) return failingNames.some((n) => matchesTestId(n, testId));
+  return matchesTestId(text, testId);
 }
 
 async function runSetup({ cwd, setupCommand, timeoutS }) {
@@ -647,7 +688,7 @@ export async function replay({ root, evidence, timeoutS = DEFAULT_TIMEOUT_S }) {
     let baseTestContent = null;
     try { baseTestContent = readFileSync(join(baseDir, testPath), 'utf8'); } catch { baseTestContent = null; }
     if (!caseExistsInContent(baseTestContent, testId)) {
-      return finish({ verdict: 'not-possible', reason: `test_id ('${testId}') declarado não aparece na árvore base derivada — a base está errada`, strategy: effective.strategy });
+      return finish({ verdict: 'not-possible', reason: `test_id ('${testId}') declarado não aparece na árvore base derivada — a base está errada; ${searchedDescription(testId)}`, strategy: effective.strategy });
     }
 
     const baseSetup = await runSetup({ cwd: baseDir, setupCommand, timeoutS });
@@ -691,10 +732,12 @@ export async function replay({ root, evidence, timeoutS = DEFAULT_TIMEOUT_S }) {
     if (baseRun.exitCode === 0) {
       return finish({ verdict: 'fail', ruleItem: '2', reason: 'teste já passa na árvore base — não reproduz o defeito relatado (item 2)', strategy: effective.strategy, base: baseInfo, base_result: 'passed', diagnostic: { classification, excerpt } });
     }
-    if (classification !== 'behavioral') {
+    if (!countsAsRed(classification, baseRun.output, failurePattern)) {
       return finish({
         verdict: 'fail', ruleItem: '3',
-        reason: `falha na base classificada como '${classification}' — erro de build/compilação, não comportamento (item 3)`,
+        reason: classification === 'setup-exception'
+          ? `falha na base classificada como 'setup-exception' — exceção de setup só conta como Red com failure_pattern declarado que case com a saída; sem isso, exceção de ambiente (Docker parado, porta ocupada) passaria por defeito (item 3, issue #191)`
+          : `falha na base classificada como '${classification}' — erro de build/compilação, não comportamento (item 3)`,
         strategy: effective.strategy, base: baseInfo, base_result: 'failed', diagnostic: { classification, excerpt },
       });
     }

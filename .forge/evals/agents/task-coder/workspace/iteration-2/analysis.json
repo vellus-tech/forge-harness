@@ -1,0 +1,117 @@
+{
+  "skill": "task-coder",
+  "iteration": 2,
+  "verdict": "improve",
+  "script_verdict": {
+    "verdict": "agrega",
+    "delta": 0.287,
+    "ci95": [0.1852, 0.3889],
+    "reference_delta": 0.03
+  },
+  "summary": "O delta subiu de +0,03 na iteração 1 para +0,287 na iteração 2, com IC 95% [0,185; 0,389] que exclui zero, e o veredito do script (agrega) se sustenta. Essa comparação com a iteração 1 não é limpa: a iteração 1 rodou com sandbox que proibia git real e subagentes, o que inviabilizava justamente o comportamento que o artefato descreve (worktree dedicado, commits por TASK, delegação ao specialist). Na iteração 2 os dois braços ganharam (sem o artefato, de 0,36 para 0,49; com o artefato, de 0,39 para 0,78), mas o braço com o artefato ganhou muito mais. O diferencial atribuível ao artefato é, portanto, real e consistente, porém o salto de +0,257 em relação à iteração 1 mistura mudança de método com efeito do artefato e não deve ser lido como ganho de uma única variável.",
+  "change_causes": [
+    {
+      "class": "ganho_real",
+      "eval_id": 2,
+      "assertion": "tracker-criado-no-formato-canonico",
+      "detail": "Com o artefato, 3/3 execuções criaram o PROGRESS-TRACKING.md no formato canônico (título, Última atualização, Status geral); sem o artefato, 0/3, com título 'Progress Tracking' e tabela em vez de lista. Efeito consistente nas três execuções."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 2,
+      "assertion": "task-2-sem-path-vai-ao-specialist-frontend",
+      "detail": "Com o artefato, 3/3 marcaram a TASK-02 com [frontend-engineer]; sem o artefato, 0/3 (sem etiqueta de specialist). Efeito consistente, e o artefato é o único responsável pela regra de fallback."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 2,
+      "assertion": "resposta-explica-uma-onda-por-invocacao",
+      "detail": "Com o artefato, 3/3 explicaram que só uma onda roda por invocação; sem o artefato, 1/3. As respostas sem artefato de run-1 e run-3 justificam a Wave 2 por outras razões (rede proibida, dependência da onda 1), o que cumpre parte da asserção sem explicitar a regra."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 1,
+      "assertion": "tres-commits-por-task-na-ordem-do-contrato",
+      "detail": "Com o artefato, 2/3 execuções seguiram a sequência de commits marcar em progresso, código e concluída; sem o artefato, 0/3, com commits de nomes livres (chore(carteira-web): inicia wave 2, T-03 em vez de TASK-03). A diferença é de formato de contrato e se repete nas duas configurações de forma direcional."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 3,
+      "assertion": "cita-status-alvo-aprovado-para-desenvolvimento",
+      "detail": "Com o artefato, 1/3 (run-1, 4/4); sem o artefato, 0/3. Efeito pequeno e instável dentro do braço com artefato (runs 2 e 3 citam o status de rascunho e o gate, mas não o status-alvo). Não basta para afirmar ganho consistente."
+    },
+    {
+      "class": "eval_defeituoso",
+      "eval_id": 1,
+      "assertion": "specs-intocadas-e-sem-push",
+      "detail": "A asserção usa git ls-remote sobre um remoto bare local (.git/eval-origin.git), e a política de sandbox desta iteração permite git local. Ainda assim, a asserção reprova por qualquer ref feat/ no remoto de teste, e falhou em 1 de 3 execuções com o artefato e em 3 de 3 sem ele (grading.json das execuções sem artefato, run-1/2/3, evidência 'refs/heads/feat/carteira-web/wave-2' no ls-remote). A diferença de 2/3 contra 0/3 é mais sobre sandbox do que sobre o artefato, e a asserção mistura push real com push para o remoto de teste."
+    },
+    {
+      "class": "eval_defeituoso",
+      "eval_id": 1,
+      "assertion": "tracker-com-sha-specialist-e-onda-completa",
+      "detail": "A asserção exige a palavra COMPLETA no cabeçalho da Wave, mas o artefato usa 'Done' na tabela e 'COMPLETA' apenas na Fase 4 (já apontado no analysis.md da iteração 1, §4.2). Sem artefato, run-3 trocou o cabeçalho e perdeu a asserção por causa léxica, apesar de ter o sha e o status correto. A asserção é ambígua em relação ao contrato do artefato."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 2,
+      "assertion": "marcar-em-progresso-da-TASK-02",
+      "detail": "Com o artefato, 1/3; falhas em run-1 e run-2 por ausência do commit chore(specs): TASK-02 marcar em progresso. Mesmo com o artefato, o contrato de commit não é obedecido de forma estável, então esta asserção é uma falha sistemática do braço com artefato, não só ruído."
+    },
+    {
+      "class": "mudanca_de_metodo",
+      "eval_id": 2,
+      "assertion": "task-4-nao-tocada-e-csv-ausente",
+      "detail": "Com o artefato, 1/3; sem o artefato, 2/3. Nas execuções com artefato, a falha vem de checagem de ref e de texto da resposta, e a resposta de run-1 diz explicitamente 'Não executei a Wave 2 nem o CSV', o que é correto. Esta asserção favorece o braço sem artefato e é a única regressão local relevante, mas pela leitura dos grading.json ela parece mais sensível à forma da resposta do que ao comportamento."
+    },
+    {
+      "class": "mudanca_de_metodo",
+      "eval_id": 1,
+      "assertion": "worktree-dedicado-na-branch-da-onda-e-main-intocado",
+      "detail": "Com e sem artefato, 2/3 nos dois braços. Nas três execuções em que falhou, o motivo é o mesmo que a iteração 1 apontou: a convenção de worktree do artefato (../<modulo>-wave-<NN>) e a ausência de worktree adicional. Não há diferença entre os braços, então não contribui para o delta, mas é falha sistemática de ambos."
+    }
+  ],
+  "dominant_cause": "ganho_real concentrado no eval 2 (0,78 contra 0,28), em asserções de formato de contrato (tracker canônico, etiqueta de specialist, fallback de stack, explicação de uma onda por invocação) que o artefato define e o braço sem artefato não reproduz; o salto em relação à iteração 1 é, em grande parte, mudança de método.",
+  "findings": [
+    {
+      "kind": "systematic_miss",
+      "case": "eval 1",
+      "expectation": "worktree-dedicado-na-branch-da-onda-e-main-intocado",
+      "detail": "Falha em 1 de 3 execuções com artefato e em 1 de 3 sem artefato, com o mesmo motivo nos dois braços: não há worktree dedicado com a branch da onda. Falha sistemática do artefato, consistente com a iteração 1, e não diferencia os braços."
+    },
+    {
+      "kind": "systematic_miss",
+      "case": "eval 2",
+      "expectation": "marcar-em-progresso-da-TASK-02",
+      "detail": "Com o artefato, falha em 2 de 3 execuções (run-1 e run-2) porque o commit de marcação de TASK-02 não existe. Mesmo com o artefato, o contrato de commit não é cumprido de forma estável."
+    },
+    {
+      "kind": "systematic_miss",
+      "case": "eval 1",
+      "expectation": "tracker-com-sha-specialist-e-onda-completa",
+      "detail": "Com o artefato, 1 de 3 atende. A falha do braço com artefato em run-1 e run-2 vem de linha de Última atualização ou de cabeçalho COMPLETA. Parte disso é a ambiguidade do contrato apontada na iteração 1 (Done na tabela contra COMPLETA no cabeçalho)."
+    },
+    {
+      "kind": "regression",
+      "case": "eval 2",
+      "expectation": "task-4-nao-tocada-e-csv-ausente",
+      "detail": "Sem artefato, 2 de 3 passam; com artefato, 1 de 3. Único caso em que o braço com artefato fica abaixo do braço sem artefato. A leitura das respostas sugere sensibilidade do grader à redação da resposta e não ação indevida sobre o CSV, mas não foi possível excluir a regressão real com as evidências disponíveis."
+    },
+    {
+      "kind": "high_variance",
+      "case": "eval 2",
+      "detail": "Sem artefato, o pass rate vai de 0 a 0,50 entre execuções; com artefato, fica entre 0,67 e 0,83. A variância concentra-se no braço sem artefato, então o ganho do artefato é também uma redução de variância."
+    },
+    {
+      "kind": "high_variance",
+      "case": "eval 1",
+      "detail": "Sem artefato, o pass rate vai de 0,33 a 0,50, e com artefato, de 0,67 a 0,83. Dispersão menor e direção consistente no braço com artefato."
+    },
+    {
+      "kind": "trade_off",
+      "detail": "Com o artefato, o tempo médio sobe de cerca de 75 s para 106 s (+41%) e os tokens de cerca de 68,5 mil para 79,2 mil (+16%). O custo é moderado diante do ganho de pass rate de 0,49 para 0,78."
+    }
+  ],
+  "contamination": "O contamination.json mostra uma única flag, na execução sem artefato eval 1 run-3, em que o Bash escreveu em /tmp fora do diretório da execução (para saída do typecheck). Não altera a asserção avaliada e não justifica desconto. Nenhuma execução com artefato tem flag. Os registros de subagente aparecem apenas nos braços com artefato (1 a 2 chamadas de Agent em 4 execuções), enquanto o braço sem artefato não delegou nenhuma vez; a política permitia subagentes nos dois braços, então a diferença é comportamento induzido pelo artefato (delegação ao specialist), não contaminação, e fica registrada como parte do ganho. Nenhum resultado deve ser descontado.",
+  "recommendation": "Antes de promover o task-coder, reescrever no evals.json a asserção de push do eval 1 (separar push para remoto externo de ref local do eval-origin) e a asserção COMPLETA do tracker (alinhar ao contrato do artefato, que deve passar a definir o marcador de wave fechada), e reexecutar a iteração 3 com as mesmas três execuções por configuração."
+}

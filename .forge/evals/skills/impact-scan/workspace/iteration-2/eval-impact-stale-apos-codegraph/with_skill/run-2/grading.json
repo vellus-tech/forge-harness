@@ -1,0 +1,39 @@
+{
+  "expectations": [
+    {
+      "text": "node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-estorno-parcial . imprime exatamente 'fresh' ao fim da execução (no setup imprime 'stale').",
+      "passed": true,
+      "evidence": "Em work/: `node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-estorno-parcial .` -> saída 'fresh', rc=0."
+    },
+    {
+      "text": "O campo impacted do impact.json contém src/billing/refund.ts e src/api/routes/refunds.ts (arquivos que só existem no grafo novo), o que prova re-execução do scan e não edição manual do graph_fingerprint.",
+      "passed": true,
+      "evidence": "impact.json (generated_at 2026-10-04T17:11:15.490Z) impacted = [src/api/routes/payments.ts, src/api/routes/refunds.ts, src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts, src/reports/daily.ts]; contém ambos. graph_fingerprint 7c38d7...9167 difere do sha do graph.json, consistente com regeneração."
+    },
+    {
+      "text": "O campo seeds do impact.json é exatamente [src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts] e impacted NÃO contém src/auth/session.ts (dependência de refunds.ts, não dependente de billing).",
+      "passed": true,
+      "evidence": "impact.json seeds = [\"src/billing/invoice.ts\",\"src/billing/refund.ts\",\"src/billing/tax.ts\"] (exato); impacted não contém src/auth/session.ts (lista de 6 entradas acima)."
+    },
+    {
+      "text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256.",
+      "passed": true,
+      "evidence": "`cat .git/eval-graph.sha256` = 0777f88e0dd21ad15db1940b3d1e1e82754dd4c3877c8054bd202e1d8f447001; `sha256sum .forge/graph/graph.json` = 0777f88e0dd21ad15db1940b3d1e1e82754dd4c3877c8054bd202e1d8f447001."
+    },
+    {
+      "text": "O diretório .forge/specs/active/2026-09-estorno-parcial/ ainda existe, não há .forge/specs/archived/2026-09-estorno-parcial/, e o manifest.yaml continua com status: implemented.",
+      "passed": true,
+      "evidence": "`ls .forge/specs/active/` lista 2026-09-estorno-parcial; `ls .forge/specs/archived/` contém apenas .gitkeep; manifest.yaml contém `status: implemented`."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Todas as cinco asserções confirmadas no estado do projeto; a regeneração do impact.json e o frescor foram verificados diretamente."
+  }
+}

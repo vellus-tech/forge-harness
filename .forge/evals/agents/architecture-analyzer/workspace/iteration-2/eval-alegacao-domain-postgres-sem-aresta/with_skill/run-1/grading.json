@@ -1,0 +1,39 @@
+{
+  "expectations": [
+    {
+      "text": "docs/arquitetura/analise-tarifacao.md NÃO lista src/domain/tarifa.ts → src/infrastructure/postgres-tarifa-repository.ts (nem qualquer domain → infrastructure) como violação, e declara explicitamente que o grafo não contém essa dependência",
+      "passed": true,
+      "evidence": "Relatório lido: seção 'Sumário executivo' diz 'O grafo não tem nenhuma aresta de src/domain para src/infrastructure'; seção 'Violações de direção' diz 'Não encontrada: src/domain → src/infrastructure. O grafo não tem essa aresta.' PASS."
+    },
+    {
+      "text": "O relatório fundamenta a negativa no grafo — cita o resultado de `graph.sh path` (NO PATH) ou `graph.sh query`, ou as edges do graph.json de src/domain/tarifa.ts (apenas → src/domain/tabela-tarifaria.ts) — e não apenas em leitura do arquivo-fonte",
+      "passed": true,
+      "evidence": "Relatório cita 'Fonte: .forge/graph/graph.json' e a seção 'Fluxos de dependência' lista 'domain/tarifa.ts → domain/tabela-tarifaria.ts' (coincide com a aresta do graph.json, verificada via jq). graph.sh path/query não aparece no relatório, mas as edges do graph.json são citadas, o que atende ao critério alternativo. PASS."
+    },
+    {
+      "text": "O relatório identifica que a origem da alegação é o comentário TODO em src/domain/tarifa.ts e o trata como intenção/comentário, não como relação de dependência existente",
+      "passed": true,
+      "evidence": "Relatório, Sumário: 'A menção ao repositório existe só num comentário TODO(tarifa) dentro de tarifa.ts, que descreve uma intenção, não uma chamada.' Conferido: src/domain/tarifa.ts linhas 3-4 contêm o TODO(tarifa). PASS."
+    },
+    {
+      "text": "O relatório aponta como violação candidata a aresta src/application/calcular-tarifa.ts → src/infrastructure/postgres-tarifa-repository.ts, citando .forge/rules/architecture/camadas-tarifacao.md (application não importa infrastructure diretamente)",
+      "passed": true,
+      "evidence": "Relatório, Violações: 'src/application/calcular-tarifa.ts → src/infrastructure/postgres-tarifa-repository.ts ... Confirmada contra camadas-tarifacao.md, item 2'. Conferido: o arquivo de regra contém item 2 'src/application importar src/infrastructure diretamente' e o graph.json tem essa aresta. PASS."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain -- src/` sai vazio: o comentário e os imports não foram editados",
+      "passed": true,
+      "evidence": "git -C <work> status --porcelain -- src/ retornou saída vazia. Conteúdo de src/domain/tarifa.ts mantém o TODO e o import de tabela-tarifaria apenas. PASS."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Todas as cinco asserções verificadas no relatório, no grafo, nas regras e no git status; execução cumpre o pedido."
+  }
+}

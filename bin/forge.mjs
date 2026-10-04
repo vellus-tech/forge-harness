@@ -122,7 +122,7 @@ const pkgVersion = () => {
 
 // ── arg parsing ────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
-const flags = { force: false, forceContent: false, noSymlink: false, noPlugin: false, yes: false, help: false, version: false, dryRun: false, noBackup: false, overwriteDrift: false };
+const flags = { force: false, forceContent: false, noSymlink: false, noPlugin: false, yes: false, help: false, version: false, dryRun: false, noBackup: false, overwriteDrift: false, skipPostcheck: false };
 const vals = { target: '', source: '', slug: '', name: '', desc: '', adapters: '', out: '' };
 let cmd = '';
 for (let i = 0; i < argv.length; i++) {
@@ -134,6 +134,7 @@ for (let i = 0; i < argv.length; i++) {
     case '--dry-run': flags.dryRun = true; break;              // update: mostra o que mudaria, sem escrever
     case '--no-backup': flags.noBackup = true; break;          // update: não cria .forge.bak-N
     case '--overwrite-drift': flags.overwriteDrift = true; break; // update: aceita o template sobre a deriva local
+    case '--skip-postcheck': flags.skipPostcheck = true; break; // update: não roda o doctor --report do fim (gates/CI)
     case '--out': vals.out = argv[++i] ?? ''; break;            // install-plugin: destino do plugin
     case '--force': flags.force = true; break;
     case '--force-content': flags.force = true; flags.forceContent = true; break;
@@ -159,7 +160,7 @@ const HELP = `forge-harness ${pkgVersion()} — Spec-Driven Development harness
 
 Uso:
   npx forge-harness init [opções]
-  npx forge-harness update [--dry-run] [--no-backup] [--overwrite-drift] [--no-plugin] [--target <dir>]
+  npx forge-harness update [--dry-run] [--no-backup] [--overwrite-drift] [--no-plugin] [--skip-postcheck] [--target <dir>]
   npx forge-harness install-plugin [--out <dir>]
 
 Instala o harness Forge (.forge/) no projeto-alvo: fonte única projetada para
@@ -188,6 +189,7 @@ Opções:
   --no-plugin           (init/update) não auto-instala o plugin /forge:*
   --dry-run             (update) lista o que mudaria sem escrever nada
   --no-backup           (update) não cria .forge.bak-N (o .forge já é versionado em git)
+  --skip-postcheck      (update) não roda o 'doctor.sh --report' do fim do update — para suítes de teste que chamam o update dezenas de vezes sem testar o doctor; o uso normal deve manter o diagnóstico
   --overwrite-drift     (update) sobrescreve, com backup, a maquinaria em deriva local (fora de agents/rules/skills/templates, sem exceção declarada, sem prova de intocado pelo machinery.lock nem por uma versão publicada do template) — por padrão ela é preservada e a versão nova do template vai para .forge/cache/template-pendente/
   -y, --yes             não-interativo: usa os padrões derivados sem perguntar
   -h, --help            mostra esta ajuda
@@ -1220,8 +1222,12 @@ async function updateHarness() {
     catch (e) { console.log(`plugin: não instalado (${e?.message || e})`); }
   }
 
-  // post-check
-  try { execFileSync('bash', [join(forge, 'scripts', 'doctor.sh'), '--report'], { stdio: 'inherit' }); } catch { /* doctor exit 1 = diag ausente, não-fatal aqui */ }
+  // post-check. `--skip-postcheck` pula o doctor (medido em 2026-10-03: o update cai de ~5s para ~0,5s
+  // nesta etapa numa máquina de desenvolvimento): existe para os gates que chamam o
+  // update dezenas de vezes sem que o doctor seja o sujeito deles (w274). O default continua rodando.
+  if (!flags.skipPostcheck) {
+    try { execFileSync('bash', [join(forge, 'scripts', 'doctor.sh'), '--report'], { stdio: 'inherit' }); } catch { /* doctor exit 1 = diag ausente, não-fatal aqui */ }
+  }
 
   const preserved = work.total > 0 ? `${work.specsActive} spec(s) ativo(s), ${work.specsArchived} arquivado(s), ${work.productDocs} doc(s) de produto preservados` : 'sem trabalho de produto a preservar';
   console.log(`\n✔ Forge atualizado em ${target} (template v${version})`);

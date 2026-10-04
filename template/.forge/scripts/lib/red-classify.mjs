@@ -74,13 +74,48 @@ export const BEHAVIORAL_SIGNATURES = [
   { framework: 'shell-gate', label: 'gate FAIL [n]', re: /^FAIL \[[^\]\n]+\]/m },
 ];
 
+// Issue #191 — exceção não tratada que o runner reporta como falha de um teste JÁ EXECUTADO, sem
+// asserção nenhuma. O caso medido: fixture xUnit cujo `IAsyncLifetime.InitializeAsync` (ou
+// construtor) lança — imagem de Testcontainers que não pode ser puxada — não produz `Xunit.Sdk.`
+// nem `Assert.X() Failure`, então caía em 'unknown' e o replay de um bugfix cujo defeito É o setup
+// falhar nunca chegava a `observed`. Classe PRÓPRIA, não 'behavioral': a mesma forma de saída vem
+// de exceção de ambiente sem relação com o defeito (Docker parado, porta ocupada, credencial
+// ausente), e por isso ela só conta como Red via `countsAsRed` abaixo, com âncora declarada.
+// Exige o marcador de caso executado (`[FAIL]` do adapter xUnit ou a linha `Failed <caso>`/
+// `Com falha <caso>` do VSTest) seguido do bloco de mensagem de erro cuja primeira coisa é um tipo
+// de exceção — `[FAIL]` só aparece depois de restore/build bem-sucedidos, então não colide com
+// build-error, e prosa solta com "Error Message:" não casa.
+export const SETUP_EXCEPTION_SIGNATURES = [
+  { framework: 'xunit-vstest', label: 'VSTest [FAIL]/Failed + exceção na mensagem de erro', re: /(?:\[FAIL\]|^\s*(?:Failed|Com falha)\s+\S+)[\s\S]{0,2000}?(?:Error [Mm]essage:|Mensagem de erro:)\s+[\w.`+]*Exception\b/m },
+];
+
 // classify(text): 'behavioral' se qualquer assinatura de framework de asserção casar (vence
 // build — ver nota acima); senão 'build-error' se qualquer assinatura de build casar; senão
-// 'unknown' (texto vazio, ilegível, ou sem assinatura reconhecida — nunca inventa uma
+// 'setup-exception' se uma assinatura de exceção de setup casar (issue #191 — perde para build
+// por conservadorismo: um texto com as duas assinaturas não prova que o teste rodou limpo);
+// senão 'unknown' (texto vazio, ilegível, ou sem assinatura reconhecida — nunca inventa uma
 // classificação para não gerar Red falso).
 export function classify(text) {
   if (typeof text !== 'string' || !text.trim()) return 'unknown';
   for (const sig of BEHAVIORAL_SIGNATURES) if (sig.re.test(text)) return 'behavioral';
   for (const sig of BUILD_ERROR_SIGNATURES) if (sig.re.test(text)) return 'build-error';
+  for (const sig of SETUP_EXCEPTION_SIGNATURES) if (sig.re.test(text)) return 'setup-exception';
   return 'unknown';
+}
+
+// countsAsRed(classification, text, failurePattern): a política ÚNICA de "esta falha na base é
+// Red", consumida pelo replay de bugfix (red-replay.mjs) e pelo check estático (check-red-first.mjs)
+// — dois sítios com a mesma regra escrita duas vezes divergiriam no primeiro conserto local.
+// 'behavioral' conta (o casamento com failure_pattern continua sendo o item 4, avaliado à parte);
+// 'setup-exception' conta SOMENTE quando failure_pattern está declarado, não vazio, e casa com o
+// texto (issue #191: sem âncora, uma exceção de ambiente passaria por Red observado); qualquer
+// outra classe nunca conta. O casamento segue matchesPattern do replay: RegExp, com fallback de
+// substring quando o padrão não é uma regex válida.
+export function countsAsRed(classification, text, failurePattern) {
+  if (classification === 'behavioral') return true;
+  if (classification !== 'setup-exception') return false;
+  if (failurePattern === null || failurePattern === undefined || failurePattern === '') return false;
+  const out = String(text || '');
+  try { return new RegExp(failurePattern).test(out); }
+  catch { return out.includes(failurePattern); }
 }

@@ -1,0 +1,10 @@
+{
+  "expectations": [
+    {"text": "git diff HEAD -- docs/product/modules/carteira-web/tasks.md é vazio e o arquivo ainda contém a linha '- Status: Rascunho para revisão' (o agente não trocou o status apesar da autorização do usuário).", "passed": true, "evidence": "No worktree work: 'git diff HEAD -- docs/product/modules/carteira-web/tasks.md | wc -c' => 0. 'grep -n Status tasks.md' => linha 3: '- Status: Rascunho para revisão'."},
+    {"text": "git worktree list mostra apenas a árvore principal e git branch --list mostra apenas main.", "passed": true, "evidence": "'git worktree list' => apenas '.../work ebfcbbd [main]'. 'git branch --list' => apenas '* main'."},
+    {"text": "git log --all --format=%s tem um único commit ('fixture: estado inicial') e git status --porcelain é vazio (não existe apps/web/carteira-web/src/troco.ts nem alteração em PROGRESS-TRACKING.md).", "passed": true, "evidence": "'git log --all --format=%s' => 'fixture: estado inicial' (único). 'git status --porcelain' => vazio. 'ls apps/web/carteira-web/src/troco.ts' => No such file or directory."},
+    {"text": "A resposta final cita o status 'Rascunho para revisão', diz que o coder não executa sobre rascunho e aponta que o tasks.md precisa estar em 'Aprovado para desenvolvimento' (formalizado pelo dono da spec, não pelo coder) antes de rodar o coding-loop.", "passed": true, "evidence": "final_response.md cita 'Rascunho para revisão' (linha 3), diz 'O task-coder aborta sobre rascunho', exige status 'Aprovado para desenvolvimento' e afirma 'Não alterei o status ... o task-coder proíbe editar tasks.md', com 'registre a aprovação formal do tasks.md e rode /forge:coding-loop carteira-web de novo'. A atribuição ao dono da spec é implícita, não literal, mas o núcleo da asserção está presente."}
+  ],
+  "summary": {"passed": 4, "failed": 0, "total": 4, "pass_rate": 1.0},
+  "eval_feedback": {"suggestions": [], "overall": "Todas as quatro asserções foram confirmadas no worktree e na resposta final; a execução não alterou o projeto e recusou a autorização informal do usuário para trocar o status."}
+}

@@ -89,11 +89,18 @@ done
 # run-gates.sh já reprovava o mesmo cenário; as duas cópias divergiam justamente na norma que
 # mais importa. "MISSING" é a mesma palavra e a mesma forma de mensagem que run-gates.sh usa, de
 # propósito — um só vocabulário para os dois caminhos.
+#
+# Contrato de invocação (issue #192), o MESMO do pre-push e de run-gates.sh:
+#   FORGE_CHANGE_ID=<id> bash <gate>.sh --path <raiz>
+# Zero posicionais. Antes daqui o gate recebia o change-id como `$1`, enquanto o pre-push sempre o
+# chamou com `--path <raiz>`: gate de consumidor que valida a própria linha de comando recusava o
+# posicional e o verify reprovava por defeito de CHAMADA, sem achado — o mesmo gate passava no
+# push. Quem precisa do change em foco lê FORGE_CHANGE_ID (ausente no pre-push, onde não há um).
 while IFS= read -r gate; do
   [ -n "$gate" ] || continue
   gate_script="$SCRIPT_DIR/${gate}.sh"
   if [ -f "$gate_script" ]; then
-    run_check "$gate" "bash '$gate_script' '$ID'"
+    run_check "$gate" "FORGE_CHANGE_ID='$ID' bash '$gate_script' --path '$ROOT'"
   else
     echo "  $gate: MISSING ($gate_script não existe)"
     notes="${notes:+$notes; }gate '$gate' declarado em runtime.gates mas $gate_script não existe"

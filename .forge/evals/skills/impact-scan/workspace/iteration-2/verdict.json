@@ -1,0 +1,206 @@
+{
+  "artifact": "skills/impact-scan",
+  "iteration": 2,
+  "runs_per_configuration": 3,
+  "with": 0.8889,
+  "without": 0.5982,
+  "delta": 0.2907,
+  "ci95": [
+    0.25,
+    0.3352
+  ],
+  "bootstrap": {
+    "replicas": 20000,
+    "seed": 176,
+    "strata": "caso × configuração"
+  },
+  "verdict": "agrega",
+  "defects": [],
+  "per_case": [
+    {
+      "eval_id": 1,
+      "eval_name": "rotacao-jwt-scale3",
+      "with": 0.6667,
+      "without": 0.6111,
+      "with_runs": [
+        0.6667,
+        0.6667,
+        0.6667
+      ],
+      "without_runs": [
+        0.6667,
+        0.5,
+        0.6667
+      ]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "impact-stale-apos-codegraph",
+      "with": 1,
+      "without": 0.9333,
+      "with_runs": [
+        1,
+        1,
+        1
+      ],
+      "without_runs": [
+        0.8,
+        1,
+        1
+      ]
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "sem-grafo-construido",
+      "with": 1,
+      "without": 0.25,
+      "with_runs": [
+        1,
+        1,
+        1
+      ],
+      "without_runs": [
+        0.25,
+        0.25,
+        0.25
+      ]
+    }
+  ],
+  "assertions": [
+    {
+      "eval_id": 1,
+      "assertion": 1,
+      "with": "3/3",
+      "without": "3/3",
+      "ref_with": "1/1",
+      "ref_without": "0/1"
+    },
+    {
+      "eval_id": 1,
+      "assertion": 2,
+      "with": "3/3",
+      "without": "3/3",
+      "ref_with": "1/1",
+      "ref_without": "0/1"
+    },
+    {
+      "eval_id": 1,
+      "assertion": 3,
+      "with": "3/3",
+      "without": "3/3",
+      "ref_with": "1/1",
+      "ref_without": "1/1"
+    },
+    {
+      "eval_id": 1,
+      "assertion": 4,
+      "with": "3/3",
+      "without": "0/3",
+      "ref_with": "0/1",
+      "ref_without": "0/1"
+    },
+    {
+      "eval_id": 1,
+      "assertion": 5,
+      "with": "0/3",
+      "without": "0/3",
+      "ref_with": "1/1",
+      "ref_without": "0/1"
+    },
+    {
+      "eval_id": 1,
+      "assertion": 6,
+      "with": "0/3",
+      "without": "2/3",
+      "ref_with": "0/1",
+      "ref_without": "0/1"
+    },
+    {
+      "eval_id": 2,
+      "assertion": 1,
+      "with": "3/3",
+      "without": "3/3",
+      "ref_with": "1/1",
+      "ref_without": "1/1"
+    },
+    {
+      "eval_id": 2,
+      "assertion": 2,
+      "with": "3/3",
+      "without": "3/3",
+      "ref_with": "1/1",
+      "ref_without": "1/1"
+    },
+    {
+      "eval_id": 2,
+      "assertion": 3,
+      "with": "3/3",
+      "without": "3/3",
+      "ref_with": "1/1",
+      "ref_without": "1/1"
+    },
+    {
+      "eval_id": 2,
+      "assertion": 4,
+      "with": "3/3",
+      "without": "2/3",
+      "ref_with": "1/1",
+      "ref_without": "1/1"
+    },
+    {
+      "eval_id": 2,
+      "assertion": 5,
+      "with": "3/3",
+      "without": "3/3",
+      "ref_with": "1/1",
+      "ref_without": "1/1"
+    },
+    {
+      "eval_id": 3,
+      "assertion": 1,
+      "with": "3/3",
+      "without": "0/3",
+      "ref_with": "1/1",
+      "ref_without": "1/1"
+    },
+    {
+      "eval_id": 3,
+      "assertion": 2,
+      "with": "3/3",
+      "without": "0/3",
+      "ref_with": "1/1",
+      "ref_without": "1/1"
+    },
+    {
+      "eval_id": 3,
+      "assertion": 3,
+      "with": "3/3",
+      "without": "0/3",
+      "ref_with": "1/1",
+      "ref_without": "0/1"
+    },
+    {
+      "eval_id": 3,
+      "assertion": 4,
+      "with": "3/3",
+      "without": "3/3",
+      "ref_with": "0/1",
+      "ref_without": "0/1"
+    }
+  ],
+  "time_seconds": {
+    "with": 27.2,
+    "without": 33.8556
+  },
+  "tokens": {
+    "with": 55155.2222,
+    "without": 58671.5556
+  },
+  "reference": {
+    "iteration": 1,
+    "with": 0.8056,
+    "without": 0.5556,
+    "delta": 0.25
+  },
+  "delta_vs_reference": 0.0407
+}

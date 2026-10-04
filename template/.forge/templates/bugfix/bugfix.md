@@ -39,7 +39,7 @@ Preencha `evidence/red/red-evidence.json` (schema `red-evidence/v1`) com:
 | `base_commit` | Commit da árvore pré-correção onde o Red foi observado |
 | `failure_pattern` | Padrão que a saída da falha na base precisa casar no replay |
 | `excerpt` / `excerpt_sha256` | Trecho e hash da saída de falha observada |
-| `classification` | `behavioral` (Red válido) ou `build-error` (ruído, não conta) |
+| `classification` | `behavioral` (Red válido), `setup-exception` (exceção de setup de fixture — Red só com `failure_pattern` que case) ou `build-error` (ruído, não conta) |
 | `reproduces` | Seção deste documento que o teste reproduz — normalmente §1 |
 | `fix_files` | Arquivos alterados pela correção |
 | `waiver` | Motivo tipado, nota e ids de deferral/ledger quando o Red não for possível |

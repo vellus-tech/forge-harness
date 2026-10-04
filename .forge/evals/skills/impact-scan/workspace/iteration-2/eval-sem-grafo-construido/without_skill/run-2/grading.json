@@ -1,0 +1,10 @@
+{
+  "expectations": [
+    {"text": "Ao fim da execução NÃO existe .forge/graph/graph.json no projeto (o agente não rodou graph.sh build, graph-build.mjs nem /forge:codegraph por conta própria).", "passed": false, "evidence": "ls -la work/.forge/graph/ mostra graph.json (1927 bytes) presente. outputs/transcript.md passo 6: 'Rodei bash .forge/scripts/graph.sh build ... rc 0'. O agente construiu o grafo por conta própria."},
+    {"text": "NÃO existe .forge/specs/active/2026-09-webhook-adquirente/impact.json (nenhum artefato de impacto escrito à mão ou por grep de imports).", "passed": false, "evidence": "ls -la work/.forge/specs/active/2026-09-webhook-adquirente/ mostra impact.json (401 bytes, 14:11). Conteúdo com schema impact/v0 e graph_fingerprint 608ab562...; gerado por impact.sh --change conforme transcript passo 7."},
+    {"text": "A resposta final diz explicitamente que o grafo de código não existe e que /forge:codegraph precisa ser rodado antes do impact-scan.", "passed": false, "evidence": "outputs/final_response.md: 'O grafo de código foi construído de novo com graph.sh build (4 nós, 3 arestas...)'. A resposta não diz que o grafo estava ausente nem que /forge:codegraph deveria ser rodado antes."},
+    {"text": "A resposta final NÃO apresenta como resultado de análise de impacto uma lista de arquivos dependentes (por exemplo src/settlement/reconcile.ts ou src/api/routes/webhooks.ts) obtida por leitura manual do código.", "passed": true, "evidence": "A lista de impactados (src/api/routes/webhooks.ts, src/settlement/reconcile.ts, etc.) vem da saída de impact.sh --change (transcript passo 7) e bate com work/.forge/specs/active/.../impact.json. Não há leitura manual de imports citada no transcript. Asserção cumprida."}
+  ],
+  "summary": {"passed": 1, "failed": 3, "total": 4, "pass_rate": 0.25},
+  "eval_feedback": {"suggestions": [], "overall": "A execução ignorou a regra de que o grafo deveria existir antes do impact-scan: construiu graph.json e impact.json por conta própria e não sinalizou a ausência do grafo na resposta final; só a asserção de não usar leitura manual passou."}
+}

@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "revisao-qualidade.md cita pelo ID todas as 11 regras do scanner (async-void, blocking-wait, new-httpclient, region, generic-name, bool-param, empty-catch, datetime-now, sql-interpolation, mutable-static, single-impl-interface), e as que não acharam nada no escopo (ao menos async-void, region, generic-name, bool-param e mutable-static) aparecem marcadas como OK/limpas, não omitidas.",
+      "passed": false,
+      "evidence": "grep -c -- '<id>' work/revisao-qualidade.md retorna 0 para as 11 IDs (async-void, blocking-wait, new-httpclient, region, generic-name, bool-param, empty-catch, datetime-now, sql-interpolation, mutable-static, single-impl-interface). O relatório não usa IDs de regra nem marca regras como OK/limpas."
+    },
+    {
+      "text": "revisao-qualidade.md não reporta nenhum achado de src/Legacy.Relatorios (nem RelatorioManager, PedidoHelper, #region, UltimoLote ou o parâmetro bool detalhado), que está fora do diff main...feature/recarga-pix; region, generic-name, bool-param e mutable-static não aparecem como FOUND.",
+      "passed": true,
+      "evidence": "grep -n -i -E 'legacy|RelatorioManager|PedidoHelper|UltimoLote|#region' work/revisao-qualidade.md retorna vazio; nenhum achado de region/generic-name/bool-param/mutable-static."
+    },
+    {
+      "text": "Cada achado listado em revisao-qualidade.md traz caminho e número de linha, incluindo pelo menos RecargaController.cs:23 (.Result), RecargaController.cs:29 (catch vazio), PixGatewayClient.cs:14 (new HttpClient), PixGatewayClient.cs:15 (.Wait()), PixGatewayClient.cs:20 (FromSqlRaw interpolado) e RecargaPix.cs:10 (DateTime.Now).",
+      "passed": false,
+      "evidence": "grep -E 'RecargaController\\.cs:[0-9]+|PixGatewayClient\\.cs:[0-9]+|RecargaPix\\.cs:[0-9]+' work/revisao-qualidade.md retorna vazio. Os achados citam nomes de método e arquivo, sem números de linha."
+    },
+    {
+      "text": "revisao-qualidade.md registra que a auditoria da camada de build (dotnet-baseline.sh --check, ou TreatWarningsAsErrors/AnalysisMode/EnforceCodeStyleInBuild verificados) foi executada e passou, antes ou separado da lista de achados do scanner.",
+      "passed": false,
+      "evidence": "grep -n -i -E 'dotnet-baseline|TreatWarningsAsErrors|AnalysisMode|EnforceCodeStyle' work/revisao-qualidade.md retorna vazio. O relatório diz que o projeto não foi compilado e nenhuma verificação de build foi feita."
+    },
+    {
+      "text": "revisao-qualidade.md trata o GetAwaiter().GetResult() em Recarga.Seed/Program.cs:8 (Main síncrono de ferramenta de linha de comando) como exceção aceitável ou não-defeito, enquanto classifica o .Result em RecargaController.cs:23 como defeito — ou seja, os três achados de blocking-wait não recebem o mesmo veredito.",
+      "passed": false,
+      "evidence": "grep -n -E 'GetAwaiter|GetResult' work/revisao-qualidade.md retorna vazio. O GetAwaiter().GetResult() do Seed não é mencionado; o .Result do controller aparece só como parte do item 3, sem veredito separado para os três casos."
+    },
+    {
+      "text": "git -C <alvo> status --porcelain não mostra nenhum arquivo .cs modificado; o único arquivo novo ou alterado é revisao-qualidade.md (a revisão não reescreveu o código).",
+      "passed": true,
+      "evidence": "git -C work status --porcelain retorna apenas '?? revisao-qualidade.md'."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6,
+    "pass_rate": 0.3333
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Relatório grava achados de SQL, catch vazio e fiação, mas ignora o scanner de 11 regras por ID, não traz números de linha, não registra a auditoria de build e não trata o GetAwaiter do Seed."
+  }
+}

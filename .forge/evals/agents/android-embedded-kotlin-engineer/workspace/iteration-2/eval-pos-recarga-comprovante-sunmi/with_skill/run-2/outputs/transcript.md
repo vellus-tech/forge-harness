@@ -1,0 +1,29 @@
+Transcrição da execução: TASK-04 do módulo recarga (impressão do comprovante no pos-recarga).
+
+1. Leitura do prompt e da definição do agente `android-embedded-kotlin-engineer` (`.forge/agents/engineering/android-embedded-kotlin-engineer.md`). Relevantes: seção 26 proíbe commit em modo standalone (commit só com `commit_policy` de payload orquestrador); seção 27 manda sinalizar conflito entre briefing e repositório; seção 21 exige TDD-first.
+2. Leitura de `docs/product/modules/recarga/tasks.md` (TASK-04: imprimir após `PaymentApproval.Approved`; conteúdo do comprovante; falha de impressão não desfaz a recarga; estado explícito de impressora indisponível; critério: teste com impressora fake cobrindo sucesso e sem papel).
+3. Leitura de `docs/vendor/sunmi-printer-sdk.md` (surface: `bindService`, `printerInit`, `printText`, `lineWrap`, `updatePrinterState`; códigos 1 a 7; largura 32 colunas; chamadas assíncronas, nunca na main thread).
+4. Leitura do código existente: `core/domain` (CompleteRechargeUseCase com TODO(TASK-04), RechargeReceipt, PaymentApproval), `hardware/nfc` (SunmiNfcReaderAdapter, padrão de adapter), `gradle/libs.versions.toml` (já tem `sunmi-printer` 1.0.23), settings, README, CHANGELOG. O app `app/` não tem fontes. Não há Gradle wrapper; o repositório está na branch `feat/recarga-comprovante`.
+5. Tentativa de build baseline: `gradle --offline :core:domain:test` falhou ao resolver o plugin `com.android.application:8.5.2` (AGP ausente do cache offline). `com.sunmi:printerlibrary` e `io.mockk` também não estão no cache. Ou seja, o módulo Android não é compilável nesta máquina sem rede.
+6. TDD, fase vermelha: escritos `FakePrinter.kt` (teste), `CompleteRechargeUseCaseTest.kt` atualizado (impressão com cartão mascarado, status impresso, falha sem papel mantém recarga aprovada, exceção da impressora mantém recarga aprovada, recusa não imprime) e `ReceiptFormatterTest.kt` (largura de 32 colunas, mascaramento de PAN, valor em reais com separador de milhar, campos obrigatórios, horário em São Paulo, centavos). Não executados ainda em fase vermelha no projeto real pelo motivo do item 5.
+7. Implementação no domínio: `PrinterPort.kt` (porta `print(lines)`, `PrintResult` sealed, `PrinterFailure` enum com Busy, CommunicationError, OutOfPaper, Overheated, LidOpen, CutError, Unavailable); `ReceiptFormatter.kt` (formata comprovante em linhas de até 32 colunas; PAN mascarado com últimos 4 dígitos; data com `java.text.SimpleDateFormat` por causa do minSdk 25 sem desugaring; valor em reais); `CompleteRechargeUseCase.kt` (novo parâmetro `printer` e `formatter`; `RechargeOutcome.Approved` agora carrega `printResult`; exceção da impressora vira `PrintResult.Failed(Unavailable)`, com `CancellationException` repropagada).
+8. Implementação do adapter: `hardware/printer/build.gradle.kts` e `SunmiPrinterAdapter.kt` (consulta `updatePrinterState()` antes de imprimir, mapeia códigos 1 a 7 para `PrinterFailure`, executa em `Dispatchers.IO`, captura exceções como `CommunicationError`). `settings.gradle.kts` inclui `:hardware:printer`.
+9. Documentação: README (periférico da impressora) e CHANGELOG (entrada em [Não publicado]).
+10. Verificação possível: copiado `core/domain` para `runs/.../tmp/verify` (projeto Gradle temporário com kotlin-jvm 2.0.20, coroutines 1.8.1, junit 4.13.2, sem mockk e sem AGP) e rodado `gradle --offline test` com JDK 17 (`<HOME>/Library/Java/JavaVirtualMachines/temurin-17.jdk`). Resultado: BUILD SUCCESSFUL; 12 testes, 0 falhas (ReceiptFormatterTest 6, CompleteRechargeUseCaseTest 6). Com JDK 25 o Kotlin 2.0.20 não compila (erro de parse da versão do JDK), por isso o JDK 17.
+11. Limpeza: removido `apps/android/pos-recarga/.gradle/` criado pela tentativa de build no projeto real.
+12. Commit: NÃO feito. A definição do agente (seção 26) proíbe commit em modo standalone e só permite com `commit_policy` de payload orquestrador. O pedido do usuário para commitar conflita com essa regra e o agente não tem `commit_policy`. Mudanças ficaram não commitadas na branch `feat/recarga-comprovante`.
+13. Não verificado: `hardware/printer` nunca foi compilado. A dependência `com.sunmi:printerlibrary:1.0.23` não está no cache offline e não há como baixá-la. Os nomes de tipo (`com.sunmi.printer.SunmiPrinterService`) e a assinatura de callback (`null` passado aos métodos do SDK) foram escritos a partir de `docs/vendor/sunmi-printer-sdk.md`, que não traz os tipos exatos. Precisam ser conferidos contra o AAR 1.0.23 antes do merge. `mapState` não tem teste.
+14. Pendências fora do escopo desta TASK: `app/` não tem UI nem fiação do caso de uso e do adapter; o operador ainda não vê o estado de impressora indisponível; o comprovante não é persistido, então a reimpressão ainda não existe; `RechargeReceipt` guarda o PAN completo, e a exigência de PCI pede avaliar mascarar ou não reter o PAN no domínio.
+
+Arquivos alterados (não commitados):
+- apps/android/pos-recarga/settings.gradle.kts
+- apps/android/pos-recarga/README.md
+- apps/android/pos-recarga/CHANGELOG.md
+- apps/android/pos-recarga/core/domain/src/main/kotlin/br/com/axis/posrecarga/domain/CompleteRechargeUseCase.kt
+- apps/android/pos-recarga/core/domain/src/main/kotlin/br/com/axis/posrecarga/domain/PrinterPort.kt (novo)
+- apps/android/pos-recarga/core/domain/src/main/kotlin/br/com/axis/posrecarga/domain/ReceiptFormatter.kt (novo)
+- apps/android/pos-recarga/core/domain/src/test/kotlin/br/com/axis/posrecarga/domain/CompleteRechargeUseCaseTest.kt
+- apps/android/pos-recarga/core/domain/src/test/kotlin/br/com/axis/posrecarga/domain/FakePrinter.kt (novo)
+- apps/android/pos-recarga/core/domain/src/test/kotlin/br/com/axis/posrecarga/domain/ReceiptFormatterTest.kt (novo)
+- apps/android/pos-recarga/hardware/printer/build.gradle.kts (novo)
+- apps/android/pos-recarga/hardware/printer/src/main/kotlin/br/com/axis/posrecarga/hardware/printer/SunmiPrinterAdapter.kt (novo)

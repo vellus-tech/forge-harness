@@ -17,6 +17,7 @@
 #   check-secrets.sh path <path>         # varredura pontual (dir ou arquivo)
 #   check-secrets.sh --path <path>       # alias de `path`, para runtime.gates do pre-push
 #   check-secrets.sh report [<path>]     # INVENTÁRIO do passivo, sem reprovar (exit 0)
+#   FORGE_SECRETS_ENFORCE=warn|block     # sobrepõe secrets.enforce do forge.yaml nesta invocação
 #
 # DUAS PROPRIEDADES QUE DEFINEM ESTE GATE, e o porquê de cada uma:
 #
@@ -92,6 +93,13 @@ if [ -f "$FORGE_YAML" ]; then
     inblk && /^[ ]+enforce:[ ]*(warn|block)/ { sub(/^[ ]+enforce:[ ]*/, ""); print; exit }
   ' "$FORGE_YAML")"
   [ -n "$_found" ] && enforce="$_found"
+fi
+# `FORGE_SECRETS_ENFORCE` (warn|block) sobrepõe o forge.yaml POR INVOCAÇÃO, e existe por ESCOPO, não por rigor (Refs #174, conserto devolvido por um consumidor). `block` global num brownfield reprovaria todo push que encostasse no passivo herdado, por um defeito que o autor do push não introduziu; `warn` global nunca impede a ocorrência seguinte. A saída é a assimetria: o forge.yaml fica em `warn` para o passivo e o hook de push invoca `FORGE_SECRETS_ENFORCE=block check-secrets.sh range <push>`, então o que ENTRA bloqueia. Valor fora de warn|block reprova com rc 2 em vez de cair no forge.yaml: uma política que o chamador pediu e o gate ignorou em silêncio é o defeito que este bloco corrige. Vazia equivale a ausente. O modo report continua inventário, qualquer que seja o valor.
+if [ -n "${FORGE_SECRETS_ENFORCE:-}" ]; then
+  case "$FORGE_SECRETS_ENFORCE" in
+    warn|block) enforce="$FORGE_SECRETS_ENFORCE" ;;
+    *) echo "FAIL secrets — FORGE_SECRETS_ENFORCE='$FORGE_SECRETS_ENFORCE' inválido (use warn|block)" >&2; exit 2 ;;
+  esac
 fi
 [ "$mode" = "report" ] && enforce="report"
 

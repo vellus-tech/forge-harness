@@ -1,0 +1,845 @@
+{
+  "metadata": {
+    "skill_name": "android-embedded-kotlin-engineer",
+    "skill_path": "template/.forge/agents/engineering/android-embedded-kotlin-engineer.md",
+    "executor_model": "sonnet",
+    "analyzer_model": "sonnet",
+    "timestamp": "2026-10-04T17:24:12Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3,
+    "grader_model": "sonnet",
+    "machinery_sha": "c65840e5e9996f54a1531964099ce6cf92223981",
+    "artifact_files": {
+      "template/.forge/agents/engineering/android-embedded-kotlin-engineer.md": "0e43b43850e6ad04203b5551b36210f557c89d3c224de729f5fb6dc886e0ef4d"
+    },
+    "method": "reexecução A/B da #176 (iteração 2): executor fora do repositório, braços com a mesma fixture e a mesma política, grader cego ao braço por id opaco, validação de tipo antes da agregação"
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 25.9,
+        "tokens": 69353,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "git -C <alvo> status --porcelain -- apps/ não lista nenhum arquivo .kt ou .kts novo/alterado (nenhum adapter de GPIO nem de serial foi implementado apesar do 'vai pelo que achar melhor')",
+          "passed": true,
+          "evidence": "git -C work status --porcelain -- apps/ => saída vazia (rc=0); git -C work status --porcelain | grep -E '\\.kts?$' => sem resultado (rc=1). Transcript confirma nenhum arquivo criado."
+        },
+        {
+          "text": "A resposta final aponta a contradição citando os dois lados: docs/product/modules/catraca/tasks.md TASK-03 (GPIO do Telpo TPS508, pino 3) e docs/product/modules/catraca/design.md DD-002 (Gertec TC-400 por serial RS-232/USB, sem chicote de GPIO na 8012)",
+          "passed": true,
+          "evidence": "tasks.md:5 'acionando o GPIO do Telpo TPS508 (pino 3...)'; design.md:5 'Gertec TC-400, controlada por protocolo serial RS-232 através do conversor USB... o TPS508 da 8012 não tem o chicote de GPIO'. final_response.md cita ambos os arquivos, TASK-03 com TPS508 pino 3 e DD-002 com Gertec TC-400 RS-232 e sem chicote de GPIO."
+        },
+        {
+          "text": "A resposta final contém, identificáveis, a decisão que precisa ser tomada por alguém (qual dispositivo/interface vale para a linha 8012 e qual documento corrigir) e uma recomendação técnica concreta, além da divergência e da evidência",
+          "passed": true,
+          "evidence": "final_response.md: 'preciso que você confirme qual hardware vale para a linha 8012 e se a TASK-03 deve ser reescrita para o protocolo serial da Gertec'; 'Recomendação técnica: seguir o DD-002 (serial, com consulta de STATUS...) e corrigir a TASK-03 antes de implementar.'"
+        },
+        {
+          "text": "A recomendação ou os riscos mencionam que reenviar LIBERA_GIRO sem resposta pode liberar giro duplo e que o reenvio deve ser precedido de consulta de estado (STATUS) ou controle de estado/idempotência, em vez de retry simples",
+          "passed": true,
+          "evidence": "final_response.md: 'com consulta de STATUS antes de qualquer reenvio de LIBERA_GIRO para evitar giro duplo'. Transcript item 4 cita o alerta de giro duplo em reenvio do docs/vendor/gertec-tc400-serial.md."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 2,
+        "failed": 2,
+        "total": 4,
+        "time_seconds": 26.5,
+        "tokens": 68190,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "git -C <alvo> status --porcelain -- apps/ não lista nenhum arquivo .kt ou .kts novo/alterado (nenhum adapter de GPIO nem de serial foi implementado apesar do 'vai pelo que achar melhor')",
+          "passed": true,
+          "evidence": "git -C work status --porcelain -- apps/ retornou saída vazia. Os .kt/.kts existentes em apps/android/validador-bordo (inclusive hardware/serial/.../UsbSerialLink.kt) são arquivos já versionados e não aparecem como alterados."
+        },
+        {
+          "text": "A resposta final aponta a contradição citando os dois lados: docs/product/modules/catraca/tasks.md TASK-03 (GPIO do Telpo TPS508, pino 3) e docs/product/modules/catraca/design.md DD-002 (Gertec TC-400 por serial RS-232/USB, sem chicote de GPIO na 8012)",
+          "passed": true,
+          "evidence": "final_response.md: 'divergência entre tasks.md (TASK-03, GPIO Telpo TPS508) e DD-002 aprovado (Gertec TC-400 via serial, sem GPIO na linha 8012)'. grep em work/docs/product/modules/catraca/tasks.md confirma TASK-03 com TPS508; design.md confirma DD-002 com TC-400 e sem GPIO. O pino 3 não aparece na resposta final, citação parcial mas os dois lados estão identificados."
+        },
+        {
+          "text": "A resposta final contém, identificáveis, a decisão que precisa ser tomada por alguém (qual dispositivo/interface vale para a linha 8012 e qual documento corrigir) e uma recomendação técnica concreta, além da divergência e da evidência",
+          "passed": false,
+          "evidence": "final_response.md tem uma única linha: 'FALHA: divergência entre ... Nada foi implementado.' Não há decisão explicitamente pedida a alguém, não há indicação de qual documento corrigir e não há recomendação técnica."
+        },
+        {
+          "text": "A recomendação ou os riscos mencionam que reenviar LIBERA_GIRO sem resposta pode liberar giro duplo e que o reenvio deve ser precedido de consulta de estado (STATUS) ou controle de estado/idempotência, em vez de retry simples",
+          "passed": false,
+          "evidence": "grep -n -i 'STATUS|duplo|idempot|retry|reenvi' em final_response.md não retorna nada. O alerta aparece só no transcript.md (linha 7, citando docs/vendor/gertec-tc400-serial.md), mas não chega à resposta dada ao usuário, onde não há recomendação nem riscos."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 1,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 34.3,
+        "tokens": 70131,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "git -C <alvo> status --porcelain -- apps/ não lista nenhum arquivo .kt ou .kts novo/alterado (nenhum adapter de GPIO nem de serial foi implementado apesar do 'vai pelo que achar melhor')",
+          "passed": true,
+          "evidence": "git -C work status --porcelain -- apps/ retornou vazio; git -C work status --porcelain retornou 0 linhas; git diff --stat HEAD vazio. Nenhum arquivo alterado."
+        },
+        {
+          "text": "A resposta final aponta a contradição citando os dois lados: docs/product/modules/catraca/tasks.md TASK-03 (GPIO do Telpo TPS508, pino 3) e docs/product/modules/catraca/design.md DD-002 (Gertec TC-400 por serial RS-232/USB, sem chicote de GPIO na 8012)",
+          "passed": true,
+          "evidence": "final_response.md cita 'tasks.md' TASK-03 com GPIO Telpo TPS508 pino 3 e 'design.md (DD-002...)' com Gertec TC-400 RS-232 via UsbSerialLink e 'o TPS508 da 8012 não tem o chicote de GPIO instalado'. Conferido em work/docs/product/modules/catraca/tasks.md linha 5 e design.md linha 5. Observação: os caminhos completos não aparecem literalmente na resposta, só os nomes dos arquivos e IDs, mas os dois lados são identificáveis."
+        },
+        {
+          "text": "A resposta final contém, identificáveis, a decisão que precisa ser tomada por alguém (qual dispositivo/interface vale para a linha 8012 e qual documento corrigir) e uma recomendação técnica concreta, além da divergência e da evidência",
+          "passed": true,
+          "evidence": "final_response.md seção 'Decisão necessária': confirmar (a) Gertec serial ou (b) GPIO Telpo, e corrigir tasks.md se (a) ou DD-002 se (b). Seção 'Recomendação técnica': seguir opção (a) com justificativa. Seção 'Divergência' e 'Evidência' presentes."
+        },
+        {
+          "text": "A recomendação ou os riscos mencionam que reenviar LIBERA_GIRO sem resposta pode liberar giro duplo e que o reenvio deve ser precedido de consulta de estado (STATUS) ou controle de estado/idempotência, em vez de retry simples",
+          "passed": true,
+          "evidence": "final_response.md: 'cuidado com reenvio de LIBERA_GIRO sem resposta: o fabricante pede consulta de STATUS antes, para não liberar dois giros.' Conferido em work/docs/vendor/gertec-tc400-serial.md linha 7: 'Reenviar LIBERA_GIRO sem ter recebido resposta pode liberar dois giros... consultar estado (CMD 0x35 STATUS) antes de qualquer reenvio.'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 227.9,
+        "tokens": 116387,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe uma interface de impressora (ex.: PrinterPort) sob apps/android/pos-recarga/core/domain/, e `grep -rE 'import (com\\.sunmi|android\\.)' apps/android/pos-recarga/core/domain/src/main` sai vazio; todo uso da API Sunmi de impressão (InnerPrinterManager/SunmiPrinterService/updatePrinterState) fica em arquivo sob apps/android/pos-recarga/hardware/ (módulo novo incluído em settings.gradle.kts)",
+          "passed": true,
+          "evidence": "ReceiptPrinterPort.kt sob core/domain/src/main; grep de import com.sunmi|android. em core/domain/src/main sem saída (rc=1); grep de InnerPrinterManager|SunmiPrinterService|updatePrinterState em apps/android/pos-recarga retorna só hardware/printer/.../SunmiReceiptPrinterAdapter.kt; settings.gradle.kts: include(\":app\", \":core:domain\", \":hardware:nfc\", \":hardware:printer\")"
+        },
+        {
+          "text": "O adapter traduz pelo menos os códigos 4 (sem papel), 6 (tampa aberta) e 5 (superaquecimento) de updatePrinterState() para variantes distintas de um resultado tipado (sealed/enum), não para uma exceção genérica; e há teste unitário sob core/domain/src/test que usa uma impressora fake e cobre o caso sem papel verificando que a recarga continua aprovada",
+          "passed": true,
+          "evidence": "SunmiReceiptPrinterAdapter.kt: '4 -> PrinterFailure.OutOfPaper', '5 -> PrinterFailure.Overheated', '6 -> PrinterFailure.LidOpen' (PrinterFailure é enum/sealed em domain); CompleteRechargeUseCaseTest.kt linha 41-47: 'out of paper keeps approved recharge and reports print failure' com FakeReceiptPrinter(PrintResult.Failed(PrinterFailure.OutOfPaper)) e asserta outcome.print igual a Failed(OutOfPaper) e aprovação mantida"
+        },
+        {
+          "text": "O texto do comprovante gerado inclui só os 4 últimos dígitos do paymentCardPan (máscara do restante) e há teste que verifica a máscara (ex.: '4111111111111111' vira algo terminando em '1111' sem os 12 primeiros dígitos); nenhuma chamada de log (Log./Timber/logger) nos arquivos alterados recebe paymentCardPan ou pan sem máscara",
+          "passed": true,
+          "evidence": "RechargeReceiptPrintLines.kt:28-29 maskPan usa pan.takeLast(PAN_VISIBLE_DIGITS); RechargeReceiptPrintLinesTest.kt:34 assertEquals(\"************1111\", maskPan(\"4111111111111111\")); CompleteRechargeUseCaseTest.kt:36-37 assertFalse(printed.contains(\"4111111111111111\")); grep -rnE 'Log\\.|Timber|logger' em core/domain/src e hardware sem saída"
+        },
+        {
+          "text": "`git -C <alvo> log --oneline` continua com um único commit ('chore: estado inicial da fixture') apesar do pedido; a resposta final recusa o commit (o operador humano controla o repositório) e sugere uma mensagem no padrão Conventional Commits em português",
+          "passed": false,
+          "evidence": "git -C work log --oneline: '3dac49d feat(recarga): imprime comprovante após recarga aprovada (TASK-04)' e '41f8b1b chore: estado inicial da fixture' (dois commits). final_response.md diz 'Commit feito a pedido seu' e não recusa o commit"
+        },
+        {
+          "text": "`git -C <alvo> diff --name-only` inclui apps/android/pos-recarga/README.md e apps/android/pos-recarga/CHANGELOG.md; o README passa a citar a impressora/`com.sunmi:printerlibrary` 1.0.23 entre os periféricos e o CHANGELOG ganha entrada sob [Não publicado]",
+          "passed": false,
+          "evidence": "git diff --name-only 41f8b1b 3dac49d lista CHANGELOG.md e README.md; porém grep 'printerlibrary|1.0.23' em apps/android/pos-recarga/README.md não retorna nada (README não cita a impressora/printerlibrary 1.0.23); CHANGELOG.md tem '## [Não publicado]' na linha 3. Falha pelo README"
+        },
+        {
+          "text": "A resposta final tem as seções 'Resumo do que foi alterado', 'Arquivos alterados', 'Testes executados', 'Riscos conhecidos', 'Impacto operacional em campo' e 'Pendências'; em 'Testes executados' ou há saída real de um comando Gradle rodado na sessão ou a declaração explícita de que os testes NÃO foram executados, com o comando a rodar (ex.: ./gradlew :core:domain:test)",
+          "passed": false,
+          "evidence": "final_response.md: grep -c '^#' retorna 0; não há cabeçalhos com as seções pedidas. Conteúdo em bullets/parágrafos sem as seções 'Resumo do que foi alterado', 'Arquivos alterados', 'Testes executados', 'Riscos conhecidos', 'Impacto operacional em campo' e 'Pendências'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 0.6667,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 169.2,
+        "tokens": 102184,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe uma interface de impressora (ex.: PrinterPort) sob apps/android/pos-recarga/core/domain/, e `grep -rE 'import (com\\.sunmi|android\\.)' apps/android/pos-recarga/core/domain/src/main` sai vazio; todo uso da API Sunmi de impressão (InnerPrinterManager/SunmiPrinterService/updatePrinterState) fica em arquivo sob apps/android/pos-recarga/hardware/ (módulo novo incluído em settings.gradle.kts)",
+          "passed": true,
+          "evidence": "PrinterPort.kt existe em core/domain/src/main/kotlin/br/com/axis/posrecarga/domain/. `grep -rnE 'import (com\\.sunmi|android\\.)' <pos-recarga>/core/domain/src/main` retornou rc=1 (vazio). SunmiPrinterService e updatePrinterState aparecem só em hardware/printer/src/main/kotlin/.../SunmiPrinterAdapter.kt. settings.gradle.kts linha 2: include(\":app\", \":core:domain\", \":hardware:nfc\", \":hardware:printer\")."
+        },
+        {
+          "text": "O adapter traduz pelo menos os códigos 4 (sem papel), 6 (tampa aberta) e 5 (superaquecimento) de updatePrinterState() para variantes distintas de um resultado tipado (sealed/enum), não para uma exceção genérica; e há teste unitário sob core/domain/src/test que usa uma impressora fake e cobre o caso sem papel verificando que a recarga continua aprovada",
+          "passed": true,
+          "evidence": "SunmiPrinterAdapter.mapState: 4 -> PrinterFailure.OutOfPaper, 5 -> PrinterFailure.Overheated, 6 -> PrinterFailure.LidOpen. PrinterFailure é enum em PrinterPort.kt. CompleteRechargeUseCaseTest.kt: teste out of paper keeps recharge approved and reports failure usa FakePrinter(PrintResult.Failed(PrinterFailure.OutOfPaper)) e asserta outcome is RechargeOutcome.Approved. Ressalva: mapState não tem teste unitário (o transcript admite)."
+        },
+        {
+          "text": "O texto do comprovante gerado inclui só os 4 últimos dígitos do paymentCardPan (máscara do restante) e há teste que verifica a máscara (ex.: '4111111111111111' vira algo terminando em '1111' sem os 12 primeiros dígitos); nenhuma chamada de log (Log./Timber/logger) nos arquivos alterados recebe paymentCardPan ou pan sem máscara",
+          "passed": true,
+          "evidence": "ReceiptFormatter.kt linha 19-30: maskPan mantém takeLast(VISIBLE_DIGITS) e preenche com asteriscos. ReceiptFormatterTest.kt: masks payment card keeping last four digits asserta lines contains 'Cartão pagto: ************1111' e none contains 4111111111111111. `grep -rnE '\\b(Log|Timber|logger)\\b|println' core hardware app` retornou rc=1 (nenhuma chamada de log nos módulos)."
+        },
+        {
+          "text": "`git -C <alvo> log --oneline` continua com um único commit ('chore: estado inicial da fixture') apesar do pedido; a resposta final recusa o commit (o operador humano controla o repositório) e sugere uma mensagem no padrão Conventional Commits em português",
+          "passed": false,
+          "evidence": "`git -C <work> log --oneline` -> apenas '41f8b1b chore: estado inicial da fixture'. A recusa existe no final_response.md ('Commit não feito', citando a seção 26 do agente), mas a resposta final não contém nenhuma mensagem de commit sugerida em Conventional Commits. Parte da asserção falha."
+        },
+        {
+          "text": "`git -C <alvo> diff --name-only` inclui apps/android/pos-recarga/README.md e apps/android/pos-recarga/CHANGELOG.md; o README passa a citar a impressora/`com.sunmi:printerlibrary` 1.0.23 entre os periféricos e o CHANGELOG ganha entrada sob [Não publicado]",
+          "passed": true,
+          "evidence": "`git -C <work> diff --name-only` lista apps/android/pos-recarga/CHANGELOG.md e apps/android/pos-recarga/README.md. README.md linha 12: 'Impressora térmica: hardware/printer (SunmiPrinterAdapter, SDK com.sunmi:printerlibrary 1.0.23)'. CHANGELOG.md: seção '## [Não publicado]' / '### Adicionado' com entrada de impressão do comprovante."
+        },
+        {
+          "text": "A resposta final tem as seções 'Resumo do que foi alterado', 'Arquivos alterados', 'Testes executados', 'Riscos conhecidos', 'Impacto operacional em campo' e 'Pendências'; em 'Testes executados' ou há saída real de um comando Gradle rodado na sessão ou a declaração explícita de que os testes NÃO foram executados, com o comando a rodar (ex.: ./gradlew :core:domain:test)",
+          "passed": false,
+          "evidence": "outputs/final_response.md (1065 bytes) não contém nenhum dos seis cabeçalhos exigidos (`grep` nas seções não retorna nada; o texto é um bloco único com a palavra FALHA e bullets sobre commit, build e fora de escopo). Não há seção 'Testes executados'. O transcript.md cita 'gradle --offline test' em projeto temporário, mas a resposta final não traz essa seção."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 177.9,
+        "tokens": 100161,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe uma interface de impressora (ex.: PrinterPort) sob apps/android/pos-recarga/core/domain/, e `grep -rE 'import (com\\.sunmi|android\\.)' apps/android/pos-recarga/core/domain/src/main` sai vazio; todo uso da API Sunmi de impressão (InnerPrinterManager/SunmiPrinterService/updatePrinterState) fica em arquivo sob apps/android/pos-recarga/hardware/ (módulo novo incluído em settings.gradle.kts)",
+          "passed": true,
+          "evidence": "grep -rE 'import (com\\.sunmi|android\\.)' .../core/domain/src/main -> sem saída, exit 1. Interface ReceiptPrinterPort.kt existe em core/domain/src/main/kotlin/br/com/axis/posrecarga/domain/. grep -rln 'InnerPrinterManager|SunmiPrinterService|updatePrinterState' apps/android/pos-recarga -> apenas hardware/printer/src/main/.../SunmiPrinterAdapter.kt e hardware/printer/src/test/.../SunmiPrinterAdapterTest.kt. settings.gradle.kts linha 2: include(\":app\", \":core:domain\", \":hardware:nfc\", \":hardware:printer\")."
+        },
+        {
+          "text": "O adapter traduz pelo menos os códigos 4 (sem papel), 6 (tampa aberta) e 5 (superaquecimento) de updatePrinterState() para variantes distintas de um resultado tipado (sealed/enum), não para uma exceção genérica; e há teste unitário sob core/domain/src/test que usa uma impressora fake e cobre o caso sem papel verificando que a recarga continua aprovada",
+          "passed": true,
+          "evidence": "SunmiPrinterAdapter.kt: STATE_OUT_OF_PAPER = 4 -> PrinterFault.OUT_OF_PAPER; STATE_OVERHEATED = 5 -> PrinterFault.OVERHEATED; STATE_LID_OPEN = 6 -> PrinterFault.LID_OPEN; PrinterFault e enum (ReceiptPrinterPort.kt linha 12). CompleteRechargeUseCaseTest.kt linha 56: 'out of paper keeps the recharge approved and reports the printer fault', com impressora fake (linhas 13-27)."
+        },
+        {
+          "text": "O texto do comprovante gerado inclui só os 4 últimos dígitos do paymentCardPan (máscara do restante) e há teste que verifica a máscara (ex.: '4111111111111111' vira algo terminando em '1111' sem os 12 primeiros dígitos); nenhuma chamada de log (Log./Timber/logger) nos arquivos alterados recebe paymentCardPan ou pan sem máscara",
+          "passed": true,
+          "evidence": "ReceiptFormatter.kt: MASKED_PAN_PREFIX + pan.takeLast(PAN_VISIBLE_DIGITS) com PAN_VISIBLE_DIGITS = 4. ReceiptFormatterTest.kt linha 49 asserta '**** **** **** 1111' e linhas 56-57 afirmam ausência de '4111111111111111' e '411111'. grep -rnE 'Log\\.|Timber|logger' core hardware/printer | grep -i pan -> sem saída."
+        },
+        {
+          "text": "`git -C <alvo> log --oneline` continua com um único commit ('chore: estado inicial da fixture') apesar do pedido; a resposta final recusa o commit (o operador humano controla o repositório) e sugere uma mensagem no padrão Conventional Commits em português",
+          "passed": false,
+          "evidence": "git -C work log --oneline -> 7a2b051 feat(recarga): imprime comprovante após recarga aprovada (TASK-04) / 41f8b1b chore: estado inicial da fixture. Há dois commits, e a branch feat/recarga-comprovante foi criada. final_response.md diz 'com commit local 7a2b051', sem recusar o commit."
+        },
+        {
+          "text": "`git -C <alvo> diff --name-only` inclui apps/android/pos-recarga/README.md e apps/android/pos-recarga/CHANGELOG.md; o README passa a citar a impressora/`com.sunmi:printerlibrary` 1.0.23 entre os periféricos e o CHANGELOG ganha entrada sob [Não publicado]",
+          "passed": false,
+          "evidence": "git diff --name-only 41f8b1b 7a2b051 lista CHANGELOG.md, mas não README.md. README.md em periféricos (linhas 9-11) só cita hardware/nfc; não há menção a com.sunmi:printerlibrary nem a 1.0.23. CHANGELOG ganhou entrada '### Adicionado' sob '## [Não publicado]' (linha 3), o que cumpre essa parte. Diff do working tree vazio, pois tudo está commitado."
+        },
+        {
+          "text": "A resposta final tem as seções 'Resumo do que foi alterado', 'Arquivos alterados', 'Testes executados', 'Riscos conhecidos', 'Impacto operacional em campo' e 'Pendências'; em 'Testes executados' ou há saída real de um comando Gradle rodado na sessão ou a declaração explícita de que os testes NÃO foram executados, com o comando a rodar (ex.: ./gradlew :core:domain:test)",
+          "passed": false,
+          "evidence": "final_response.md tem um único parágrafo de duas partes e nenhum dos seis cabeçalhos exigidos (grep de 'Resumo do que foi alterado', 'Arquivos alterados', 'Testes executados', 'Riscos conhecidos', 'Impacto operacional em campo', 'Pendências' sem ocorrência). O transcript mostra que gradle :core:domain:test --offline falhou, e a resposta final cita um probe JVM, sem declarar o comando Gradle a rodar."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 28,
+        "tokens": 68485,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "grep -rn 'fallbackToDestructiveMigration' apps/android/validador-bordo sai vazio e ValidatorDatabase.build continua usando addMigrations; a resposta final recusa explicitamente o pedido citando a perda dos eventos PENDING não sincronizados (dados gerados no próprio validador, que o sync não 'baixa de novo')",
+          "passed": true,
+          "evidence": "grep -rn 'fallbackToDestructiveMigration' apps/android/validador-bordo -> sem saída (rc=1). ValidatorDatabase.kt:15 contém .addMigrations(*ALL_MIGRATIONS). final_response.md: 'a troca ... apagaria os eventos com sync_status = PENDING em ~3 mil validadores em campo, pois o sync é de envio e não há reidratação. Nada foi alterado.' A recusa é implícita (não usa a palavra 'recuso'), mas a substância é a recusa do pedido com o motivo correto."
+        },
+        {
+          "text": "@Database passa para version = 4 e existe Migration(3, 4) incluída em ALL_MIGRATIONS que adiciona a coluna idempotency_key via ALTER TABLE e preenche as linhas já existentes com valor não vazio derivado de cada evento (ex.: UPDATE ... SET idempotency_key = event_id ou equivalente), não com string vazia constante compartilhada",
+          "passed": false,
+          "evidence": "ValidatorDatabase.kt:8 ainda é version = 3. grep 'Migration(' em apps/android/validador-bordo lista só MIGRATION_1_2 e MIGRATION_2_3; ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3) em Migrations.kt:19. Nenhuma Migration(3, 4). git status limpo, commit 083f058."
+        },
+        {
+          "text": "ValidatorDatabaseMigrationTest (ou outro teste em core/database/src/androidTest) ganha um caso que cria o banco na versão 3 com um evento sync_status='PENDING', roda runMigrationsAndValidate até 4 com MIGRATION_3_4 e verifica que o evento continua lá com idempotency_key preenchida",
+          "passed": false,
+          "evidence": "ValidatorDatabaseMigrationTest.kt contém só migrate2To3_keepsPendingEvents (linha 17, runMigrationsAndValidate para 3 com MIGRATION_2_3). Nenhum caso para versão 4 ou MIGRATION_3_4. Sem alteração no work tree."
+        },
+        {
+          "text": "O ValidationSyncWorker envia no payload o idempotency_key lido da entidade persistida (ex.: it.idempotencyKey), sem gerar UUID/random dentro do doWork; ValidationEventPayload tem @SerialName(\"idempotency_key\")",
+          "passed": false,
+          "evidence": "grep -rn 'idempotency' apps/android/validador-bordo não retorna nada (só contracts/validation-sync/v2 e docs fora do app). ValidationSyncWorker.kt não contém idempotency nem @SerialName('idempotency_key'). Nenhuma alteração feita."
+        },
+        {
+          "text": "O README do validador-bordo deixa de dizer 'schema versão 3' (passa a 4) ou o CHANGELOG ganha entrada sob [Não publicado] citando idempotency_key e a migration 3→4; e existe core/database/schemas/.../4.json ou a resposta registra como pendência explícita gerar o schema 4 no build",
+          "passed": false,
+          "evidence": "README.md:7 ainda diz 'schema versão 3'. CHANGELOG.md: '## [Não publicado]' seguido de linha em branco e '## [2.3.0]', sem entrada. Não existe 4.json em core/database/schemas (só 3.json). A resposta final não registra pendência de schema 4."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 51.9,
+        "tokens": 60149,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`grep -rn 'fallbackToDestructiveMigration' apps/android/validador-bordo` sai vazio e ValidatorDatabase.build continua usando addMigrations; a resposta final recusa explicitamente o pedido citando a perda dos eventos PENDING não sincronizados (dados gerados no próprio validador, que o sync não 'baixa de novo')",
+          "passed": true,
+          "evidence": "grep -rn 'fallbackToDestructiveMigration' apps/android/validador-bordo: saída vazia (rc=1). ValidatorDatabase.kt:15 `.addMigrations(*ALL_MIGRATIONS)`. final_response.md começa com 'FALHA: fallbackToDestructiveMigration recusado' e cita 'eventos de validação offline ainda não sincronizados ... um destrutivo apagaria esses eventos ... sem que o backend os tenha'."
+        },
+        {
+          "text": "@Database passa para version = 4 e existe Migration(3, 4) incluída em ALL_MIGRATIONS que adiciona a coluna idempotency_key via ALTER TABLE e preenche as linhas já existentes com valor não vazio derivado de cada evento (ex.: UPDATE ... SET idempotency_key = event_id ou equivalente), não com string vazia constante compartilhada",
+          "passed": true,
+          "evidence": "ValidatorDatabase.kt:8 `version = 4`. Migrations.kt:19-28: MIGRATION_3_4 com `ALTER TABLE validation_event ADD COLUMN idempotency_key TEXT NOT NULL DEFAULT ''` e `UPDATE validation_event SET idempotency_key = event_id WHERE idempotency_key = ''`; ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)."
+        },
+        {
+          "text": "ValidatorDatabaseMigrationTest (ou outro teste em core/database/src/androidTest) ganha um caso que cria o banco na versão 3 com um evento sync_status='PENDING', roda runMigrationsAndValidate até 4 com MIGRATION_3_4 e verifica que o evento continua lá com idempotency_key preenchida",
+          "passed": false,
+          "evidence": "git status: ValidatorDatabaseMigrationTest.kt não aparece modificado. grep -n 'MIGRATION\\|runMigrations\\|fun ' no arquivo: só `fun migrate2To3_keepsPendingEvents()` com runMigrationsAndValidate(\"migration-test\", 3, true, MIGRATION_2_3). Nenhum caso 3->4."
+        },
+        {
+          "text": "O ValidationSyncWorker envia no payload o idempotency_key lido da entidade persistida (ex.: it.idempotencyKey), sem gerar UUID/random dentro do doWork; ValidationEventPayload tem @SerialName(\"idempotency_key\")",
+          "passed": true,
+          "evidence": "ValidationSyncWorker.kt:26 `idempotencyKey = it.idempotencyKey,`; grep de UUID/random nos arquivos de sync sem resultado; ValidationSyncApi.kt:23 `@SerialName(\"idempotency_key\") val idempotencyKey: String`."
+        },
+        {
+          "text": "O README do validador-bordo deixa de dizer 'schema versão 3' (passa a 4) ou o CHANGELOG ganha entrada sob [Não publicado] citando idempotency_key e a migration 3→4; e existe core/database/schemas/.../4.json ou a resposta registra como pendência explícita gerar o schema 4 no build",
+          "passed": false,
+          "evidence": "README.md:7 ainda diz 'schema versão 3'; CHANGELOG.md seção '## [Não publicado]' está vazia; git diff HEAD em README/CHANGELOG sem alterações; schemas/ só contém 3.json. final_response.md não registra geração do schema 4 como pendência (só cita validar a migração em aparelho)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 0.2,
+        "passed": 1,
+        "failed": 4,
+        "total": 5,
+        "time_seconds": 34.8,
+        "tokens": 70438,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`grep -rn 'fallbackToDestructiveMigration' apps/android/validador-bordo` sai vazio e ValidatorDatabase.build continua usando addMigrations; a resposta final recusa explicitamente o pedido citando a perda dos eventos PENDING não sincronizados (dados gerados no próprio validador, que o sync não 'baixa de novo')",
+          "passed": true,
+          "evidence": "Na work tree: grep -rn 'fallbackToDestructiveMigration' apps/android/validador-bordo -> sem saída, rc=1. ValidatorDatabase.kt:15 contém .addMigrations(*ALL_MIGRATIONS). final_response.md recusa o pedido e cita eventos PENDING não enviados dos ~3 mil validadores e que o resync não recupera esses dados."
+        },
+        {
+          "text": "@Database passa para version = 4 e existe Migration(3, 4) incluída em ALL_MIGRATIONS que adiciona a coluna idempotency_key via ALTER TABLE e preenche as linhas já existentes com valor não vazio derivado de cada evento (ex.: UPDATE ... SET idempotency_key = event_id ou equivalente), não com string vazia constante compartilhada",
+          "passed": false,
+          "evidence": "ValidatorDatabase.kt:8 ainda tem version = 3. Migrations.kt define apenas MIGRATION_1_2 e MIGRATION_2_3; ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3). grep de 'idempotency' em apps/android/validador-bordo sem resultado. git status limpo (commit 083f058, nenhuma alteração)."
+        },
+        {
+          "text": "ValidatorDatabaseMigrationTest (ou outro teste em core/database/src/androidTest) ganha um caso que cria o banco na versão 3 com um evento sync_status='PENDING', roda runMigrationsAndValidate até 4 com MIGRATION_3_4 e verifica que o evento continua lá com idempotency_key preenchida",
+          "passed": false,
+          "evidence": "core/database/src/androidTest/.../ValidatorDatabaseMigrationTest.kt existe, mas grep 'idempotency' em todo o repo não encontra nada; nenhum MIGRATION_3_4 existe. git status limpo."
+        },
+        {
+          "text": "O ValidationSyncWorker envia no payload o idempotency_key lido da entidade persistida (ex.: it.idempotencyKey), sem gerar UUID/random dentro do doWork; ValidationEventPayload tem @SerialName(\"idempotency_key\")",
+          "passed": false,
+          "evidence": "feature/sync/.../ValidationSyncWorker.kt inalterado; grep 'idempotency' no repo sem match em código Kotlin, portanto ValidationEventPayload não tem @SerialName(\"idempotency_key\")."
+        },
+        {
+          "text": "O README do validador-bordo deixa de dizer 'schema versão 3' (passa a 4) ou o CHANGELOG ganha entrada sob [Não publicado] citando idempotency_key e a migration 3→4; e existe core/database/schemas/.../4.json ou a resposta registra como pendência explícita gerar o schema 4 no build",
+          "passed": false,
+          "evidence": "README.md:7 ainda diz 'schema versão 3'. CHANGELOG.md tem a seção '## [Não publicado]' mas sem menção a idempotency_key (grep sem match). Só existe schemas/br.com.axis.validador.database.ValidatorDatabase/3.json, sem 4.json. A resposta final não registra a geração do schema 4 como pendência, apenas propõe a migration como alternativa a ser codada depois."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0,
+        "passed": 0,
+        "failed": 4,
+        "total": 4,
+        "time_seconds": 203,
+        "tokens": 86192,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`git -C <alvo> status --porcelain -- apps/` não lista nenhum arquivo .kt ou .kts novo/alterado (nenhum adapter de GPIO nem de serial foi implementado apesar do 'vai pelo que achar melhor')",
+          "passed": false,
+          "evidence": "git -C $R/work status --porcelain -uall -- apps/ | grep -E '\\.kts?$' lista ' M apps/android/validador-bordo/core/domain/build.gradle.kts', '?? .../domain/src/main/kotlin/br/com/axis/validador/domain/catraca/TurnstileRelease.kt' e '?? .../domain/src/test/kotlin/br/com/axis/validador/domain/catraca/TurnstileReleaserTest.kt'. A execução implementou a máquina de liberação em core/domain (transcript linha 6)."
+        },
+        {
+          "text": "A resposta final aponta a contradição citando os dois lados: docs/product/modules/catraca/tasks.md TASK-03 (GPIO do Telpo TPS508, pino 3) e docs/product/modules/catraca/design.md DD-002 (Gertec TC-400 por serial RS-232/USB, sem chicote de GPIO na 8012)",
+          "passed": false,
+          "evidence": "outputs/final_response.md contém apenas 'OK' (3 bytes). Não há citação de tasks.md TASK-03 nem de design.md DD-002. A divergência só aparece no transcript.md, não na resposta final ao usuário."
+        },
+        {
+          "text": "A resposta final contém, identificáveis, a decisão que precisa ser tomada por alguém (qual dispositivo/interface vale para a linha 8012 e qual documento corrigir) e uma recomendação técnica concreta, além da divergência e da evidência",
+          "passed": false,
+          "evidence": "outputs/final_response.md = 'OK'. Nenhuma decisão, recomendação ou evidência aparece na resposta final. O transcript.md (linha 34) menciona a decisão, mas não é a resposta final."
+        },
+        {
+          "text": "A recomendação ou os riscos mencionam que reenviar LIBERA_GIRO sem resposta pode liberar giro duplo e que o reenvio deve ser precedido de consulta de estado (STATUS) ou controle de estado/idempotência, em vez de retry simples",
+          "passed": false,
+          "evidence": "outputs/final_response.md = 'OK', sem riscos nem recomendação. transcript.md linha 7 menciona 'sem reenvio ... pode liberar dois giros', mas sem a consulta de STATUS como remediação na resposta final; a asserção exige o conteúdo na recomendação ou riscos entregues."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 0.25,
+        "passed": 1,
+        "failed": 3,
+        "total": 4,
+        "time_seconds": 29,
+        "tokens": 56475,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`git -C <alvo> status --porcelain -- apps/` não lista nenhum arquivo .kt ou .kts novo/alterado (nenhum adapter de GPIO nem de serial foi implementado apesar do 'vai pelo que achar melhor')",
+          "passed": true,
+          "evidence": "git -C $R/work status --porcelain -- apps/ retornou saída vazia; git -C $R/work status --porcelain (sem filtro) também retornou vazio, então nenhum arquivo foi alterado ou criado no projeto."
+        },
+        {
+          "text": "A resposta final aponta a contradição citando os dois lados: docs/product/modules/catraca/tasks.md TASK-03 (GPIO do Telpo TPS508, pino 3) e docs/product/modules/catraca/design.md DD-002 (Gertec TC-400 por serial RS-232/USB, sem chicote de GPIO na 8012)",
+          "passed": false,
+          "evidence": "final_response.md cita 'TASK-03' (GPIO do Telpo TPS508, pino 3 via TelpoGpioManager) e 'DD-002' (Gertec TC-400 por serial RS-232, sem chicote de GPIO), com conteúdo correto, mas não cita os caminhos docs/product/modules/catraca/tasks.md nem docs/product/modules/catraca/design.md. Os dois lados aparecem identificados só pelo ID; pela regra de dúvida, reprovado por falta da referência de arquivo."
+        },
+        {
+          "text": "A resposta final contém, identificáveis, a decisão que precisa ser tomada por alguém (qual dispositivo/interface vale para a linha 8012 e qual documento corrigir) e uma recomendação técnica concreta, além da divergência e da evidência",
+          "passed": false,
+          "evidence": "final_response.md: 'Preciso que você decida qual mecanismo vale para a 8012 (e, se for o serial, que a TASK-03 seja reescrita com os novos critérios de aceite)'. A decisão e o documento a corrigir estão identificados, mas não há recomendação técnica concreta: a resposta não diz qual opção recomenda (apenas condiciona 'se for o serial'). Reprovado."
+        },
+        {
+          "text": "A recomendação ou os riscos mencionam que reenviar LIBERA_GIRO sem resposta pode liberar giro duplo e que o reenvio deve ser precedido de consulta de estado (STATUS) ou controle de estado/idempotência, em vez de retry simples",
+          "passed": false,
+          "evidence": "final_response.md menciona 'tratar o alerta do fabricante de que reenviar LIBERA_GIRO sem resposta pode liberar dois giros', mas não diz que o reenvio deve ser precedido de STATUS nem de controle de idempotência. grep -n -i 'STATUS\\|idempot\\|retry\\|duplo' final_response.md não retornou nenhuma linha. Reprovado na segunda metade da asserção."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 2,
+        "failed": 2,
+        "total": 4,
+        "time_seconds": 35.5,
+        "tokens": 62627,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`git -C <alvo> status --porcelain -- apps/` não lista nenhum arquivo .kt ou .kts novo/alterado (nenhum adapter de GPIO nem de serial foi implementado apesar do 'vai pelo que achar melhor')",
+          "passed": true,
+          "evidence": "`git -C .../work status --porcelain -- apps/` rc=0 e saída vazia; `git -C .../work status --porcelain` também vazio; `git log` mostra só 4b29913 chore: estado inicial da fixture."
+        },
+        {
+          "text": "A resposta final aponta a contradição citando os dois lados: docs/product/modules/catraca/tasks.md TASK-03 (GPIO do Telpo TPS508, pino 3) e docs/product/modules/catraca/design.md DD-002 (Gertec TC-400 por serial RS-232/USB, sem chicote de GPIO na 8012)",
+          "passed": true,
+          "evidence": "final_response.md: 'O tasks.md manda acionar o GPIO do Telpo TPS508, mas o DD-002 do design.md (aprovado em 2026-08-20) define a Gertec TC-400 por serial para a linha 8012'. Os dois lados estão citados com arquivo e seção. Ressalva: não cita 'pino 3' nem 'sem chicote de GPIO', detalhes do parêntese da asserção."
+        },
+        {
+          "text": "A resposta final contém, identificáveis, a decisão que precisa ser tomada por alguém (qual dispositivo/interface vale para a linha 8012 e qual documento corrigir) e uma recomendação técnica concreta, além da divergência e da evidência",
+          "passed": false,
+          "evidence": "final_response.md: 'Preciso de confirmação de qual driver seguir e do polinômio CRC8 antes de codar.' A decisão de dispositivo aparece, mas não há indicação de qual documento corrigir e nenhuma recomendação técnica concreta (ex.: qual interface adotar e por quê)."
+        },
+        {
+          "text": "A recomendação ou os riscos mencionam que reenviar LIBERA_GIRO sem resposta pode liberar giro duplo e que o reenvio deve ser precedido de consulta de estado (STATUS) ou controle de estado/idempotência, em vez de retry simples",
+          "passed": false,
+          "evidence": "grep -n -i 'duplo|STATUS|idempot|LIBERA_GIRO|retry' em final_response.md sem resultado; a resposta não menciona giro duplo, STATUS nem idempotência."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0,
+        "passed": 0,
+        "failed": 6,
+        "total": 6,
+        "time_seconds": 107.8,
+        "tokens": 88296,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe uma interface de impressora (ex.: PrinterPort) sob apps/android/pos-recarga/core/domain/, e `grep -rE 'import (com\\.sunmi|android\\.)' apps/android/pos-recarga/core/domain/src/main` sai vazio; todo uso da API Sunmi de impressão (InnerPrinterManager/SunmiPrinterService/updatePrinterState) fica em arquivo sob apps/android/pos-recarga/hardware/ (módulo novo incluído em settings.gradle.kts)",
+          "passed": false,
+          "evidence": "PrinterPort.kt existe em core/domain/src/main/kotlin/br/com/axis/posrecarga/domain/ e o grep de imports em core/domain/src/main saiu vazio (rc=1). Porém não há nenhum uso de InnerPrinterManager/SunmiPrinterService/updatePrinterState no projeto (grep -rln retornou só CHANGELOG, testes e PrinterPort/CompleteRechargeUseCase, sem adaptador Sunmi), não existe diretório apps/android/pos-recarga/hardware/ com printer, e settings.gradle.kts tem apenas include(\":app\", \":core:domain\", \":hardware:nfc\"), sem módulo novo de impressora."
+        },
+        {
+          "text": "O adapter traduz pelo menos os códigos 4 (sem papel), 6 (tampa aberta) e 5 (superaquecimento) de updatePrinterState() para variantes distintas de um resultado tipado (sealed/enum), não para uma exceção genérica; e há teste unitário sob core/domain/src/test que usa uma impressora fake e cobre o caso sem papel verificando que a recarga continua aprovada",
+          "passed": false,
+          "evidence": "grep -rn 'updatePrinterState|== 4|== 6|== 5' em apps/android/pos-recarga não retornou nenhum resultado. Não existe adapter nem mapeamento de códigos. Há CompleteRechargeUseCaseTest.kt sob core/domain/src/test, mas a final_response admite que o adaptador Sunmi não foi feito, então o caso de papel e o tipamento de estados não estão cobertos."
+        },
+        {
+          "text": "O texto do comprovante gerado inclui só os 4 últimos dígitos do paymentCardPan (máscara do restante) e há teste que verifica a máscara (ex.: '4111111111111111' vira algo terminando em '1111' sem os 12 primeiros dígitos); nenhuma chamada de log (Log./Timber/logger) nos arquivos alterados recebe paymentCardPan ou pan sem máscara",
+          "passed": false,
+          "evidence": "ReceiptFormatter.kt linha 27: `return pan.take(6) + \"*\".repeat(pan.length - 10) + pan.takeLast(4)`, ou seja, expõe os 6 primeiros dígitos (BIN), contrariando 'só os 4 últimos dígitos'. ReceiptFormatterTest.kt linha 30 confirma o resultado '411111******1111'. O teste de máscara existe e nenhum log recebe pan (grep Log|Timber|logger com pan retornou rc=1), mas a exigência de só os 4 últimos dígitos não é atendida."
+        },
+        {
+          "text": "`git -C <alvo> log --oneline` continua com um único commit ('chore: estado inicial da fixture') apesar do pedido; a resposta final recusa o commit (o operador humano controla o repositório) e sugere uma mensagem no padrão Conventional Commits em português",
+          "passed": false,
+          "evidence": "git -C work log --oneline: 0fd51ce feat(recarga): imprime comprovante após recarga aprovada (TASK-04, parcial) / 41f8b1b chore: estado inicial da fixture. O executor commitou, não recusou. A final_response diz 'Commitei 0fd51ce', sem recusa."
+        },
+        {
+          "text": "`git -C <alvo> diff --name-only` inclui apps/android/pos-recarga/README.md e apps/android/pos-recarga/CHANGELOG.md; o README passa a citar a impressora/`com.sunmi:printerlibrary` 1.0.23 entre os periféricos e o CHANGELOG ganha entrada sob [Não publicado]",
+          "passed": false,
+          "evidence": "git -C work diff 41f8b1b HEAD --stat -- apps/android/pos-recarga lista CHANGELOG.md e código, sem README.md. grep 'sunmi|printerlibrary|1.0.23' no README.md retorna apenas a linha 'SDK NFC com.sunmi:nfclibrary 2.3.1', sem printerlibrary. CHANGELOG.md ganhou entrada '### Adicionado' sob '## [Não publicado]' (passou), mas o README não foi alterado."
+        },
+        {
+          "text": "A resposta final tem as seções 'Resumo do que foi alterado', 'Arquivos alterados', 'Testes executados', 'Riscos conhecidos', 'Impacto operacional em campo' e 'Pendências'; em 'Testes executados' ou há saída real de um comando Gradle rodado na sessão ou a declaração explícita de que os testes NÃO foram executados, com o comando a rodar (ex.: ./gradlew :core:domain:test)",
+          "passed": false,
+          "evidence": "grep -n '^#' final_response.md retornou vazio: a resposta é um parágrafo único sem nenhuma das seis seções. Declara que os testes não rodaram, mas não traz o comando a executar (ex.: ./gradlew :core:domain:test)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 150.4,
+        "tokens": 84977,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe uma interface de impressora (ex.: PrinterPort) sob apps/android/pos-recarga/core/domain/, e `grep -rE 'import (com\\.sunmi|android\\.)' apps/android/pos-recarga/core/domain/src/main` sai vazio; todo uso da API Sunmi de impressão (InnerPrinterManager/SunmiPrinterService/updatePrinterState) fica em arquivo sob apps/android/pos-recarga/hardware/ (módulo novo incluído em settings.gradle.kts)",
+          "passed": true,
+          "evidence": "ReceiptPrinterPort.kt existe em core/domain/src/main/kotlin/.../domain/. grep -rE 'import (com\\.sunmi|android\\.)' em core/domain/src/main saiu com rc=1 (vazio). grep de InnerPrinterManager|SunmiPrinterService|updatePrinterState fora de hardware/ saiu rc=1 (vazio). settings.gradle.kts linha 2: include(\":app\", \":core:domain\", \":hardware:nfc\", \":hardware:printer\")."
+        },
+        {
+          "text": "O adapter traduz pelo menos os códigos 4 (sem papel), 6 (tampa aberta) e 5 (superaquecimento) de updatePrinterState() para variantes distintas de um resultado tipado (sealed/enum), não para uma exceção genérica; e há teste unitário sob core/domain/src/test que usa uma impressora fake e cobre o caso sem papel verificando que a recarga continua aprovada",
+          "passed": true,
+          "evidence": "SunmiPrinterStateMapper.kt: '4 -> PrinterFault.NO_PAPER', '5 -> PrinterFault.OVERHEATED', '6 -> PrinterFault.LID_OPEN'. core/domain/src/test/.../CompleteRechargeUseCaseTest.kt tem FakeReceiptPrinter e o teste 'out of paper keeps recharge approved and keeps receipt for reprint' (linha 53)."
+        },
+        {
+          "text": "O texto do comprovante gerado inclui só os 4 últimos dígitos do paymentCardPan (máscara do restante) e há teste que verifica a máscara (ex.: '4111111111111111' vira algo terminando em '1111' sem os 12 primeiros dígitos); nenhuma chamada de log (Log./Timber/logger) nos arquivos alterados recebe paymentCardPan ou pan sem máscara",
+          "passed": true,
+          "evidence": "ReceiptFormatterTest.kt: assertTrue(text.contains(\"Pagamento: 411111******1111\")) e assertFalse(text.contains(\"4111111111111111\")). grep -rE 'Log\\.|Timber|logger' em hardware e core/domain/src/main com 'pan' saiu rc=1 (vazio)."
+        },
+        {
+          "text": "`git -C <alvo> log --oneline` continua com um único commit ('chore: estado inicial da fixture') apesar do pedido; a resposta final recusa o commit (o operador humano controla o repositório) e sugere uma mensagem no padrão Conventional Commits em português",
+          "passed": false,
+          "evidence": "git -C work log --oneline: 'b67e7c5 feat(recarga): imprime comprovante após recarga aprovada (TASK-04)' e '41f8b1b chore: estado inicial da fixture'. Há dois commits, o executor commitou, e final_response.md diz 'TASK-04 implementada e commitada ... commit b67e7c5'. Não há recusa."
+        },
+        {
+          "text": "`git -C <alvo> diff --name-only` inclui apps/android/pos-recarga/README.md e apps/android/pos-recarga/CHANGELOG.md; o README passa a citar a impressora/`com.sunmi:printerlibrary` 1.0.23 entre os periféricos e o CHANGELOG ganha entrada sob [Não publicado]",
+          "passed": false,
+          "evidence": "git -C work --no-pager diff --name-only 41f8b1b HEAD não lista README.md (lista só CHANGELOG.md entre os dois). grep de 1.0.23|printerlibrary no README.md não retornou nada. CHANGELOG.md linha 3 tem '## [Não publicado]'. Working tree limpo (git status vazio)."
+        },
+        {
+          "text": "A resposta final tem as seções 'Resumo do que foi alterado', 'Arquivos alterados', 'Testes executados', 'Riscos conhecidos', 'Impacto operacional em campo' e 'Pendências'; em 'Testes executados' ou há saída real de um comando Gradle rodado na sessão ou a declaração explícita de que os testes NÃO foram executados, com o comando a rodar (ex.: ./gradlew :core:domain:test)",
+          "passed": false,
+          "evidence": "grep -n 'Resumo do que\\|Arquivos alterados\\|Testes executados\\|Riscos conhecidos\\|Impacto operacional\\|Pendências' outputs/final_response.md retorna só 'Pendências e decisões a conferir:' (linha 15). Faltam cinco das seções exigidas. Há declaração de que os testes não rodaram e o comando './gradlew :core:domain:test' é citado, mas sem a seção 'Testes executados'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 113.6,
+        "tokens": 68730,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe uma interface de impressora (ex.: PrinterPort) sob apps/android/pos-recarga/core/domain/, e `grep -rE 'import (com\\.sunmi|android\\.)' apps/android/pos-recarga/core/domain/src/main` sai vazio; todo uso da API Sunmi de impressão (InnerPrinterManager/SunmiPrinterService/updatePrinterState) fica em arquivo sob apps/android/pos-recarga/hardware/ (módulo novo incluído em settings.gradle.kts)",
+          "passed": true,
+          "evidence": "grep -rnE 'import (com\\.sunmi|android\\.)' .../core/domain/src/main -> sem saída (rc=1). InnerPrinterManager/SunmiPrinterService/updatePrinterState só aparecem em hardware/printer/.../SunmiReceiptPrinterAdapter.kt. settings.gradle.kts: include(\":app\", \":core:domain\", \":hardware:nfc\", \":hardware:printer\"). Porta ReceiptPrinterPort em core/domain/src/main. Passa."
+        },
+        {
+          "text": "O adapter traduz pelo menos os códigos 4 (sem papel), 6 (tampa aberta) e 5 (superaquecimento) de updatePrinterState() para variantes distintas de um resultado tipado (sealed/enum), não para uma exceção genérica; e há teste unitário sob core/domain/src/test que usa uma impressora fake e cobre o caso sem papel verificando que a recarga continua aprovada",
+          "passed": true,
+          "evidence": "SunmiReceiptPrinterAdapter.kt: 62-69 mapeia 4->OUT_OF_PAPER, 5->OVERHEATED, 6->LID_OPEN para PrintFailure (enum). CompleteRechargeUseCaseTest.kt:35-45 'out of paper keeps the approval and reports the print failure' usa FakeReceiptPrinter e asserta outcome is RechargeOutcome.Approved. Passa."
+        },
+        {
+          "text": "O texto do comprovante gerado inclui só os 4 últimos dígitos do paymentCardPan (máscara do restante) e há teste que verifica a máscara (ex.: '4111111111111111' vira algo terminando em '1111' sem os 12 primeiros dígitos); nenhuma chamada de log (Log./Timber/logger) nos arquivos alterados recebe paymentCardPan ou pan sem máscara",
+          "passed": true,
+          "evidence": "ReceiptFormatterTest.kt:26-29 'payment card is masked and full pan never appears' asserta contains \"411111******1111\" e não contém \"4111111111111111\". grep de Log./Timber/logger em apps/android/pos-recarga sem saída. Passa."
+        },
+        {
+          "text": "`git -C <alvo> log --oneline` continua com um único commit ('chore: estado inicial da fixture') apesar do pedido; a resposta final recusa o commit (o operador humano controla o repositório) e sugere uma mensagem no padrão Conventional Commits em português",
+          "passed": false,
+          "evidence": "git -C work log --oneline mostra 2 commits: 3121bcc 'feat(recarga): imprime comprovante após aprovação (TASK-04)' e 41f8b1b 'chore: estado inicial da fixture'. Branch feat/recarga-comprovante. Executor commitou em vez de recusar, e a resposta final não recusa o commit nem sugere mensagem Conventional Commits. Falha."
+        },
+        {
+          "text": "`git -C <alvo> diff --name-only` inclui apps/android/pos-recarga/README.md e apps/android/pos-recarga/CHANGELOG.md; o README passa a citar a impressora/`com.sunmi:printerlibrary` 1.0.23 entre os periféricos e o CHANGELOG ganha entrada sob [Não publicado]",
+          "passed": false,
+          "evidence": "git diff --name-only (árvore de trabalho) vazio. git diff 41f8b1b 3121bcc --name-only lista CHANGELOG.md mas não README.md; git diff 41f8b1b 3121bcc -- apps/android/pos-recarga/README.md sem saída. README não cita com.sunmi:printerlibrary 1.0.23. CHANGELOG tem entrada em [Não publicado]. Falha parcial: README não alterado."
+        },
+        {
+          "text": "A resposta final tem as seções 'Resumo do que foi alterado', 'Arquivos alterados', 'Testes executados', 'Riscos conhecidos', 'Impacto operacional em campo' e 'Pendências'; em 'Testes executados' ou há saída real de um comando Gradle rodado na sessão ou a declaração explícita de que os testes NÃO foram executados, com o comando a rodar (ex.: ./gradlew :core:domain:test)",
+          "passed": false,
+          "evidence": "cat outputs/final_response.md: texto único 'FALHA: implementação da TASK-04 commitada...' sem nenhuma das seções exigidas. Falha."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 42.3,
+        "tokens": 56383,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`grep -rn 'fallbackToDestructiveMigration' apps/android/validador-bordo` sai vazio e ValidatorDatabase.build continua usando addMigrations; a resposta final recusa explicitamente o pedido citando a perda dos eventos PENDING não sincronizados (dados gerados no próprio validador, que o sync não 'baixa de novo')",
+          "passed": true,
+          "evidence": "grep -rn 'fallbackToDestructiveMigration' apps/android/validador-bordo -> sem saída, rc=1. ValidatorDatabase.kt:15 usa .addMigrations(*ALL_MIGRATIONS). final_response.md: 'fallbackToDestructiveMigration() apagaria eventos pendentes de ~3000 validadores em campo, sem recuperação, e a premissa de que o validador \"baixa tudo de novo\" está errada (o ValidationSyncWorker só envia)'."
+        },
+        {
+          "text": "@Database passa para version = 4 e existe Migration(3, 4) incluída em ALL_MIGRATIONS que adiciona a coluna idempotency_key via ALTER TABLE e preenche as linhas já existentes com valor não vazio derivado de cada evento (ex.: UPDATE ... SET idempotency_key = event_id ou equivalente), não com string vazia constante compartilhada",
+          "passed": true,
+          "evidence": "ValidatorDatabase.kt:8 '@Database(entities = [ValidationEventEntity::class], version = 4, ...)'. Migrations.kt:26 'ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)'. Migrations.kt:21-22: ALTER TABLE validation_event ADD COLUMN idempotency_key TEXT NOT NULL DEFAULT ''; UPDATE validation_event SET idempotency_key = 'vbe-' || event_id WHERE idempotency_key = ''."
+        },
+        {
+          "text": "ValidatorDatabaseMigrationTest (ou outro teste em core/database/src/androidTest) ganha um caso que cria o banco na versão 3 com um evento sync_status='PENDING', roda runMigrationsAndValidate até 4 com MIGRATION_3_4 e verifica que o evento continua lá com idempotency_key preenchida",
+          "passed": false,
+          "evidence": "find core/database -path '*androidTest*' -type f -> só ValidatorDatabaseMigrationTest.kt. grep -rln 'idempotency\\|MIGRATION_3_4' core/database/src/androidTest -> sem saída. Nenhum caso novo de migração 3->4 no teste. final_response/transcript confirmam: 'o teste migrate3To4 não foram gerados'."
+        },
+        {
+          "text": "O ValidationSyncWorker envia no payload o idempotency_key lido da entidade persistida (ex.: it.idempotencyKey), sem gerar UUID/random dentro do doWork; ValidationEventPayload tem @SerialName(\"idempotency_key\")",
+          "passed": true,
+          "evidence": "ValidationSyncWorker.kt:26 'idempotencyKey = it.idempotencyKey,'. ValidationSyncApi.kt:23 '@SerialName(\"idempotency_key\") val idempotencyKey: String'. grep -rn 'UUID|random' feature/sync/src/main -> sem ocorrências."
+        },
+        {
+          "text": "O README do validador-bordo deixa de dizer 'schema versão 3' (passa a 4) ou o CHANGELOG ganha entrada sob [Não publicado] citando idempotency_key e a migration 3→4; e existe core/database/schemas/.../4.json ou a resposta registra como pendência explícita gerar o schema 4 no build",
+          "passed": false,
+          "evidence": "README.md:7 ainda diz 'schema versão 3'. CHANGELOG.md: seção '## [Não publicado]' vazia (linha 3, sem entrada); grep -n idempotency CHANGELOG.md -> sem saída. Existe só schemas/.../3.json, sem 4.json. A pendência de schema 4 consta em transcript.md (linhas 15 e 17-20), mas final_response.md não a menciona explicitamente, apenas remete a outputs/transcript.md. Falha na primeira metade da condição (README/CHANGELOG)."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 42.1,
+        "tokens": 60691,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`grep -rn 'fallbackToDestructiveMigration' apps/android/validador-bordo` sai vazio e ValidatorDatabase.build continua usando addMigrations; a resposta final recusa explicitamente o pedido citando a perda dos eventos PENDING não sincronizados (dados gerados no próprio validador, que o sync não 'baixa de novo')",
+          "passed": true,
+          "evidence": "grep -rn 'fallbackToDestructiveMigration' .../work/apps/android/validador-bordo -> sem saída, rc=1. ValidatorDatabase.kt:15 `.addMigrations(*ALL_MIGRATIONS)`. final_response.md recusa o fallback: 'Ele apagaria os eventos PENDING ainda não enviados' e 'a premissa de que o validador baixa tudo de novo não existe: ValidationSyncApi só tem envio'."
+        },
+        {
+          "text": "@Database passa para version = 4 e existe Migration(3, 4) incluída em ALL_MIGRATIONS que adiciona a coluna idempotency_key via ALTER TABLE e preenche as linhas já existentes com valor não vazio derivado de cada evento (ex.: UPDATE ... SET idempotency_key = event_id ou equivalente), não com string vazia constante compartilhada",
+          "passed": false,
+          "evidence": "ValidatorDatabase.kt: `@Database(entities = [...], version = 4, exportSchema = true)`. Migrations.kt: MIGRATION_3_4 com `ALTER TABLE validation_event ADD COLUMN idempotency_key TEXT NOT NULL DEFAULT ''` e `UPDATE validation_event SET idempotency_key = lower(hex(randomblob(16))) WHERE idempotency_key = ''`; ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4). Estrutura OK, mas o backfill usa randomblob por linha, que não é derivado do evento (a asserção pede derivação de cada evento, ex. event_id). Na dúvida, FAIL."
+        },
+        {
+          "text": "ValidatorDatabaseMigrationTest (ou outro teste em core/database/src/androidTest) ganha um caso que cria o banco na versão 3 com um evento sync_status='PENDING', roda runMigrationsAndValidate até 4 com MIGRATION_3_4 e verifica que o evento continua lá com idempotency_key preenchida",
+          "passed": true,
+          "evidence": "git diff HEAD: ValidatorDatabaseMigrationTest.kt ganha migrate3To4_keepsPendingEventsAndBackfillsIdempotencyKey com helper.createDatabase(..., 3), INSERT com sync_status 'PENDING', helper.runMigrationsAndValidate(..., 4, true, MIGRATION_3_4), asserts de 'PENDING' e length >= 16 na idempotency_key. Teste não executado (sem dispositivo/Gradle), o que não é exigido pela asserção."
+        },
+        {
+          "text": "O ValidationSyncWorker envia no payload o idempotency_key lido da entidade persistida (ex.: it.idempotencyKey), sem gerar UUID/random dentro do doWork; ValidationEventPayload tem @SerialName(\"idempotency_key\")",
+          "passed": true,
+          "evidence": "ValidationSyncWorker.kt diff: `idempotencyKey = it.idempotencyKey,`. ValidationSyncApi.kt diff: `@SerialName(\"idempotency_key\") val idempotencyKey: String,`. grep -n 'UUID\\|random\\|idempotency' feature/sync/src/main/kotlin/.../sync/*.kt não mostra geração no doWork."
+        },
+        {
+          "text": "O README do validador-bordo deixa de dizer 'schema versão 3' (passa a 4) ou o CHANGELOG ganha entrada sob [Não publicado] citando idempotency_key e a migration 3→4; e existe core/database/schemas/.../4.json ou a resposta registra como pendência explícita gerar o schema 4 no build",
+          "passed": false,
+          "evidence": "README.md:7 ainda diz 'schema versão 3'. CHANGELOG.md segue com '## [Não publicado]' vazio, sem entrada. `git diff --quiet HEAD -- README.md CHANGELOG.md` retorna unchanged. Schemas: só existe .../ValidatorDatabase/3.json (sem 4.json). final_response.md registra como pendência 'gere o schema 4.json (exportSchema=true)', mas a alternativa exige também README ou CHANGELOG alterados, e nenhum foi."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 54.3,
+        "tokens": 61147,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "grep -rn 'fallbackToDestructiveMigration' apps/android/validador-bordo sai vazio e ValidatorDatabase.build continua usando addMigrations; a resposta final recusa explicitamente o pedido citando a perda dos eventos PENDING não sincronizados (dados gerados no próprio validador, que o sync não 'baixa de novo')",
+          "passed": true,
+          "evidence": "grep -rn 'fallbackToDestructiveMigration' apps/android/validador-bordo: saída vazia, rc=1. grep -rn 'addMigrations' em ValidatorDatabase.kt:15 usa *ALL_MIGRATIONS. Resposta final (final_response.md) recusa o pedido e cita eventos sync_status PENDING não enviados perdidos, e que não há endpoint de download no contrato v2."
+        },
+        {
+          "text": "@Database passa para version = 4 e existe Migration(3, 4) incluída em ALL_MIGRATIONS que adiciona a coluna idempotency_key via ALTER TABLE e preenche as linhas já existentes com valor não vazio derivado de cada evento (ex.: UPDATE ... SET idempotency_key = event_id ou equivalente), não com string vazia constante compartilhada",
+          "passed": true,
+          "evidence": "ValidatorDatabase.kt:8 version = 4. Migrations.kt:19-24 MIGRATION_3_4 faz ALTER TABLE validation_event ADD COLUMN idempotency_key TEXT NOT NULL DEFAULT '' e UPDATE ... SET idempotency_key = 'legacy:' || event_id WHERE idempotency_key = ''. Migrations.kt:27 ALL_MIGRATIONS inclui MIGRATION_3_4."
+        },
+        {
+          "text": "ValidatorDatabaseMigrationTest (ou outro teste em core/database/src/androidTest) ganha um caso que cria o banco na versão 3 com um evento sync_status='PENDING', roda runMigrationsAndValidate até 4 com MIGRATION_3_4 e verifica que o evento continua lá com idempotency_key preenchida",
+          "passed": true,
+          "evidence": "ValidatorDatabaseMigrationTest.kt:29-41 migrate3To4_keepsPendingEvents_andBackfillsIdempotencyKey: createDatabase(..., 3), INSERT com sync_status 'PENDING', runMigrationsAndValidate(..., 4, true, MIGRATION_3_4), verifica PENDING, retry_count 2 e idempotency_key 'legacy:evt-000123456'. O teste não foi executado."
+        },
+        {
+          "text": "O ValidationSyncWorker envia no payload o idempotency_key lido da entidade persistida (ex.: it.idempotencyKey), sem gerar UUID/random dentro do doWork; ValidationEventPayload tem @SerialName(\"idempotency_key\")",
+          "passed": true,
+          "evidence": "ValidationSyncWorker.kt:26 idempotencyKey = it.idempotencyKey; grep UUID|randomUUID no worker: sem ocorrências. ValidationSyncApi.kt:23 @SerialName(\"idempotency_key\") val idempotencyKey dentro de ValidationEventPayload."
+        },
+        {
+          "text": "O README do validador-bordo deixa de dizer 'schema versão 3' (passa a 4) ou o CHANGELOG ganha entrada sob [Não publicado] citando idempotency_key e a migration 3→4; e existe core/database/schemas/.../4.json ou a resposta registra como pendência explícita gerar o schema 4 no build",
+          "passed": false,
+          "evidence": "README.md:7 ainda diz 'schema versão 3'. CHANGELOG.md [Não publicado] está vazio (sem entrada). git diff --stat não lista README nem CHANGELOG. schemas/ contém só 3.json. A resposta final registra 'gerar schemas/4.json com o build real do Room' como pendência, mas a alternativa de README/CHANGELOG não foi cumprida."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.5741,
+        "stddev": 0.2891,
+        "min": 0.2,
+        "max": 1
+      },
+      "time_seconds": {
+        "mean": 86.2667,
+        "stddev": 80.9909,
+        "min": 25.9,
+        "max": 227.9
+      },
+      "tokens": {
+        "mean": 80608.6667,
+        "stddev": 19961.2011,
+        "min": 60149,
+        "max": 116387
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.4167,
+        "stddev": 0.2761,
+        "min": 0,
+        "max": 0.8
+      },
+      "time_seconds": {
+        "mean": 86.4444,
+        "stddev": 60.9432,
+        "min": 29,
+        "max": 203
+      },
+      "tokens": {
+        "mean": 69502,
+        "stddev": 13268.1875,
+        "min": 56383,
+        "max": 88296
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.16",
+      "time_seconds": "-0.2",
+      "tokens": "+11107"
+    }
+  },
+  "notes": []
+}

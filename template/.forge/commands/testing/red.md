@@ -49,6 +49,8 @@ um `replay` bem-sucedido. `--test-path`, `--test-id`, `--command` e `--failure-p
 consegue ancorar no caso específico (só no arquivo de teste inteiro); sem `failure_pattern`, o
 item 4 da rule nunca fica avaliável — campo ausente seria indistinguível de "gate desligado".
 
+Formato de `test_id` (issue #190): o `replay` aceita o nome do caso como aparece no arquivo (nome do método, `test('<nome>')` do Jest/`node --test`, `test_nome` do pytest) e também a forma qualificada que xUnit/NUnit e `dotnet test --filter FullyQualifiedName~` usam — `Classe.Metodo` ou `Namespace.Classe.Metodo`. Na forma qualificada (só identificadores separados por `.`), a classe e o método são conferidos separadamente, como palavras inteiras, no arquivo de teste e na mesma linha de falha da saída; o namespace não é conferido. Qualquer outro formato continua exigindo a substring literal, e o `NOT-POSSIBLE` diz exatamente o que foi procurado.
+
 `--positive-control` é **opcional** (issue #150, DA-13) — um comando que precisa PASSAR na
 árvore base, na mesma corrida do teste declarado. Uma âncora (`failure_pattern`) que não falha
 na base é defeito do TESTE, não do código sob correção: o teste afirma o CAMINHO que reproduz o
@@ -126,7 +128,9 @@ declaração que qualquer agente poderia fabricar. O motor (`lib/red-replay.mjs`
 2. **Roda UM teste** — o `command` declarado, nunca a suíte — num worktree git efêmero, com
    timeout explícito, sempre limpo ao final (sucesso ou erro).
 3. **Exige, para `observed`**: falha na base (exit≠0) + classificação `behavioral` (não
-   `build-error`) + saída casando com `failure_pattern` quando declarado + passagem em HEAD
+   `build-error`), ou `setup-exception` (exceção de setup de fixture, ex.: xUnit
+   `InitializeAsync` que lança — issue #191) somente com `failure_pattern` declarado que case +
+   saída casando com `failure_pattern` quando declarado + passagem em HEAD
    (exit 0). Qualquer ausência vira `FAIL` com o item da rule citado, e a evidência **volta**
    para `pending` (nunca fica um `observed` falso na árvore).
 4. **Recusa `failure_pattern` ausente/vazio** com `not-possible` (issue #150) — uma âncora que

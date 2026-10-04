@@ -1,0 +1,1 @@
+FALHA: o node-quality-scan não pôde ser executado no servico-conciliacao. O script `.forge/skills/node-quality-scan/scripts/scan.sh` não existe no repositório (commit bf49e39), e o projeto é Python (FastAPI, Python >=3.12), não Node. Não gerei evidência falsa: outputs/evidencia-pr.md registra que o scan não rodou e não deve ser colado na descrição da PR.

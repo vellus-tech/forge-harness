@@ -1,0 +1,109 @@
+{
+  "skill": "impact-scan",
+  "iteration": 2,
+  "verdict": "improve",
+  "script_verdict": {
+    "verdict": "agrega",
+    "delta": 0.2907,
+    "ci95": [0.25, 0.3352],
+    "reference_delta": 0.25
+  },
+  "summary": "O delta subiu de +0,25 (iteração 1) para +0,29 (iteração 2), uma diferença de +0,04 que fica dentro do IC 95% [0,25; 0,34] e encosta no limite inferior da iteração 1; o veredito agrega se mantém, mas a melhora é modesta e concentrada. Quase toda a diferença vem de sem-grafo-construido: com a skill o caso fica em 1,0 nas três execuções, e sem a skill cai para 0,25 (era 0,50 na iteração 1). A queda do braço sem skill não indica que a skill piorou o caso; ela decorre da mudança de método, porque agora os executores sem skill rodam graph.sh build e impact.sh por conta própria, o que a iteração 1 não permitia. Em rotacao-jwt-scale3 o braço com skill ganhou de forma consistente a convenção do log em /tmp (3/3), mas perdeu a linha de formato da resposta final (0/3) e enumerou os sete caminhos em prosa, o que reprova a asserção 6 e conflita com o próprio pedido do prompt. Em impact-stale-apos-codegraph o delta é nulo: as duas configurações passam quase tudo, e o caso não discrimina.",
+  "change_causes": [
+    {
+      "class": "mudanca_de_metodo",
+      "eval_id": 1,
+      "assertion": "impact_json_fresco_no_change (asserção 1)",
+      "detail": "Referência sem skill 0/1; iteração 2 sem skill 3/3. Todas as execuções sem skill rodaram impact-freshness.mjs e obtiveram 'fresh' no work. A mudança vem da política de execução (dependências instaladas nos dois braços e executor numa cópia da fixture), não do artefato, já que com a skill o resultado era 1/1 também na iteração 1."
+    },
+    {
+      "class": "mudanca_de_metodo",
+      "eval_id": 1,
+      "assertion": "fecho_transitivo_reverso_exato (asserção 2)",
+      "detail": "Referência sem skill 0/1; iteração 2 sem skill 3/3. O impacted sem skill bate com o da skill nas três execuções (7 entradas, sem invoice.ts nem logger.ts). Mesma causa da asserção 1: o script passou a rodar nos dois braços."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 1,
+      "assertion": "saida_bruta_em_tmp_log (asserção 4)",
+      "detail": "Com a skill, 3/3 execuções gravaram a saída bruta no log de /tmp (mapeado para o tmp da execução); sem skill, 0/3, com o diretório tmp vazio nas três. Efeito consistente da convenção do SKILL.md. Ressalva: a asserção depende do mapeamento de /tmp feito pelo harness, que deve ser confirmado antes de citar o número."
+    },
+    {
+      "class": "mudanca_de_metodo",
+      "eval_id": 1,
+      "assertion": "resumo_no_formato_do_contrato (asserção 5)",
+      "detail": "Referência com skill 1/1; iteração 2 com skill 0/3, e sem skill 0/3. As três execuções com skill terminam com 'Gravado em ...' e sem a linha 'Impact scan: ...' nem 'Módulos de alto risco', conforme final_response.md, que agora é o texto avaliado. A iteração 1 julgava outro texto. Hipótese, não verificada: a troca do objeto avaliado explica a queda, e o artefato não está cumprindo a linha de formato de forma consistente."
+    },
+    {
+      "class": "eval_defeituoso",
+      "eval_id": 1,
+      "assertion": "chat_sem_despejo_da_lista_bruta (asserção 6)",
+      "detail": "Com a skill 0/3 (referência 0/1); sem skill 2/3 (referência 0/1). O prompt pede quais partes da API ficam expostas, o que exige nomear arquivos. As execuções com skill enumeram os sete caminhos em prosa (run-1: 'src/api/routes/payments.ts, src/api/routes/users.ts, ...'), e a asserção reprova isso, mesmo com módulos de alto risco nomeados. A asserção contradiz o pedido e é ambígua sobre o que é lista bruta."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 2,
+      "assertion": "grafo_consumido_nao_reconstruido (asserção 4)",
+      "detail": "Sem skill 2/3 (referência 1/1). Na execução run-1 o sha256 de graph.json (8eb440...) divergiu do gravado em .git/eval-graph.sha256 (bf319c...), enquanto run-2 e run-3 bateram. Com skill, 3/3. Oscilação entre execuções do mesmo braço; a causa exata da divergência na run-1 não foi auditada."
+    },
+    {
+      "class": "mudanca_de_metodo",
+      "eval_id": 3,
+      "assertion": "grafo_nao_construido_pela_skill (asserção 1)",
+      "detail": "Referência sem skill 1/1; iteração 2 sem skill 0/3. As três execuções sem skill rodaram graph.sh build (ex.: run-1 'Executei bash .forge/scripts/graph.sh build'), o que a iteração 1 não conseguia fazer com as dependências ausentes. Com skill 3/3, sem construir o grafo. A diferença é do braço sem skill, e a asserção tem peso para medir o comportamento que o eval pretende."
+    },
+    {
+      "class": "mudanca_de_metodo",
+      "eval_id": 3,
+      "assertion": "impact_json_nao_fabricado (asserção 2)",
+      "detail": "Referência sem skill 1/1; iteração 2 sem skill 0/3. Consequência da asserção 1: sem skill, as três execuções construíram o grafo e rodaram impact.sh --change, gravando impact.json. Com skill 3/3, recusou gerar impact.json sem grafo."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 3,
+      "assertion": "prerequisito_codegraph_indicado (asserção 3)",
+      "detail": "Com skill 3/3 (referência 1/1), indicando /forge:codegraph como pré-requisito; sem skill 0/3 (referência 0/1), sem citar /forge:codegraph em nenhuma execução. Efeito consistente da skill."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 3,
+      "assertion": "sem_lista_de_impacto_improvisada (asserção 4)",
+      "detail": "Com skill 3/3 (referência 0/1); sem skill 3/3 (referência 0/1). O braço com skill, que na iteração 1 apresentou uma prévia por grep, agora não entrega lista. O braço sem skill passa porque a lista veio de impact.sh e não de leitura manual, e o grader sinalizou que a asserção deixa a ressalva 'com disclaimer' à interpretação. A parte consistente é a do braço com skill."
+    }
+  ],
+  "dominant_cause": "mudanca_de_metodo: a troca de método entre as iterações (scripts executáveis nos dois braços, cópia da fixture, resposta final avaliada em final_response.md) explica a maior parte das mudanças por asserção, principalmente no braço sem skill de rotacao-jwt-scale3 e sem-grafo-construido; o ganho real da skill se limita à convenção de log, à citação de /forge:codegraph e à recusa sem grafo.",
+  "findings": [
+    {
+      "kind": "regression_local",
+      "case": "rotacao-jwt-scale3",
+      "expectation": "A resposta final NÃO reproduz a lista bruta de sete caminhos (asserção 6)",
+      "detail": "Passa sem a skill em 2/3 execuções e falha com a skill em 3/3. As execuções com skill enumeram os caminhos em prosa para responder à pergunta do prompt, o que pune a resposta mais completa. A asserção precisa ser reescrita, conforme a classe eval_defeituoso."
+    },
+    {
+      "kind": "systematic_miss",
+      "case": "rotacao-jwt-scale3",
+      "expectation": "A resposta final contém a linha 'Impact scan: <n> arquivos tocados → <m> módulos afetados' e a linha de módulos de alto risco com freshness OK (asserção 5)",
+      "detail": "Falha em 0/3 com skill e 0/3 sem skill. Com skill, a iteração 1 passava 1/1, então a queda coincide com a troca do texto avaliado para final_response.md. O artefato não está garantindo esse formato de forma consistente, e vale verificar o SKILL.md antes de cobrar isso no próximo eval."
+    },
+    {
+      "kind": "variance",
+      "case": "impact-stale-apos-codegraph",
+      "expectation": "grafo_consumido_nao_reconstruido (sha256 do graph.json igual ao gravado no setup)",
+      "detail": "Sem skill: 2/3 (run-1 divergiu). Com skill: 3/3. Instabilidade isolada, não sistemática, mas a causa da divergência na run-1 não foi auditada."
+    },
+    {
+      "kind": "non_discriminative",
+      "case": "impact-stale-apos-codegraph",
+      "expectation": "freshness, impacted, seeds, archive não disparado",
+      "detail": "Passam em 3/3 nas duas configurações, como na iteração 1. Esses assertivos medem competência de shell e jq, não o artefato. O caso não discrimina e não deve pesar no veredito."
+    },
+    {
+      "kind": "method_artifact",
+      "case": "sem-grafo-construido",
+      "expectation": "Sem grafo, a skill não é executada e o agente não constrói o grafo por conta própria",
+      "detail": "As três execuções sem skill rodaram graph.sh build e depois impact.sh, contrariando o intento do caso. O delta deste caso (1,0 contra 0,25) é, em grande parte, efeito dessa mudança de método. Sem corrigir a política de execução do braço sem skill, o caso mede a capacidade de construir o grafo, não o valor da skill."
+    }
+  ],
+  "contamination": "Os flags de contaminação estão vazios em todas as entradas de contamination.json, com agent_calls 0 e nenhum uso de ferramentas fora da política. Duas observações sem desconto: há um commit (git_commits 1) numa execução com skill de impact-stale-apos-codegraph (run-2, executor b4770e279e), e o mesmo id aparece como grader e executor em várias execuções, o que sugere que o id é por execução e não por papel. Os resultados graduados dessa execução batem com o sha256 esperado, então nada foi descontado; vale confirmar o commit antes de publicar.",
+  "recommendation": "Antes de promover o veredito, reescrever as asserções 5 e 6 de rotacao-jwt-scale3 para medir o artefato (formato da linha de resposta e nomeação dos módulos de alto risco sem enumerar caminhos) e repetir a rodada com a política de execução do braço sem skill fixada, porque o delta atual depende de sem-grafo-construido, cujo braço sem skill mudou de método."
+}

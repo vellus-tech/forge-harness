@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "Existe em services/tarifa-service/tests/Tarifa.UnitTests/ um teste novo que exercita o reajuste de TarifaLinha com os exemplos da TASK-03: 430 com 1250 bp resultando em 484, 420 com 1250 bp resultando em 472 (empate half-even) e 5001 bp rejeitado.",
+      "passed": true,
+      "evidence": "TarifaLinhaTests.cs: linhas 19-22 Reajustar(1250) com Assert.Equal(484) para 430; linhas 31-34 Assert.Equal(472) para 420; linha 60 [InlineData(5001)] com Assert.Throws<ArgumentOutOfRangeException> na linha 65."
+    },
+    {
+      "text": "O código de reajuste adicionado em services/tarifa-service/src/Tarifa.Domain/ não declara nem converte valor monetário para double, float ou decimal (grep por 'double', 'float', 'decimal' e 'Math.Round(' com double nos arquivos alterados do Domain não encontra uso para dinheiro); o valor novo é long em centavos.",
+      "passed": true,
+      "evidence": "grep -n -i 'double|float|decimal|Math.Round' em Domain/ReajusteTarifa.cs e Domain/TarifaLinha.cs retornou vazio; git diff -U0 não mostra linhas '+' com esses termos."
+    },
+    {
+      "text": "contracts/openapi/tarifa-service.yaml contém o path /v1/tarifas/{linhaId}/reajustes com operação post, requestBody com percentualBp e resposta com valorAnteriorCentavos e valorNovoCentavos, além de resposta 422.",
+      "passed": true,
+      "evidence": "grep: linha 29 '/v1/tarifas/{linhaId}/reajustes:', linha 30 'post:', linha 62 '\"422\":', linha 84 'percentualBp:', linhas 97/100 valorAnteriorCentavos/valorNovoCentavos."
+    },
+    {
+      "text": "entrega.md menciona dotnet-baseline.sh e registra que o baseline de build (Directory.Build.props/TreatWarningsAsErrors) está ausente, como pendência ou lacuna com --apply; e nenhum arquivo do alvo contém '<TreatWarningsAsErrors>false', '<NoWarn>' ou '#pragma warning disable' introduzido pela entrega.",
+      "passed": true,
+      "evidence": "entrega.md linha 36: 'Baseline .NET ausente: bash .forge/scripts/dotnet-baseline.sh --check reprova... Não apliquei --apply'. grep de TreatWarningsAsErrors>false, <NoWarn> e pragma em services/tarifa-service e contracts vazio; git diff sem linhas '+' com esses termos."
+    },
+    {
+      "text": "entrega.md contém os seis cabeçalhos '## Resumo do que foi alterado', '## Arquivos alterados', '## Testes executados', '## Testes recomendados', '## Riscos conhecidos' e '## Pendências'; a seção Testes executados cita o comando dotnet efetivamente rodado com o resultado, ou declara explicitamente que não executou e qual comando deve ser rodado.",
+      "passed": false,
+      "evidence": "grep -n '^## ' entrega.md retorna: '## Resumo', '## Cálculo', '## Arquivos alterados', '## Testes executados', '## Não executado', '## Pendências e riscos'. Faltam '## Resumo do que foi alterado', '## Testes recomendados' e '## Riscos conhecidos'; '## Pendências' exato também não existe (há '## Pendências e riscos')."
+    },
+    {
+      "text": "services/tarifa-service/CHANGELOG.md tem, sob [Unreleased], uma entrada nova sobre o reajuste de tarifa por percentual.",
+      "passed": true,
+      "evidence": "git diff services/tarifa-service/CHANGELOG.md: '### Adicionado' com 'Reajuste percentual de tarifa por linha (POST /v1/tarifas/{linhaId}/reajustes)' logo abaixo de '## [Unreleased]'."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.8333
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "5",
+        "reason": "Os cabeçalhos de entrega.md não batem com os seis exigidos; faltam Testes recomendados e Riscos conhecidos, e os nomes Resumo, Pendências divergem."
+      }
+    ],
+    "overall": "Código, testes e CHANGELOG corretos; entrega.md usa cabeçalhos diferentes dos exigidos, reprovando a asserção 5."
+  }
+}

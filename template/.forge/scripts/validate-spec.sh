@@ -7,6 +7,11 @@
 # Output: one "OK <id>" / "FAIL (...)" verdict line per change, precedida por zero ou mais linhas
 # "WARN (...)" — achados rebaixáveis (hoje: SRF-01, cobertura de superfície) que NÃO mudam o exit
 # code. Exit 1 se algum change reprovou.
+# Efeito colateral deliberado: change type:bugfix em `verified` (ou além) executa o replay do Red
+# (red-evidence.sh ensure) e GRAVA evidence/red/red-evidence.json — mas só quando o diretório
+# validado é o change ativo .forge/specs/active/<id>/. Com --path apontando para outro diretório
+# (cópia, change arquivado) a evidência é avaliada como está, sem replay e sem escrita, e a saída
+# traz uma linha WARN dizendo isso (issue #189).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,7 +25,12 @@ command -v node >/dev/null 2>&1 || { echo "FAIL (node >= 20 required)"; exit 1; 
 
 run_one() { node "$SCRIPT_DIR/lib/validate-spec.mjs" "$1"; }
 
+USAGE="usage: validate-spec.sh <change-id> | --path <dir> | --all — para type:bugfix em verified (ou além), executa o replay do Red e grava evidence/red/red-evidence.json se o diretório for o change ativo .forge/specs/active/<id>/; com --path para outro diretório, avalia a evidência como está, sem replay e sem escrita (WARN)"
+
 case "${1:-}" in
+  -h|--help)
+    echo "$USAGE"; exit 0
+    ;;
   --path)
     [ -n "${2:-}" ] || { echo "FAIL (--path requires a directory)"; exit 1; }
     run_one "$2"

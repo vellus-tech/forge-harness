@@ -65,6 +65,7 @@ Antes de decidir, cheque o `forge.yaml > autonomy`:
    - **review** — há ajustes objetivos e derivá­veis; alimenta o loop builder→validator (§14.6) com o
      motivo como instrução. **Limite: 3 iterações** (`--iteration`); na 3ª ainda com pendência, escale
      ao humano — nunca itere autonomamente ao infinito.
+     - **Convergência (`/forge:requirements` §4, Teto e convergência do Review):** use a régua de severidade fixada na primeira rodada; achado que é consequência direta da correção da rodada anterior no mesmo mecanismo é nota e não reabre o ciclo; e, quando o mesmo mecanismo reaparece pela segunda rodada seguida, seu motivo de `review` pede causa raiz (simplificar o mecanismo ou mover a fronteira) em vez de nova correção pontual.
    - **reject** — o artefato está fundamentalmente errado para este gate.
    - **block** — dependência/decisão/acesso pendente impede decidir.
    - (em `close`) **abandon/supersede/deliver-external** conforme a disposição pedida e sua evidência.

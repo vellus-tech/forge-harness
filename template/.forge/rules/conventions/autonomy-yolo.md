@@ -3,7 +3,7 @@ title: Autonomia — HITL vs YOLO
 applies_to:
   - all
 priority: high
-last_reviewed: 2026-07-10
+last_reviewed: 2026-10-04
 based_on: []
 ---
 
@@ -55,8 +55,7 @@ problemas":
 - **Conflito de fontes normativas** (rule↔ADR, módulo↔módulo, change↔baseline) — bloqueante em
   qualquer modo (`conflict-handling.md`, guardrail G1). Resolve por ordem de autoridade (FORGE.md
   §2.1) ou escala; nunca "registra e segue".
-- **Loop de review** — um `review` do `yolo-gate` alimenta o ciclo builder→validator (§14.6) até
-  **3 iterações**; na 3ª ainda com pendência, **escala ao humano**. Yolo nunca itera ao infinito.
+- **Loop de review** — um `review` do `yolo-gate` alimenta o ciclo builder→validator (§14.6) até **3 iterações**; na 3ª ainda com pendência, **escala ao humano**. Yolo nunca itera ao infinito. O mesmo teto vale para o caminho humano, inclusive quando o dono delega a decisão do gate a um revisor adversarial: Review consecutivos contam para as mesmas 3 rodadas, com escalada obrigatória ao dono, régua de severidade fixada na primeira rodada e regra de convergência (achado que é consequência direta da correção anterior no mesmo mecanismo é nota e não reabre o ciclo). A regra completa está em `/forge:requirements` §4 (Teto e convergência do Review), herdada por `/forge:design` e `/forge:tasks`; o `/forge:analyze` aplica a mesma lógica às rodadas de análise.
 
 ## Hard-stops — o que permanece humano mesmo em yolo
 
@@ -100,7 +99,7 @@ ambiguidades de requisito de alto risco.
 - Approve autônomo sem motivo registrado.
 - "Aprovar" autonomamente por cima de uma falha de execução, blocker ou conflito de fontes.
 - Auto-aprovar `human_archive_approval` ou deploy de produção em yolo com os hard-stops default.
-- Loop de `review` autônomo sem teto de 3 iterações.
+- Loop de `review`, autônomo ou humano delegado, sem teto de 3 rodadas, ou com régua de severidade que muda entre rodadas.
 
 ## Referências
 

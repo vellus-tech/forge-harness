@@ -50,11 +50,11 @@ Continua sendo seu: **nenhum REQ órfão na tabela de rastreabilidade** (o valid
 `AskUserQuestion` (resumo: nº de tasks, waves, cobertura): **Approve** / **Review** / **Reject** / **Block**.
 
 ```bash
-bash .forge/scripts/approval-log.sh <change-id> --gate tasks_reviewed --decision <decision> [--reason "<motivo>"] --scope "tasks.md"
+bash .forge/scripts/approval-log.sh <change-id> --gate tasks_reviewed --decision <decision> [--reason "<motivo>"] [--iteration <n>] --scope "tasks.md"
 ```
 
 - **Approve** → `bash .forge/scripts/spec-transition.sh <change-id> tasks-ready`. Próximo: `/forge:analyze` (obrigatório em scale ≥3) e, também em scale ≥3, `/forge:shard` — `/forge:implement` reprova fechado (`validate-spec.sh`) se `dev_loop.sharded` não estiver `true`.
-- **Review** → ajuste conforme o motivo e reapresente.
+- **Review** → ajuste conforme o motivo e reapresente (registre com `--iteration <n>`), sujeito ao mesmo teto de 3 rodadas, à régua de severidade estável e à regra de convergência do `/forge:requirements` (§4, Teto e convergência do Review): no teto, a escalada ao dono é obrigatória.
 - **Reject**/**Block** → registre e pare.
 
 ## Regras

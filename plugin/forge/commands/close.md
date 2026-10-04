@@ -22,7 +22,7 @@ Confirme em 2-3 linhas o efeito antes de executar: a pasta sai de `active/`, vai
 ## 2. Execução (determinista)
 
 ```bash
-bash .forge/scripts/spec-close.sh <change-id> --reason <reason> --note "<motivo>" [--superseded-by <id>]
+bash .forge/scripts/spec-close.sh <change-id> --reason <reason> --note "<motivo>" [--superseded-by <id>] [--autonomous]
 ```
 
 O script valida as regras de estado (abandoned/rejected só pré-`implementing`; de `implementing` em diante, ou o ciclo termina, ou o change é superseded, ou foi delivered-externally), registra a decisão em `approvals.yaml` (gate `close`) e move a pasta.
@@ -33,4 +33,4 @@ Uma linha: destino em `archived/`, reason, e — se superseded — o change subs
 
 ## Modo autônomo (--yolo)
 
-Em yolo, a disposição de close (abandoned/rejected/superseded/delivered-externally) e seu motivo são decididos pelo agent `yolo-gate` (Opus, effort high) e registrados com `autonomous: true`. Se a evidência for ambígua (ex.: escolher entre superseded e delivered-externally sem sinal claro), o `yolo-gate` escala ao humano em vez de chutar. Ver `.forge/rules/conventions/autonomy-yolo.md`.
+Em yolo, a disposição de close (abandoned/rejected/superseded/delivered-externally) e seu motivo são decididos pelo agent `yolo-gate` (Opus, effort high) e registrados com `autonomous: true`: chame o `spec-close.sh` com `--autonomous`, que o repassa ao `approval-log.sh` (sem a flag, o registro sai com o `git config user.name` como se a decisão fosse humana; com `close` em `autonomy.human_hard_stops`, o close autônomo é recusado e o change fica ativo). Se a evidência for ambígua (ex.: escolher entre superseded e delivered-externally sem sinal claro), o `yolo-gate` escala ao humano em vez de chutar. Ver `.forge/rules/conventions/autonomy-yolo.md`.

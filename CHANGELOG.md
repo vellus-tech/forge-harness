@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Fixed
+
+- **`approval-log.sh` gravava YAML inválido a partir de `approvals: []` literal e reportava `OK`; `spec-close.sh` não repassava `--autonomous` (Closes #188).** A lista vazia inline vira chave em bloco antes de anexar, a escrita passa por temporário validado (estrutura estrita + semântica, mais PyYAML quando disponível) e, se o resultado não for YAML válido, o script sai com FAIL sem tocar o arquivo; `spec-close.sh --autonomous` repassa a flag e mostra a recusa do approval-log em vez de falhar mudo. Gate `tests/w275-approval-log-yaml-gate.sh`.
+
 ## [0.17.0] — 2026-10-03
 
 ### Atenção para quem atualiza

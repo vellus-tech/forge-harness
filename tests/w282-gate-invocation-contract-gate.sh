@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gate W281 — contrato ÚNICO de invocação dos gates de runtime.gates (issue #192).
+# Gate W282 — contrato ÚNICO de invocação dos gates de runtime.gates (issue #192).
 #
 # Antes do fix, spec-verify.sh e run-gates.sh chamavam todo gate como `bash <gate>.sh <change-id>`,
 # enquanto o pre-push sempre chamou `bash <gate>.sh --path <raiz>`. Gate de consumidor que valida a
@@ -28,7 +28,7 @@ set -euo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-T="$(mktemp -d /tmp/forge-w281.XXXXXX)"
+T="$(mktemp -d /tmp/forge-w282.XXXXXX)"
 trap 'rm -rf "$T"' EXIT
 cp -R "$WS/template/.forge" "$T/.forge"
 S="$T/.forge/scripts"
@@ -37,8 +37,8 @@ T_REAL="$(cd "$T" && pwd -P)"
 mkdir -p "$T/src"
 printf 'export const answer = 42;\n' > "$T/src/a.ts"
 git -C "$T" init -q
-git -C "$T" -c user.email=w281@t -c user.name=w281 add -A >/dev/null
-git -C "$T" -c user.email=w281@t -c user.name=w281 commit -qm init >/dev/null
+git -C "$T" -c user.email=w282@t -c user.name=w282 add -A >/dev/null
+git -C "$T" -c user.email=w282@t -c user.name=w282 commit -qm init >/dev/null
 
 mk_change() {
   local id="$1"

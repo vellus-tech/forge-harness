@@ -1,0 +1,1 @@
+FALHA: implementação da TASK-04 commitada (2d3bf9d, branch feat/recarga-comprovante), mas os testes não rodaram, pois o Gradle offline não resolve o plugin do AGP 8.5.2 e não há rede. O adaptador SunmiReceiptPrinterAdapter usa nomes de tipos do SDK 1.0.23 ainda não verificados contra o AAR. Precisa de build com dependências resolvidas antes do PR.

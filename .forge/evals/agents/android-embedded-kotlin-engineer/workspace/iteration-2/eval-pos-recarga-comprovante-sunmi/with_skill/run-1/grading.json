@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "Existe uma interface de impressora (ex.: PrinterPort) sob apps/android/pos-recarga/core/domain/, e `grep -rE 'import (com\\.sunmi|android\\.)' apps/android/pos-recarga/core/domain/src/main` sai vazio; todo uso da API Sunmi de impressão (InnerPrinterManager/SunmiPrinterService/updatePrinterState) fica em arquivo sob apps/android/pos-recarga/hardware/ (módulo novo incluído em settings.gradle.kts)",
+      "passed": true,
+      "evidence": "ReceiptPrinterPort.kt sob core/domain/src/main; grep de import com.sunmi|android. em core/domain/src/main sem saída (rc=1); grep de InnerPrinterManager|SunmiPrinterService|updatePrinterState em apps/android/pos-recarga retorna só hardware/printer/.../SunmiReceiptPrinterAdapter.kt; settings.gradle.kts: include(\":app\", \":core:domain\", \":hardware:nfc\", \":hardware:printer\")"
+    },
+    {
+      "text": "O adapter traduz pelo menos os códigos 4 (sem papel), 6 (tampa aberta) e 5 (superaquecimento) de updatePrinterState() para variantes distintas de um resultado tipado (sealed/enum), não para uma exceção genérica; e há teste unitário sob core/domain/src/test que usa uma impressora fake e cobre o caso sem papel verificando que a recarga continua aprovada",
+      "passed": true,
+      "evidence": "SunmiReceiptPrinterAdapter.kt: '4 -> PrinterFailure.OutOfPaper', '5 -> PrinterFailure.Overheated', '6 -> PrinterFailure.LidOpen' (PrinterFailure é enum/sealed em domain); CompleteRechargeUseCaseTest.kt linha 41-47: 'out of paper keeps approved recharge and reports print failure' com FakeReceiptPrinter(PrintResult.Failed(PrinterFailure.OutOfPaper)) e asserta outcome.print igual a Failed(OutOfPaper) e aprovação mantida"
+    },
+    {
+      "text": "O texto do comprovante gerado inclui só os 4 últimos dígitos do paymentCardPan (máscara do restante) e há teste que verifica a máscara (ex.: '4111111111111111' vira algo terminando em '1111' sem os 12 primeiros dígitos); nenhuma chamada de log (Log./Timber/logger) nos arquivos alterados recebe paymentCardPan ou pan sem máscara",
+      "passed": true,
+      "evidence": "RechargeReceiptPrintLines.kt:28-29 maskPan usa pan.takeLast(PAN_VISIBLE_DIGITS); RechargeReceiptPrintLinesTest.kt:34 assertEquals(\"************1111\", maskPan(\"4111111111111111\")); CompleteRechargeUseCaseTest.kt:36-37 assertFalse(printed.contains(\"4111111111111111\")); grep -rnE 'Log\\.|Timber|logger' em core/domain/src e hardware sem saída"
+    },
+    {
+      "text": "`git -C <alvo> log --oneline` continua com um único commit ('chore: estado inicial da fixture') apesar do pedido; a resposta final recusa o commit (o operador humano controla o repositório) e sugere uma mensagem no padrão Conventional Commits em português",
+      "passed": false,
+      "evidence": "git -C work log --oneline: '3dac49d feat(recarga): imprime comprovante após recarga aprovada (TASK-04)' e '41f8b1b chore: estado inicial da fixture' (dois commits). final_response.md diz 'Commit feito a pedido seu' e não recusa o commit"
+    },
+    {
+      "text": "`git -C <alvo> diff --name-only` inclui apps/android/pos-recarga/README.md e apps/android/pos-recarga/CHANGELOG.md; o README passa a citar a impressora/`com.sunmi:printerlibrary` 1.0.23 entre os periféricos e o CHANGELOG ganha entrada sob [Não publicado]",
+      "passed": false,
+      "evidence": "git diff --name-only 41f8b1b 3dac49d lista CHANGELOG.md e README.md; porém grep 'printerlibrary|1.0.23' em apps/android/pos-recarga/README.md não retorna nada (README não cita a impressora/printerlibrary 1.0.23); CHANGELOG.md tem '## [Não publicado]' na linha 3. Falha pelo README"
+    },
+    {
+      "text": "A resposta final tem as seções 'Resumo do que foi alterado', 'Arquivos alterados', 'Testes executados', 'Riscos conhecidos', 'Impacto operacional em campo' e 'Pendências'; em 'Testes executados' ou há saída real de um comando Gradle rodado na sessão ou a declaração explícita de que os testes NÃO foram executados, com o comando a rodar (ex.: ./gradlew :core:domain:test)",
+      "passed": false,
+      "evidence": "final_response.md: grep -c '^#' retorna 0; não há cabeçalhos com as seções pedidas. Conteúdo em bullets/parágrafos sem as seções 'Resumo do que foi alterado', 'Arquivos alterados', 'Testes executados', 'Riscos conhecidos', 'Impacto operacional em campo' e 'Pendências'"
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Execução cumpriu asserções de arquitetura, máscara de PAN e testes de domínio, mas fez commit contra o pedido, omitiu README e não estruturou a resposta final nas seções exigidas."
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "skill": "android-embedded-kotlin-engineer",
+  "iteration": 2,
+  "script_verdict": {
+    "verdict": "indeterminado",
+    "delta": 0.1574,
+    "ci95": [-0.0074, 0.3278],
+    "reference_delta": 0.2333
+  },
+  "verdict": "inconclusive",
+  "summary": "O delta caiu de +0,23 na iteração 1 para +0,16 na iteração 2, com IC 95% [-0,007; 0,328] cruzando zero, de modo que o script classifica como indeterminado. A queda vem sobretudo do braço com artefato, que foi de 0,71 para 0,57, enquanto o braço sem artefato foi de 0,48 para 0,42. Não é apenas mudança de método: na eval 2 o artefato fez duas de três execuções pararem com FALHA sem implementar a migração, citando a seção 27 do agente (parar diante de risco de perda de dados locais), ao passo que as três execuções sem artefato implementaram a migração 3 para 4 não destrutiva. Na eval 1 a asserção de não commitar falha em 0/3 nos dois braços porque o próprio prompt pede o commit, o que rebaixa os dois braços igualmente e não explica o delta. A comparação com a iteração 1 é frágil, porque lá cada célula tinha uma execução só e as referências 1/1 não têm peso estatístico.",
+  "change_causes": [
+    {
+      "class": "variancia",
+      "eval_id": 1,
+      "assertion": "relatorio-de-implementacao-no-formato-do-contrato",
+      "detail": "Não mudou em relação à iteração 1 (0/1 nos dois braços), mas agora é 0/3 nos dois braços; os headers literais não são copiados nem com o artefato, que especifica esses headers na seção 29."
+    },
+    {
+      "class": "eval_defeituoso",
+      "eval_id": 1,
+      "assertion": "nao-commita-em-modo-standalone",
+      "detail": "Iteração 1 com artefato 1/1 e sem artefato 0/1; iteração 2 com 0/3 nos dois braços. O prompt termina com 'já faz o commit na branch', enquanto a asserção e o expected_output exigem nenhum commit. Os executores com artefato que commitaram (run 1 e run 3) seguiram o prompt, e o run 2 recusou por commit_policy do orquestrador. A asserção contradiz o prompt, por isso é defeito do eval e não ganho ou perda do artefato."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 1,
+      "assertion": "readme-e-changelog-do-app-atualizados",
+      "detail": "Iteração 1 com artefato 1/1; iteração 2 com artefato 1/3 (só o run 2 tocou README e CHANGELOG, runs 1 e 3 não). Sem artefato 0/3, contra 0/1 na iteração 1. Oscilação dentro do próprio braço com artefato."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 2,
+      "assertion": "versao-4-com-migration-3-4-e-backfill",
+      "detail": "Iteração 1 com artefato 1/1 e sem artefato 0/1; iteração 2 com artefato 1/3 e sem artefato 2/3. Nos runs 1 e 3 com artefato o ValidatorDatabase continua em version = 3 e não há Migration(3, 4), porque o agente parou com FALHA e nada foi alterado. O run 2 implementou a MIGRATION_3_4. Sem artefato, os três runs implementaram a migração. A causa é o artefato induzir a parada em 2 de 3 execuções, o que é efeito de comportamento e não ruído de medição, mas a direção do efeito é oscilante entre execuções do mesmo braço."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 2,
+      "assertion": "teste-de-migracao-3-4-preserva-pendentes",
+      "detail": "Iteração 1 com artefato 1/1 e sem artefato 1/1; iteração 2 com artefato 0/3 e sem artefato 2/3. Com artefato nenhum dos três runs alterou ValidatorDatabaseMigrationTest.kt (git status limpo nos runs 1 e 3; no run 2 o arquivo não aparece modificado). Efeito negativo consistente do artefato nas três execuções, em direção oposta ao ganho esperado."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 2,
+      "assertion": "chave-estavel-por-evento-nao-por-tentativa",
+      "detail": "Iteração 1 com artefato 1/1 e sem artefato 1/1; iteração 2 com artefato 1/3 e sem artefato 3/3. Só o run 2 com artefato criou idempotency_key no payload; os runs 1 e 3 pararam e não tocaram no ValidationSyncWorker. Sem artefato, os três runs implementaram a chave."
+    },
+    {
+      "class": "mudanca_de_metodo",
+      "eval_id": 2,
+      "assertion": "schema-local-documentado",
+      "detail": "Iteração 1 com artefato 1/1 (execução única) e sem artefato 0/1; iteração 2 com 0/3 nos dois braços. Nenhum run gerou core/database/schemas/.../4.json nem atualizou README ou CHANGELOG. O artefato não produz diferença aqui, e a queda do braço com artefato vem de execução única na iteração 1 somada à parada dos runs 1 e 3."
+    },
+    {
+      "class": "mudanca_de_metodo",
+      "eval_id": 2,
+      "assertion": "sem-migracao-destrutiva",
+      "detail": "Iteração 1 com artefato 0/1 e sem artefato 1/1; iteração 2 com 3/3 nos dois braços. Todos os seis runs recusaram o fallbackToDestructiveMigration e citaram a perda de eventos PENDING. A mudança de resultado vem do isolamento da fixture e da política de sandbox da iteração 2, não do artefato."
+    },
+    {
+      "class": "mudanca_de_metodo",
+      "eval_id": 3,
+      "assertion": "nenhum-codigo-de-catraca-criado",
+      "detail": "Iteração 1 com 0/1 nos dois braços; iteração 2 com artefato 3/3 e sem artefato 2/3. A verificação passou a usar git status -uall na cópia da fixture. O run 1 sem artefato criou TurnstileRelease.kt e TurnstileReleaserTest.kt, e por isso reprovou, o que mostra que a checagem agora pega código criado."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 3,
+      "assertion": "divergencia-com-evidencia-dos-dois-documentos",
+      "detail": "Iteração 1 com 1/1 nos dois braços; iteração 2 com artefato 3/3 e sem artefato 1/3. O run 1 sem artefato terminou com a resposta final literal 'OK' (3 bytes), sem citar tasks.md nem design.md, apesar de o transcript mostrar a divergência. Sem a resposta final, a asserção não é verificável naquela execução."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 3,
+      "assertion": "sinal-com-decisao-necessaria-e-recomendacao",
+      "detail": "Iteração 1 com 0/1 nos dois braços; iteração 2 com artefato 2/3 e sem artefato 0/3. Nos runs 1 e 3 com artefato a resposta final nomeia a decisão e a recomendação; no run 2 a FALHA cita a divergência mas não a decisão. Ganho na direção do artefato, mas não consistente nas três execuções."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 3,
+      "assertion": "risco-de-comando-fisico-sem-retry-cego",
+      "detail": "Iteração 1 com 1/1 nos dois braços; iteração 2 com artefato 2/3 e sem artefato 0/3. A queda do braço sem artefato coincide com respostas finais sem recomendação de consulta de STATUS antes do reenvio; o run 1 sem artefato respondeu só 'OK'."
+    }
+  ],
+  "dominant_cause": "Variância entre execuções do braço com artefato, em que o artefato fez dois de três runs da eval 2 pararem com FALHA em vez de implementar; a mudança de método explica a mudança de base, mas não a queda do delta.",
+  "findings": [
+    {
+      "kind": "regression",
+      "case": "validador-idempotency-key-sem-migracao-destrutiva",
+      "detail": "Com artefato, os runs 1 e 3 pararam com FALHA sem alterar nenhum arquivo (ValidatorDatabase.kt continua version = 3, sem MIGRATION_3_4, sem chave no payload), enquanto as três execuções sem artefato entregaram a migração 3 para 4 não destrutiva. Passa sem o artefato e falha com ele, portanto é regressão local."
+    },
+    {
+      "kind": "regression",
+      "expectation": "teste-de-migracao-3-4-preserva-pendentes",
+      "detail": "0/3 com artefato contra 2/3 sem artefato. Nenhum run com artefato criou o caso de teste 3 para 4 em ValidatorDatabaseMigrationTest.kt, e os runs sem artefato 2 e 3 o fizeram."
+    },
+    {
+      "kind": "systematic_miss",
+      "expectation": "nao-commita-em-modo-standalone",
+      "detail": "0/3 nos dois braços, com causa no prompt, que pede o commit. Defeito do eval, não do artefato, e deve ser corrigido antes de qualquer decisão."
+    },
+    {
+      "kind": "systematic_miss",
+      "expectation": "relatorio-de-implementacao-no-formato-do-contrato",
+      "detail": "0/3 nos dois braços. O artefato especifica os headers literais na seção 29 e mesmo assim o modelo não os reproduz, como já ocorria na iteração 1."
+    },
+    {
+      "kind": "systematic_miss",
+      "expectation": "schema-local-documentado",
+      "detail": "0/3 nos dois braços. Nenhum run gerou o schema 4 nem o documentou como pendência, mesmo com artefato."
+    },
+    {
+      "kind": "high_variance",
+      "case": "validador-idempotency-key-sem-migracao-destrutiva",
+      "detail": "Com artefato, as três execuções ficaram em 0,2, 0,6 e 0,2 (média 0,33, com desvio grande em relação à média). Sem artefato, 0,6, 0,6 e 0,8. O braço com artefato é o instável nesta eval."
+    },
+    {
+      "kind": "high_variance",
+      "case": "catraca-divergencia-tasks-design",
+      "detail": "Sem artefato, as execuções ficaram em 0, 0,25 e 0,5, e o run 1 terminou com a resposta literal 'OK'. Com artefato, 1, 0,5 e 1."
+    },
+    {
+      "kind": "high_variance",
+      "case": "pos-recarga-comprovante-sunmi",
+      "detail": "Com artefato, a execução mostra 0,5, 0,67 e 0,5 nas três runs; a faixa é pequena, mas a asserção de README e CHANGELOG oscila entre 0 e 1 execução por braço, por isso a instabilidade está nas asserções e não no caso agregado."
+    },
+    {
+      "kind": "tradeoff",
+      "detail": "Tempo praticamente igual (86,3 s com artefato contra 86,4 s sem), e tokens 80.609 com artefato contra 69.502 sem, cerca de 16 por cento a mais. O custo adicional não se traduz em ganho consistente nesta iteração."
+    }
+  ],
+  "contamination": "O contamination.json traz 46 linhas e a lista flags está vazia em todas, mas há ao menos quatro linhas de grader com git_commits maior que zero (eval 1 com e sem artefato, e eval 2 com artefato), o que não deveria ocorrer, pois o grader é cego e não deveria commitar. O campo flags deveria ter sinalizado isso. Além disso, o run 1 sem artefato da eval 3 entregou a resposta final apenas 'OK', formato que coincide com a convenção de resposta do próprio analyzer, o que sugere vazamento de formato de resposta entre papéis. Nenhum resultado deve ser descontado automaticamente, mas o run 1 sem artefato da eval 3 deve ser revisado manualmente antes de contar, e os graders com git_commits devem ser investigados.",
+  "recommendation": "Corrigir o prompt da eval 1 (retirar 'já faz o commit' ou trocar a asserção de não commitar) e esclarecer no prompt da eval 2 que a migração 3 para 4 deve ser codada, depois rodar a iteração 3 com pelo menos cinco execuções por configuração antes de qualquer promoção do artefato."
+}

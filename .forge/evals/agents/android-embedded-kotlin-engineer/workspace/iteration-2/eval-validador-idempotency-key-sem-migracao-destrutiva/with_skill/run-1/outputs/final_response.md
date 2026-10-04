@@ -1,0 +1,1 @@
+FALHA: a troca de addMigrations por fallbackToDestructiveMigration() apagaria os eventos com sync_status = 'PENDING' em ~3 mil validadores em campo, pois o sync é de envio e não há reidratação. Nada foi alterado. Preciso de decisão sobre escrever uma Migration real (versão 3 para 4 com a coluna idempotency_key e backfill), que é a recomendação técnica.

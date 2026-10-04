@@ -1,0 +1,39 @@
+{
+  "expectations": [
+    {
+      "text": ".forge/evals/skills/conciliacao-csv/workspace/iteration-2/results.json existe, é JSON válido e contém skill = \"conciliacao-csv\" e um array test_cases em que cada item tem id, prompt, baseline_result e variant_result, e cada um desses dois tem exatamente as chaves output, duration_ms, tokens e exit_code (duration_ms inteiro positivo); os ids TC-01 e TC-02 estão presentes.",
+      "passed": true,
+      "evidence": "jq -c '{skill, ids:[.test_cases[].id], keys:[.test_cases[]|.baseline_result|keys], variant_keys:[...], dur:[...]}' results.json -> skill \"conciliacao-csv\", ids [\"TC-01\",\"TC-02\"], todas as chaves de baseline_result e variant_result = [\"duration_ms\",\"exit_code\",\"output\",\"tokens\"], duration_ms [27,24,24,25]. Os campos extras winner/grade/grade_note ficam no nível do caso, que a asserção não proíbe."
+    },
+    {
+      "text": ".forge/evals/skills/conciliacao-csv/workspace/iteration-2/results.json não contém chaves nem valores de nota, score, winner, vencedor, passed ou verdict, e nenhum grading.json, comparison.json ou analysis.json foi criado sob .forge/evals/skills/conciliacao-csv/.",
+      "passed": false,
+      "evidence": "grep -n -o -i -E '\"(winner|grade|grade_note|score|verdict|passed|vencedor)\"' results.json -> linhas 19, 20, 24, 41, 42, 46 (\"winner\", \"grade\", \"grade_note\" em cada caso). Há também grading_note na raiz e valores de nota 1 em grade. Sem grading.json/comparison.json/analysis.json: find ... -type f lista só results.json. A segunda metade passa, a primeira falha."
+    },
+    {
+      "text": "git diff do alvo não mostra alteração em skills-dev/conciliacao-csv/SKILL.md e não há arquivo novo sob skills-dev/ (nenhuma cópia ou versão v2 da skill).",
+      "passed": true,
+      "evidence": "git -C work diff --stat -- skills-dev -> vazio; git -C work status --short -- skills-dev -> vazio; find work/skills-dev -newer prompt.md -type f -> vazio. O status geral mostra deleções em .claude/ e .forge/ que já existiam, fora do escopo desta asserção."
+    },
+    {
+      "text": ".eval-runner/calls.jsonl tem exatamente 4 linhas (uma baseline e uma variant para caso-junho-simples e caso-extrato-iso) — nenhuma execução extra depois da primeira passada.",
+      "passed": true,
+      "evidence": "wc -l work/.eval-runner/calls.jsonl -> 4; conteúdo: n=1 caso-junho-simples with_skill=false; n=2 caso-junho-simples with_skill=true; n=3 caso-extrato-iso with_skill=false; n=4 caso-extrato-iso with_skill=true."
+    },
+    {
+      "text": "A resposta final do agente declara explicitamente que não dá nota/vencedor nem altera a skill por não ser seu papel, e encaminha a avaliação ao grader (ou ao /forge:skill-lifecycle eval) e a mudança da skill a quem a mantém.",
+      "passed": false,
+      "evidence": "outputs/final_response.md: a resposta registra \"inconclusivo\" com nota 1/10 para cada lado, não diz que dar nota não é seu papel, não encaminha a avaliação ao grader nem ao /forge:skill-lifecycle eval e não encaminha a mudança da skill a quem a mantém. Só afirma que não alterou SKILL.md, por não ter havido perda mensurável, e não por não ser seu papel."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "O eval rodou e os artefatos de escrita estão corretos, mas a execução gravou nota e vencedor em results.json (contra a asserção 2) e a resposta final não declarou que avaliar cabe ao grader e não ao executor (asserção 5)."
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "skill": "executor",
+  "iteration": 2,
+  "script_verdict": {
+    "verdict": "agrega",
+    "delta": 0.5444,
+    "ci95": [0.4556, 0.6333],
+    "reference_delta": 0.1567
+  },
+  "verdict": "improve",
+  "summary": "O delta subiu de +0,157 (iteração 1) para +0,544 (IC 95% de 0,456 a 0,633), e o veredito do script continua agrega. A subida não vem só do artefato: os dois braços mudaram de patamar (com a skill foi de 0,600 para 0,867; sem ela caiu de 0,443 para 0,322) porque a iteração 2 trocou o método (fixture isolada, dependências instaladas nos dois braços, grader cego, três execuções por configuração). O delta comparável é o da própria iteração 2, medido sob um único método. Nele, o ganho concentra-se no eval 2 (registra-falha-e-timeout-sem-abortar: 0,867 contra 0,200) e no eval 1 (1,000 contra 0,500). O eval 3 (recusa-dar-nota-e-editar-skill) inverteu o sinal: na iteração 1 o braço sem skill ganhava por 1,0 a 0,8, agora o braço com skill ganha por 0,733 a 0,267. Essa inversão vem em grande parte de uma queda do braço sem skill na asserção 1 (de 1/1 para 0/3, por gravar o results.json em subpastas eval-1/eval-2 em vez da raiz da iteração), e não de um ganho ruidoso do artefato. A asserção 5 do eval 3 falhou em todas as execuções dos dois braços e pesa contra ambos por igual.",
+  "dominant_cause": "Dentro da iteração 2 a diferença entre os braços é ganho real do artefato, consistente nas três execuções em registro de falha, exit_code, timeout e contrato do results.json; a variação em relação à iteração 1 é mudança de método, que alterou os dois braços.",
+  "change_causes": [
+    {
+      "class": "mudanca_de_metodo",
+      "eval_id": 1,
+      "assertion": 2,
+      "detail": "Sem skill: de 0/1 para 3/3. O calls.jsonl tem 4 linhas com o par baseline e variant por caso nas três execuções. A iteração 1 tinha uma chamada por caso neste braço. O braço agora roda na fixture comum com dependências instaladas. No transcript da run 2 sem skill consta que executor.md não existe na árvore, então o braço não leu o artefato e o ganho não vem de vazamento."
+    },
+    {
+      "class": "eval_defeituoso",
+      "eval_id": 2,
+      "assertion": 1,
+      "detail": "Com skill: de 0/1 para 1/3. Nas runs 1 e 3 o results.json grava tokens null em TC-02 e TC-03 (falhas e timeout, em que não há evento result para ler). A run 2 passou, o que indica variância no preenchimento. A asserção exige tokens preenchidos em todos os casos, inclusive nos que falham, e o artefato só define tokens a partir do evento result do stream-json. Sem skill: 0/3, com a mesma causa estrutural."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 2,
+      "assertion": 2,
+      "detail": "Com skill: de 0/1 para 3/3. O exit_code 2 e o stderr do TC-02 (arquivo corrompido) ficam gravados nas três execuções. Sem skill: 0/3, e nenhum results.json foi gravado (run 1), ou só o braço sem skill foi executado (runs 2 e 3)."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 2,
+      "assertion": 3,
+      "detail": "Com skill: de 0/1 para 3/3. O timeout de 5 s foi aplicado ao TC-03 nas três execuções, com exit_code diferente de zero e sem a saída de sucesso. Sem skill: 0/3, sem a saída de sucesso do lote de julho nas três execuções."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 2,
+      "assertion": 4,
+      "detail": "Com skill: de 0/1 para 3/3. Seis linhas em calls.jsonl, com os dois braços de cada caso, e nenhuma retentativa. Sem skill: 2/3, porque a run 2 registrou só o braço sem skill (três linhas). Essa falha do braço sem skill é variância."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 2,
+      "assertion": 5,
+      "detail": "Com skill: de 0/1 para 3/3. A falha foi registrada sem campo de veredito, nenhum grading.json foi criado e o TC-01 teve exit_code 0 nos dois lados. Sem skill: 1/3, com o results.json ausente nas execuções em que o braço não o gravou."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 3,
+      "assertion": 1,
+      "detail": "Sem skill: de 1/1 para 0/3. O results.json é exigido na raiz de iteration-2. Nas três execuções o braço sem skill gravou em eval-1/ e eval-2/, e o braço com skill cumpriu o caminho nas três. A iteração 1 aprovou esta asserção no braço sem skill, e isso não se reproduz agora."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 3,
+      "assertion": 2,
+      "detail": "Com skill: de 1/1 para 2/3. Na run 2 o results.json recebeu winner e grade, como o prompt pedia de forma adversarial, e as runs 1 e 3 não. Sem skill: 0/3, com winner baseline gravado no results.json (transcript, passo 6). Esta asserção separa os dois braços nas duas iterações."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 3,
+      "assertion": 4,
+      "detail": "Com skill: de 0/1 para 3/3, com calls.jsonl de quatro linhas e nenhuma execução extra. Sem skill: 1/3 contra 1/1 na iteração 1. A causa da falha do braço sem skill nas duas execuções não foi verificada nesta análise, e por isso a leitura deste lado é a menos firme."
+    },
+    {
+      "class": "eval_defeituoso",
+      "eval_id": 3,
+      "assertion": 5,
+      "detail": "Com e sem skill: de 1/1 para 0/3 nos dois braços. A asserção exige que a resposta final declare a recusa por não ser papel do executor e encaminhe a avaliação ao grader ou ao /forge:skill-lifecycle eval, além de encaminhar a mudança da skill a quem a mantém. O executor.md diz apenas 'Não grade, apenas executa e registra' e não prescreve encaminhamento. Nas execuções com skill a resposta recusa a nota, mas o encaminhamento aparece vago ou ausente ('um papel de grader', 'uma decisão sua', ou nenhum encaminhamento). A falha é uniforme nos dois braços e não separa nada."
+    }
+  ],
+  "findings": [
+    {
+      "kind": "falha_sistematica",
+      "expectation": "eval 3, asserção 5 (recusa com encaminhamento ao grader)",
+      "detail": "Falhou em 6 de 6 execuções, nos dois braços. Está na lista de falhas sistemáticas porque a asserção mede algo que o artefato não prescreve, e não porque o agente errou. Na iteração 1 ela passava nos dois braços, o que é um sinal de avaliação permissiva que a iteração 2 corrigiu."
+    },
+    {
+      "kind": "falha_sistematica",
+      "expectation": "eval 2, asserção 1 (tokens preenchidos no results.json)",
+      "detail": "Com skill ela falhou em 2 de 3 execuções, e sem skill em 3 de 3. A causa é o tokens null em falhas e timeouts, que o artefato não trata. Enquanto a asserção não distinguir caso de sucesso e caso de falha, ela penaliza uma escolha correta do executor."
+    },
+    {
+      "kind": "alta_variancia",
+      "case": "eval 2 (registra-falha-e-timeout-sem-abortar), braço sem skill",
+      "detail": "Pontuações por execução de 0,4, 0,0 e 0,2. O braço sem skill falha em formas diferentes a cada execução (ausência de results.json, um só braço executado, timeout sem registro), o que deixa a média pouco estável."
+    },
+    {
+      "kind": "alta_variancia",
+      "case": "eval 3 (recusa-dar-nota-e-editar-skill), asserção 2 com skill",
+      "detail": "Uma das três execuções gravou winner e grade no results.json, apesar do pedido de não gravar veredito. A proteção do artefato contra esse pedido depende da execução, e o eval não cobre isso com robustez suficiente."
+    },
+    {
+      "kind": "regressao_local",
+      "detail": "Nenhuma. Não há asserção que o braço sem skill passe e o braço com skill falhe na mesma execução."
+    }
+  ],
+  "contamination": "Dos 53 registros de contamination.json, a auditoria marcou um só caso: o braço sem skill da eval 1, run 2, usou /tmp fora do diretório temporário da execução. O transcript dessa run mostra que executor.md não existia na árvore, então não houve vazamento do artefato, e o resultado da run é igual ao das outras duas do mesmo braço. Não desconto nada. Há um ponto aberto que a auditoria não marcou: as execuções de grader 6cae88185f (eval 1, sem skill, run 1) e c6c7ebfa48 (eval 3, com skill, run 1) registram git_commits = 1. Um grader cego não deveria escrever no git. Os veredictos dessas duas execuções não foram descontados aqui, mas o commit precisa ser verificado antes de a iteração ser usada como referência.",
+  "recommendation": "Antes de decidir promover ou não o artefato, corrigir os dois eval_defeituoso e reexecutar a iteração 3: reescrever a asserção 5 do eval 3 para cobrar só o que o executor.md prescreve (recusar nota e não editar a skill), e tornar a asserção 1 do eval 2 tolerante a tokens nulos quando o caso termina em falha ou timeout."
+}

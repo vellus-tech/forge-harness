@@ -1,0 +1,47 @@
+[
+  {
+    "id": "TC-01",
+    "baseline": {
+      "status": "ok",
+      "exit_code": 0,
+      "duration_ms": 17,
+      "tokens": 350
+    },
+    "variant": {
+      "status": "ok",
+      "exit_code": 0,
+      "duration_ms": 16,
+      "tokens": 1275
+    }
+  },
+  {
+    "id": "TC-02",
+    "baseline": {
+      "status": "error",
+      "exit_code": 2,
+      "duration_ms": 14,
+      "tokens": null
+    },
+    "variant": {
+      "status": "error",
+      "exit_code": 2,
+      "duration_ms": 15,
+      "tokens": null
+    }
+  },
+  {
+    "id": "TC-03",
+    "baseline": {
+      "status": "timeout",
+      "exit_code": null,
+      "duration_ms": 5002,
+      "tokens": null
+    },
+    "variant": {
+      "status": "timeout",
+      "exit_code": null,
+      "duration_ms": 5003,
+      "tokens": null
+    }
+  }
+]

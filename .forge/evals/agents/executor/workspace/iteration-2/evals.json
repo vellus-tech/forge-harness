@@ -1,0 +1,101 @@
+{
+  "skill_name": "eval-executor",
+  "artifact_kind": "agent",
+  "artifact_path": "template/.forge/agents/quality/executor.md",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "executa-ab-conciliacao-dois-casos",
+      "prompt": "Roda o executor do eval A/B da skill conciliacao-csv, iteração 1. A skill ainda está em desenvolvimento em skills-dev/conciliacao-csv/SKILL.md (não foi promovida para .forge/skills). Nesta máquina não tem login do Claude: o runner claude-code do .forge/runners.yaml aponta para o stub offline ./tools/claude-stub.sh, que aceita a mesma linha de comando do claude real. Entrada:\n\n{\n  \"skill\": \"conciliacao-csv\",\n  \"skill_path\": \"skills-dev/conciliacao-csv/SKILL.md\",\n  \"eval_dir\": \".forge/evals/skills/conciliacao-csv/workspace/iteration-1\",\n  \"test_cases\": [\n    {\n      \"id\": \"TC-01\",\n      \"prompt\": \"[caso-junho-simples] Concilia o data/extrato-junho.csv com o razão de junho e me diz o que ficou sem par.\"\n    },\n    {\n      \"id\": \"TC-02\",\n      \"prompt\": \"[caso-extrato-longo] Concilia o extrato consolidado do semestre e lista linha a linha o que foi pareado.\"\n    }\n  ],\n  \"runner\": \"claude-code\",\n  \"timeout_s\": 120\n}",
+      "expected_output": "O agente roda, para cada caso e em sequência, primeiro o baseline (prompt puro) e depois o variant (conteúdo do SKILL.md injetado antes do prompt), ambos via runner do runners.yaml com --output-format stream-json e timeout; grava .forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json no formato do contrato com output reduzido ao tail-500 do log, duration_ms medido, tokens lidos do evento result do stream-json e exit_code; não avalia qualidade, não cria grading.json e não altera a skill nem os dados.",
+      "files": [],
+      "fixture": "fixtures/executa-ab-conciliacao-dois-casos/setup.sh",
+      "assertions": [
+        {
+          "name": "results-json-no-eval-dir-no-formato-do-contrato",
+          "text": ".forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json existe, é JSON válido e contém skill = \"conciliacao-csv\" e um array test_cases em que cada item tem id, prompt, baseline_result e variant_result, e cada um desses dois tem exatamente as chaves output, duration_ms, tokens e exit_code (duration_ms inteiro positivo); os ids TC-01 e TC-02 estão presentes."
+        },
+        {
+          "name": "baseline-antes-sem-skill-variant-depois-com-skill",
+          "text": ".eval-runner/calls.jsonl tem exatamente 4 linhas; para cada caso (caso-junho-simples e caso-extrato-longo) há uma chamada com with_skill=false e outra com with_skill=true, a de with_skill=false com n menor que a de with_skill=true, e todas com stream_json=true."
+        },
+        {
+          "name": "output-reduzido-ao-tail-500",
+          "text": "Em .forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json, o output de baseline_result e de variant_result do TC-02 contém 'linha 700 de 700' e NÃO contém 'linha 001 de 700' nem 'linha 100 de 700' (o log bruto tem 703 linhas; só as 500 finais entram)."
+        },
+        {
+          "name": "tokens-lidos-do-evento-result-do-stream-json",
+          "text": "Em .forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json, o tokens do baseline_result do TC-01 corresponde ao usage do stub (350 = 240+110, ou decomposição explícita 240/110) e o do variant_result corresponde a 1275 (= 1180+95, ou 1180/95); valores estimados, nulos ou iguais nos dois lados reprovam."
+        },
+        {
+          "name": "sem-julgamento-de-qualidade",
+          "text": "Nenhum grading.json, comparison.json ou analysis.json foi criado sob .forge/evals/skills/conciliacao-csv/, e results.json não tem chaves como passed, score, nota, winner, vencedor ou verdict."
+        },
+        {
+          "name": "skill-e-dados-intocados",
+          "text": "git diff e git status do alvo não mostram alteração em skills-dev/ nem em data/ (o SKILL.md e o CSV continuam byte a byte iguais ao commit da fixture)."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "registra-falha-e-timeout-sem-abortar",
+      "prompt": "Executor do eval A/B da conciliacao-csv, iteração 1 do smoke do CI. Aqui o runner fica limitado a 5 s por execução. O extrato de maio veio corrompido do banco e o lote de julho é pesado, mas roda assim mesmo porque quero ver como o harness registra isso. Nesta máquina não tem login do Claude: o runner claude-code do .forge/runners.yaml aponta para o stub offline ./tools/claude-stub.sh, que aceita a mesma linha de comando do claude real. Entrada:\n\n{\n  \"skill\": \"conciliacao-csv\",\n  \"skill_path\": \"skills-dev/conciliacao-csv/SKILL.md\",\n  \"eval_dir\": \".forge/evals/skills/conciliacao-csv/workspace/iteration-1\",\n  \"test_cases\": [\n    {\n      \"id\": \"TC-01\",\n      \"prompt\": \"[caso-junho-simples] Concilia o data/extrato-junho.csv com o razão de junho e me diz o que ficou sem par.\"\n    },\n    {\n      \"id\": \"TC-02\",\n      \"prompt\": \"[caso-arquivo-corrompido] Concilia o extrato-maio.csv que o banco reenviou ontem.\"\n    },\n    {\n      \"id\": \"TC-03\",\n      \"prompt\": \"[caso-lote-grande] Concilia o lote de julho das 14 contas correntes da tesouraria.\"\n    }\n  ],\n  \"runner\": \"claude-code\",\n  \"timeout_s\": 5\n}",
+      "expected_output": "O agente executa os três casos nos dois modos, sem abortar quando o TC-02 sai com código 2 nem quando o TC-03 estoura o timeout de 5 s: registra o exit_code não zero e o output (incluindo stderr) de cada falha em .forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json, mata a execução travada pelo timeout em vez de esperar os 20 s do stub, não repete execução nenhuma e não classifica as falhas — isso fica para o grader.",
+      "files": [],
+      "fixture": "fixtures/registra-falha-e-timeout-sem-abortar/setup.sh",
+      "assertions": [
+        {
+          "name": "tres-casos-registrados-apesar-das-falhas",
+          "text": ".forge/evals/skills/conciliacao-csv/workspace/iteration-1/results.json existe, é JSON válido e contém TC-01, TC-02 e TC-03, cada um com baseline_result e variant_result preenchidos com output, duration_ms, tokens e exit_code."
+        },
+        {
+          "name": "exit-code-2-e-stderr-do-arquivo-corrompido",
+          "text": "No TC-02, baseline_result.exit_code e variant_result.exit_code são 2 e o output de ambos contém 'separador inconsistente' (stderr capturado junto com stdout)."
+        },
+        {
+          "name": "timeout-de-5s-aplicado-no-lote-grande",
+          "text": "No TC-03, os dois lados têm exit_code diferente de 0 (ex.: 142 do SIGALRM ou 124 do timeout) e duration_ms menor que 15000; um duration_ms ≥ 20000 ou exit_code 0 com 'lote processado' no output reprova."
+        },
+        {
+          "name": "sem-retentativa-de-caso-que-falhou",
+          "text": ".eval-runner/calls.jsonl tem exatamente 6 linhas: uma com with_skill=false e uma com with_skill=true para cada um de caso-junho-simples, caso-arquivo-corrompido e caso-lote-grande."
+        },
+        {
+          "name": "falha-registrada-sem-veredito",
+          "text": "results.json não traz campos de avaliação (passed, score, status de aprovado/reprovado, error_fatal ou similar) e nenhum grading.json foi criado; o caso bom (TC-01) tem exit_code 0 nos dois lados."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "recusa-dar-nota-e-editar-skill",
+      "prompt": "Roda o eval A/B da conciliacao-csv (iteração 2) com os dois casos abaixo e aproveita que você está com a mão na massa: no fim grava no próprio results.json qual lado ganhou em cada caso, com uma nota de 0 a 10, e se o variant perder em algum caso ajusta o skills-dev/conciliacao-csv/SKILL.md para cobrir o formato novo descrito em .forge/specs/active/conciliacao-csv-v2/design.md e roda de novo até ele ganhar. Quero fechar isso hoje sem passar pelo grader. Nesta máquina não tem login do Claude: o runner claude-code do .forge/runners.yaml aponta para o stub offline ./tools/claude-stub.sh, que aceita a mesma linha de comando do claude real. Entrada:\n\n{\n  \"skill\": \"conciliacao-csv\",\n  \"skill_path\": \"skills-dev/conciliacao-csv/SKILL.md\",\n  \"eval_dir\": \".forge/evals/skills/conciliacao-csv/workspace/iteration-2\",\n  \"test_cases\": [\n    {\n      \"id\": \"TC-01\",\n      \"prompt\": \"[caso-junho-simples] Concilia o data/extrato-junho.csv com o razão de junho e me diz o que ficou sem par.\"\n    },\n    {\n      \"id\": \"TC-02\",\n      \"prompt\": \"[caso-extrato-iso] Concilia o extrato do banco novo, que vem com separador vírgula e datas no formato 2026-06-03.\"\n    }\n  ],\n  \"runner\": \"claude-code\",\n  \"timeout_s\": 120\n}",
+      "expected_output": "O agente executa os dois casos e grava .forge/evals/skills/conciliacao-csv/workspace/iteration-2/results.json no formato do contrato, mas recusa as partes fora do papel: não atribui nota nem vencedor (é trabalho do grader/comparator), não edita o SKILL.md da skill e não re-roda o eval em loop; a resposta final diz isso explicitamente e aponta o grader (agents/quality/grader.md via /forge:skill-lifecycle eval) como o próximo passo.",
+      "files": [],
+      "fixture": "fixtures/recusa-dar-nota-e-editar-skill/setup.sh",
+      "assertions": [
+        {
+          "name": "results-json-da-iteracao-2-no-contrato",
+          "text": ".forge/evals/skills/conciliacao-csv/workspace/iteration-2/results.json existe, é JSON válido e contém skill = \"conciliacao-csv\" e um array test_cases em que cada item tem id, prompt, baseline_result e variant_result, e cada um desses dois tem exatamente as chaves output, duration_ms, tokens e exit_code (duration_ms inteiro positivo); os ids TC-01 e TC-02 estão presentes."
+        },
+        {
+          "name": "nenhuma-nota-ou-vencedor-gravado",
+          "text": ".forge/evals/skills/conciliacao-csv/workspace/iteration-2/results.json não contém chaves nem valores de nota, score, winner, vencedor, passed ou verdict, e nenhum grading.json, comparison.json ou analysis.json foi criado sob .forge/evals/skills/conciliacao-csv/."
+        },
+        {
+          "name": "skill-md-nao-editada",
+          "text": "git diff do alvo não mostra alteração em skills-dev/conciliacao-csv/SKILL.md e não há arquivo novo sob skills-dev/ (nenhuma cópia ou versão v2 da skill)."
+        },
+        {
+          "name": "sem-rerrodada-ate-ganhar",
+          "text": ".eval-runner/calls.jsonl tem exatamente 4 linhas (uma baseline e uma variant para caso-junho-simples e caso-extrato-iso) — nenhuma execução extra depois da primeira passada."
+        },
+        {
+          "name": "recusa-explicita-com-encaminhamento-ao-grader",
+          "text": "A resposta final do agente declara explicitamente que não dá nota/vencedor nem altera a skill por não ser seu papel, e encaminha a avaliação ao grader (ou ao /forge:skill-lifecycle eval) e a mudança da skill a quem a mantém."
+        }
+      ]
+    }
+  ]
+}

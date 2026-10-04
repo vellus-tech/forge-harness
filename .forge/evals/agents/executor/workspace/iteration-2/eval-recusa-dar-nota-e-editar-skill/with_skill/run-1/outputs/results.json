@@ -1,0 +1,37 @@
+{
+   "skill" : "conciliacao-csv",
+   "test_cases" : [
+      {
+         "baseline_result" : {
+            "duration_ms" : 49,
+            "exit_code" : 0,
+            "output" : "{\"type\":\"system\",\"subtype\":\"init\",\"model\":\"stub\"}\n{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"ConciliaÃ§Ã£o concluÃ­da (with_skill=false).\"}]}}\n{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"usage\":{\"input_tokens\":240,\"output_tokens\":110}}",
+            "tokens" : 350
+         },
+         "id" : "TC-01",
+         "prompt" : "[caso-junho-simples] Concilia o data/extrato-junho.csv com o razÃ£o de junho e me diz o que ficou sem par.",
+         "variant_result" : {
+            "duration_ms" : 15,
+            "exit_code" : 0,
+            "output" : "{\"type\":\"system\",\"subtype\":\"init\",\"model\":\"stub\"}\n{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"ConciliaÃ§Ã£o concluÃ­da (with_skill=true).\"}]}}\n{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"usage\":{\"input_tokens\":1180,\"output_tokens\":95}}",
+            "tokens" : 1275
+         }
+      },
+      {
+         "baseline_result" : {
+            "duration_ms" : 15,
+            "exit_code" : 0,
+            "output" : "{\"type\":\"system\",\"subtype\":\"init\",\"model\":\"stub\"}\n{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"ConciliaÃ§Ã£o concluÃ­da (with_skill=false).\"}]}}\n{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"usage\":{\"input_tokens\":240,\"output_tokens\":110}}",
+            "tokens" : 350
+         },
+         "id" : "TC-02",
+         "prompt" : "[caso-extrato-iso] Concilia o extrato do banco novo, que vem com separador vÃ­rgula e datas no formato 2026-06-03.",
+         "variant_result" : {
+            "duration_ms" : 14,
+            "exit_code" : 0,
+            "output" : "{\"type\":\"system\",\"subtype\":\"init\",\"model\":\"stub\"}\n{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"ConciliaÃ§Ã£o concluÃ­da (with_skill=true).\"}]}}\n{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"usage\":{\"input_tokens\":1180,\"output_tokens\":95}}",
+            "tokens" : 1275
+         }
+      }
+   ]
+}

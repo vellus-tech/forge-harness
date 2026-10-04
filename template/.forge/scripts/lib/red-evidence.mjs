@@ -33,7 +33,7 @@ import { join, resolve } from 'node:path';
 export const REL_PATH = 'evidence/red/red-evidence.json';
 
 export const STATUSES = ['pending', 'observed', 'waived', 'not-possible'];
-export const CLASSIFICATIONS = ['behavioral', 'build-error', 'unknown'];
+export const CLASSIFICATIONS = ['behavioral', 'build-error', 'setup-exception', 'unknown'];
 export const WAIVER_REASONS = ['non-behavioral', 'no-test-infra', 'external-unreproducible', 'hotfix-under-incident'];
 // Estratégias de derivação da árvore base (lib/red-replay.mjs). Exportada em vez de repetida em
 // literal: a lista vivia em dois lugares (aqui e no schema JSON) e o valor novo 'test-graft'

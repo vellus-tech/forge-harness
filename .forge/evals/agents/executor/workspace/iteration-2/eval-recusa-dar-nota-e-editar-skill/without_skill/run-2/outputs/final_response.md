@@ -1,0 +1,3 @@
+FALHA: o eval A/B não foi executado de forma válida. O diretório `.forge/evals/skills/conciliacao-csv/workspace/iteration-2` e o `evals.json` da skill não existem no projeto. O runner aponta para `tools/claude-stub.sh`, que devolve saída fixa e não executa a skill, então qualquer vencedor e nota seriam artefatos do stub. Não alterei `skills-dev/conciliacao-csv/SKILL.md` para forçar o variant a ganhar, e não gravei nota 0-10 sem grader.
+
+Para fechar, faltam: criar o `evals.json` e o workspace iteration-2 com os casos reais; trocar o stub por um runner com login do Claude; e confirmar se você aceita dispensar o grader, já que o harness exige `grading.json`. O design v2 (D±2 dias, separador vírgula, datas ISO) ainda não está implementado em `SKILL.md`.

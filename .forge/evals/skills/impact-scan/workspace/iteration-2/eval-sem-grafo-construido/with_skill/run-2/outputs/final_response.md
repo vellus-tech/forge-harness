@@ -1,0 +1,1 @@
+FALHA: o grafo de código (.forge/graph/graph.json) não existe, então o impact-scan não roda. Rode /forge:codegraph no projeto e depois /forge:impact (ou o impact-scan) para o change 2026-09-webhook-adquirente. Nenhum impact.json foi gravado.

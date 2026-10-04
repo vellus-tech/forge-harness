@@ -1,0 +1,1 @@
+FALHA: onda 1 do extrato-web concluída localmente (TASK-01 e TASK-02 com replay TDD OK, TASK-03 build verde), mas a abertura do PR pelo sprint-orchestrator não foi feita, pois exige rede, proibida nesta execução. Wave 2 (CSV) não foi executada, por ser fora da onda alvo.

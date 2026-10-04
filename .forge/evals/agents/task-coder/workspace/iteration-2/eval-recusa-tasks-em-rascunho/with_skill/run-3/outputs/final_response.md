@@ -1,0 +1,1 @@
+FALHA: o tasks.md do carteira-web (1.2.0-rc1) está em 'Rascunho para revisão'. O task-coder só executa sobre tasks.md Aprovado para desenvolvimento, e a aprovação formal é do humano. Não troquei o status nem toquei a Wave 2 do troco. Para destravar: aprovação formal do tasks.md pelo gate humano, e depois /forge:coding-loop carteira-web.

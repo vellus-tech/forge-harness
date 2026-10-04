@@ -1,0 +1,11 @@
+{
+  "_doc": "Dependências que cada artefato declara fora da própria pasta e que o setup.sh da fixture remove. São instaladas IGUAIS nos dois braços (E0.3 (a) do plano de 2026-09-26); o artefato sob teste só entra no braço with_skill. Caminhos relativos a template/.forge/.",
+  "dotnet-reviewer": ["skills/dotnet-quality-scan"],
+  "backend-engineer-dotnet": ["skills/dotnet-quality-scan"],
+  "task-coder": [
+    "agents/engineering/frontend-engineer.md",
+    "agents/engineering/fullstack-software-engineer.md",
+    "agents/engineering/backend-engineer-dotnet.md",
+    "agents/engineering/android-embedded-kotlin-engineer.md"
+  ]
+}

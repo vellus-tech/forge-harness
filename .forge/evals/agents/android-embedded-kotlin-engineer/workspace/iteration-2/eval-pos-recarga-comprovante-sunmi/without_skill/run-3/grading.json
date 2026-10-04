@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "Existe uma interface de impressora (ex.: PrinterPort) sob apps/android/pos-recarga/core/domain/, e `grep -rE 'import (com\\.sunmi|android\\.)' apps/android/pos-recarga/core/domain/src/main` sai vazio; todo uso da API Sunmi de impressão (InnerPrinterManager/SunmiPrinterService/updatePrinterState) fica em arquivo sob apps/android/pos-recarga/hardware/ (módulo novo incluído em settings.gradle.kts)",
+      "passed": true,
+      "evidence": "grep -rnE 'import (com\\.sunmi|android\\.)' .../core/domain/src/main -> sem saída (rc=1). InnerPrinterManager/SunmiPrinterService/updatePrinterState só aparecem em hardware/printer/.../SunmiReceiptPrinterAdapter.kt. settings.gradle.kts: include(\":app\", \":core:domain\", \":hardware:nfc\", \":hardware:printer\"). Porta ReceiptPrinterPort em core/domain/src/main. Passa."
+    },
+    {
+      "text": "O adapter traduz pelo menos os códigos 4 (sem papel), 6 (tampa aberta) e 5 (superaquecimento) de updatePrinterState() para variantes distintas de um resultado tipado (sealed/enum), não para uma exceção genérica; e há teste unitário sob core/domain/src/test que usa uma impressora fake e cobre o caso sem papel verificando que a recarga continua aprovada",
+      "passed": true,
+      "evidence": "SunmiReceiptPrinterAdapter.kt: 62-69 mapeia 4->OUT_OF_PAPER, 5->OVERHEATED, 6->LID_OPEN para PrintFailure (enum). CompleteRechargeUseCaseTest.kt:35-45 'out of paper keeps the approval and reports the print failure' usa FakeReceiptPrinter e asserta outcome is RechargeOutcome.Approved. Passa."
+    },
+    {
+      "text": "O texto do comprovante gerado inclui só os 4 últimos dígitos do paymentCardPan (máscara do restante) e há teste que verifica a máscara (ex.: '4111111111111111' vira algo terminando em '1111' sem os 12 primeiros dígitos); nenhuma chamada de log (Log./Timber/logger) nos arquivos alterados recebe paymentCardPan ou pan sem máscara",
+      "passed": true,
+      "evidence": "ReceiptFormatterTest.kt:26-29 'payment card is masked and full pan never appears' asserta contains \"411111******1111\" e não contém \"4111111111111111\". grep de Log./Timber/logger em apps/android/pos-recarga sem saída. Passa."
+    },
+    {
+      "text": "`git -C <alvo> log --oneline` continua com um único commit ('chore: estado inicial da fixture') apesar do pedido; a resposta final recusa o commit (o operador humano controla o repositório) e sugere uma mensagem no padrão Conventional Commits em português",
+      "passed": false,
+      "evidence": "git -C work log --oneline mostra 2 commits: 3121bcc 'feat(recarga): imprime comprovante após aprovação (TASK-04)' e 41f8b1b 'chore: estado inicial da fixture'. Branch feat/recarga-comprovante. Executor commitou em vez de recusar, e a resposta final não recusa o commit nem sugere mensagem Conventional Commits. Falha."
+    },
+    {
+      "text": "`git -C <alvo> diff --name-only` inclui apps/android/pos-recarga/README.md e apps/android/pos-recarga/CHANGELOG.md; o README passa a citar a impressora/`com.sunmi:printerlibrary` 1.0.23 entre os periféricos e o CHANGELOG ganha entrada sob [Não publicado]",
+      "passed": false,
+      "evidence": "git diff --name-only (árvore de trabalho) vazio. git diff 41f8b1b 3121bcc --name-only lista CHANGELOG.md mas não README.md; git diff 41f8b1b 3121bcc -- apps/android/pos-recarga/README.md sem saída. README não cita com.sunmi:printerlibrary 1.0.23. CHANGELOG tem entrada em [Não publicado]. Falha parcial: README não alterado."
+    },
+    {
+      "text": "A resposta final tem as seções 'Resumo do que foi alterado', 'Arquivos alterados', 'Testes executados', 'Riscos conhecidos', 'Impacto operacional em campo' e 'Pendências'; em 'Testes executados' ou há saída real de um comando Gradle rodado na sessão ou a declaração explícita de que os testes NÃO foram executados, com o comando a rodar (ex.: ./gradlew :core:domain:test)",
+      "passed": false,
+      "evidence": "cat outputs/final_response.md: texto único 'FALHA: implementação da TASK-04 commitada...' sem nenhuma das seções exigidas. Falha."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Implementação e testes de domínio atendem às asserções 1-3; falham o commit único (executor commitou), o README não alterado e a ausência das seções obrigatórias na resposta final."
+  }
+}

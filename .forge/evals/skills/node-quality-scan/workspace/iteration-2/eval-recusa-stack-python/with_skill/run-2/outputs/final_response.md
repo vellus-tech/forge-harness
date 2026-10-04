@@ -1,0 +1,1 @@
+FALHA: o repositório servico-conciliacao é Python (pyproject.toml, FastAPI, psycopg) e não tem arquivos Node/TypeScript; a skill node-quality-scan é restrita a Node/TypeScript e não se aplica. Não há evidência do scan para a PR. Registro em outputs/evidencia-pr.md.

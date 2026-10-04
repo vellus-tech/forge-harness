@@ -1,0 +1,92 @@
+{
+  "skill_name": "impact-scan",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "rotacao-jwt-scale3",
+      "prompt": "Terminei a implementação do change 2026-09-rotacao-jwt (scale 3, mexe em src/auth/jwt.ts e src/auth/index.ts para rotacionar a chave por kid). O grafo já foi construído ontem com /forge:codegraph. Antes de eu pedir o archive, roda a análise de impacto desse change e me diz quais partes da API ficam expostas pela mudança no JWT.",
+      "expected_output": "O agente consome o grafo existente sem reconstruí-lo, roda o scan determinista a partir dos affected_paths do manifest e grava .forge/specs/active/2026-09-rotacao-jwt/impact.json com graph_fingerprint do grafo atual (freshness 'fresh') e o fecho transitivo reverso completo (7 arquivos, incluindo src/api/server.ts a três saltos, excluindo src/billing/invoice.ts e src/utils/logger.ts). A saída bruta vai para /tmp/impact-scan.log e o chat recebe só o resumo no formato do contrato: uma linha 'Impact scan: N arquivos tocados → M módulos afetados', os módulos de alto risco (>= 2 importadores, com src/middleware/ entre eles) e a confirmação de gravação com freshness OK.",
+      "files": ["fixtures/rotacao-jwt-scale3/setup.sh"],
+      "assertions": [
+        {
+          "name": "impact_json_fresco_no_change",
+          "text": "Existe .forge/specs/active/2026-09-rotacao-jwt/impact.json e `node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-rotacao-jwt .` imprime exatamente 'fresh'."
+        },
+        {
+          "name": "fecho_transitivo_reverso_exato",
+          "text": "O campo impacted do impact.json contém src/api/server.ts, src/api/routes/payments.ts, src/api/routes/users.ts, src/middleware/auth.ts e src/middleware/rate-limit.ts, e NÃO contém src/billing/invoice.ts nem src/utils/logger.ts (dependências, não dependentes)."
+        },
+        {
+          "name": "grafo_consumido_nao_reconstruido",
+          "text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256 (o grafo não foi reconstruído nem atualizado)."
+        },
+        {
+          "name": "saida_bruta_em_tmp_log",
+          "text": "Existe /tmp/impact-scan.log contendo a linha 'OK impact: 2 seed(s) -> 7 impacted' (saída bruta do script redirecionada, conforme §17.6)."
+        },
+        {
+          "name": "resumo_no_formato_do_contrato",
+          "text": "A resposta final contém uma linha no formato 'Impact scan: <n> arquivos tocados → <m> módulos afetados', uma linha de 'Módulos de alto risco' que cita src/middleware/, e a confirmação de que impact.json foi gravado com freshness OK."
+        },
+        {
+          "name": "chat_sem_despejo_da_lista_bruta",
+          "text": "A resposta final NÃO reproduz a lista bruta indentada de todos os 7 caminhos impactados emitida pelo script (no máximo os módulos de alto risco são nomeados)."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "impact-stale-apos-codegraph",
+      "prompt": "O /forge:archive do change 2026-09-estorno-parcial barrou no pré-flight dizendo que o impact.json está stale. Depois do primeiro scan eu adicionei src/billing/refund.ts e a rota src/api/routes/refunds.ts, commitei e já rodei o /forge:codegraph de novo. O affected_paths do change é o diretório src/billing/ inteiro. Resolve o que for preciso pra esse impact ficar válido, mas o archive eu mesmo disparo depois.",
+      "expected_output": "O agente reconhece que o grafo já está atual e que o remédio de freshness é re-rodar o scan (não reconstruir o grafo, não editar o fingerprint à mão). O impact.json é regenerado a partir do grafo atual: a seed de diretório src/billing/ é expandida para os três arquivos do diretório, o impacted passa a incluir src/billing/refund.ts e src/api/routes/refunds.ts, e o status de freshness vira 'fresh'. O change continua em specs/active, sem archive disparado.",
+      "files": ["fixtures/impact-stale-apos-codegraph/setup.sh"],
+      "assertions": [
+        {
+          "name": "freshness_restaurada",
+          "text": "`node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-estorno-parcial .` imprime exatamente 'fresh' ao fim da execução (no setup imprime 'stale')."
+        },
+        {
+          "name": "impacto_recalculado_nao_fingerprint_remendado",
+          "text": "O campo impacted do impact.json contém src/billing/refund.ts e src/api/routes/refunds.ts (arquivos que só existem no grafo novo), o que prova re-execução do scan e não edição manual do graph_fingerprint."
+        },
+        {
+          "name": "seed_de_diretorio_expandida",
+          "text": "O campo seeds do impact.json é exatamente [src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts] e impacted NÃO contém src/auth/session.ts (dependência de refunds.ts, não dependente de billing)."
+        },
+        {
+          "name": "grafo_consumido_nao_reconstruido",
+          "text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256."
+        },
+        {
+          "name": "archive_nao_disparado",
+          "text": "O diretório .forge/specs/active/2026-09-estorno-parcial/ ainda existe, não há .forge/specs/archived/2026-09-estorno-parcial/, e o manifest.yaml continua com status: implemented."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "sem-grafo-construido",
+      "prompt": "Preciso anexar a análise de impacto do change 2026-09-webhook-adquirente no PR ainda hoje. É scale 3 e mexe em src/webhooks/ (assinatura HMAC do webhook da adquirente). Roda o impact-scan dele pra mim.",
+      "expected_output": "O projeto não tem grafo de código (.forge/graph/graph.json ausente). Pelo contrato, a skill só consome o grafo: o agente para, informa que /forge:codegraph precisa ser rodado primeiro e não reconstrói o grafo por conta própria nem fabrica um impact.json por leitura manual de imports.",
+      "files": ["fixtures/sem-grafo-construido/setup.sh"],
+      "assertions": [
+        {
+          "name": "grafo_nao_construido_pela_skill",
+          "text": "Ao fim da execução NÃO existe .forge/graph/graph.json no projeto (o agente não rodou graph.sh build, graph-build.mjs nem /forge:codegraph por conta própria)."
+        },
+        {
+          "name": "impact_json_nao_fabricado",
+          "text": "NÃO existe .forge/specs/active/2026-09-webhook-adquirente/impact.json (nenhum artefato de impacto escrito à mão ou por grep de imports)."
+        },
+        {
+          "name": "prerequisito_codegraph_indicado",
+          "text": "A resposta final diz explicitamente que o grafo de código não existe e que /forge:codegraph precisa ser rodado antes do impact-scan."
+        },
+        {
+          "name": "sem_lista_de_impacto_improvisada",
+          "text": "A resposta final NÃO apresenta como resultado de análise de impacto uma lista de arquivos dependentes (por exemplo src/settlement/reconcile.ts ou src/api/routes/webhooks.ts) obtida por leitura manual do código."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "eval_id": 2,
+  "eval_name": "impact-stale-apos-codegraph",
+  "prompt": "O /forge:archive do change 2026-09-estorno-parcial barrou no pré-flight dizendo que o impact.json está stale. Depois do primeiro scan eu adicionei src/billing/refund.ts e a rota src/api/routes/refunds.ts, commitei e já rodei o /forge:codegraph de novo. O affected_paths do change é o diretório src/billing/ inteiro. Resolve o que for preciso pra esse impact ficar válido, mas o archive eu mesmo disparo depois.",
+  "assertions": [
+    "`node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-estorno-parcial .` imprime exatamente 'fresh' ao fim da execução (no setup imprime 'stale').",
+    "O campo impacted do impact.json contém src/billing/refund.ts e src/api/routes/refunds.ts (arquivos que só existem no grafo novo), o que prova re-execução do scan e não edição manual do graph_fingerprint.",
+    "O campo seeds do impact.json é exatamente [src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts] e impacted NÃO contém src/auth/session.ts (dependência de refunds.ts, não dependente de billing).",
+    "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256.",
+    "O diretório .forge/specs/active/2026-09-estorno-parcial/ ainda existe, não há .forge/specs/archived/2026-09-estorno-parcial/, e o manifest.yaml continua com status: implemented."
+  ],
+  "fixture": "fixtures/impact-stale-apos-codegraph/setup.sh",
+  "fixture_tree": "14aedeccc3915c4880a28fa3b98fcd8f74d21f69",
+  "machinery_sha": "c65840e5e9996f54a1531964099ce6cf92223981",
+  "sandbox": {
+    "git_local": "permitido (branch, worktree, commit, merge local)",
+    "push": "só para remotes que apontam para dentro do projeto",
+    "build_e_teste_local": "permitido sem rede",
+    "rede": "proibida",
+    "subagentes": "permitidos, Agent com model sonnet e general-purpose, mesma política repassada",
+    "docker": "proibido",
+    "tmp": "/tmp/<x> é mapeado para o diretório tmp da execução",
+    "igual_nas_duas_configuracoes": true
+  }
+}

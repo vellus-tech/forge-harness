@@ -43,6 +43,8 @@
 - TASK-03.4 Testes em `troco.test.ts` cobrindo os três critérios acima
 
 **Branch de execução:** feat/carteira-web/wave-2
+**Teste (comando):** `node --test apps/web/carteira-web/src/troco.test.ts`
+**Padrão de falha:** `AssertionError`
 
 ### TASK-04 — Encerramento da Wave 2 — build verde + commit
 

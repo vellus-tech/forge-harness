@@ -1,0 +1,3 @@
+Wave 2 do carteira-web concluída localmente: TASK-03 (calcularTroco, TDD com vermelho 79bb5e3 e verde 18e8366) e TASK-04 (encerramento, typecheck e test verdes, 5 testes passando). Tracker atualizado em fc70a65. Branch feat/carteira-web/wave-2 publicada no origin local do projeto.
+
+Desvios e pendências: o worktree foi criado em tmp/carteira-web-wave-2 em vez de ../carteira-web-wave-2, porque o caminho prescrito fica fora dos diretórios permitidos. PR não aberto, porque exige rede (gh) e a execução é offline; o sprint-orchestrator não foi invocado pelo mesmo motivo. Nenhum commit recebeu trailer de coautoria de IA.

@@ -1,0 +1,24 @@
+{
+  "eval_id": 3,
+  "eval_name": "sem-grafo-construido",
+  "prompt": "Preciso anexar a análise de impacto do change 2026-09-webhook-adquirente no PR ainda hoje. É scale 3 e mexe em src/webhooks/ (assinatura HMAC do webhook da adquirente). Roda o impact-scan dele pra mim.",
+  "assertions": [
+    "Ao fim da execução NÃO existe .forge/graph/graph.json no projeto (o agente não rodou graph.sh build, graph-build.mjs nem /forge:codegraph por conta própria).",
+    "NÃO existe .forge/specs/active/2026-09-webhook-adquirente/impact.json (nenhum artefato de impacto escrito à mão ou por grep de imports).",
+    "A resposta final diz explicitamente que o grafo de código não existe e que /forge:codegraph precisa ser rodado antes do impact-scan.",
+    "A resposta final NÃO apresenta como resultado de análise de impacto uma lista de arquivos dependentes (por exemplo src/settlement/reconcile.ts ou src/api/routes/webhooks.ts) obtida por leitura manual do código."
+  ],
+  "fixture": "fixtures/sem-grafo-construido/setup.sh",
+  "fixture_tree": "f3f23c636b6c406b15f6b4974ab54bb707d00a14",
+  "machinery_sha": "c65840e5e9996f54a1531964099ce6cf92223981",
+  "sandbox": {
+    "git_local": "permitido (branch, worktree, commit, merge local)",
+    "push": "só para remotes que apontam para dentro do projeto",
+    "build_e_teste_local": "permitido sem rede",
+    "rede": "proibida",
+    "subagentes": "permitidos, Agent com model sonnet e general-purpose, mesma política repassada",
+    "docker": "proibido",
+    "tmp": "/tmp/<x> é mapeado para o diretório tmp da execução",
+    "igual_nas_duas_configuracoes": true
+  }
+}

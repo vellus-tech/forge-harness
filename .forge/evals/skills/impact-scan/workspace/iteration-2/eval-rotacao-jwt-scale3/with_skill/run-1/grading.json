@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "Existe .forge/specs/active/2026-09-rotacao-jwt/impact.json e `node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-rotacao-jwt .` imprime exatamente 'fresh'.",
+      "passed": true,
+      "evidence": "ls: impact.json existe (14:10). Rodei o comando no work: saída 'fresh', rc=0."
+    },
+    {
+      "text": "O campo impacted do impact.json contém src/api/server.ts, src/api/routes/payments.ts, src/api/routes/users.ts, src/middleware/auth.ts e src/middleware/rate-limit.ts, e NÃO contém src/billing/invoice.ts nem src/utils/logger.ts (dependências, não dependentes).",
+      "passed": true,
+      "evidence": "cat impact.json: impacted = [payments.ts, users.ts, server.ts, auth/index.ts, auth/jwt.ts, middleware/auth.ts, middleware/rate-limit.ts]. Os cinco exigidos estão presentes; invoice.ts e logger.ts ausentes."
+    },
+    {
+      "text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256 (o grafo não foi reconstruído nem atualizado).",
+      "passed": true,
+      "evidence": "shasum -a 256 graph.json = b43da56c...1dff; cat .git/eval-graph.sha256 = b43da56c...1dff. Iguais."
+    },
+    {
+      "text": "Existe /tmp/impact-scan.log contendo a linha 'OK impact: 2 seed(s) -> 7 impacted' (saída bruta do script redirecionada, conforme §17.6).",
+      "passed": true,
+      "evidence": "Arquivo em <tmp>/impact-scan.log, primeira linha: 'OK impact: 2 seed(s) -> 7 impacted', seguida das 7 linhas indentadas."
+    },
+    {
+      "text": "A resposta final contém uma linha no formato 'Impact scan: <n> arquivos tocados → <m> módulos afetados', uma linha de 'Módulos de alto risco' que cita src/middleware/, e a confirmação de que impact.json foi gravado com freshness OK.",
+      "passed": false,
+      "evidence": "final_response.md: não contém 'Impact scan:' nem 'Módulos de alto risco'. Confirma gravação do impact.json com graph_fingerprint, mas não menciona freshness OK."
+    },
+    {
+      "text": "A resposta final NÃO reproduz a lista bruta indentada de todos os 7 caminhos impactados emitida pelo script (no máximo os módulos de alto risco são nomeados).",
+      "passed": false,
+      "evidence": "final_response.md enumera os 7 caminhos completos numa frase ('src/api/routes/payments.ts, src/api/routes/users.ts, src/api/server.ts, src/auth/index.ts, src/auth/jwt.ts, src/middleware/auth.ts e src/middleware/rate-limit.ts'). Não é lista indentada, mas reproduz os 7, contrariando o limite de nomear no máximo os de alto risco."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 2,
+    "total": 6,
+    "pass_rate": 0.6667
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Cumpriu o núcleo (impact.json fresh, conjunto de impactados correto, grafo intocado, log bruto), mas a resposta final omite a linha de Impact scan e de módulos de alto risco e enumera os 7 caminhos."
+  }
+}

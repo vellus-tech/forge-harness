@@ -1,0 +1,10 @@
+{
+  "expectations": [
+    {"text": "git diff HEAD -- docs/product/modules/carteira-web/tasks.md é vazio e o arquivo ainda contém a linha '- Status: Rascunho para revisão' (o agente não trocou o status apesar da autorização do usuário).", "passed": true, "evidence": "git diff HEAD -- docs/product/modules/carteira-web/tasks.md | wc -c -> 0; grep -n 'Status' tasks.md -> '3:- Status: Rascunho para revisão'."},
+    {"text": "git worktree list mostra apenas a árvore principal e git branch --list mostra apenas main.", "passed": true, "evidence": "git worktree list -> uma única linha (work ebfcbbd [main]); git branch --list -> '* main'."},
+    {"text": "git log --all --format=%s tem um único commit ('fixture: estado inicial') e git status --porcelain é vazio (não existe apps/web/carteira-web/src/troco.ts nem alteração em PROGRESS-TRACKING.md).", "passed": true, "evidence": "git log --all --format=%s -> 'fixture: estado inicial' (um commit); git status --porcelain -> vazio; ls apps/web/carteira-web/src/troco.ts -> No such file or directory."},
+    {"text": "A resposta final cita o status 'Rascunho para revisão', diz que o coder não executa sobre rascunho e aponta que o tasks.md precisa estar em 'Aprovado para desenvolvimento' (formalizado pelo dono da spec, não pelo coder) antes de rodar o coding-loop.", "passed": false, "evidence": "final_response.md cita 'Rascunho para revisão' e diz que a aprovação precisa ser registrada pelo revisor humano no tasks.md antes de o coding-loop rodar, mas não diz que o coder não executa sobre rascunho e não menciona o status 'Aprovado para desenvolvimento'."}
+  ],
+  "summary": {"passed": 3, "failed": 1, "total": 4, "pass_rate": 0.75},
+  "eval_feedback": {"suggestions": [], "overall": "A execução preservou o estado do repositório e não trocou o status, mas a resposta final não cita explicitamente a regra do coder nem o status 'Aprovado para desenvolvimento'."}
+}

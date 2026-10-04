@@ -1,0 +1,108 @@
+{
+  "skill": "backend-engineer-dotnet",
+  "iteration": 2,
+  "script_verdict": {
+    "verdict": "indeterminado",
+    "delta": 0.1666,
+    "ci95": [-0.0334, 0.3444],
+    "reference_delta": 0.1866
+  },
+  "verdict": "inconclusive",
+  "summary": "O delta da iteração 2 (+0,1666) ficou abaixo do da iteração 1 (+0,1866, diferença de -0,02 pelo script) e o IC 95% [-0,0334; 0,3444] cruza zero, então o veredito do script é indeterminado. A iteração 1 superestimou a vantagem do artefato: com uma execução por braço, os ganhos em formato de entrega (asserção de seis cabeçalhos, entrada de CHANGELOG sob [Unreleased]) e em divergência task/design não se replicaram, e a vantagem em e3 caiu para quase zero. Dois efeitos sobreviveram com consistência nas três execuções: o baseline .NET reportado em e1 (3/3 contra 0/3) e o contrato AsyncAPI do consumer em e2 (3/3 contra 1/3). A iteração 2 também mudou o método (isolamento, dependências iguais nos dois braços, três execuções por configuração, grader cego), então o delta de referência mistura mudança de artefato com mudança de método e não deve ser lido como tendência.",
+  "change_causes": [
+    {
+      "class": "mudanca_de_metodo",
+      "eval_id": "todos",
+      "assertion": "metodo",
+      "detail": "A iteração 2 rodou o executor fora do repositório do harness, em cópia da fixture, com a mesma política de sandbox nos dois braços, dependências instaladas nos dois braços, três execuções por configuração e grader cego ao braço. A iteração 1 tinha uma execução por configuração. Os valores absolutos e o delta de referência não são diretamente comparáveis; a comparação útil é a consistência por asserção dentro da iteração 2."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 1,
+      "assertion": 4,
+      "detail": "Baseline .NET: com skill 3/3 (ref 1/1), sem skill 0/3 (ref 0/1). Nas execuções sem skill o agente não cita dotnet-baseline.sh nem a lacuna de Directory.Build.props em entrega.md; nas execuções com skill o comando é rodado e a lacuna é reportada. Efeito consistente nas três execuções e replicado em relação à iteração 1."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 2,
+      "assertion": 5,
+      "detail": "Contrato AsyncAPI: com skill 3/3 (ref 1/1), sem skill 1/3 (ref 0/1). Com skill o canal bilhetagem.viagens é adicionado a contracts/asyncapi/cashback.yaml em todas as execuções; sem skill, a maioria das execuções deixa o arquivo intocado. Efeito consistente e replicado."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 1,
+      "assertion": 5,
+      "detail": "Seis cabeçalhos exigidos em entrega.md: com skill 0/3 (ref 1/1), sem skill 0/3 (ref 0/1). A passagem da iteração 1 foi uma única execução e não se replicou. Nas três execuções com skill, entrega.md usa títulos próprios (Sumário, O que muda, Verificação, Lacunas conhecidas) em vez do contrato do §25. A asserção também depende de correspondência literal de título, o que a torna frágil; o problema real é que o artefato não está garantindo o formato."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 1,
+      "assertion": 6,
+      "detail": "CHANGELOG sob [Unreleased]: com skill 3/3 (ref 0/1), sem skill 3/3 (ref 1/1). A falha da iteração 1 (entrada sob [0.2.0] no braço com skill) não reapareceu, e o braço sem skill também passou em todas as execuções. Não há efeito do artefato a atribuir; a diferença entre iterações é variância da execução única."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 3,
+      "assertion": 1,
+      "detail": "Nenhum commit: com skill 2/3 (ref 1/1), sem skill 1/3 (ref 1/1). Pelo menos duas execuções sem skill fizeram commit (449144c e 050568e) apesar de a asserção exigir o contrário; a execução com skill que criou commit aparece na mesma distribuição. Comportamento oscilante nos dois braços, não efeito do artefato."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 3,
+      "assertion": 2,
+      "detail": "Nenhum arquivo alterado em services/, scripts/ ou docs/: com skill 2/3 (ref 0/1), sem skill 1/3 (ref 0/1). A falha do braço com skill na iteração 1 (código criado) não reapareceu em duas das três execuções. Os dois braços oscilam; artefato não discrimina de forma estável."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 3,
+      "assertion": 3,
+      "detail": "Divergência com evidência dos dois lados (citar ValorCentavos long ou coluna bigint como código existente): com skill 0/3 (ref 1/1), sem skill 0/3 (ref 0/1). A iteração 1 passou em uma execução com skill que citou o código; as três execuções da iteração 2 citam DD-002/DD-003 mas não o código existente. Não replicado, e a asserção é a única em que a iteração 1 dava vantagem ao skill em e3."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 3,
+      "assertion": 5,
+      "detail": "Commit recusado com motivo ou mensagem sugerida: com skill 2/3 (ref 1/1), sem skill 1/3 (ref 1/1). A execução sem skill que fez commit falha; a vantagem da iteração 1 desaparece quase por completo entre as configurações."
+    }
+  ],
+  "dominant_cause": "Variância entre execuções: a vantagem de +0,19 da iteração 1 vinha de execuções únicas em e3 e em duas asserções de formato de e1, que não se replicaram. A parte que sobrevive com consistência são dois ganhos reais do artefato, baseline .NET e contrato AsyncAPI, que sozinhos não sustentam um delta de +0,17 com IC que cruza zero.",
+  "findings": [
+    {
+      "kind": "systematic_miss",
+      "case": "eval 2",
+      "expectation": "teste de reentrega com o mesmo ViagemValidada (assertion 4)",
+      "detail": "Falha 0/3 nas duas configurações, igual à iteração 1. Nenhuma execução escreveu teste que entrega o mesmo eventoId duas vezes; os testes de retry repetem o POST dentro de uma única chamada. O artefato cita at-least-once em §10, mas não nomeia esse caso de teste, então a falha é lacuna do artefato e não ruído."
+    },
+    {
+      "kind": "systematic_miss",
+      "case": "eval 1",
+      "expectation": "entrega.md com os seis cabeçalhos do contrato de implementação (assertion 5)",
+      "detail": "Falha 0/3 nas duas configurações. Com skill, entrega.md usa títulos próprios e o artefato não impõe o formato de forma verificável. Sem skill, o mesmo. Ou o artefato precisa tornar o contrato de título explícito, ou a asserção precisa aceitar equivalentes; a escolha entre as duas é do autor do eval."
+    },
+    {
+      "kind": "systematic_miss",
+      "case": "eval 3",
+      "expectation": "citar o código existente (ValorCentavos long, coluna bigint) como evidência da divergência (assertion 3)",
+      "detail": "Falha 0/3 com skill e 0/3 sem skill. As execuções apontam a divergência contra DD-002, DD-003 e DD-004, mas não contra o código. A asserção pede dois lados de evidência; as execuções entregam só um."
+    },
+    {
+      "kind": "high_variance",
+      "case": "eval 3",
+      "detail": "Pontuação por execução com skill: 0, 0,6 e 0,8; sem skill: 0, 0,8 e 0. A amplitude por caso é maior que a diferença de médias entre braços em e3. Com três execuções, e3 não sustenta nenhuma conclusão sobre o artefato."
+    },
+    {
+      "kind": "high_variance",
+      "detail": "Desvio padrão agregado com skill 0,27 sobre média 0,70, e sem skill 0,31 sobre média 0,53. O desvio sem skill é maior que a diferença de médias entre braços (0,17), o que explica o IC que cruza zero."
+    },
+    {
+      "kind": "trade_off",
+      "detail": "Com skill: 97.510 tokens em média contra 84.490 sem skill (+13.020, cerca de +15%) e 157 s contra 134 s (+23 s). O custo de tokens é pequeno em comparação com a variância, mas é um custo real que a iteração 1 registrava como tempo."
+    },
+    {
+      "kind": "regression_local",
+      "detail": "Nenhuma asserção da tabela tem com skill menor que sem skill. Não há regressão local do artefato nesta iteração."
+    }
+  ],
+  "contamination": "contamination.json marca uma única execução: sem skill, eval 2, execução 3 (id 52192fbb34). Duas chamadas de Bash com a flag 'repositório do harness' escrevem transcript.md e final_response.md por heredoc e script Python dentro do diretório de saída, em vez de capturá-los do executor. Isso significa que o transcript dessa execução foi produzido pelo próprio agente e não registrado pela maquinaria, então não há garantia de que o que está nele corresponda ao que foi feito. Não recalculei a média; a recomendação é descontar essa execução do braço sem skill ou repeti-la antes de atribuir o resultado de e2. As demais execuções não têm flags.",
+  "recommendation": "Antes de nova medição, descontar ou repetir a execução 52192fbb34, acrescentar em §10 do artefato o caso de teste de redelivery do mesmo eventoId (a asserção que falha 0/3 nas duas configurações) e repetir a iteração 3 com cinco execuções por braço antes de promover ou alterar o artefato."
+}

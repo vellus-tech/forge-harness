@@ -1,0 +1,845 @@
+{
+  "metadata": {
+    "skill_name": "impact-scan",
+    "skill_path": "template/.forge/skills/impact-scan",
+    "executor_model": "sonnet",
+    "analyzer_model": "sonnet",
+    "timestamp": "2026-10-04T17:16:19Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 3,
+    "grader_model": "sonnet",
+    "machinery_sha": "c65840e5e9996f54a1531964099ce6cf92223981",
+    "artifact_files": {
+      "template/.forge/skills/impact-scan/SKILL.md": "0da76f07797a2b89261664d10cf7f96e7ca256a74ff289303ea5cc001b5161a6"
+    },
+    "method": "reexecução A/B da #176 (iteração 2): executor fora do repositório, braços com a mesma fixture e a mesma política, grader cego ao braço por id opaco, validação de tipo antes da agregação"
+  },
+  "runs": [
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 31,
+        "tokens": 56733,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-estorno-parcial . imprime exatamente 'fresh' ao fim da execução (no setup imprime 'stale').",
+          "passed": true,
+          "evidence": "Rodado no work: saída 'fresh', rc=0."
+        },
+        {
+          "text": "O campo impacted do impact.json contém src/billing/refund.ts e src/api/routes/refunds.ts (arquivos que só existem no grafo novo), o que prova re-execução do scan e não edição manual do graph_fingerprint.",
+          "passed": true,
+          "evidence": "impact.json impacted = [src/api/routes/payments.ts, src/api/routes/refunds.ts, src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts, src/reports/daily.ts]; generated_at 2026-10-04T17:11:06Z, graph_fingerprint 7c38d7d8...; ambos os arquivos presentes."
+        },
+        {
+          "text": "O campo seeds do impact.json é exatamente [src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts] e impacted NÃO contém src/auth/session.ts (dependência de refunds.ts, não dependente de billing).",
+          "passed": true,
+          "evidence": "seeds = [src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts] (exato); impacted não contém src/auth/session.ts (lista completa conferida)."
+        },
+        {
+          "text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256.",
+          "passed": true,
+          "evidence": "shasum -a 256 graph.json = f1c308b38ed982a7db496c4c3ea324efe045bdeb56344660bb83ad367195f45c; .git/eval-graph.sha256 = f1c308b38ed982a7db496c4c3ea324efe045bdeb56344660bb83ad367195f45c."
+        },
+        {
+          "text": "O diretório .forge/specs/active/2026-09-estorno-parcial/ ainda existe, não há .forge/specs/archived/2026-09-estorno-parcial/, e o manifest.yaml continua com status: implemented.",
+          "passed": true,
+          "evidence": "ls: active/2026-09-estorno-parcial existe; archived/ contém só .gitkeep; manifest.yaml linha 6 'status: implemented'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 1,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 30.3,
+        "tokens": 67244,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-estorno-parcial . imprime exatamente 'fresh' ao fim da execução (no setup imprime 'stale').",
+          "passed": true,
+          "evidence": "Em work/: `node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-estorno-parcial .` -> saída 'fresh', rc=0."
+        },
+        {
+          "text": "O campo impacted do impact.json contém src/billing/refund.ts e src/api/routes/refunds.ts (arquivos que só existem no grafo novo), o que prova re-execução do scan e não edição manual do graph_fingerprint.",
+          "passed": true,
+          "evidence": "impact.json (generated_at 2026-10-04T17:11:15.490Z) impacted = [src/api/routes/payments.ts, src/api/routes/refunds.ts, src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts, src/reports/daily.ts]; contém ambos. graph_fingerprint 7c38d7...9167 difere do sha do graph.json, consistente com regeneração."
+        },
+        {
+          "text": "O campo seeds do impact.json é exatamente [src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts] e impacted NÃO contém src/auth/session.ts (dependência de refunds.ts, não dependente de billing).",
+          "passed": true,
+          "evidence": "impact.json seeds = [\"src/billing/invoice.ts\",\"src/billing/refund.ts\",\"src/billing/tax.ts\"] (exato); impacted não contém src/auth/session.ts (lista de 6 entradas acima)."
+        },
+        {
+          "text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256.",
+          "passed": true,
+          "evidence": "`cat .git/eval-graph.sha256` = 0777f88e0dd21ad15db1940b3d1e1e82754dd4c3877c8054bd202e1d8f447001; `sha256sum .forge/graph/graph.json` = 0777f88e0dd21ad15db1940b3d1e1e82754dd4c3877c8054bd202e1d8f447001."
+        },
+        {
+          "text": "O diretório .forge/specs/active/2026-09-estorno-parcial/ ainda existe, não há .forge/specs/archived/2026-09-estorno-parcial/, e o manifest.yaml continua com status: implemented.",
+          "passed": true,
+          "evidence": "`ls .forge/specs/active/` lista 2026-09-estorno-parcial; `ls .forge/specs/archived/` contém apenas .gitkeep; manifest.yaml contém `status: implemented`."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 1,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 36.5,
+        "tokens": 64363,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-estorno-parcial .` imprime exatamente 'fresh' ao fim da execução (no setup imprime 'stale').",
+          "passed": true,
+          "evidence": "Rodado no work: saída 'fresh', rc=0."
+        },
+        {
+          "text": "O campo impacted do impact.json contém src/billing/refund.ts e src/api/routes/refunds.ts (arquivos que só existem no grafo novo), o que prova re-execução do scan e não edição manual do graph_fingerprint.",
+          "passed": true,
+          "evidence": "jq -c '{seeds, impacted, graph_fingerprint}' impact.json -> impacted = [src/api/routes/payments.ts, src/api/routes/refunds.ts, src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts, src/reports/daily.ts]; ambos presentes."
+        },
+        {
+          "text": "O campo seeds do impact.json é exatamente [src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts] e impacted NÃO contém src/auth/session.ts (dependência de refunds.ts, não dependente de billing).",
+          "passed": true,
+          "evidence": "jq seeds = [\"src/billing/invoice.ts\",\"src/billing/refund.ts\",\"src/billing/tax.ts\"]; src/auth/session.ts ausente da lista impacted."
+        },
+        {
+          "text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256.",
+          "passed": true,
+          "evidence": "shasum -a 256 graph.json = b6e0a475...da922; cat .git/eval-graph.sha256 = b6e0a475...da922 (idênticos)."
+        },
+        {
+          "text": "O diretório .forge/specs/active/2026-09-estorno-parcial/ ainda existe, não há .forge/specs/archived/2026-09-estorno-parcial/, e o manifest.yaml continua com status: implemented.",
+          "passed": true,
+          "evidence": "ls: active/2026-09-estorno-parcial existe; archived/2026-09-estorno-parcial -> No such file or directory; grep manifest.yaml -> '6:status: implemented'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6667,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 30.7,
+        "tokens": 52688,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe .forge/specs/active/2026-09-rotacao-jwt/impact.json e `node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-rotacao-jwt .` imprime exatamente 'fresh'.",
+          "passed": true,
+          "evidence": "ls: impact.json existe (14:10). Rodei o comando no work: saída 'fresh', rc=0."
+        },
+        {
+          "text": "O campo impacted do impact.json contém src/api/server.ts, src/api/routes/payments.ts, src/api/routes/users.ts, src/middleware/auth.ts e src/middleware/rate-limit.ts, e NÃO contém src/billing/invoice.ts nem src/utils/logger.ts (dependências, não dependentes).",
+          "passed": true,
+          "evidence": "cat impact.json: impacted = [payments.ts, users.ts, server.ts, auth/index.ts, auth/jwt.ts, middleware/auth.ts, middleware/rate-limit.ts]. Os cinco exigidos estão presentes; invoice.ts e logger.ts ausentes."
+        },
+        {
+          "text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256 (o grafo não foi reconstruído nem atualizado).",
+          "passed": true,
+          "evidence": "shasum -a 256 graph.json = b43da56c...1dff; cat .git/eval-graph.sha256 = b43da56c...1dff. Iguais."
+        },
+        {
+          "text": "Existe /tmp/impact-scan.log contendo a linha 'OK impact: 2 seed(s) -> 7 impacted' (saída bruta do script redirecionada, conforme §17.6).",
+          "passed": true,
+          "evidence": "Arquivo em <tmp>/impact-scan.log, primeira linha: 'OK impact: 2 seed(s) -> 7 impacted', seguida das 7 linhas indentadas."
+        },
+        {
+          "text": "A resposta final contém uma linha no formato 'Impact scan: <n> arquivos tocados → <m> módulos afetados', uma linha de 'Módulos de alto risco' que cita src/middleware/, e a confirmação de que impact.json foi gravado com freshness OK.",
+          "passed": false,
+          "evidence": "final_response.md: não contém 'Impact scan:' nem 'Módulos de alto risco'. Confirma gravação do impact.json com graph_fingerprint, mas não menciona freshness OK."
+        },
+        {
+          "text": "A resposta final NÃO reproduz a lista bruta indentada de todos os 7 caminhos impactados emitida pelo script (no máximo os módulos de alto risco são nomeados).",
+          "passed": false,
+          "evidence": "final_response.md enumera os 7 caminhos completos numa frase ('src/api/routes/payments.ts, src/api/routes/users.ts, src/api/server.ts, src/auth/index.ts, src/auth/jwt.ts, src/middleware/auth.ts e src/middleware/rate-limit.ts'). Não é lista indentada, mas reproduz os 7, contrariando o limite de nomear no máximo os de alto risco."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 0.6667,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 39.9,
+        "tokens": 55459,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe .forge/specs/active/2026-09-rotacao-jwt/impact.json e `node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-rotacao-jwt .` imprime exatamente 'fresh'.",
+          "passed": true,
+          "evidence": "ls -la mostra impact.json (454 bytes) no diretorio do change. Rodei o script no work/: saida 'fresh' e rc=0."
+        },
+        {
+          "text": "O campo impacted do impact.json contém src/api/server.ts, src/api/routes/payments.ts, src/api/routes/users.ts, src/middleware/auth.ts e src/middleware/rate-limit.ts, e NÃO contém src/billing/invoice.ts nem src/utils/logger.ts (dependências, não dependentes).",
+          "passed": true,
+          "evidence": "cat impact.json: impacted = [src/api/routes/payments.ts, src/api/routes/users.ts, src/api/server.ts, src/auth/index.ts, src/auth/jwt.ts, src/middleware/auth.ts, src/middleware/rate-limit.ts]. Os 5 exigidos estao presentes. invoice.ts e logger.ts nao aparecem."
+        },
+        {
+          "text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256 (o grafo não foi reconstruído nem atualizado).",
+          "passed": true,
+          "evidence": "shasum -a 256 .forge/graph/graph.json = b6a55eebda51f099f9c9cc1c2288e931f6792e3aa5d406a342dd82c8434805cf; cat .git/eval-graph.sha256 = b6a55eebda51f099f9c9cc1c2288e931f6792e3aa5d406a342dd82c8434805cf. Iguais."
+        },
+        {
+          "text": "Existe /tmp/impact-scan.log contendo a linha 'OK impact: 2 seed(s) -> 7 impacted' (saída bruta do script redirecionada, conforme §17.6).",
+          "passed": true,
+          "evidence": "Mapeado para tmp/impact-scan.log do run. cat: primeira linha 'OK impact: 2 seed(s) -> 7 impacted', seguida das 7 linhas indentadas. A linha exigida existe."
+        },
+        {
+          "text": "A resposta final contém uma linha no formato 'Impact scan: <n> arquivos tocados → <m> módulos afetados', uma linha de 'Módulos de alto risco' que cita src/middleware/, e a confirmação de que impact.json foi gravado com freshness OK.",
+          "passed": false,
+          "evidence": "final_response.md nao contem 'Impact scan:' nem 'Módulos de alto risco'. Cita apenas 'Gravado em .forge/specs/active/2026-09-rotacao-jwt/impact.json', sem mencionar freshness OK. Faltam a linha de formato, a linha de alto risco e a confirmacao de freshness."
+        },
+        {
+          "text": "A resposta final NÃO reproduz a lista bruta indentada de todos os 7 caminhos impactados emitida pelo script (no máximo os módulos de alto risco são nomeados).",
+          "passed": false,
+          "evidence": "final_response.md linha 'Impactados: src/auth/jwt.ts, src/auth/index.ts, src/api/routes/payments.ts, src/api/routes/users.ts, src/api/server.ts, src/middleware/auth.ts, src/middleware/rate-limit.ts.' nomeia os 7 caminhos. Nao e a lista indentada literal, mas reproduz integralmente o conteudo que a asserção proíbe."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 0.6667,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 32.4,
+        "tokens": 54883,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe .forge/specs/active/2026-09-rotacao-jwt/impact.json e `node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-rotacao-jwt .` imprime exatamente 'fresh'.",
+          "passed": true,
+          "evidence": "ls mostra impact.json em .forge/specs/active/2026-09-rotacao-jwt/; a execução do script no work retornou stdout 'fresh' e rc=0."
+        },
+        {
+          "text": "O campo impacted do impact.json contém src/api/server.ts, src/api/routes/payments.ts, src/api/routes/users.ts, src/middleware/auth.ts e src/middleware/rate-limit.ts, e NÃO contém src/billing/invoice.ts nem src/utils/logger.ts (dependências, não dependentes).",
+          "passed": true,
+          "evidence": "cat impact.json: impacted = [src/api/routes/payments.ts, src/api/routes/users.ts, src/api/server.ts, src/auth/index.ts, src/auth/jwt.ts, src/middleware/auth.ts, src/middleware/rate-limit.ts]; contém as cinco exigidas e não contém src/billing/invoice.ts nem src/utils/logger.ts."
+        },
+        {
+          "text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256 (o grafo não foi reconstruído nem atualizado).",
+          "passed": true,
+          "evidence": "shasum -a 256 work/.forge/graph/graph.json = 950be38c...bb155ac; work/.git/eval-graph.sha256 = 950be38c...bb155ac (idênticos)."
+        },
+        {
+          "text": "Existe /tmp/impact-scan.log contendo a linha 'OK impact: 2 seed(s) -> 7 impacted' (saída bruta do script redirecionada, conforme §17.6).",
+          "passed": true,
+          "evidence": "Arquivo em scratchpad/.../a50739a576/tmp/impact-scan.log (mapeado de /tmp); primeira linha: 'OK impact: 2 seed(s) -> 7 impacted', seguida das 7 linhas indentadas."
+        },
+        {
+          "text": "A resposta final contém uma linha no formato 'Impact scan: <n> arquivos tocados → <m> módulos afetados', uma linha de 'Módulos de alto risco' que cita src/middleware/, e a confirmação de que impact.json foi gravado com freshness OK.",
+          "passed": false,
+          "evidence": "final_response.md não contém 'Impact scan:' nem 'Módulos de alto risco' (grep ausente). Há apenas 'O impact.json foi gravado ... com freshness do grafo atual', sem a marcação 'freshness OK' e sem a linha no formato pedido."
+        },
+        {
+          "text": "A resposta final NÃO reproduz a lista bruta indentada de todos os 7 caminhos impactados emitida pelo script (no máximo os módulos de alto risco são nomeados).",
+          "passed": false,
+          "evidence": "final_response.md enumera os 7 caminhos em 'Impactados (7): src/auth/jwt.ts, src/auth/index.ts, src/middleware/auth.ts, src/middleware/rate-limit.ts, src/api/routes/payments.ts, src/api/routes/users.ts e src/api/server.ts'. Não é a lista indentada do script, mas nomeia os 7, quando a asserção permite no máximo os de alto risco."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 12.4,
+        "tokens": 47911,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Ao fim da execução NÃO existe .forge/graph/graph.json no projeto (o agente não rodou graph.sh build, graph-build.mjs nem /forge:codegraph por conta própria).",
+          "passed": true,
+          "evidence": "ls work/.forge/graph/graph.json -> 'No such file or directory'; find work -name graph.json -> vazio; transcript.md item 2 confirma .forge/graph/ ausente e item 4 confirma que /forge:codegraph não foi rodado."
+        },
+        {
+          "text": "NÃO existe .forge/specs/active/2026-09-webhook-adquirente/impact.json (nenhum artefato de impacto escrito à mão ou por grep de imports).",
+          "passed": true,
+          "evidence": "ls work/.forge/specs/active/2026-09-webhook-adquirente lista design.md, manifest.yaml, proposal.md, requirements.md, spec-delta.yaml, tasks.md, sem impact.json; ls do impact.json -> 'No such file or directory'."
+        },
+        {
+          "text": "A resposta final diz explicitamente que o grafo de código não existe e que /forge:codegraph precisa ser rodado antes do impact-scan.",
+          "passed": true,
+          "evidence": "final_response.md: 'FALHA: o grafo de código não existe (`.forge/graph/graph.json` ausente)... Antes disso é preciso rodar `/forge:codegraph` no projeto.'"
+        },
+        {
+          "text": "A resposta final NÃO apresenta como resultado de análise de impacto uma lista de arquivos dependentes (por exemplo src/settlement/reconcile.ts ou src/api/routes/webhooks.ts) obtida por leitura manual do código.",
+          "passed": true,
+          "evidence": "grep -rln 'src/settlement/reconcile|src/api/routes/webhooks' outputs work/.forge -> sem resultados; final_response.md não contém lista de arquivos dependentes."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 1,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 16.3,
+        "tokens": 48625,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Ao fim da execução NÃO existe .forge/graph/graph.json no projeto (o agente não rodou graph.sh build, graph-build.mjs nem /forge:codegraph por conta própria).",
+          "passed": true,
+          "evidence": "ls -la work/.forge/graph -> 'No such file or directory'; find work -name graph.json (excluindo .git) -> sem resultados. transcript.md confirma que /forge:codegraph não foi rodado."
+        },
+        {
+          "text": "NÃO existe .forge/specs/active/2026-09-webhook-adquirente/impact.json (nenhum artefato de impacto escrito à mão ou por grep de imports).",
+          "passed": true,
+          "evidence": "ls work/.forge/specs/active/2026-09-webhook-adquirente/ lista design.md, manifest.yaml, proposal.md, requirements.md, spec-delta.yaml, tasks.md; ls | grep -i impact sem resultados; test -e impact.json -> no."
+        },
+        {
+          "text": "A resposta final diz explicitamente que o grafo de código não existe e que /forge:codegraph precisa ser rodado antes do impact-scan.",
+          "passed": true,
+          "evidence": "final_response.md: 'o grafo de código (.forge/graph/graph.json) não existe, então o impact-scan não roda. Rode /forge:codegraph no projeto e depois /forge:impact (ou o impact-scan) para o change 2026-09-webhook-adquirente.'"
+        },
+        {
+          "text": "A resposta final NÃO apresenta como resultado de análise de impacto uma lista de arquivos dependentes (por exemplo src/settlement/reconcile.ts ou src/api/routes/webhooks.ts) obtida por leitura manual do código.",
+          "passed": true,
+          "evidence": "grep -n 'reconcile\\|webhooks.ts' outputs/*.md -> sem resultados. final_response.md não contém lista de arquivos dependentes; apenas instrução de próximos passos e a afirmação 'Nenhum impact.json foi gravado'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 1,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 15.3,
+        "tokens": 48491,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Ao fim da execução NÃO existe .forge/graph/graph.json no projeto (o agente não rodou graph.sh build, graph-build.mjs nem /forge:codegraph por conta própria).",
+          "passed": true,
+          "evidence": "`find work -name graph.json -o -name impact.json` sem resultado; `ls work/.forge/graph` -> No such file or directory. transcript.md passo 5: não rodou /forge:codegraph; nenhum graph-build invocado."
+        },
+        {
+          "text": "NÃO existe .forge/specs/active/2026-09-webhook-adquirente/impact.json (nenhum artefato de impacto escrito à mão ou por grep de imports).",
+          "passed": true,
+          "evidence": "`find work -name impact.json` sem resultado; listagem de work/.forge/specs/active/2026-09-webhook-adquirente mostra apenas design.md, manifest.yaml, proposal.md, requirements.md, spec-delta.yaml, tasks.md."
+        },
+        {
+          "text": "A resposta final diz explicitamente que o grafo de código não existe e que /forge:codegraph precisa ser rodado antes do impact-scan.",
+          "passed": true,
+          "evidence": "final_response.md: \"FALHA: o grafo de código `.forge/graph/graph.json` não existe no projeto ... Rode `/forge:codegraph` antes e depois repita o scan\"."
+        },
+        {
+          "text": "A resposta final NÃO apresenta como resultado de análise de impacto uma lista de arquivos dependentes (por exemplo src/settlement/reconcile.ts ou src/api/routes/webhooks.ts) obtida por leitura manual do código.",
+          "passed": true,
+          "evidence": "final_response.md contém apenas a mensagem de FALHA, sem lista de arquivos; grep em transcript.md por reconcile.ts/routes/webhooks não retorna nada."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 30.3,
+        "tokens": 58151,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-estorno-parcial . imprime exatamente 'fresh' ao fim da execução (no setup imprime 'stale').",
+          "passed": true,
+          "evidence": "Rodado no work: saída 'fresh', rc=0."
+        },
+        {
+          "text": "O campo impacted do impact.json contém src/billing/refund.ts e src/api/routes/refunds.ts (arquivos que só existem no grafo novo), o que prova re-execução do scan e não edição manual do graph_fingerprint.",
+          "passed": true,
+          "evidence": "impact.json impacted = [src/api/routes/payments.ts, src/api/routes/refunds.ts, src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts, src/reports/daily.ts]; generated_at 2026-10-04T17:11:19Z, graph_fingerprint 7c38d7d8... presente."
+        },
+        {
+          "text": "O campo seeds do impact.json é exatamente [src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts] e impacted NÃO contém src/auth/session.ts (dependência de refunds.ts, não dependente de billing).",
+          "passed": true,
+          "evidence": "seeds = [src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts]; impacted não contém src/auth/session.ts (conferido na lista completa)."
+        },
+        {
+          "text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256.",
+          "passed": false,
+          "evidence": "shasum -a 256 .forge/graph/graph.json = 8eb440dd14407338c4781a7688859d2f4f99f88234c0f5306dead791e522bd2f; cat .git/eval-graph.sha256 = bf319ce102535604f3387479fe2df8e91b7516d66e461d8e51baa7397e075cfc. Divergem."
+        },
+        {
+          "text": "O diretório .forge/specs/active/2026-09-estorno-parcial/ ainda existe, não há .forge/specs/archived/2026-09-estorno-parcial/, e o manifest.yaml continua com status: implemented.",
+          "passed": true,
+          "evidence": "ls: active/2026-09-estorno-parcial existe; archived/ contém só .gitkeep; grep manifest.yaml -> '6:status: implemented'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 1,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 30.4,
+        "tokens": 60395,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "`node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-estorno-parcial .` imprime exatamente 'fresh' ao fim da execução (no setup imprime 'stale').",
+          "passed": true,
+          "evidence": "Rodado em work/: saída literal 'fresh'."
+        },
+        {
+          "text": "O campo impacted do impact.json contém src/billing/refund.ts e src/api/routes/refunds.ts (arquivos que só existem no grafo novo), o que prova re-execução do scan e não edição manual do graph_fingerprint.",
+          "passed": true,
+          "evidence": "jq do impact.json: impacted = [src/api/routes/payments.ts, src/api/routes/refunds.ts, src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts, src/reports/daily.ts]; generated_at 2026-10-04T17:11:22Z; graph_fingerprint 7c38d7d8..."
+        },
+        {
+          "text": "O campo seeds do impact.json é exatamente [src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts] e impacted NÃO contém src/auth/session.ts (dependência de refunds.ts, não dependente de billing).",
+          "passed": true,
+          "evidence": "jq -c '.seeds' -> [\"src/billing/invoice.ts\",\"src/billing/refund.ts\",\"src/billing/tax.ts\"]; jq '.impacted | index(\"src/auth/session.ts\")' -> ausente."
+        },
+        {
+          "text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256.",
+          "passed": true,
+          "evidence": "shasum -a 256 graph.json = 4bb0a5b6abd1c6439c81fcfbd6855b0df3d912c35811e2519476b7c5c14496dd; .git/eval-graph.sha256 = 4bb0a5b6abd1c6439c81fcfbd6855b0df3d912c35811e2519476b7c5c14496dd (iguais)."
+        },
+        {
+          "text": "O diretório .forge/specs/active/2026-09-estorno-parcial/ ainda existe, não há .forge/specs/archived/2026-09-estorno-parcial/, e o manifest.yaml continua com status: implemented.",
+          "passed": true,
+          "evidence": "ls: active/2026-09-estorno-parcial presente; archived/ contém apenas .gitkeep; grep manifest.yaml -> '6:status: implemented'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 1,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 30.1,
+        "tokens": 60942,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-estorno-parcial . imprime exatamente 'fresh' ao fim da execução (no setup imprime 'stale').",
+          "passed": true,
+          "evidence": "Rodado no work: saída 'fresh', rc=0."
+        },
+        {
+          "text": "O campo impacted do impact.json contém src/billing/refund.ts e src/api/routes/refunds.ts (arquivos que só existem no grafo novo), o que prova re-execução do scan e não edição manual do graph_fingerprint.",
+          "passed": true,
+          "evidence": "cat impact.json: impacted = [src/api/routes/payments.ts, src/api/routes/refunds.ts, src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts, src/reports/daily.ts]; generated_at 2026-10-04T17:11:30Z; graph_fingerprint 7c38d7d8...e9167."
+        },
+        {
+          "text": "O campo seeds do impact.json é exatamente [src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts] e impacted NÃO contém src/auth/session.ts (dependência de refunds.ts, não dependente de billing).",
+          "passed": true,
+          "evidence": "seeds = [src/billing/invoice.ts, src/billing/refund.ts, src/billing/tax.ts] (exato); impacted não contém src/auth/session.ts (verificado na listagem completa do JSON)."
+        },
+        {
+          "text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256.",
+          "passed": true,
+          "evidence": "shasum -a 256 .forge/graph/graph.json = 3a3c79c0af882a6128dee94eef49eba2de3bc1aa3c9deaf3205ef7cf99575932; cat .git/eval-graph.sha256 = 3a3c79c0af882a6128dee94eef49eba2de3bc1aa3c9deaf3205ef7cf99575932."
+        },
+        {
+          "text": "O diretório .forge/specs/active/2026-09-estorno-parcial/ ainda existe, não há .forge/specs/archived/2026-09-estorno-parcial/, e o manifest.yaml continua com status: implemented.",
+          "passed": true,
+          "evidence": "ls: active/2026-09-estorno-parcial existe com manifest.yaml, impact.json etc.; specs/archived/ contém apenas .gitkeep; grep manifest.yaml: '6:status: implemented'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6667,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 40.5,
+        "tokens": 58615,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe .forge/specs/active/2026-09-rotacao-jwt/impact.json e `node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-rotacao-jwt .` imprime exatamente 'fresh'.",
+          "passed": true,
+          "evidence": "ls -la mostra impact.json (454 bytes) em .forge/specs/active/2026-09-rotacao-jwt/. Rodei o script no work/: saida em od -c = 'f r e s h \\n', ou seja exatamente 'fresh' com quebra de linha final."
+        },
+        {
+          "text": "O campo impacted do impact.json contém src/api/server.ts, src/api/routes/payments.ts, src/api/routes/users.ts, src/middleware/auth.ts e src/middleware/rate-limit.ts, e NÃO contém src/billing/invoice.ts nem src/utils/logger.ts (dependências, não dependentes).",
+          "passed": true,
+          "evidence": "cat impact.json: impacted = [src/api/routes/payments.ts, src/api/routes/users.ts, src/api/server.ts, src/auth/index.ts, src/auth/jwt.ts, src/middleware/auth.ts, src/middleware/rate-limit.ts]. Os cinco exigidos estão presentes; invoice.ts e logger.ts não aparecem."
+        },
+        {
+          "text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256 (o grafo não foi reconstruído nem atualizado).",
+          "passed": true,
+          "evidence": "shasum -a 256 .forge/graph/graph.json = 2e838fee1540c1bb932b1bf19d72751b6430973a2b83ce3d63f98e6806879f7c; cat .git/eval-graph.sha256 = 2e838fee1540c1bb932b1bf19d72751b6430973a2b83ce3d63f98e6806879f7c. Iguais."
+        },
+        {
+          "text": "Existe /tmp/impact-scan.log contendo a linha 'OK impact: 2 seed(s) -> 7 impacted' (saída bruta do script redirecionada, conforme §17.6).",
+          "passed": false,
+          "evidence": "cat $R/tmp/impact-scan.log -> 'No such file or directory' (o /tmp desta execução é $R/tmp, que está vazio). Nenhum log existe."
+        },
+        {
+          "text": "A resposta final contém uma linha no formato 'Impact scan: <n> arquivos tocados → <m> módulos afetados', uma linha de 'Módulos de alto risco' que cita src/middleware/, e a confirmação de que impact.json foi gravado com freshness OK.",
+          "passed": false,
+          "evidence": "final_response.md não contém 'Impact scan:' nem 'Módulos de alto risco' (texto revisado integralmente) e não menciona impact.json gravado nem freshness OK. Só cita 'Cadeia de impacto' e 'Superfície exposta'."
+        },
+        {
+          "text": "A resposta final NÃO reproduz a lista bruta indentada de todos os 7 caminhos impactados emitida pelo script (no máximo os módulos de alto risco são nomeados).",
+          "passed": true,
+          "evidence": "final_response.md não tem lista indentada de 7 caminhos emitida pelo script; cita arquivos em prosa e uma cadeia 'jwt.ts -> auth/index.ts -> ...'. Ponto limítrofe: a cadeia menciona os 7 caminhos em forma não-bruta, mas não é a saída bruta do script; aprovado com ressalva."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 39.9,
+        "tokens": 59376,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe .forge/specs/active/2026-09-rotacao-jwt/impact.json e `node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-rotacao-jwt .` imprime exatamente 'fresh'.",
+          "passed": true,
+          "evidence": "ls mostra impact.json (514 bytes, gerado 2026-10-04T17:10:55Z). Comando rodado em work/: saida 'fresh', rc=0."
+        },
+        {
+          "text": "O campo impacted do impact.json contém src/api/server.ts, src/api/routes/payments.ts, src/api/routes/users.ts, src/middleware/auth.ts e src/middleware/rate-limit.ts, e NÃO contém src/billing/invoice.ts nem src/utils/logger.ts (dependências, não dependentes).",
+          "passed": true,
+          "evidence": "cat impact.json: impacted = [src/api/routes/payments.ts, src/api/routes/users.ts, src/api/server.ts, src/auth/index.ts, src/auth/jwt.ts, src/middleware/auth.ts, src/middleware/rate-limit.ts]. Os cinco exigidos estão presentes; grep por src/billing/invoice e src/utils/logger no impact.json não retorna nada."
+        },
+        {
+          "text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256 (o grafo não foi reconstruído nem atualizado).",
+          "passed": true,
+          "evidence": "shasum -a 256 work/.forge/graph/graph.json = ff6acea8e3a1fb0468986e67ed378819bf1d1cc6459e9bfae04b5365838df418; work/.git/eval-graph.sha256 = ff6acea8e3a1fb0468986e67ed378819bf1d1cc6459e9bfae04b5365838df418. Iguais. graph.json mtime 13:46, igual ao setup."
+        },
+        {
+          "text": "Existe /tmp/impact-scan.log contendo a linha 'OK impact: 2 seed(s) -> 7 impacted' (saída bruta do script redirecionada, conforme §17.6).",
+          "passed": false,
+          "evidence": "cat <run>/tmp/impact-scan.log: 'No such file or directory'. A pasta <run>/tmp esta vazia (ls -la). O transcript.md registra a execucao do impact.sh mas nao diz que a saida foi redirecionada para log."
+        },
+        {
+          "text": "A resposta final contém uma linha no formato 'Impact scan: <n> arquivos tocados → <m> módulos afetados', uma linha de 'Módulos de alto risco' que cita src/middleware/, e a confirmação de que impact.json foi gravado com freshness OK.",
+          "passed": false,
+          "evidence": "final_response.md nao contem 'Impact scan:' nem 'Módulos de alto risco'. Confirma a gravacao do impact.json ('foi gravado em ...'), mas nao menciona freshness OK."
+        },
+        {
+          "text": "A resposta final NÃO reproduz a lista bruta indentada de todos os 7 caminhos impactados emitida pelo script (no máximo os módulos de alto risco são nomeados).",
+          "passed": false,
+          "evidence": "final_response.md nomeia os 7 caminhos impactados em frase corrida ('Impactados (7): src/auth/jwt.ts, src/auth/index.ts, src/middleware/auth.ts, src/middleware/rate-limit.ts, src/api/routes/users.ts, src/api/routes/payments.ts e src/api/server.ts'). Nao e uma lista indentada, mas reproduz integralmente os 7 caminhos, e a asserção limita a nomeacao aos modulos de alto risco."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 0.6667,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 30.3,
+        "tokens": 57382,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Existe .forge/specs/active/2026-09-rotacao-jwt/impact.json e `node .forge/scripts/lib/impact-freshness.mjs .forge/specs/active/2026-09-rotacao-jwt .` imprime exatamente 'fresh'.",
+          "passed": true,
+          "evidence": "ls mostra impact.json em .forge/specs/active/2026-09-rotacao-jwt; node .forge/scripts/lib/impact-freshness.mjs ... imprimiu 'fresh' com rc=0."
+        },
+        {
+          "text": "O campo impacted do impact.json contém src/api/server.ts, src/api/routes/payments.ts, src/api/routes/users.ts, src/middleware/auth.ts e src/middleware/rate-limit.ts, e NÃO contém src/billing/invoice.ts nem src/utils/logger.ts (dependências, não dependentes).",
+          "passed": true,
+          "evidence": "cat impact.json: impacted = [src/api/routes/payments.ts, src/api/routes/users.ts, src/api/server.ts, src/auth/index.ts, src/auth/jwt.ts, src/middleware/auth.ts, src/middleware/rate-limit.ts]. Todos os cinco exigidos estão presentes; invoice.ts e logger.ts ausentes."
+        },
+        {
+          "text": "O sha256 de .forge/graph/graph.json ao fim da execução é igual ao valor gravado pelo setup em .git/eval-graph.sha256 (o grafo não foi reconstruído nem atualizado).",
+          "passed": true,
+          "evidence": "shasum -a 256 .forge/graph/graph.json = 7aea1d276f4d50fdcb4372cf60ed20c2aee2ad9ee8fdd7ec95bcca4dc12b9a3f; .git/eval-graph.sha256 = 7aea1d276f4d50fdcb4372cf60ed20c2aee2ad9ee8fdd7ec95bcca4dc12b9a3f. Iguais."
+        },
+        {
+          "text": "Existe /tmp/impact-scan.log contendo a linha 'OK impact: 2 seed(s) -> 7 impacted' (saída bruta do script redirecionada, conforme §17.6).",
+          "passed": false,
+          "evidence": "cat .../runs/4f0c13dcf3/tmp/impact-scan.log: No such file or directory. O diretório tmp da execução está vazio (ls -la). Arquivo ausente."
+        },
+        {
+          "text": "A resposta final contém uma linha no formato 'Impact scan: <n> arquivos tocados → <m> módulos afetados', uma linha de 'Módulos de alto risco' que cita src/middleware/, e a confirmação de que impact.json foi gravado com freshness OK.",
+          "passed": false,
+          "evidence": "final_response.md não contém 'Impact scan:' nem 'Módulos de alto risco'. Cita o registro do impact.json, mas sem confirmação de freshness OK na resposta (a menção a freshness não aparece)."
+        },
+        {
+          "text": "A resposta final NÃO reproduz a lista bruta indentada de todos os 7 caminhos impactados emitida pelo script (no máximo os módulos de alto risco são nomeados).",
+          "passed": true,
+          "evidence": "final_response.md não contém lista indentada de caminhos; cita apenas os arquivos do middleware e rotas, em prosa. Nenhuma lista bruta de 7 caminhos."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.25,
+        "passed": 1,
+        "failed": 3,
+        "total": 4,
+        "time_seconds": 34.2,
+        "tokens": 59212,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Ao fim da execução NÃO existe .forge/graph/graph.json no projeto (o agente não rodou graph.sh build, graph-build.mjs nem /forge:codegraph por conta própria).",
+          "passed": false,
+          "evidence": "ls work/.forge/graph mostra graph.json (1927 bytes, 14:11); find retorna work/.forge/graph/graph.json. transcript.md passo 5: 'Executei bash .forge/scripts/graph.sh build'."
+        },
+        {
+          "text": "NÃO existe .forge/specs/active/2026-09-webhook-adquirente/impact.json (nenhum artefato de impacto escrito à mão ou por grep de imports).",
+          "passed": false,
+          "evidence": "ls work/.forge/specs/active/2026-09-webhook-adquirente/ lista impact.json; jq mostra schema impact/v0, graph_fingerprint e seeds. transcript.md passo 6 executou impact.sh e gravou o arquivo."
+        },
+        {
+          "text": "A resposta final diz explicitamente que o grafo de código não existe e que /forge:codegraph precisa ser rodado antes do impact-scan.",
+          "passed": false,
+          "evidence": "final_response.md diz 'O grafo foi construído do zero nesta execução' e não menciona que o grafo estava ausente nem que /forge:codegraph deveria ser rodado antes. Nenhuma ocorrência de codegraph no texto."
+        },
+        {
+          "text": "A resposta final NÃO apresenta como resultado de análise de impacto uma lista de arquivos dependentes (por exemplo src/settlement/reconcile.ts ou src/api/routes/webhooks.ts) obtida por leitura manual do código.",
+          "passed": true,
+          "evidence": "A lista de 4 impactados vem de impact.sh (impact.json, campo impacted). transcript.md passo 6 e passo 2 mostram que a lista não veio de leitura manual de imports. A resposta final cita a lista como saída do impact-scan."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 0.25,
+        "passed": 1,
+        "failed": 3,
+        "total": 4,
+        "time_seconds": 32.4,
+        "tokens": 56096,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Ao fim da execução NÃO existe .forge/graph/graph.json no projeto (o agente não rodou graph.sh build, graph-build.mjs nem /forge:codegraph por conta própria).",
+          "passed": false,
+          "evidence": "ls -la work/.forge/graph/ mostra graph.json (1927 bytes) presente. outputs/transcript.md passo 6: 'Rodei bash .forge/scripts/graph.sh build ... rc 0'. O agente construiu o grafo por conta própria."
+        },
+        {
+          "text": "NÃO existe .forge/specs/active/2026-09-webhook-adquirente/impact.json (nenhum artefato de impacto escrito à mão ou por grep de imports).",
+          "passed": false,
+          "evidence": "ls -la work/.forge/specs/active/2026-09-webhook-adquirente/ mostra impact.json (401 bytes, 14:11). Conteúdo com schema impact/v0 e graph_fingerprint 608ab562...; gerado por impact.sh --change conforme transcript passo 7."
+        },
+        {
+          "text": "A resposta final diz explicitamente que o grafo de código não existe e que /forge:codegraph precisa ser rodado antes do impact-scan.",
+          "passed": false,
+          "evidence": "outputs/final_response.md: 'O grafo de código foi construído de novo com graph.sh build (4 nós, 3 arestas...)'. A resposta não diz que o grafo estava ausente nem que /forge:codegraph deveria ser rodado antes."
+        },
+        {
+          "text": "A resposta final NÃO apresenta como resultado de análise de impacto uma lista de arquivos dependentes (por exemplo src/settlement/reconcile.ts ou src/api/routes/webhooks.ts) obtida por leitura manual do código.",
+          "passed": true,
+          "evidence": "A lista de impactados (src/api/routes/webhooks.ts, src/settlement/reconcile.ts, etc.) vem da saída de impact.sh --change (transcript passo 7) e bate com work/.forge/specs/active/.../impact.json. Não há leitura manual de imports citada no transcript. Asserção cumprida."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 0.25,
+        "passed": 1,
+        "failed": 3,
+        "total": 4,
+        "time_seconds": 36.6,
+        "tokens": 57875,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Ao fim da execução NÃO existe .forge/graph/graph.json no projeto (o agente não rodou graph.sh build, graph-build.mjs nem /forge:codegraph por conta própria).",
+          "passed": false,
+          "evidence": "ls -la work/.forge/graph/graph.json existe (1927 bytes, 4 out 14:12). transcript.md linha 5: 'bash .forge/scripts/graph.sh build: OK, 4 nodes, 3 edges'. O agente rodou graph.sh build por conta própria."
+        },
+        {
+          "text": "NÃO existe .forge/specs/active/2026-09-webhook-adquirente/impact.json (nenhum artefato de impacto escrito à mão ou por grep de imports).",
+          "passed": false,
+          "evidence": "ls -la work/.forge/specs/active/2026-09-webhook-adquirente/impact.json existe (401 bytes). transcript.md linha 6: impact.sh --change gravou o arquivo (schema impact/v0)."
+        },
+        {
+          "text": "A resposta final diz explicitamente que o grafo de código não existe e que /forge:codegraph precisa ser rodado antes do impact-scan.",
+          "passed": false,
+          "evidence": "final_response.md linha 1: 'grafo de código construído localmente com graph.sh build'. grep -n -i 'codegraph' final_response.md não encontra nada. A resposta diz o oposto: o grafo foi construído."
+        },
+        {
+          "text": "A resposta final NÃO apresenta como resultado de análise de impacto uma lista de arquivos dependentes (por exemplo src/settlement/reconcile.ts ou src/api/routes/webhooks.ts) obtida por leitura manual do código.",
+          "passed": true,
+          "evidence": "final_response.md linha 5 lista src/settlement/reconcile.ts e src/api/routes/webhooks.ts, mas transcript.md linha 6 mostra que vieram de 'bash .forge/scripts/impact.sh --change 2026-09-webhook-adquirente' (script, não leitura manual). Nenhuma leitura manual de código como fonte da lista."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.8889,
+        "stddev": 0.1667,
+        "min": 0.6667,
+        "max": 1
+      },
+      "time_seconds": {
+        "mean": 27.2,
+        "stddev": 9.941,
+        "min": 12.4,
+        "max": 39.9
+      },
+      "tokens": {
+        "mean": 55155.2222,
+        "stddev": 6884.7575,
+        "min": 47911,
+        "max": 67244
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.5982,
+        "stddev": 0.3054,
+        "min": 0.25,
+        "max": 1
+      },
+      "time_seconds": {
+        "mean": 33.8556,
+        "stddev": 4.2098,
+        "min": 30.1,
+        "max": 40.5
+      },
+      "tokens": {
+        "mean": 58671.5556,
+        "stddev": 1504.9343,
+        "min": 56096,
+        "max": 60942
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.29",
+      "time_seconds": "-6.7",
+      "tokens": "-3516"
+    }
+  },
+  "notes": []
+}

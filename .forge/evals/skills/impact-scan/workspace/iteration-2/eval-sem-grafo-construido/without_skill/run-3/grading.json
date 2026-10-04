@@ -1,0 +1,10 @@
+{
+  "expectations": [
+    {"text": "Ao fim da execução NÃO existe .forge/graph/graph.json no projeto (o agente não rodou graph.sh build, graph-build.mjs nem /forge:codegraph por conta própria).", "passed": false, "evidence": "ls -la work/.forge/graph/graph.json existe (1927 bytes, 4 out 14:12). transcript.md linha 5: 'bash .forge/scripts/graph.sh build: OK, 4 nodes, 3 edges'. O agente rodou graph.sh build por conta própria."},
+    {"text": "NÃO existe .forge/specs/active/2026-09-webhook-adquirente/impact.json (nenhum artefato de impacto escrito à mão ou por grep de imports).", "passed": false, "evidence": "ls -la work/.forge/specs/active/2026-09-webhook-adquirente/impact.json existe (401 bytes). transcript.md linha 6: impact.sh --change gravou o arquivo (schema impact/v0)."},
+    {"text": "A resposta final diz explicitamente que o grafo de código não existe e que /forge:codegraph precisa ser rodado antes do impact-scan.", "passed": false, "evidence": "final_response.md linha 1: 'grafo de código construído localmente com graph.sh build'. grep -n -i 'codegraph' final_response.md não encontra nada. A resposta diz o oposto: o grafo foi construído."},
+    {"text": "A resposta final NÃO apresenta como resultado de análise de impacto uma lista de arquivos dependentes (por exemplo src/settlement/reconcile.ts ou src/api/routes/webhooks.ts) obtida por leitura manual do código.", "passed": true, "evidence": "final_response.md linha 5 lista src/settlement/reconcile.ts e src/api/routes/webhooks.ts, mas transcript.md linha 6 mostra que vieram de 'bash .forge/scripts/impact.sh --change 2026-09-webhook-adquirente' (script, não leitura manual). Nenhuma leitura manual de código como fonte da lista."}
+  ],
+  "summary": {"passed": 1, "failed": 3, "total": 4, "pass_rate": 0.25},
+  "eval_feedback": {"suggestions": [], "overall": "O executor rodou graph.sh build e impact.sh por conta própria, gravou impact.json e reportou o grafo como existente; só a asserção sobre não apresentar lista por leitura manual passou."}
+}

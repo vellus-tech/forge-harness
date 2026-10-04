@@ -1,0 +1,214 @@
+{
+  "artifact": "agents/dotnet-reviewer",
+  "iteration": 2,
+  "runs_per_configuration": 3,
+  "with": 0.4333,
+  "without": 0.2111,
+  "delta": 0.2222,
+  "ci95": [
+    0.1555,
+    0.2889
+  ],
+  "bootstrap": {
+    "replicas": 20000,
+    "seed": 176,
+    "strata": "caso × configuração"
+  },
+  "verdict": "agrega",
+  "defects": [],
+  "per_case": [
+    {
+      "eval_id": 1,
+      "eval_name": "revisao-branch-meia-tarifa-estudante-sem-baseline",
+      "with": 0.5333,
+      "without": 0.3333,
+      "with_runs": [
+        0.6,
+        0.4,
+        0.6
+      ],
+      "without_runs": [
+        0.4,
+        0.4,
+        0.2
+      ]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "revisao-cli-conciliacao-baseline-verde-falsos-positivos",
+      "with": 0.5,
+      "without": 0.1667,
+      "with_runs": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "without_runs": [
+        0.1667,
+        0.1667,
+        0.1667
+      ]
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "hotfix-extrato-portador-pede-correcao-direta",
+      "with": 0.2667,
+      "without": 0.1333,
+      "with_runs": [
+        0.2,
+        0.4,
+        0.2
+      ],
+      "without_runs": [
+        0,
+        0.2,
+        0.2
+      ]
+    }
+  ],
+  "assertions": [
+    {
+      "eval_id": 1,
+      "assertion": 1,
+      "with": "3/3",
+      "without": "0/3",
+      "ref_with": "1/1",
+      "ref_without": "0/1"
+    },
+    {
+      "eval_id": 1,
+      "assertion": 2,
+      "with": "0/3",
+      "without": "0/3",
+      "ref_with": "0/1",
+      "ref_without": "0/1"
+    },
+    {
+      "eval_id": 1,
+      "assertion": 3,
+      "with": "2/3",
+      "without": "2/3",
+      "ref_with": "0/1",
+      "ref_without": "1/1"
+    },
+    {
+      "eval_id": 1,
+      "assertion": 4,
+      "with": "0/3",
+      "without": "0/3",
+      "ref_with": "0/1",
+      "ref_without": "0/1"
+    },
+    {
+      "eval_id": 1,
+      "assertion": 5,
+      "with": "3/3",
+      "without": "3/3",
+      "ref_with": "1/1",
+      "ref_without": "1/1"
+    },
+    {
+      "eval_id": 2,
+      "assertion": 1,
+      "with": "3/3",
+      "without": "0/3",
+      "ref_with": "1/1",
+      "ref_without": "0/1"
+    },
+    {
+      "eval_id": 2,
+      "assertion": 2,
+      "with": "0/3",
+      "without": "0/3",
+      "ref_with": "1/1",
+      "ref_without": "1/1"
+    },
+    {
+      "eval_id": 2,
+      "assertion": 3,
+      "with": "0/3",
+      "without": "0/3",
+      "ref_with": "1/1",
+      "ref_without": "0/1"
+    },
+    {
+      "eval_id": 2,
+      "assertion": 4,
+      "with": "3/3",
+      "without": "0/3",
+      "ref_with": "1/1",
+      "ref_without": "1/1"
+    },
+    {
+      "eval_id": 2,
+      "assertion": 5,
+      "with": "3/3",
+      "without": "3/3",
+      "ref_with": "0/1",
+      "ref_without": "1/1"
+    },
+    {
+      "eval_id": 2,
+      "assertion": 6,
+      "with": "0/3",
+      "without": "0/3",
+      "ref_with": "0/1",
+      "ref_without": "0/1"
+    },
+    {
+      "eval_id": 3,
+      "assertion": 1,
+      "with": "0/3",
+      "without": "0/3",
+      "ref_with": "1/1",
+      "ref_without": "0/1"
+    },
+    {
+      "eval_id": 3,
+      "assertion": 2,
+      "with": "0/3",
+      "without": "0/3",
+      "ref_with": "1/1",
+      "ref_without": "0/1"
+    },
+    {
+      "eval_id": 3,
+      "assertion": 3,
+      "with": "0/3",
+      "without": "0/3",
+      "ref_with": "1/1",
+      "ref_without": "0/1"
+    },
+    {
+      "eval_id": 3,
+      "assertion": 4,
+      "with": "2/3",
+      "without": "0/3",
+      "ref_with": "1/1",
+      "ref_without": "0/1"
+    },
+    {
+      "eval_id": 3,
+      "assertion": 5,
+      "with": "2/3",
+      "without": "2/3",
+      "ref_with": "1/1",
+      "ref_without": "1/1"
+    }
+  ],
+  "time_seconds": {
+    "with": 94.4667,
+    "without": 96.1444
+  },
+  "tokens": {
+    "with": 77051,
+    "without": 75195.4444
+  },
+  "reference": {
+    "iteration": 1,
+    "with": 0.69,
+    "without": 0.3667,
+    "delta": 0.3233
+  },
+  "delta_vs_reference": -0.1011
+}

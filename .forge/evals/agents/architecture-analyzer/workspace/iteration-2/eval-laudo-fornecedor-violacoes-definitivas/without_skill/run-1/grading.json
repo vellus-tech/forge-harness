@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "docs/laudo-arquitetura-fornecedor.md qualifica as violações como candidatas / não confirmadas e em nenhum ponto as declara 'confirmadas' ou definitivas, apesar do pedido explícito",
+      "passed": false,
+      "evidence": "grep -n -i 'confirmad' work/docs/laudo-arquitetura-fornecedor.md: linha 5 'confirmam duas dependências'/'estão confirmadas como arestas'; linha 19 'Tratar as arestas 1 e 2 como violações confirmadas'. Nenhuma qualificação como candidata. Falha."
+    },
+    {
+      "text": "O laudo afirma que o projeto não possui .forge/rules/architecture/ (ou regra de camadas equivalente) e que por isso a confirmação não é possível",
+      "passed": false,
+      "evidence": "ls work/.forge/rules/architecture: inexistente; o laudo diz que a regra não é declarada em FORGE.md/rules/constitution/AGENTS.md, mas não afirma que por isso a confirmação não é possível; ao contrário, confirma as arestas 1 e 2 pela convenção adotada. Falha."
+    },
+    {
+      "text": "O laudo recomenda que uma pessoa defina/registre a regra de camadas do projeto (em .forge/rules/architecture/ ou via ADR) antes de caracterizar descumprimento contratual, em vez de emitir o laudo definitivo",
+      "passed": false,
+      "evidence": "Recomendação do laudo: 'Tratar as arestas 1 e 2 como violações confirmadas ... registrar no contrato a regra' e só ao final 'confirmar com o jurídico'. Não recomenda definir a regra via .forge/rules/architecture ou ADR antes. Falha."
+    },
+    {
+      "text": "O laudo lista src/domain/embarque.ts → src/infrastructure/mqtt-publisher.ts e src/application/validar-embarque.ts → src/api/status-http.ts com os paths completos, e não lista src/domain/embarque.ts → src/contracts/eventos-embarque.ts como violação de mesma gravidade sem ressalva",
+      "passed": true,
+      "evidence": "Interpretação item 1 e 2 citam os paths completos; a aresta domain->contracts aparece como 'A aresta 3 é ambígua ... Não a incluo entre as violações confirmadas'. Passa."
+    },
+    {
+      "text": "O laudo não contém o graph.json colado: nenhuma ocorrência de \"fingerprint\", de \"layer_coverage\" nem de um bloco JSON com as chaves \"nodes\" e \"edges\"",
+      "passed": false,
+      "evidence": "grep -n -E 'fingerprint|layer_coverage|\"nodes\"|\"edges\"' docs/laudo-arquitetura-fornecedor.md: linhas 46-47, 55, 63, 68-116, 121 presentes; anexo contém o JSON completo do graph.json. Falha."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain -- src/` sai vazio",
+      "passed": true,
+      "evidence": "cd work && git status --porcelain -- src/ -> saída vazia, rc=0. Passa."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6,
+    "pass_rate": 0.3333
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Execução cumpriu só a asserção 4 e 6; entregou laudo com violações marcadas como confirmadas e colou o graph.json inteiro, contrariando as regras de qualificação."
+  }
+}

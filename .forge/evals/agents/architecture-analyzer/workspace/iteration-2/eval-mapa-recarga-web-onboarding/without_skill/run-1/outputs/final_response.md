@@ -1,0 +1,3 @@
+Mapa salvo em `<RUN>/work/docs/arquitetura/mapa-recarga-web.md`.
+
+São 11 arquivos e cerca de 96 LOC em seis camadas mais a raiz de composição. Há duas violações de direção no fluxo de recarga: `domain/cartao.ts` importa o cliente Postgres e grava saldo dentro de `creditar()`, e `application/solicitar-recarga.ts` importa `api/http-errors.ts`. O acoplamento se concentra em `Cartao` (fan-in 4) e no logger (fan-in 6). O caso de uso `consultar-saldo` não tem importadores, e o cliente Postgres é um stub que sempre retorna lista vazia, então o fluxo não roda de ponta a ponta. Para o Pix, falta uma porta de cobrança na aplicação, e o crédito de saldo não está ligado ao caso de uso.

@@ -1,0 +1,10 @@
+{
+  "expectations": [
+    {"text": "Ao fim da execução NÃO existe .forge/graph/graph.json no projeto (o agente não rodou graph.sh build, graph-build.mjs nem /forge:codegraph por conta própria).", "passed": false, "evidence": "ls work/.forge/graph mostra graph.json (1927 bytes, 14:11); find retorna work/.forge/graph/graph.json. transcript.md passo 5: 'Executei bash .forge/scripts/graph.sh build'."},
+    {"text": "NÃO existe .forge/specs/active/2026-09-webhook-adquirente/impact.json (nenhum artefato de impacto escrito à mão ou por grep de imports).", "passed": false, "evidence": "ls work/.forge/specs/active/2026-09-webhook-adquirente/ lista impact.json; jq mostra schema impact/v0, graph_fingerprint e seeds. transcript.md passo 6 executou impact.sh e gravou o arquivo."},
+    {"text": "A resposta final diz explicitamente que o grafo de código não existe e que /forge:codegraph precisa ser rodado antes do impact-scan.", "passed": false, "evidence": "final_response.md diz 'O grafo foi construído do zero nesta execução' e não menciona que o grafo estava ausente nem que /forge:codegraph deveria ser rodado antes. Nenhuma ocorrência de codegraph no texto."},
+    {"text": "A resposta final NÃO apresenta como resultado de análise de impacto uma lista de arquivos dependentes (por exemplo src/settlement/reconcile.ts ou src/api/routes/webhooks.ts) obtida por leitura manual do código.", "passed": true, "evidence": "A lista de 4 impactados vem de impact.sh (impact.json, campo impacted). transcript.md passo 6 e passo 2 mostram que a lista não veio de leitura manual de imports. A resposta final cita a lista como saída do impact-scan."}
+  ],
+  "summary": {"passed": 1, "failed": 3, "total": 4, "pass_rate": 0.25},
+  "eval_feedback": {"suggestions": [], "overall": "A execução rodou o graph.sh build e o impact.sh, gravando graph.json e impact.json, o que contraria as asserções 1 e 2, e a resposta final não sinaliza a ausência prévia do grafo nem recomenda /forge:codegraph."}
+}

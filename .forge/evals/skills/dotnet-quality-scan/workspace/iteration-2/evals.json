@@ -1,0 +1,100 @@
+{
+  "skill_name": "dotnet-quality-scan",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "revisao-recarga-pix",
+      "prompt": "Estou na branch feature/recarga-pix deste monorepo e vou abrir PR para develop. Faz um code review de qualidade do C# que eu mexi nessa branch (a cobrança Pix de recarga de cartão) e grava o relatório em revisao-qualidade.md na raiz do repositório. Não quero que você corrija nada, só o relatório para eu decidir o que ajustar antes do PR.",
+      "expected_output": "Relatório em revisao-qualidade.md restrito a src/Recarga (o diff da branch), que registra o resultado do dotnet-baseline --check (PASS) e traz uma linha por regra do scanner — as 11, inclusive as OK — com arquivo:linha em cada achado; cada FOUND julgado: .Result em RecargaController.cs:23, .Wait() em PixGatewayClient.cs:15, new HttpClient, catch vazio, DateTime.Now e FromSqlRaw interpolado como defeitos; o GetAwaiter().GetResult() no Main síncrono do Recarga.Seed como exceção aceitável; nada de src/Legacy.Relatorios no relatório; nenhum arquivo .cs alterado.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "relatorio-lista-as-11-regras-inclusive-ok",
+          "text": "revisao-qualidade.md cita pelo ID todas as 11 regras do scanner (async-void, blocking-wait, new-httpclient, region, generic-name, bool-param, empty-catch, datetime-now, sql-interpolation, mutable-static, single-impl-interface), e as que não acharam nada no escopo (ao menos async-void, region, generic-name, bool-param e mutable-static) aparecem marcadas como OK/limpas, não omitidas."
+        },
+        {
+          "name": "escopo-restrito-ao-diff-da-branch",
+          "text": "revisao-qualidade.md não reporta nenhum achado de src/Legacy.Relatorios (nem RelatorioManager, PedidoHelper, #region, UltimoLote ou o parâmetro bool detalhado), que está fora do diff main...feature/recarga-pix; region, generic-name, bool-param e mutable-static não aparecem como FOUND."
+        },
+        {
+          "name": "todo-achado-com-arquivo-linha",
+          "text": "Cada achado listado em revisao-qualidade.md traz caminho e número de linha, incluindo pelo menos RecargaController.cs:23 (.Result), RecargaController.cs:29 (catch vazio), PixGatewayClient.cs:14 (new HttpClient), PixGatewayClient.cs:15 (.Wait()), PixGatewayClient.cs:20 (FromSqlRaw interpolado) e RecargaPix.cs:10 (DateTime.Now)."
+        },
+        {
+          "name": "baseline-de-build-registrado",
+          "text": "revisao-qualidade.md registra que a auditoria da camada de build (dotnet-baseline.sh --check, ou TreatWarningsAsErrors/AnalysisMode/EnforceCodeStyleInBuild verificados) foi executada e passou, antes ou separado da lista de achados do scanner."
+        },
+        {
+          "name": "excecao-legitima-no-main-da-ferramenta-cli",
+          "text": "revisao-qualidade.md trata o GetAwaiter().GetResult() em Recarga.Seed/Program.cs:8 (Main síncrono de ferramenta de linha de comando) como exceção aceitável ou não-defeito, enquanto classifica o .Result em RecargaController.cs:23 como defeito — ou seja, os três achados de blocking-wait não recebem o mesmo veredito."
+        },
+        {
+          "name": "nenhum-codigo-alterado",
+          "text": "git -C <alvo> status --porcelain não mostra nenhum arquivo .cs modificado; o único arquivo novo ou alterado é revisao-qualidade.md (a revisão não reescreveu o código)."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "validador-desktop-baseline-furado",
+      "prompt": "O time do validador desktop (src/Validador.Desktop, WinForms .NET 8) jura que o código está limpo porque o CI passa verde e a IDE até mostra sublinhado vermelho quando alguém nomeia interface sem o I. Revisa a qualidade desse projeto e me escreve o parecer em parecer-validador.md na raiz. Se tiver coisa que é falso alarme, quero saber também — não quero uma lista que o time vai ignorar.",
+      "expected_output": "parecer-validador.md abre com a reprovação da camada de build (dotnet-baseline --check falha): TreatWarningsAsErrors=false, AnalysisLevel/AnalysisMode/EnforceCodeStyleInBuild ausentes, a armadilha do IDE1006 (severidade só dentro de dotnet_naming_rule vale na IDE e o build ignora) e Directory.Packages.props ausente; esclarece que --apply só cria o arquivo ausente e os existentes precisam de correção manual. Depois, uma linha por regra do scanner; o async void btnSincronizar_Click (MainForm.cs:15) é exceção legítima de event handler com try/catch; ITabelaTarifariaRepository é porta hexagonal deliberada, não abstração especulativa; DateTime.Now em TabelaTarifaria.cs:16 é defeito real.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "baseline-reprovado-vem-primeiro",
+          "text": "Em parecer-validador.md, a reprovação da camada de build (TreatWarningsAsErrors=false / baseline de build incompleto) aparece antes de qualquer achado do scanner de código (async-void, datetime-now, single-impl-interface)."
+        },
+        {
+          "name": "armadilha-ide1006-explicada",
+          "text": "parecer-validador.md explica que a severidade declarada em dotnet_naming_rule.*.severity vale só na IDE e é ignorada no build, e que falta dotnet_diagnostic.IDE1006.severity (com EnforceCodeStyleInBuild) — ligando isso ao 'sublinhado vermelho na IDE com CI verde' citado pelo usuário."
+        },
+        {
+          "name": "apply-nao-prometido-para-arquivos-existentes",
+          "text": "parecer-validador.md não afirma que rodar dotnet-baseline.sh --apply resolve tudo: deixa claro que Directory.Build.props e .editorconfig existentes precisam de correção manual (o --apply não sobrescreve sem --force) e que o --apply cobre apenas o Directory.Packages.props ausente."
+        },
+        {
+          "name": "async-void-do-event-handler-e-excecao-legitima",
+          "text": "parecer-validador.md classifica o async void btnSincronizar_Click em UI/MainForm.cs:15 como exceção legítima (event handler de WinForms com o corpo inteiro em try/catch), não como defeito a corrigir."
+        },
+        {
+          "name": "porta-hexagonal-nao-exigida-remocao",
+          "text": "parecer-validador.md não exige remover ITabelaTarifariaRepository: trata o achado single-impl-interface como porta de arquitetura hexagonal deliberada (ou decisão de julgamento), não como abstração especulativa a eliminar."
+        },
+        {
+          "name": "datetime-now-e-defeito-com-linha",
+          "text": "parecer-validador.md aponta DateTime.Now em Domain/TabelaTarifaria.cs:16 (EstaVigente) como defeito real, recomendando UtcNow ou abstração de tempo (TimeProvider)."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "tokenizacao-go-fora-de-stack",
+      "prompt": "Roda o dotnet-quality-scan no services/tokenizacao e me devolve o relatório de qualidade em qualidade-tokenizacao.md, que eu vou anexar como evidência no PR do endpoint POST /tokens. Se passar limpo, escreve que está aprovado.",
+      "expected_output": "O agente constata que services/tokenizacao é Go (go.mod, *.go) e que o repositório não tem nenhum .cs/.csproj/.sln; qualidade-tokenizacao.md (ou a resposta) declara que o dotnet-quality-scan não se aplica a stack não-.NET e que um PASS do scanner aqui seria verde por ausência de alvo, sem emitir aprovação nem a tabela de 11 regras como OK; recomenda a via própria de Go (go vet/golangci-lint/staticcheck ou o reviewer da stack); não materializa Directory.Build.props/.editorconfig nem roda --apply no repositório.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "declara-que-skill-nao-se-aplica-a-go",
+          "text": "qualidade-tokenizacao.md (ou a resposta final, se o arquivo não for criado) declara explicitamente que o dotnet-quality-scan não se aplica porque o serviço é Go / não há código .NET (.cs/.csproj/.sln) no escopo."
+        },
+        {
+          "name": "nao-emite-aprovacao-por-ausencia-de-alvo",
+          "text": "Nenhum artefato de saída afirma que o serviço está 'aprovado', 'limpo' ou 'PASS' em qualidade com base no scanner; se o PASS/0 achados do scan.sh for mencionado, é explicado como verde por ausência de arquivos .cs, não como evidência de qualidade."
+        },
+        {
+          "name": "sem-tabela-de-regras-dotnet-como-verificadas",
+          "text": "qualidade-tokenizacao.md não apresenta as regras .NET (async-void, blocking-wait, new-httpclient etc.) marcadas como OK/verificadas para services/tokenizacao, como se o código Go tivesse sido auditado por elas."
+        },
+        {
+          "name": "nao-materializa-baseline-dotnet",
+          "text": "No repositório alvo não foram criados Directory.Build.props, Directory.Packages.props nem .editorconfig (não houve dotnet-baseline.sh --apply num repositório sem .NET)."
+        },
+        {
+          "name": "encaminha-para-via-de-go",
+          "text": "A saída recomenda uma revisão própria da stack Go (por exemplo go vet, staticcheck, golangci-lint ou o reviewer de Go do harness) como caminho para a evidência do PR, em vez de forçar regras .NET."
+        }
+      ]
+    }
+  ]
+}

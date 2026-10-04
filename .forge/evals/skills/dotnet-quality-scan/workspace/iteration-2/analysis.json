@@ -1,0 +1,76 @@
+{
+  "skill": "dotnet-quality-scan",
+  "iteration": 2,
+  "script_verdict": {
+    "verdict": "indeterminado",
+    "delta": 0.263,
+    "ci95": [
+      0.1259,
+      0.3963
+    ],
+    "reference_delta": 0.28
+  },
+  "verdict": "inconclusive",
+  "summary": "O delta ficou praticamente igual ao da iteração 1 (+0,263 contra +0,28), mas a composição mudou: o ganho concentra-se no eval 1, onde o artefato faz cobrir as 11 regras, ancorar cada achado em arquivo:linha, registrar a baseline e diferenciar blocking-wait de forma consistente; o eval 2 tem variância alta sem o artefato (0,33 a 1,0) e alarga o intervalo.",
+  "change_causes": [
+    {
+      "class": "ganho_real",
+      "eval_id": 1,
+      "assertion": "1, 3, 4, 5",
+      "detail": "Com a skill: cobertura das 11 regras 2/3, arquivo:linha 3/3, baseline 2/3, blocking-wait 3/3; sem a skill, 0/3 em todas. Sem a skill o relatório se organiza em Bloqueadores/Riscos/Observações, sem ids de regra."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 1,
+      "assertion": 1,
+      "detail": "A run-1 com a skill omitiu region, generic-name, bool-param e mutable-static, embora o protocolo peça uma linha por regra; run-2 e run-3 cumprem."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 1,
+      "assertion": 4,
+      "detail": "A run-3 com a skill registrou dotnet-baseline.sh --check como FAIL por três arquivos de baseline ausentes; as outras duas registraram PASS."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 2,
+      "assertion": 2,
+      "detail": "A run-1 com a skill não liga o sublinhado da IDE à ausência de IDE1006.severity; run-2 e run-3 ligam. Sem a skill, 1/3."
+    },
+    {
+      "class": "mudanca_de_metodo",
+      "eval_id": 2,
+      "assertion": "5, 6",
+      "detail": "A asserção da porta hexagonal passou de 0/1 nos dois braços na iteração 1 para 3/3 nos dois agora, e a do DateTime.Now de 1/1 para 3/3 sem a skill: mudança simultânea nos dois braços aponta para o método (grader cego, fixture na cópia), não para a skill."
+    }
+  ],
+  "dominant_cause": "ganho_real, concentrado no eval 1; o veredito fica indeterminado pela variância do eval 2 sem o artefato, que alarga o IC até +0,126.",
+  "findings": [
+    {
+      "kind": "systematic_miss",
+      "case": "eval 2",
+      "expectation": "asserção 3 (o --apply não promete resolver tudo)",
+      "detail": "0/3 com a skill e 1/3 sem; o SKILL.md cita --apply de passagem, sem dizer o que ele não faz, e a asserção cobra --force e o escopo do --apply, que o artefato não documenta."
+    },
+    {
+      "kind": "high_variance",
+      "case": "eval 3",
+      "expectation": "asserção 5 (encaminha para a via Go)",
+      "detail": "2/3 com a skill e 1/3 sem; a asserção cobra nomes de ferramenta Go que o artefato não traz."
+    },
+    {
+      "kind": "eval_defect",
+      "case": "eval 1",
+      "expectation": "asserção 6 (nenhum .cs alterado)",
+      "detail": "Falha uma vez em cada braço porque o obj/ gerado pelo build aparece como não rastreado; a asserção não distingue artefato de build de alteração de código."
+    },
+    {
+      "kind": "high_variance",
+      "case": "eval 2 sem a skill",
+      "detail": "pass_rate por execução 0,33, 1,0 e 0,5."
+    }
+  ],
+  "contamination": "contamination.json sem marcas e sem chamadas Agent em nenhuma execução. Seis execuções (evals 1 e 2, nos dois braços) fizeram um commit git, o que pode esconder alteração de .cs da asserção 6 do eval 1, verificada por git status; nenhum resultado foi descontado.",
+  "recommendation": "Corrigir o passo 2 do SKILL.md para dizer o que dotnet-baseline.sh --apply faz e não faz (cria o que falta, não sobrescreve sem --force), revisar a asserção 6 do eval 1 e a 3 do eval 2 para que meçam a skill, e repetir com 3 execuções por braço.",
+  "provenance": "Texto do analisador Sonnet (análise pós-hoc da iteração 2), devolvido como mensagem porque a política dos subagentes recusa gravar relatório .md; estruturado neste JSON pelo orquestrador sem alterar conclusões."
+}

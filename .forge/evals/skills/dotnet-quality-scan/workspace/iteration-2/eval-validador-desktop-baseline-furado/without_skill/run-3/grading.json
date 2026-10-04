@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "Em parecer-validador.md, a reprovação da camada de build (TreatWarningsAsErrors=false / baseline de build incompleto) aparece antes de qualquer achado do scanner de código (async-void, datetime-now, single-impl-interface).",
+      "passed": false,
+      "evidence": "grep -n '^## ' parecer-validador.md: 'Achados que bloqueiam o build' na linha 13, 'Achados de design' na 17, 'Falsos alarmes' na 31; a ordem está correta, mas a camada de build descrita são erros de compilação (CS0246, CS5001, CS0103). grep -n 'TreatWarnings\\|dotnet-baseline' parecer-validador.md não retorna nada: o parecer não identifica TreatWarningsAsErrors=false (confirmado em Directory.Build.props:5) nem o baseline incompleto. A asserção pede esse diagnóstico específico, que falta."
+    },
+    {
+      "text": "parecer-validador.md explica que a severidade declarada em dotnet_naming_rule.*.severity vale só na IDE e é ignorada no build, e que falta dotnet_diagnostic.IDE1006.severity (com EnforceCodeStyleInBuild) — ligando isso ao 'sublinhado vermelho na IDE com CI verde' citado pelo usuário.",
+      "passed": false,
+      "evidence": "grep -n -i 'IDE1006\\|EnforceCode\\|naming' parecer-validador.md: sem resultado. O parecer só diz que a regra do .editorconfig tem severidade error e é um achado real (linha 33). Não explica que a severidade é ignorada em build nem liga o sublinhado ao CI verde. Confirmado no projeto: .editorconfig:9 tem dotnet_naming_rule.interfaces_com_i.severity = error e não há dotnet_diagnostic.IDE1006.severity."
+    },
+    {
+      "text": "parecer-validador.md não afirma que rodar dotnet-baseline.sh --apply resolve tudo: deixa claro que Directory.Build.props e .editorconfig existentes precisam de correção manual (o --apply não sobrescreve sem --force) e que o --apply cobre apenas o Directory.Packages.props ausente.",
+      "passed": false,
+      "evidence": "grep -n 'dotnet-baseline\\|--apply\\|--force\\|Directory.Packages' parecer-validador.md: sem resultado. O parecer não menciona o script nem o --apply, então não deixa claro que os arquivos existentes exigem correção manual nem o escopo do --apply. Não afirmar que resolve tudo é verdadeiro só por omissão, mas o requisito de deixar claro o escopo não é cumprido."
+    },
+    {
+      "text": "parecer-validador.md classifica o async void btnSincronizar_Click em UI/MainForm.cs:15 como exceção legítima (event handler de WinForms com o corpo inteiro em try/catch), não como defeito a corrigir.",
+      "passed": true,
+      "evidence": "grep -n 'async void' src/Validador.Desktop/UI/MainForm.cs -> linha 15; sed do arquivo mostra try a partir da linha 17 com catch. Parecer, seção 'Falsos alarmes': 'O async void do handler btnSincronizar_Click é o padrão idiomático de eventos em WinForms, e não é bug por si só. Ele tem um try/catch que captura exceções'. Classificação correta; o caminho com linha não é citado, mas a substância confere."
+    },
+    {
+      "text": "parecer-validador.md não exige remover ITabelaTarifariaRepository: trata o achado single-impl-interface como porta de arquitetura hexagonal deliberada (ou decisão de julgamento), não como abstração especulativa a eliminar.",
+      "passed": true,
+      "evidence": "Parecer, seção 'Falsos alarmes': 'A interface ITabelaTarifariaRepository com uma única implementação não é sobre-engenharia em si. Uma porta de domínio separada da infraestrutura é uma escolha legítima de arquitetura hexagonal.' Não pede remoção; a crítica é só à justificativa de dublê inexistente."
+    },
+    {
+      "text": "parecer-validador.md aponta DateTime.Now em Domain/TabelaTarifaria.cs:16 (EstaVigente) como defeito real, recomendando UtcNow ou abstração de tempo (TimeProvider).",
+      "passed": true,
+      "evidence": "grep -rn 'DateTime.Now' src -> src/Validador.Desktop/Domain/TabelaTarifaria.cs:16 'public bool EstaVigente() => DateTime.Now <= VigenteAte;'. Parecer: 'TabelaTarifaria.EstaVigente() usa DateTime.Now diretamente... Recomendação: receber o instante como parâmetro ou por um relógio injetável.' Defeito real e abstração de tempo recomendada. Ressalva: não cita o caminho/linha nem nomeia UtcNow/TimeProvider, mas 'relógio injetável' é abstração de tempo."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "O parecer acerta a classificação dos falsos alarmes e do DateTime.Now, mas omite a explicação de severidade IDE-only do .editorconfig, IDE1006/EnforceCodeStyleInBuild e o escopo do dotnet-baseline.sh, e não diagnostica a camada de build pelo TreatWarningsAsErrors."
+  }
+}

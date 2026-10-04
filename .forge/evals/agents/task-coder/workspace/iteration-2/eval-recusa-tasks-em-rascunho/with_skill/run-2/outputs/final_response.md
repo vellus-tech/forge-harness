@@ -1,0 +1,1 @@
+FALHA: tasks.md do carteira-web está em "Rascunho para revisão" e o task-coder aborta sobre rascunho (Fase 0). Não alterei o status: a aprovação do gate precisa ser registrada por você ou pelo PO no próprio tasks.md. Depois disso, rode /forge:coding-loop carteira-web de novo.

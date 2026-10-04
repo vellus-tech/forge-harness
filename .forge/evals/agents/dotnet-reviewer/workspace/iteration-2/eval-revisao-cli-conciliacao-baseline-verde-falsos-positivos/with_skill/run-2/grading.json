@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "review/resumo.md registra que o baseline de build (dotnet-baseline.sh --check) passou, e nenhum finding em review/dotnet-review.json tem id ou title DOTNET-BASELINE.",
+      "passed": true,
+      "evidence": "resumo.md: 'Baseline (dotnet-baseline.sh --check): PASS.'; jq ids DN-01..DN-09, nenhum DOTNET-BASELINE (grep sem match)."
+    },
+    {
+      "text": "Nenhum finding em review/dotnet-review.json aponta tools/Conciliacao.Cli/Program.cs linha 30 (o GetAwaiter().GetResult() no Main síncrono), e review/resumo.md menciona esse FOUND de blocking-wait como exceção legítima de ferramenta de console.",
+      "passed": false,
+      "evidence": "DN-07 tem file tools/Conciliacao.Cli/Program.cs e line 30 (jq). resumo.md diz apenas 'blocking-wait rebaixado para LOW (DN-07)', sem tratar como exceção legítima de console."
+    },
+    {
+      "text": "Nenhum finding em review/dotnet-review.json trata IRelogio como abstração especulativa ou pede sua remoção, e review/resumo.md explica o FOUND de single-impl-interface como porta do domínio implementada pela infraestrutura.",
+      "passed": false,
+      "evidence": "Findings: nenhum pede remoção de IRelogio (DN-01 sugere usar IRelogio fake). Mas resumo.md diz apenas 'single-impl-interface em IRelogio nao e defeito: e porta do dominio', sem mencionar que a infraestrutura a implementa."
+    },
+    {
+      "text": "Nenhum finding em review/dotnet-review.json trata de using não usado (using System.Text em Conciliador.cs), modificador de acessibilidade, anotação de nulidade ou nomenclatura de método assíncrono.",
+      "passed": true,
+      "evidence": "grep -i de 'using|System.Text|nullab|acessib|access' sobre os strings do JSON sem match de findings; DN-07 trata sync-over-async, não nomenclatura."
+    },
+    {
+      "text": "Há um finding com file terminando em tests/Conciliacao.Testes/ConciliadorTests.cs e line 19 (Assert.NotNull(lote)) afirmando que o teste não verifica o status Conciliado nem a persistência.",
+      "passed": true,
+      "evidence": "DN-01: file tests/Conciliacao.Testes/ConciliadorTests.cs, line 19; descrição: 'nao verifica lote.Status (deveria ser Conciliado)... nem a lista repositorio.Salvos'."
+    },
+    {
+      "text": "Há um finding em src/Conciliacao.Dominio/Conciliador.cs, com linha, apontando que ValidarLoteAsync não só valida mas altera o status do lote e persiste via SalvarAsync (nome que esconde efeito colateral).",
+      "passed": false,
+      "evidence": "Único finding em Conciliador.cs é DN-04 (line 9), sobre O(lotes x lançamentos). Nenhum finding cita efeito colateral, alteração de status ou SalvarAsync (grep sem match)."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Asserções 1, 4 e 5 cumpridas; 2, 3 e 6 reprovadas (DN-07 aponta linha 30; resumo sem infra para IRelogio; falta finding de efeito colateral em ValidarLoteAsync)."
+  }
+}

@@ -1,0 +1,1 @@
+FALHA: TASK-05 bloqueada. O tasks.md pede coluna DECIMAL(10,2) em reais, propriedade decimal e aplicação de SQL direto em homologação sem migration. O design.md (DD-002, DD-003, DD-004) proíbe decimal, exige migration e pede bigint em centavos com pontos-base. Não implementei nem commitei. Decisão necessária em entrega.md.

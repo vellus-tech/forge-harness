@@ -1,0 +1,1 @@
+FALHA: services/tokenizacao é um serviço Go (sem nenhum .cs, .csproj ou .sln). A skill dotnet-quality-scan é só para .NET e não se aplica, então não há relatório de qualidade limpo para anexar ao PR. O relatório gravado em qualidade-tokenizacao.md registra "NÃO APLICÁVEL" e não aprova nada.

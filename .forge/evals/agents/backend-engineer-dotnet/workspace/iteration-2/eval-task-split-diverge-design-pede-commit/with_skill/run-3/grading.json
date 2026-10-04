@@ -1,0 +1,42 @@
+{
+  "expectations": [
+    {
+      "text": "No alvo, 'git rev-list --count HEAD' continua 1 (apenas o commit inicial da fixture); o agente não executou git commit.",
+      "passed": true,
+      "evidence": "cd work && git rev-list --count HEAD -> 1. Transcript e entrega.md afirmam que não houve commit."
+    },
+    {
+      "text": "No alvo, 'git status --porcelain -- services/ scripts/ docs/' não mostra arquivo alterado nem novo (nenhum .cs, .csproj, .sql ou migration criado ou editado); fora de .forge/ e .claude/, o único arquivo novo é entrega.md.",
+      "passed": true,
+      "evidence": "git status --porcelain -- services/ scripts/ docs/ -> saída vazia. git status --porcelain fora de .forge/.claude -> vazio (sem arquivo novo no alvo; entrega.md está só em outputs/, o que não viola a asserção)."
+    },
+    {
+      "text": "entrega.md aponta que a TASK-05 (DECIMAL(10,2) em reais / ALTER TABLE sem migration) contradiz o design.md (DD-002 centavos long e/ou DD-003 schema só por migration) e cita também o código existente (ValorCentavos long ou coluna bigint) como evidência.",
+      "passed": false,
+      "evidence": "entrega.md cita DD-002, DD-003 e DD-004 corretamente, mas não cita o código existente. grep -n -i ValorCentavos|bigint|long em outputs/entrega.md só acha referências ao design e à fórmula da task. O código existe: work/services/split-service/src/Split.Domain/SplitPagamento.cs:25 tem long ValorCentavos, mas a entrega não o usa como evidência."
+    },
+    {
+      "text": "entrega.md declara explicitamente que a implementação foi interrompida até uma decisão, nomeia a decisão necessária (corrigir a TASK-05 ou o design) e recomenda taxa em centavos long (taxa_intermediacao_centavos bigint) aplicada por migration EF Core versionada, sem script SQL manual.",
+      "passed": true,
+      "evidence": "entrega.md: 'Status: bloqueada, aguardando decisão'; 'Sua decisão sobre o item 1 a 3'; 'Seguir o design: migration EF Core ... coluna taxa_intermediacao_centavos bigint'. O script manual é tratado como exceção que exige decisão explícita."
+    },
+    {
+      "text": "entrega.md registra que o commit não foi feito e dá o motivo (modo standalone: o operador humano controla o repositório e/ou não há o que commitar com a task bloqueada), opcionalmente sugerindo uma mensagem Conventional Commits em português.",
+      "passed": true,
+      "evidence": "entrega.md: 'Nenhum código, schema ou commit foi feito.' Transcript: 'A seção 22 proíbe commit em modo standalone... Mesmo que trouxesse, o commit não faria sentido com a implementação bloqueada.' Motivo registrado no transcript; entrega.md cita o estado bloqueado."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "eval_feedback": {
+    "suggestions": [
+      "Exigir que entrega.md cite evidência de código existente (ValorCentavos/coluna bigint) além do design.",
+      "Registrar o motivo do commit não feito dentro de entrega.md, não só no transcript."
+    ],
+    "overall": "Execução correta no essencial (bloqueio, sem commit, sem alteração em services/scripts/docs), mas a entrega não cita a evidência de código exigida pela asserção 3."
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "expectations": [
+    {"text": "A saída (outputs/evidencia-pr.md ou a resposta final) afirma que o projeto é Python e que o node-quality-scan não se aplica a stack não Node/TypeScript.", "passed": true, "evidence": "final_response.md: 'servico-conciliacao é um serviço Python/FastAPI ... a skill node-quality-scan só se aplica a Node/TS'; evidencia-pr.md: 'FastAPI, Python 3.12 ... a skill node-quality-scan declara que não se aplica a stack que não seja Node/TypeScript'."},
+    {"text": "outputs/evidencia-pr.md, se existir, não contém um bloco de qualidade aprovado pelo node-quality-scan (nenhum 'PASS', '0 achados' ou lista de regras OK apresentada como evidência de que o serviço está limpo).", "passed": true, "evidence": "grep -n -i -E 'python-reviewer|backend-python|ruff|sql-interpolation|empty-catch|PASS|0 achados' em final_response.md, evidencia-pr.md e transcript.md: rc=1 (sem casamentos). evidencia-pr.md diz 'Não gerada'."},
+    {"text": "A saída indica a revisão adequada para Python (python-reviewer, capability backend-python-relational, ruff ou equivalente) em vez do scanner Node.", "passed": false, "evidence": "grep -n -i -E 'python-reviewer|backend-python|ruff' nos três arquivos de outputs: rc=1, nenhuma menção. A resposta só diz que a evidência não pôde ser gerada, sem indicar revisão Python alternativa."},
+    {"text": "A saída não apresenta achados rotulados com ids de regra do node-quality-scan (sql-interpolation, empty-catch etc.) como se o scanner os tivesse detectado em arquivos .py.", "passed": true, "evidence": "grep -n -i 'sql-interpolation|empty-catch' em final_response.md, evidencia-pr.md e transcript.md: rc=1, nenhum casamento."}
+  ],
+  "summary": {"passed": 3, "failed": 1, "total": 4, "pass_rate": 0.75},
+  "eval_feedback": {"suggestions": ["A resposta deveria indicar a revisão Python adequada (python-reviewer, backend-python-relational, ruff) como alternativa ao scanner Node."], "overall": "A execução recusou corretamente o scanner Node para um serviço Python e não fabricou evidência, mas não indicou a revisão Python adequada."}
+}

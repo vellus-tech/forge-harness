@@ -1,0 +1,39 @@
+{
+  "expectations": [
+    {
+      "text": "outputs/revisao-pedidos.md contém uma linha para cada uma das 11 regras do scanner (empty-catch, floating-promise, sync-fs-blocking, sql-interpolation, new-pg-client, process-env-direct, date-now, explicit-any, generic-name, mutable-module-state, single-impl-interface), incluindo as que não acharam nada marcadas como OK/limpas.",
+      "passed": false,
+      "evidence": "grep -c por nome de regra em outputs/revisao-pedidos.md: empty-catch 0, floating-promise 0, sync-fs-blocking 0, sql-interpolation 0, new-pg-client 0, process-env-direct 0, date-now 0, explicit-any 0, generic-name 0, mutable-module-state 0, single-impl-interface 0. Os 5 FOUND aparecem em prosa; a linha 13 diz apenas \"5 regras OK\", sem nomear as 6 regras limpas."
+    },
+    {
+      "text": "O relatório informa o resultado do node-baseline.sh --check (PASS/OK ou FAIL, com a origem: config na raiz do monorepo) em posição anterior à lista de regras do scan.",
+      "passed": false,
+      "evidence": "Linha 11 do relatório: \"Baseline de lint (node-baseline.sh --check): PASS. A configuração forge-quality/* está presente.\" PASS vem antes da lista do scan, mas a origem (config na raiz, eslint.config.mjs) não é citada. Rodei node-baseline.sh --root . --check no work: a saída cita eslint.config.mjs, e o relatório não informa isso."
+    },
+    {
+      "text": "Nenhum achado do relatório aponta para packages/notificacoes (EmailManager.ts tem empty-catch, floating-promise, sync-fs, any, generic-name e export let pré-existentes em main, fora do diff).",
+      "passed": true,
+      "evidence": "grep -n -i notificacoes outputs/revisao-pedidos.md: sem resultados."
+    },
+    {
+      "text": "O relatório aponta sql-interpolation como defeito em packages/pedidos/src/rotas.ts:15 (ou src/rotas.ts:15), com recomendação de placeholder parametrizado ($1).",
+      "passed": true,
+      "evidence": "Item 1 do relatório: \"BLOCKER — SQL injection. packages/pedidos/src/rotas.ts:15\", com correção usando placeholder $1. Conferido em work/packages/pedidos/src/rotas.ts linha 15: template literal com ${status}."
+    },
+    {
+      "text": "Todo achado FOUND listado no relatório (sync-fs-blocking, sql-interpolation, empty-catch, process-env-direct, generic-name) vem acompanhado de arquivo:linha; nenhum achado aparece só com descrição genérica.",
+      "passed": true,
+      "evidence": "sync-fs-blocking: rotas.ts:20 (item 2); sql-interpolation: rotas.ts:15 (item 1); empty-catch: PedidoHelper.ts:6 (item 3); process-env-direct: PedidoHelper.ts:3 (item 4); generic-name: PedidoHelper.ts:1 (item 5). Números conferidos com cat -n."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "total": 5,
+    "pass_rate": 0.6
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Achados corretos com arquivo:linha, mas o relatório não nomeia as 11 regras individualmente e não declara a origem do baseline."
+  }
+}

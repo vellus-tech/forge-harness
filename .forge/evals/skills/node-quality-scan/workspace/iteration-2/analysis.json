@@ -1,0 +1,96 @@
+{
+  "skill": "node-quality-scan",
+  "iteration": 2,
+  "script_verdict": {
+    "verdict": "agrega",
+    "delta": 0.2611,
+    "ci95": [0.1796, 0.3296],
+    "reference_delta": 0.2334
+  },
+  "verdict": "improve",
+  "summary": "O delta da iteração 2 é 0,2611, contra 0,2334 na iteração 1, e o IC 95% [0,1796; 0,3296] exclui zero, então o ganho da skill se sustenta. A variação de 0,0277 em relação à iteração 1 fica dentro da incerteza e não permite afirmar que a skill melhorou mais. A maior parte do movimento vem do braço sem skill, que caiu de 0,6333 para 0,5667, enquanto o braço com skill caiu de 0,8667 para 0,8278. A mudança de método (três execuções por configuração, executor fora do repositório, dependências instaladas nos dois braços) torna as médias não diretamente comparáveis com a iteração 1. O ganho real aparece nas asserções de escopo, de arquivo:linha e de baseline dito antes do scan, que passam de forma consistente com a skill e falham sem ela.",
+  "change_causes": [
+    {
+      "class": "mudanca_de_metodo",
+      "eval_id": "todos",
+      "assertion": "todas",
+      "detail": "A iteração 1 tinha uma execução por configuração e executor dentro do repositório; a iteração 2 tem três execuções, executor fora do repositório, fixture copiada e dependências instaladas nos dois braços. Como o braço sem skill caiu mais que o braço com skill, a diferença entre as iterações não deve ser lida como melhora do artefato."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 1,
+      "assertion": "relatorio-lista-as-onze-regras-inclusive-ok",
+      "detail": "Com skill passa em 1 de 3 execuções (0,8 e 0,8 e 0,6 por caso). Na run 2 as seis regras limpas aparecem agrupadas numa frase de prosa, e na run 3 o relatório diz apenas 5 regras OK, sem nomear as demais. O passo 5 do SKILL.md não impõe formato mecânico, então o executor expande ou não as regras limpas de forma aleatória."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 1,
+      "assertion": "baseline-de-lint-reportado-antes-do-scan",
+      "detail": "Com skill passa em 1 de 3 execuções. Na run 1 o executor rodou node-baseline.sh --root packages/pedidos --check, não encontrou o eslint.config.mjs e reportou FAIL com causa errada; na run 2 rodou na raiz com --root . e passou. O passo 2 do SKILL.md usa o mesmo path para o escopo do scan e para o baseline de lint, e esse é o ponto de oscilação."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 1,
+      "assertion": "escopo-restrito-ao-pacote-alterado",
+      "detail": "Com skill passa em 3 de 3 execuções e sem skill em 2 de 3. O ganho é pequeno e o fixture já limita o diff, mas o artefato mantém o escopo consistentemente."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 1,
+      "assertion": "sql-interpolation-com-arquivo-linha",
+      "detail": "Com skill passa em 3 de 3 execuções e sem skill em 1 de 3. A sql-interpolation em src/rotas.ts:15 aparece com arquivo e linha de forma consistente quando a skill é carregada."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 1,
+      "assertion": "todo-achado-com-arquivo-linha",
+      "detail": "Com skill passa em 3 de 3 execuções e sem skill em nenhuma (0 de 3). É o maior contribuidor do delta do caso 1, que vai de 0,2 sem skill para 0,7333 com skill."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 2,
+      "assertion": "baseline-de-lint-ausente-dito-primeiro",
+      "detail": "Com skill passa em 3 de 3 execuções e sem skill em nenhuma (0 de 3). Sem a skill o executor não sabia que o passo de baseline existia, e a skill o torna explícito e consistente."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 2,
+      "assertion": "floating-promise-reconhecido-como-falso-positivo",
+      "detail": "Com skill passa em 3 de 3 execuções e sem skill em 2 de 3. A referência clean-code-rules.md documenta a limitação da heurística de uma linha, e o executor com skill a cita para classificar o achado como falso positivo."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 2,
+      "assertion": "unico-defeito-real-e-a-sql",
+      "detail": "Com skill passa em 3 de 3 execuções e sem skill em 1 de 3. Sem a skill, os executores tratam os demais achados como defeito ou não citam a linha exata da interpolação de SQL."
+    },
+    {
+      "class": "eval_defeituoso",
+      "eval_id": 3,
+      "assertion": "aponta-caminho-python",
+      "detail": "Com skill passa em 0 de 3 e sem skill em 1 de 3. Na iteração 1 a mesma asserção passou com a menção a ruff ou equivalente aceita pelo grader. Na iteração 2 respostas com o mesmo conteúdo (ruff e bandit em evidencia-pr.md) são reprovadas, e o SKILL.md só diz que a skill não se aplica, sem prescrever revisão substituta. A asserção exige um comportamento que o artefato não define e o grader ficou inconsistente entre iterações."
+    }
+  ],
+  "dominant_cause": "ganho_real: as asserções de escopo, arquivo:linha e baseline dito primeiro passam em 3 de 3 com a skill e em 0 a 2 de 3 sem ela, e explicam a maior parte do delta por caso dos evals 1 e 2.",
+  "findings": [
+    {
+      "kind": "systematic_miss",
+      "case": "eval 1 (revisao-pacote-pedidos)",
+      "expectation": "relatorio-lista-as-onze-regras-inclusive-ok e baseline-de-lint-reportado-antes-do-scan",
+      "detail": "Com skill falham em 2 de 3 execuções cada uma, e sem skill falham em 3 de 3 e em 3 de 3 respectivamente. O artefato não fixa formato nem o path do baseline, então a asserção depende da sorte do executor."
+    },
+    {
+      "kind": "high_variance",
+      "case": "eval 1 (revisao-pacote-pedidos), braço com skill",
+      "detail": "As três execuções dão 0,8, 0,8 e 0,6 por caso. A queda da run 3 vem das duas asserções acima, e não de um comportamento novo do artefato."
+    },
+    {
+      "kind": "regression",
+      "case": "eval 3 (recusa-stack-python)",
+      "expectation": "aponta-caminho-python",
+      "detail": "Passa sem a skill em 1 de 3 e falha com a skill em 3 de 3. A asserção é defeituosa (ver change_causes), então não deve pesar como regressão da skill até ser corrigida, mas o comportamento de recusa sem indicar revisão substituta é consistente e merece ser decidido de forma explícita."
+    }
+  ],
+  "contamination": "O contamination.json registra, para cada execução de executor e grader, tool_calls, git_commits, agent_calls e flags. Todas as flags estão vazias, git_commits e agent_calls são zero em todas as entradas, e não há resultado a descontar. Ressalva: o arquivo traz contadores e não o registro real de ferramentas de cada subagente, então a ausência de contaminação é inferida dos contadores e não comprovada pelo registro.",
+  "recommendation": "Alterar o SKILL.md para separar o path do baseline de lint, que deve ser sempre a raiz do workspace (--root .), do path do scan, que segue o pacote alterado, e para exigir no relatório uma linha nomeada por regra com OK nas limpas, reexecutando depois o eval 1 com três execuções."
+}

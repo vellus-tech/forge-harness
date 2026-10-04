@@ -47,11 +47,11 @@ for (const f of files) {
       if (part.name === 'Bash' && /\bgit\b[^"]*\bcommit\b/.test(s)) commits++;
       const checks = [
         [s.includes(repoMain), 'repositório do harness'],
-        [/\.forge\/evals\b/.test(s.split(runDir).join('')), 'diretório .forge/evals'],
+        [/\.forge\/evals\b/.test(s.split(runDir).join('__RUN__')), 'diretório .forge/evals'],
         [/RELATORIO|plano-melhorias/.test(s), 'relatório ou plano'],
-        [/template\/\.forge/.test(s.split(runDir).join('')), 'template/.forge do harness'],
+        [/template\/\.forge/.test(s.split(runDir).join('__RUN__')), 'template/.forge do harness'],
         [[...s.matchAll(/runs\/([0-9a-f]{10})/g)].some((x) => x[1] !== id), 'outra execução'],
-        [/(^|[^A-Za-z0-9_.-])\/tmp\//.test(s.split(runDir).join('').replace(/\/private\/tmp\/claude-[^"\s]*/g, '')), '/tmp fora do tmp da execução']
+        [/(^|[^A-Za-z0-9_.-])\/tmp\//.test(s.split(runDir).join('__RUN__').replace(/\/private\/tmp\/claude-[^"\s]*/g, '')), '/tmp fora do tmp da execução']
       ];
       for (const [cond, why] of checks) if (cond) flags.push({ tool: part.name, why, input: s.slice(0, 300) });
     }

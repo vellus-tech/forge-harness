@@ -8,7 +8,7 @@
 | TASK | Título | Onda | Branch | Status |
 |---|---|---|---|---|
 | TASK-01 | Implementar filtrarPorPeriodo | 1 | feat/extrato-web/wave-1 | [ ] |
-| TASK-02 | Escrever 3 testes: filtro não depende de rede nem de armazenamento | 1 | feat/extrato-web/wave-1 | [ ] |
+| TASK-02 | Escrever 3 testes: estornos ficam fora do extrato filtrado | 1 | feat/extrato-web/wave-1 | [ ] |
 | TASK-03 | Encerramento da Wave 1 — build verde + commit | 1 | feat/extrato-web/wave-1 | [ ] |
 | TASK-04 | Implementar exportarCsv | 2 | feat/extrato-web/wave-2 | [ ] |
 
@@ -26,15 +26,21 @@
 - TASK-01.1 `filtrarPorPeriodo(lancamentos: Lancamento[], inicio: string, fim: string): Lancamento[]` com intervalo fechado
 - TASK-01.2 `inicio > fim` lança `RangeError`
 
-### TASK-02 — Escrever 3 testes: filtro não depende de rede nem de armazenamento
+**Teste (comando):** `node --test apps/web/extrato-web/src/filtro.test.ts`
+**Padrão de falha:** `AssertionError`
+
+### TASK-02 — Escrever 3 testes: estornos ficam fora do extrato filtrado
 
 **Wave:** 1
 **Requisitos cobertos:** Req 1.3
 
 **Critérios de aceite:**
-- TASK-02.1 Teste que falha se o filtro chamar `fetch`
-- TASK-02.2 Teste que falha se o filtro acessar `localStorage`
-- TASK-02.3 Teste de que a entrada não é mutada
+- TASK-02.1 Teste: lançamento com `estornado: true` dentro do período não aparece no resultado de `filtrarPorPeriodo`
+- TASK-02.2 Teste: lançamento sem o campo `estornado` continua aparecendo
+- TASK-02.3 Teste: a lista de entrada não é mutada
+
+**Teste (comando):** `node --test "apps/web/extrato-web/src/*.test.ts"`
+**Padrão de falha:** `AssertionError`
 
 ### TASK-03 — Encerramento da Wave 1 — build verde + commit
 
@@ -49,3 +55,6 @@
 **Arquivos esperados:**
 - apps/web/extrato-web/src/csv.ts (criar)
 - apps/web/extrato-web/src/csv.test.ts (criar)
+
+**Teste (comando):** `node --test apps/web/extrato-web/src/csv.test.ts`
+**Padrão de falha:** `AssertionError`

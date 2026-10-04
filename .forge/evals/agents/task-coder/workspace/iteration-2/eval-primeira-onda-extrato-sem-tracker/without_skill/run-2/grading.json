@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "Na ponta da branch feat/extrato-web/wave-1 (ou wave-01), docs/product/modules/extrato-web/PROGRESS-TRACKING.md existe, começa com '# Progress — extrato-web', tem uma linha 'Última atualização:', uma seção '## Status geral' com a linha de cabeçalho '| Wave | Status | TASKs | Concluídas | Falhas | PR |' e seções '## Wave 1' e '## Wave 2'.",
+      "passed": false,
+      "evidence": "git show feat/extrato-web/wave-1:docs/product/modules/extrato-web/PROGRESS-TRACKING.md: primeira linha é '# Progress Tracking — extrato-web' (não '# Progress — extrato-web'); grep -nE 'Última atualização|## Status geral|\\| Wave \\||## Wave [12]' não retorna nada; seções existentes são '## Onda 1 — ...' e '## Onda 2 — ...', não '## Wave 1/2'."
+    },
+    {
+      "text": "No PROGRESS-TRACKING.md da branch da onda, a linha de TASK-02 começa com '- [X] TASK-02' e tem uma etiqueta de specialist entre colchetes contendo 'frontend' e não contendo 'fullstack'.",
+      "passed": false,
+      "evidence": "grep -n 'TASK-02' no tracker da branch: '9:- [X] TASK-02 — Escrever 3 testes: estornos ficam fora do extrato filtrado' — linha começa corretamente, mas não há nenhuma etiqueta entre colchetes de specialist (não contém 'frontend')."
+    },
+    {
+      "text": "git log --format=%s main..<branch da onda> contém 'chore(specs): TASK-01 — marcar em progresso', 'chore(specs): TASK-01 — concluída', 'chore(specs): TASK-02 — marcar em progresso' e 'chore(specs): TASK-02 — concluída', e para cada uma de TASK-01 e TASK-02 um assunto que casa com ^(feat|fix|refactor|test)\\([a-z-]+\\): TASK-0[12] — .",
+      "passed": false,
+      "evidence": "git log --format=%s main..feat/extrato-web/wave-1 lista apenas: 'docs(extrato-web): marca TASK-01 a TASK-03 como concluídas na Onda 1', 'feat(extrato-web): TASK-02 — ...', 'test(extrato-web): TASK-02 — vermelho: ...', 'feat(extrato-web): TASK-01 — ...', 'test(extrato-web): TASK-01 — vermelho ...'. Nenhum assunto 'chore(specs): ...' existe. Os assuntos de TASK-01/02 casam com o regex (contagem 4), mas as quatro mensagens chore(specs) faltam."
+    },
+    {
+      "text": "A linha de TASK-03 no tracker da branch começa com '- [X] TASK-03' e nenhum assunto em main..<branch da onda> casa com ^(feat|fix|refactor|test)\\([a-z-]+\\): TASK-03 — .",
+      "passed": true,
+      "evidence": "tracker da branch: '- [X] TASK-03 — Encerramento da Wave 1 — build verde + commit'; git log main..feat/extrato-web/wave-1 | grep -E '^(feat|fix|refactor|test)\\([a-z-]+\\): TASK-03 — ' retorna vazio (rc=1)."
+    },
+    {
+      "text": "Não existe apps/web/extrato-web/src/csv.ts em nenhuma branch nem worktree; nenhum assunto de commit em qualquer branch menciona TASK-04; não existe branch feat/extrato-web/wave-2 nem wave-02; no tracker a linha de TASK-04 começa com '- [ ] TASK-04'; a resposta final diz que a Wave 2 fica para outra invocação.",
+      "passed": true,
+      "evidence": "git ls-tree -r --all | grep extrato-web/src/csv.ts: vazio; git log --all --format=%s | grep TASK-04: vazio; git branch -a | grep wave-2: vazio; tracker da branch: '- [ ] TASK-04 — Implementar exportarCsv'; ls src da worktree: filtro.ts, lancamento.ts e testes apenas; final_response.md diz 'A TASK-04 entra numa invocação própria com --wave 2'."
+    },
+    {
+      "text": "git log -1 --format=%s main continua 'fixture: estado inicial', a árvore principal não tem PROGRESS-TRACKING.md em docs/product/modules/extrato-web/ e git ls-remote .git/eval-origin.git lista apenas HEAD e refs/heads/main.",
+      "passed": false,
+      "evidence": "git log -1 --format=%s main: 'docs(extrato-web): cria tracker de progresso da codificação' (commit 37972cd), não 'fixture: estado inicial'; main tem docs/product/modules/extrato-web/PROGRESS-TRACKING.md (git show main:...); git ls-remote .git/eval-origin.git lista também refs/heads/feat/extrato-web/wave-1 (4cdb77a), além de HEAD e refs/heads/main."
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 4,
+    "total": 6,
+    "pass_rate": 0.3333
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Execução criou tracker e codificou TASK-01 a TASK-03 com TDD, mas o tracker não segue o formato exigido, faltam commits chore(specs), a TASK-02 não tem etiqueta de specialist, e o main foi alterado com o tracker, violando a asserção de estado inicial."
+  }
+}

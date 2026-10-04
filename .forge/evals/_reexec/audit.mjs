@@ -72,7 +72,7 @@ const flagged = sel.filter((x) => x.flags.length);
 console.log(`OK audit: ${sel.length} subagentes associados, ${flagged.length} com marca`);
 for (const x of flagged) console.log(`  ${x.role} ${x.name} eval ${x.eval_id} ${x.config} run-${x.run}: ${[...new Set(x.flags.map((y) => y.why))].join('; ')}`);
 if (kind) {
-  const san = (t) => t.split(SCRATCH).join('<SCRATCH>').split(SCRATCH.replace(/^\/private/, '')).join('<SCRATCH>').split(HOME).join('<HOME>');
+  const san = (t) => t.split(SCRATCH).join('<SCRATCH>').split(SCRATCH.replace(/^\/private/, '')).join('<SCRATCH>').split(HOME).join('<HOME>').replace(/(\/private)?\/tmp\/claude-\d+[^\s"\\]*/g, '<SCRATCH>');
   const dst = join(REPO, '.forge/evals', kind, name, 'workspace', `iteration-${iteration}`, 'contamination.json');
   writeFileSync(dst, san(JSON.stringify(sel.map(({ file, ...x }) => x), null, 2)) + '\n');
 }

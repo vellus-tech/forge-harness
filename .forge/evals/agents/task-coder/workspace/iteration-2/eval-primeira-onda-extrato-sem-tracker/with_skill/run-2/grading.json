@@ -1,0 +1,46 @@
+{
+  "expectations": [
+    {
+      "text": "Na ponta da branch feat/extrato-web/wave-1 (ou wave-01), docs/product/modules/extrato-web/PROGRESS-TRACKING.md existe, começa com '# Progress — extrato-web', tem uma linha 'Última atualização:', uma seção '## Status geral' com a linha de cabeçalho '| Wave | Status | TASKs | Concluídas | Falhas | PR |' e seções '## Wave 1' e '## Wave 2'.",
+      "passed": true,
+      "evidence": "git show feat/extrato-web/wave-1:docs/product/modules/extrato-web/PROGRESS-TRACKING.md: primeira linha '# Progress — extrato-web'; 'Última atualização: 2026-10-04 12:00'; '## Status geral'; cabeçalho '| Wave | Status | TASKs | Concluídas | Falhas | PR |' presente; seções '## Wave 1 (TASK-01..TASK-03) — Filtro por período' e '## Wave 2 (TASK-04) — Exportação' presentes."
+    },
+    {
+      "text": "No PROGRESS-TRACKING.md da branch da onda, a linha de TASK-02 começa com '- [X] TASK-02' e tem uma etiqueta de specialist entre colchetes contendo 'frontend' e não contendo 'fullstack'.",
+      "passed": true,
+      "evidence": "Linha no tracker da branch: '- [X] TASK-02 — Escrever 3 testes: estornos ficam fora do extrato filtrado                  [frontend]  f4a40cb'. Começa com '- [X] TASK-02', etiqueta [frontend], sem 'fullstack'."
+    },
+    {
+      "text": "git log --format=%s main..<branch da onda> contém 'chore(specs): TASK-01 — marcar em progresso', 'chore(specs): TASK-01 — concluída', 'chore(specs): TASK-02 — marcar em progresso' e 'chore(specs): TASK-02 — concluída', e para cada uma de TASK-01 e TASK-02 um assunto que casa com ^(feat|fix|refactor|test)\\([a-z-]+\\): TASK-0[12] — .",
+      "passed": false,
+      "evidence": "git log --format=%s main..feat/extrato-web/wave-1 lista 'chore(specs): TASK-01 — marcar em progresso', 'chore(specs): TASK-01 — concluída', 'chore(specs): TASK-02 — concluída', mas NÃO lista 'chore(specs): TASK-02 — marcar em progresso'. Confirmado com 'git log --all --format=%s | grep -c marcar em progresso' = 1 (somente TASK-01). Os assuntos feat/test de TASK-01 e TASK-02 casam com o regex."
+    },
+    {
+      "text": "A linha de TASK-03 no tracker da branch começa com '- [X] TASK-03' e nenhum assunto em main..<branch da onda> casa com ^(feat|fix|refactor|test)\\([a-z-]+\\): TASK-03 — .",
+      "passed": true,
+      "evidence": "Tracker: '- [X] TASK-03 — Encerramento da Wave 1 — build verde + commit  [none]  f4a40cb'. git log main..feat/extrato-web/wave-1 não contém nenhum assunto 'TASK-03' (commits: wave 1 concluída; TASK-02; TASK-01)."
+    },
+    {
+      "text": "Não existe apps/web/extrato-web/src/csv.ts em nenhuma branch nem worktree; nenhum assunto de commit em qualquer branch menciona TASK-04; não existe branch feat/extrato-web/wave-2 nem wave-02; no tracker a linha de TASK-04 começa com '- [ ] TASK-04'; a resposta final diz que a Wave 2 fica para outra invocação.",
+      "passed": true,
+      "evidence": "find . -name csv.ts no projeto: vazio; git ls-tree -r --name-only feat/extrato-web/wave-1 | grep -i csv: vazio; git worktree list sem wave-2; git branch -a sem wave-02; 'git log --all --format=%s | grep -c TASK-04' = 0; tracker: '- [ ] TASK-04 — Implementar exportarCsv (não iniciada: fora do escopo desta invocação...)'; final_response.md: 'A exportação CSV da Wave 2 (TASK-04) não foi adiantada... é preciso nova invocação'."
+    },
+    {
+      "text": "git log -1 --format=%s main continua 'fixture: estado inicial', a árvore principal não tem PROGRESS-TRACKING.md em docs/product/modules/extrato-web/ e git ls-remote .git/eval-origin.git lista apenas HEAD e refs/heads/main.",
+      "passed": true,
+      "evidence": "git log -1 --format=%s main = 'fixture: estado inicial'; ls docs/product/modules/extrato-web/ no main = design.md, requirements.md, tasks.md (sem PROGRESS-TRACKING.md); git ls-remote .git/eval-origin.git = df5d39ea...\tHEAD e df5d39ea...\trefs/heads/main, apenas esses."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.8333
+  },
+  "eval_feedback": {
+    "suggestions": [
+      "Assertion 3: a execução não gravou o commit 'chore(specs): TASK-02 — marcar em progresso' e o tracker afirma commits que não existem (TASK-03 com f4a40cb, TASK-02 com f4a40cb duplicado); o coding-loop deveria marcar em progresso antes de executar cada TASK."
+    ],
+    "overall": "5 de 6 asserções cumpridas; falha na sequência de commits de marcação de TASK-02 e no tracker, que registra commits inexistentes."
+  }
+}

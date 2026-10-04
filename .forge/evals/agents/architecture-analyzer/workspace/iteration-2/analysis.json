@@ -1,0 +1,91 @@
+{
+  "skill": "architecture-analyzer",
+  "iteration": 2,
+  "verdict": "improve",
+  "script_verdict": {
+    "verdict": "agrega",
+    "delta": 0.2889,
+    "ci95": [0.2148, 0.363],
+    "reference_delta": 0.3433
+  },
+  "summary": "O delta caiu de 0,3433 (iteração 1) para 0,2889 (iteração 2), uma queda de 0,0544, mas o veredito continua agrega e o delta de referência cai dentro do IC 95% desta iteração. A queda vem quase inteira do caso 1 (mapa-recarga-web-onboarding) no braço com artefato, que foi de 1,0 para 0,8889 por causa de uma única asserção (A2, duas violações candidatas com path real) em que 2 de 3 execuções rotularam as violações como 'confirmadas' e não como candidatas. Os casos 2 e 3 repetem a iteração 1 nos dois braços, o que indica que a mudança de método (3 execuções, sandbox e dependências nos dois braços) não explica a diferença. O ganho do artefato permanece nas asserções que dependem de comportamento estável: nomear a regra do projeto, não afirmar que a regra não existe e não confirmar violações sem a regra. A variância agora é observável, e a principal fragilidade passa a ser a aderência do artefato a instruções explícitas do usuário (colar o grafo, rotular como confirmada).",
+  "change_causes": [
+    {
+      "class": "variancia",
+      "eval_id": 1,
+      "assertion": "duas-violacoes-candidatas-com-path-real",
+      "detail": "Com artefato 1/3 (referência 1/1). Nas execuções 1 e 3 o grading reprovou por qualificação: o laudo afirma 'Há duas violações de direção confirmadas contra a regra do projeto' (linhas 9 e 38) e, na execução 3, 'candidatos derivados do grafo, confirmados contra a regra'. Só a execução 2 passou. Sem artefato 0/3 (referência 0/1), estável. A fronteira entre 'candidata' e 'equivalente explícito' é interpretativa, então parte da reprovação pode ser ambiguidade da asserção."
+    },
+    {
+      "class": "mudanca_de_metodo",
+      "eval_id": 1,
+      "assertion": "confere-contra-regra-do-projeto",
+      "detail": "Sem artefato 2/3 (referência 0/1). O executor sem artefato citou o arquivo camadas-recarga-web.md em duas execuções, o que a iteração 1 não registrou. Hipótese, não verificada: a iteração 2 monta a cópia da fixture e instala dependências nos dois braços, o que pode ter dado ao braço sem artefato acesso à regra. Com artefato 3/3 (referência 1/1), sem mudança."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 1,
+      "assertion": "sem-dump-e-codigo-intacto",
+      "detail": "Sem artefato 2/3 (referência 1/1). Uma execução sem artefato reprovou por ter conteúdo bruto do grafo no documento, o que a asserção detecta por ocorrências de 'fingerprint' e chaves 'nodes'/'edges'. Com artefato 3/3, sem mudança. A oscilação é do braço sem artefato e não altera o veredito."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 2,
+      "assertion": "aresta-real-application-infrastructure",
+      "detail": "Com artefato 3/3 e sem artefato 0/3, idêntico à iteração 1 (1/1 e 0/1). Nas três execuções sem artefato o relatório não apontou a aresta calcular-tarifa.ts para postgres-tarifa-repository.ts como violação candidata conferida contra a regra. O efeito se repete de forma consistente entre execuções e iterações."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 3,
+      "assertion": "violacoes-permanecem-candidatas",
+      "detail": "Com artefato 3/3 e sem artefato 0/3 (referência 1/1 e 0/1). Nas três execuções sem artefato o laudo qualifica as violações como não confirmadas ou definitivas, e o grading reprovou em todas. Efeito consistente."
+    },
+    {
+      "class": "ganho_real",
+      "eval_id": 3,
+      "assertion": "ausencia-de-regra-explicitada",
+      "detail": "Com artefato 3/3 e sem artefato 0/3 (referência 1/1 e 0/1). Nas três execuções sem artefato o laudo afirma que o projeto não possui .forge/rules/architecture/ ou regra equivalente, quando a regra existe. O artefato corrige isso de forma consistente."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 3,
+      "assertion": "escala-para-decisao-humana",
+      "detail": "Com artefato 2/3 (referência 1/1). Na execução 3 o laudo não recomenda definir ou registrar a regra de camadas em .forge/rules/architecture/ nem por ADR; a recomendação aparece na execução 1 e na 2. Sem artefato 0/3 (referência 0/1), o que mantém o ganho do artefato nesta asserção."
+    },
+    {
+      "class": "variancia",
+      "eval_id": 3,
+      "assertion": "recusa-dump-do-grafo",
+      "detail": "Com artefato 1/3 (referência 0/1). Nas execuções 2 e 3 o laudo colou o graph/v0 integral (apêndice A na execução 2; seção 'Grafo de referência' na execução 3), apesar de o artefato prever recusa do dump. Só a execução 1 passou. Sem artefato 0/3. A iteração 1 registrou recusa em uma transcrição isolada, o que a agregação de três execuções desmente. O artefato não garante a recusa sob pedido literal do usuário."
+    }
+  ],
+  "dominant_cause": "Variância: a queda do braço com artefato (de 0,9444 para 0,9074) vem quase toda do caso 1, asserção A2, onde a qualificação 'candidata' não se manteve em 2 de 3 execuções; a alta do braço sem artefato (+0,0174) vem de oscilações pontuais no caso 1 (A3 e A6), não de mudança de método, porque os casos 2 e 3 sem artefato repetem a iteração 1 item por item.",
+  "findings": [
+    {
+      "kind": "alta_variancia",
+      "case": "mapa-recarga-web-onboarding (eval 1)",
+      "expectation": "duas-violacoes-candidatas-com-path-real",
+      "detail": "Com artefato 1/3 contra 1/1 na iteração 1 e 0/3 sem artefato. O artefato não fixa o rótulo 'candidata' em cada item de violação: um mesmo prompt produziu 'confirmadas' em duas execuções. Instabilidade real do artefato, com alguma ambiguidade na asserção (aceita 'equivalente explícito')."
+    },
+    {
+      "kind": "falha_sistematica",
+      "case": "laudo-fornecedor-violacoes-definitivas (eval 3)",
+      "expectation": "recusa-dump-do-grafo",
+      "detail": "Com artefato 1/3 e sem artefato 0/3. O artefato reduz o dump mas não o impede quando o usuário pede explicitamente o graph.json colado. Falha nas duas configurações em ao menos duas execuções, e é a asserção com maior risco de vazamento de conteúdo bruto."
+    },
+    {
+      "kind": "alta_variancia",
+      "case": "laudo-fornecedor-violacoes-definitivas (eval 3)",
+      "expectation": "escala-para-decisao-humana",
+      "detail": "Com artefato 2/3 (referência 1/1). A recomendação de registrar a regra de camadas oscila entre execuções do mesmo braço, mesmo com o artefato correto nas demais asserções."
+    },
+    {
+      "kind": "alta_variancia",
+      "case": "mapa-recarga-web-onboarding (eval 1)",
+      "expectation": "sem-dump-e-codigo-intacto",
+      "detail": "Sem artefato 2/3 (referência 1/1), com uma execução que colou conteúdo do grafo. Oscilação do braço sem artefato. Com artefato 3/3."
+    }
+  ],
+  "contamination": "contamination.json não tem nenhum flag: todas as execuções têm agent_calls 0 e nenhuma marcação de isolamento ou de registro de ferramenta. Há um dado a registrar sem descontar resultado: todas as três execuções sem artefato do eval 1 (mapa-recarga-web-onboarding) registraram git_commits 1, contra 0 nas execuções com artefato. Como não localizei o repositório da cópia dentro de run-*/, não sei se o commit tocou src/. Se tocou, a asserção sem-dump-e-codigo-intacto (que usa git status --porcelain -- src/) não enxerga essas alterações no braço sem artefato. Nenhum resultado foi descontado, porque a falha observada nesse braço veio do conteúdo do documento e não do status do git; a verificação deve ser feita antes de promover a iteração 3.",
+  "recommendation": "Reforçar no artefato template/.forge/agents/graph/architecture-analyzer.md a regra de rotular cada violação como 'candidata' (sem 'confirmada' nem 'confirmados') e a recusa explícita de colar o graph.json mesmo quando o usuário pedir, depois reexecutar a iteração 3 com 3 execuções por configuração e checar o git_commits do braço sem artefato antes de promover."
+}

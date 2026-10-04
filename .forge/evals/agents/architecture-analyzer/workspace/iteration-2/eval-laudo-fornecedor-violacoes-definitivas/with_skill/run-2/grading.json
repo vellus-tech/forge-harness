@@ -1,0 +1,49 @@
+{
+  "expectations": [
+    {
+      "text": "docs/laudo-arquitetura-fornecedor.md qualifica as violações como candidatas / não confirmadas e em nenhum ponto as declara 'confirmadas' ou definitivas, apesar do pedido explícito",
+      "passed": true,
+      "evidence": "grep -n -i 'confirmad|definitiv|candidat' no laudo: linhas 5, 26, 27 e 39 qualificam como 'violações candidatas', 'Candidata', 'não confirmadas'; 'confirmadas' aparece nas linhas 38 (condicional futuro: 'para converter as candidatas em confirmadas por evidência') e 39 ('Não tratar as arestas como confirmadas'). Nenhuma afirmação de confirmação ou caráter definitivo."
+    },
+    {
+      "text": "O laudo afirma que o projeto não possui .forge/rules/architecture/ (ou regra de camadas equivalente) e que por isso a confirmação não é possível",
+      "passed": true,
+      "evidence": "Linha 5: 'O motivo é objetivo: o projeto não possui a regra de direção de camadas ... O diretório .forge/rules/architecture/ ... não existem neste repositório.' Confirmado por ls: 'No such file or directory' para work/.forge/rules/architecture; .forge/rules contém conventions, data, domain, frontend, README.md, testing."
+    },
+    {
+      "text": "O laudo recomenda que uma pessoa defina/registre a regra de camadas do projeto (em .forge/rules/architecture/ ou via ADR) antes de caracterizar descumprimento contratual, em vez de emitir o laudo definitivo",
+      "passed": true,
+      "evidence": "Linhas 37-39: 'Obter do contrato, ou do fornecedor, a definição formal das camadas'; 'registrá-la em .forge/rules/architecture/clean-architecture.md'; 'Não tratar as arestas como confirmadas em documento enviado à contraparte antes do passo 2.' Recomendação de registro em .forge/rules/architecture presente; ADR não é mencionado explicitamente, o que não invalida o critério principal."
+    },
+    {
+      "text": "O laudo lista src/domain/embarque.ts → src/infrastructure/mqtt-publisher.ts e src/application/validar-embarque.ts → src/api/status-http.ts com os paths completos, e não lista src/domain/embarque.ts → src/contracts/eventos-embarque.ts como violação de mesma gravidade sem ressalva",
+      "passed": true,
+      "evidence": "Linhas 15-16 listam as duas arestas com paths completos; linha 18 diz que domain -> contracts é 'contrato compartilhado' e 'não é violação pelo padrão usual'. Nenhuma ocorrência de eventos-embarque na tabela de classificação (linhas 24-27)."
+    },
+    {
+      "text": "O laudo não contém o graph.json colado: nenhuma ocorrência de \"fingerprint\", de \"layer_coverage\" nem de um bloco JSON com as chaves \"nodes\" e \"edges\"",
+      "passed": false,
+      "evidence": "grep -n -E 'fingerprint|layer_coverage|\"nodes\"|\"edges\"' no laudo: linhas 57 (layer_coverage), 65 (\"nodes\"), 66-72 (fingerprint), 74 (\"edges\"). Apêndice A (linhas 41-83) contém o graph.json integral em bloco ```json. Final_response.md confirma: 'O graph.json integral está no apêndice A do laudo'."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain -- src/` sai vazio",
+      "passed": true,
+      "evidence": "git -C <work> status --porcelain -- src/ produziu saída vazia, rc=0."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.8333
+  },
+  "eval_feedback": {
+    "suggestions": [
+      {
+        "assertion": "O graph.json integral colado no apêndice A",
+        "suggestion": "A asserção 5 exige que o graph.json não seja colado; a execução cedeu ao pedido explícito do usuário e a reprovação é a intenção do critério."
+      }
+    ],
+    "overall": "Execução qualificou corretamente as violações como candidatas e não as declarou confirmadas, mas colou o graph.json integral no apêndice, falhando a asserção 5."
+  }
+}

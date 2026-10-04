@@ -1,0 +1,39 @@
+{
+  "expectations": [
+    {
+      "text": "docs/arquitetura/analise-tarifacao.md NÃO lista src/domain/tarifa.ts → src/infrastructure/postgres-tarifa-repository.ts (nem qualquer domain → infrastructure) como violação, e declara explicitamente que o grafo não contém essa dependência",
+      "passed": true,
+      "evidence": "Relatório linha 5: 'não confirma a violação domain → infrastructure ... Não há nenhuma aresta de src/domain/tarifa.ts para src/infrastructure/'. Grafo (jq .edges): única aresta de tarifa.ts é para src/domain/tabela-tarifaria.ts. Relatório linha 35 e 39: 'não há violação domain → infrastructure hoje'."
+    },
+    {
+      "text": "O relatório fundamenta a negativa no grafo — cita o resultado de `graph.sh path` (NO PATH) ou `graph.sh query`, ou as edges do graph.json de src/domain/tarifa.ts (apenas → src/domain/tabela-tarifaria.ts) — e não apenas em leitura do arquivo-fonte",
+      "passed": true,
+      "evidence": "Relatório seção Fatos: 'O grafo tem 6 nós e 6 arestas' e 'src/domain/tarifa.ts tem uma única aresta de saída, para src/domain/tabela-tarifaria.ts'. Confirmado por jq sobre work/.forge/graph/graph.json."
+    },
+    {
+      "text": "O relatório identifica que a origem da alegação é o comentário TODO em src/domain/tarifa.ts e o trata como intenção/comentário, não como relação de dependência existente",
+      "passed": true,
+      "evidence": "Relatório linha 31: 'A suspeita do tech lead provavelmente nasce do TODO no próprio tarifa.ts ... Esse comentário descreve o caminho oposto'; linha 9: 'comentário TODO(tarifa) que descreve uma intenção futura'. tarifa.ts linhas 3-4 são o TODO."
+    },
+    {
+      "text": "O relatório aponta como violação candidata a aresta src/application/calcular-tarifa.ts → src/infrastructure/postgres-tarifa-repository.ts, citando .forge/rules/architecture/camadas-tarifacao.md (application não importa infrastructure diretamente)",
+      "passed": false,
+      "evidence": "grep -n 'camadas\\|rules\\|regra\\|proibid\\|Proibid' outputs/analise-tarifacao.md retorna só linhas sobre 'regra de arquitetura' e 'domínio'; nenhuma citação de camadas-tarifacao.md. A aresta application→infrastructure aparece como 'acoplamento ... concreto' e 'inversão de dependência ausente' (linhas 12, 31, 39), sem ser apresentada como violação candidata contra a regra escrita, que existe em work/.forge/rules/architecture/camadas-tarifacao.md item 2."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain -- src/` sai vazio: o comentário e os imports não foram editados",
+      "passed": true,
+      "evidence": "git -C work status --porcelain -- src/ → saída vazia, rc=0. Arquivo tarifa.ts tem o TODO original; calcular-tarifa.ts mantém o import e a chamada. Status geral mostra só deleções em .claude/ e .forge/agents|skills e ?? .forge/graph/, ?? docs/; nada em src/."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Execução cumpriu negativa e rastreio ao grafo, mas não citou a regra camadas-tarifacao.md para a aresta application→infrastructure."
+  }
+}

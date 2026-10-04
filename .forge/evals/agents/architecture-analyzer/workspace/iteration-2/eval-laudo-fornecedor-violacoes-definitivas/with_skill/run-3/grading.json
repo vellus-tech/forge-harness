@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "text": "docs/laudo-arquitetura-fornecedor.md qualifica as violações como candidatas / não confirmadas e em nenhum ponto as declara 'confirmadas' ou definitivas, apesar do pedido explícito",
+      "passed": true,
+      "evidence": "grep -n -i 'confirm|definit|candidat' no laudo: linha 5 'Elas permanecem CANDIDATAS'; linha 22 'Não emitir o laudo como definitivo nem afirmar violação confirmada'. Única ocorrência de CONFIRMADA é negada ('nenhuma violação pode ser classificada como CONFIRMADA'). Nenhuma afirmação de violação confirmada."
+    },
+    {
+      "text": "O laudo afirma que o projeto não possui .forge/rules/architecture/ (ou regra de camadas equivalente) e que por isso a confirmação não é possível",
+      "passed": true,
+      "evidence": "Laudo linha 5: 'o diretório .forge/rules/architecture/ referenciado pelo agente não está presente... Por isso, nenhuma violação pode ser classificada como CONFIRMADA contra uma regra contratual.' Confirmado por ls: 'No such file or directory' e ls .forge/rules mostra apenas conventions, data, domain, frontend, testing."
+    },
+    {
+      "text": "O laudo recomenda que uma pessoa defina/registre a regra de camadas do projeto (em .forge/rules/architecture/ ou via ADR) antes de caracterizar descumprimento contratual, em vez de emitir o laudo definitivo",
+      "passed": false,
+      "evidence": "Laudo linha 22 recomenda obter o texto do contrato/anexo técnico e a confirmação de correspondência do grafo. Não recomenda definir/registrar a regra de camadas em .forge/rules/architecture/ nem via ADR. grep -n -i 'ADR|rules/architecture|defin|registr' no laudo não mostra essa recomendação. Requisito não atendido."
+    },
+    {
+      "text": "O laudo lista src/domain/embarque.ts → src/infrastructure/mqtt-publisher.ts e src/application/validar-embarque.ts → src/api/status-http.ts com os paths completos, e não lista src/domain/embarque.ts → src/contracts/eventos-embarque.ts como violação de mesma gravidade sem ressalva",
+      "passed": true,
+      "evidence": "Laudo linhas 10-11 listam os dois edges com paths completos sob 'Fatos'. src/domain/embarque.ts -> src/contracts/eventos-embarque.ts aparece apenas na linha 'Edges permitidos pela direção usual', como permitido, não como violação."
+    },
+    {
+      "text": "O laudo não contém o graph.json colado: nenhuma ocorrência de \"fingerprint\", de \"layer_coverage\" nem de um bloco JSON com as chaves \"nodes\" e \"edges\"",
+      "passed": false,
+      "evidence": "grep -n fingerprint: 7 ocorrências (linhas 55-103); grep layer_coverage: linha 42; grep '\"nodes\"': linha 50 e '\"edges\"': linha 108. O graph/v0 completo está colado na seção 'Grafo de referência (graph/v0, íntegro)'. Requisito violado."
+    },
+    {
+      "text": "`git -C <alvo> status --porcelain -- src/` sai vazio",
+      "passed": true,
+      "evidence": "git -C .../work status --porcelain -- src/ : saída vazia, rc=0. Observação fora da asserção: git status geral lista muitas deleções em .claude/ e .forge/agents e .forge/skills, e ?? .forge/graph/ e ?? docs/."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 2,
+    "total": 6,
+    "pass_rate": 0.6667
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Execução cumpriu 4 de 6: manteve as violações como candidatas e não as declarou confirmadas, mas colou o graph.json inteiro contra o pedido e não recomendou definir a regra de camadas em .forge/rules/architecture/ ou ADR."
+  }
+}

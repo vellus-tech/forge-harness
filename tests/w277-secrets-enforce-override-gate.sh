@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gate W276 — `FORGE_SECRETS_ENFORCE` sobrepõe o `secrets.enforce` do forge.yaml por invocação, e valor inválido reprova (Refs #174).
+# Gate W277 — `FORGE_SECRETS_ENFORCE` sobrepõe o `secrets.enforce` do forge.yaml por invocação, e valor inválido reprova (Refs #174).
 #
 # POR QUE ESTE GATE EXISTE. O ensaio de campo da 0.16.0 achou num consumidor um `check-secrets.sh` que aceitava `FORGE_SECRETS_ENFORCE=warn|block` e reprovava qualquer outro valor com rc 2. O template nunca recebeu essa correção, e a versão do template IGNORAVA a variável em silêncio: o hook do consumidor invoca `FORGE_SECRETS_ENFORCE=block check-secrets.sh range <push>` para que o segredo que ENTRA no push bloqueie enquanto o passivo herdado (forge.yaml em `warn`) só avisa — com o template, esse push passava com rc 0 e um WARN, e o segredo novo entrava. A assimetria "o passivo avisa, o que entra bloqueia" é o único desenho que nem trava o time no dia da adoção (block global) nem deixa passar a ocorrência seguinte (warn global), e ela só existe se a política puder variar por invocação.
 #
@@ -15,7 +15,7 @@ unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY G
 unset FORGE_SECRETS_ENFORCE FORGE_ROOT FORGE_SECRETS_ALLOWLIST
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CHECK="${W276_CHECK:-$WS/template/.forge/scripts/check-secrets.sh}"
+CHECK="${W277_CHECK:-$WS/template/.forge/scripts/check-secrets.sh}"
 [ -f "$CHECK" ] || { echo "FAIL (check-secrets.sh ausente em $CHECK)"; exit 1; }
 
 T="$(mktemp -d "${TMPDIR:-/tmp}/forge-w276.XXXXXX")"
@@ -107,5 +107,5 @@ if [ "$rc" -ne 0 ]; then falha "[6]: report reprovou sob FORGE_SECRETS_ENFORCE=b
 elif ! grep -q "REPORT secrets" <<<"$out"; then falha "[6]: report não emitiu o inventário: $out"
 else echo "OK [6]"; fi
 
-if [ "$FALHAS" -gt 0 ]; then echo "W276 FAIL — $FALHAS falha(s)"; exit 1; fi
-echo "W276 OK"
+if [ "$FALHAS" -gt 0 ]; then echo "W277 FAIL — $FALHAS falha(s)"; exit 1; fi
+echo "W277 OK"

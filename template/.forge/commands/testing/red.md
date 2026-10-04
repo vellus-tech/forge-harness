@@ -49,6 +49,8 @@ um `replay` bem-sucedido. `--test-path`, `--test-id`, `--command` e `--failure-p
 consegue ancorar no caso específico (só no arquivo de teste inteiro); sem `failure_pattern`, o
 item 4 da rule nunca fica avaliável — campo ausente seria indistinguível de "gate desligado".
 
+Formato de `test_id` (issue #190): o `replay` aceita o nome do caso como aparece no arquivo (nome do método, `test('<nome>')` do Jest/`node --test`, `test_nome` do pytest) e também a forma qualificada que xUnit/NUnit e `dotnet test --filter FullyQualifiedName~` usam — `Classe.Metodo` ou `Namespace.Classe.Metodo`. Na forma qualificada (só identificadores separados por `.`), a classe e o método são conferidos separadamente, como palavras inteiras, no arquivo de teste e na mesma linha de falha da saída; o namespace não é conferido. Qualquer outro formato continua exigindo a substring literal, e o `NOT-POSSIBLE` diz exatamente o que foi procurado.
+
 `--positive-control` é **opcional** (issue #150, DA-13) — um comando que precisa PASSAR na
 árvore base, na mesma corrida do teste declarado. Uma âncora (`failure_pattern`) que não falha
 na base é defeito do TESTE, não do código sob correção: o teste afirma o CAMINHO que reproduz o

@@ -53,8 +53,8 @@ esac
 # isento, sem barra antes dele; exigir só "/" nunca casava esse caso (issue #129). "(^|/)"
 # preserva o caso absoluto e o aninhado (services/token-vault/src/...) sem alargar a isenção
 # para um nome que apenas CONTÉM o segmento (mysrc/, srcx/ continuam reprovando).
-if [[ "$DIR" =~ (^|/)(src|tests|services|deploy)(/|$) ]]; then
-    : # PascalCase permitido em código .NET
+if [[ "$DIR" =~ (^|/)(src|tests?|services|deploy)(/|$) ]]; then
+    : # PascalCase permitido em código .NET (test/ e tests/: repositórios Payments.* usam as duas grafias)
 elif [[ "$BASENAME" =~ [A-Z] ]] && [[ ! "$FILE" =~ \.(csproj|sln|props|targets)$ ]]; then
     violations+=("Diretório '$BASENAME' não está em kebab-case")
 fi

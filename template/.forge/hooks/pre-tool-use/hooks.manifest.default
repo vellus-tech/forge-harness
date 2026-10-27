@@ -27,5 +27,6 @@
 #hook	matcher	contrato	estado	[chave=valor …]
 enforce-worktree-location.sh	^Bash$	stdin-json	armado
 prevent-secrets-leak.sh	^(Write|Edit|MultiEdit|NotebookEdit)$	stdin-json	armado	razao=AWS/JWT/PEM/senha antes do byte tocar o disco
+prevent-aws-credentials-read.sh	^(Bash|Read)$	stdin-json	armado	razao=ORQ-20261027-105, nunca ler credencial/config/cache da AWS
 check-language-policy.sh	^(Write|Edit|MultiEdit)$	argv	retido:especifico-dotnet-arme-via-hooks-manifest-do-consumidor	universo=.cs
 validate-naming-conventions.sh	^(Write|Edit|MultiEdit)$	argv	retido:especifico-dotnet-arme-via-hooks-manifest-do-consumidor	universo=.cs

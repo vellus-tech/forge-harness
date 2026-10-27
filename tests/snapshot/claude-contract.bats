@@ -187,12 +187,13 @@ PYEOF
   [ "$wired" -eq 1 ]
 }
 
-@test "C5: generated settings.json is valid JSON and wires the worktree-guard + secrets-detector (PreToolUse), by default (issue #125)" {
+@test "C5: generated settings.json is valid JSON and wires the worktree-guard + secrets-detector + aws-credentials-guard (PreToolUse), by default (issue #125, ORQ-20261027-105)" {
   # Issue #125: PreToolUse passou a derivar de .forge/hooks/pre-tool-use/ + hooks.manifest.default
   # em vez de um literal fixo (só o worktree-guard). Um consumidor NOVO (sem .claude/settings.json
-  # ainda, o caso deste fixture) recebe o ESTADO PADRÃO do produtor: worktree-guard e
-  # prevent-secrets-leak.sh nascem armados (segurança/convenção universal); check-language-policy.sh
-  # e validate-naming-conventions.sh (específicos de .NET) nascem retidos.
+  # ainda, o caso deste fixture) recebe o ESTADO PADRÃO do produtor: worktree-guard,
+  # prevent-secrets-leak.sh e, desde ORQ-20261027-105, prevent-aws-credentials-read.sh nascem
+  # armados (segurança/convenção universal); check-language-policy.sh e
+  # validate-naming-conventions.sh (específicos de .NET) nascem retidos.
   [ "$MODE" = "generated" ] || skip "source snapshot is the frozen pre-#125 reference (wires ONLY the worktree-guard)"
   python3 -m json.tool "$CLAUDE_DIR/settings.json" >/dev/null
   grep -q "$HOOK_PATH_FRAGMENT" "$CLAUDE_DIR/settings.json"
@@ -201,10 +202,11 @@ PYEOF
   # linha `armado` (lerCanonico/hooks-manifest.mjs) — "Bash" virou "^Bash$".
   grep -q '"matcher": "\^Bash\$"' "$CLAUDE_DIR/settings.json"
   grep -q 'prevent-secrets-leak.sh' "$CLAUDE_DIR/settings.json"
+  grep -q 'prevent-aws-credentials-read.sh' "$CLAUDE_DIR/settings.json"
   ! grep -q 'check-language-policy.sh' "$CLAUDE_DIR/settings.json"
   ! grep -q 'validate-naming-conventions.sh' "$CLAUDE_DIR/settings.json"
   wired=$(grep -c '"command":' "$CLAUDE_DIR/settings.json")
-  [ "$wired" -eq 2 ]
+  [ "$wired" -eq 3 ]
 }
 
 @test "C5: handoff.auto: true wires +2 Session hooks (SessionStart/SessionEnd) — consolidates w62 into C5 (LDG-0022)" {
@@ -232,9 +234,10 @@ PYEOF
   grep -q '"SessionEnd"' "$AUTO_SETTINGS"
   grep -q 'on-session-start.sh' "$AUTO_SETTINGS"
   grep -q 'on-session-end.sh' "$AUTO_SETTINGS"
-  # base (issue #125): worktree-guard + prevent-secrets-leak.sh = 2, mais SessionStart/SessionEnd = 4.
+  # base (issue #125, ORQ-20261027-105): worktree-guard + prevent-secrets-leak.sh +
+  # prevent-aws-credentials-read.sh = 3, mais SessionStart/SessionEnd = 5.
   wired=$(grep -c '"command":' "$AUTO_SETTINGS")
-  [ "$wired" -eq 4 ]
+  [ "$wired" -eq 5 ]
 }
 
 @test "C5: worktree-guard blocks outside the canonical worktree path (generated mode only)" {

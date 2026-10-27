@@ -202,12 +202,12 @@ else
 fi
 
 # ── [5] consumidor novo: primeiro sync ───────────────────────────────────────────────────────────
-echo "[5] consumidor novo — enforce-worktree-location.sh e prevent-secrets-leak.sh armados; check-language-policy.sh e validate-naming-conventions.sh retidos"
+echo "[5] consumidor novo — enforce-worktree-location.sh, prevent-aws-credentials-read.sh e prevent-secrets-leak.sh armados; check-language-policy.sh e validate-naming-conventions.sh retidos"
 T5="$(mktemp -d "$TMPROOT/forge-w215-5.XXXXXX")"; track "$T5"
 nova_fixture "$T5"
 bash "$T5/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
 GOT5="$(hooks_of "$T5/.claude/settings.json")"
-EXPECTED5='["enforce-worktree-location.sh","prevent-secrets-leak.sh"]'
+EXPECTED5='["enforce-worktree-location.sh","prevent-aws-credentials-read.sh","prevent-secrets-leak.sh"]'
 if [ "$GOT5" != "$EXPECTED5" ]; then
   echo "FAIL [5]: conjunto de ganchos ativos = $GOT5 — esperado $EXPECTED5"
   overall_rc=1

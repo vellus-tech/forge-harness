@@ -73,6 +73,7 @@ done < <(ls tests/*-gate.sh 2>/dev/null | LC_ALL=C sort)
 BATS_SUITES=()
 [ -f tests/validators.bats ] && BATS_SUITES+=("tests/validators.bats")
 [ -f tests/snapshot/claude-contract.bats ] && BATS_SUITES+=("tests/snapshot/claude-contract.bats")
+[ -f tests/prevent-aws-credentials-read.bats ] && BATS_SUITES+=("tests/prevent-aws-credentials-read.bats")
 
 # Shard (CI paralelo): fica o gate cujo índice na lista ordenada acima satisfaz índice mod N == K-1.
 # Round-robin sobre a MESMA lista do --list: determinista, sem tabela de custos para envelhecer, e

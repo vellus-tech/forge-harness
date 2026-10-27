@@ -149,7 +149,7 @@ owned_projection_of() {
     // COM ASPAS em $CLAUDE_PROJECT_DIR (achado de correção MEDIUM, iteração 3 do modo correção) e
     // as formas *Legacy* sem aspas convivem no universo owned — mesma migração sem duplicar de
     // hookCommandDirect/hookCommandDirectLegacy na lib.
-    const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "check-language-policy.sh", "validate-naming-conventions.sh"];
+    const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "prevent-aws-credentials-read.sh", "check-language-policy.sh", "validate-naming-conventions.sh"];
     const OWNED = new Set([
       "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-start.sh",
       "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-end.sh",

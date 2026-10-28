@@ -264,7 +264,7 @@ _settings_hooks_is_derived() { # _settings_hooks_is_derived <root>
     // correção — mesma migração sem duplicar de `hookCommandDirect`/`hookCommandDirectLegacy` na
     // lib): um consumidor recém-migrado tem a forma nova fiada, um ainda não sincronizado tem a
     // legada, e as duas são igualmente owned para efeito deste diagnóstico.
-    const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "check-language-policy.sh", "validate-naming-conventions.sh"];
+    const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "prevent-aws-credentials-read.sh", "check-language-policy.sh", "validate-naming-conventions.sh"];
     const OWNED = new Set([
       "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-start.sh",
       "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-end.sh",

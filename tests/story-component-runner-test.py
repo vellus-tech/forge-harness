@@ -21,7 +21,7 @@ class ComponentRunnerTests(unittest.TestCase):
         self.git('config', 'user.name', 'Teste')
         self.git('config', 'user.email', 'teste@example.invalid')
         self.git('remote', 'add', 'origin', 'https://example.invalid/team/repo.git')
-        (self.repo / 'test.csproj').write_text('fixed revision')
+        (self.repo / 'test.csproj').write_text('<Project Sdk="Microsoft.NET.Sdk"><ItemGroup><PackageReference Include="xunit.v3" Version="4.0.1"/></ItemGroup></Project>')
         self.git('add', 'test.csproj')
         self.git('commit', '-qm', 'fixture')
         self.revision = self.git('rev-parse', 'HEAD')
@@ -33,7 +33,7 @@ import os,sys
 from pathlib import Path
 args=sys.argv[1:]
 if os.environ.get('TEST_EXIT'): raise SystemExit(7)
-if not Path('test.csproj').read_text() == 'fixed revision': raise SystemExit(8)
+if 'uncommitted' in Path('test.csproj').read_text(): raise SystemExit(8)
 if os.environ.get('TEST_NO_REPORT'): raise SystemExit(0)
 report=Path(args[args.index('-result-xml')+1])
 report.write_text(os.environ.get('TEST_XML', '<assemblies><assembly total="1" passed="1" failed="0" errors="0" skipped="0" not-run="0"><test type="Example.DomainTests" result="Pass"/></assembly></assemblies>'))
@@ -52,6 +52,17 @@ report.write_text(os.environ.get('TEST_XML', '<assemblies><assembly total="1" pa
         self.assertEqual(result['tree'], self.git('rev-parse', self.revision + '^{tree}'))
         self.assertEqual(result['passed'], 1)
         self.assertEqual((self.repo / 'test.csproj').read_text(), 'uncommitted')
+    def test_console_xml_is_not_xunit_and_origin_is_local(self):
+        result = self.execute()
+        self.assertEqual(result.get('source_kind'), 'local_git_object')
+        self.assertEqual(result.get('configured_remote'), self.config['remote'])
+        self.assertNotIn('repository', result)
+    def test_plain_console_cannot_pass_with_forged_xunit_xml(self):
+        (self.repo / 'test.csproj').write_text('<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>')
+        self.git('add', 'test.csproj')
+        self.git('commit', '-qm', 'plain console')
+        with self.assertRaises(ValueError): self.execute(dict(self.config, commit=self.git('rev-parse', 'HEAD')))
+
     def test_rejects_malformed_revision_remote_and_project(self):
         for key, value in [('commit', self.revision[:8]), ('remote', 'https://other.invalid/repo'), ('project', '../outside.csproj'), ('class_filter', '')]:
             with self.subTest(key=key), self.assertRaises(ValueError): self.execute(dict(self.config, **{key:value}))

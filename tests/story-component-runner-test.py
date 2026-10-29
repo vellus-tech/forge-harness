@@ -38,7 +38,8 @@ if os.environ.get('TEST_NO_REPORT'): raise SystemExit(0)
 report=Path(args[args.index('-result-xml')+1])
 assembly=Path('bin/Tests.dll').resolve(); assembly.parent.mkdir(parents=True, exist_ok=True); assembly.write_bytes(b'dummy')
 assembly.with_suffix('.deps.json').write_text(json.dumps({'libraries':{'xunit.v3/4.0.1':{},'xunit.v3.runner.inproc.console/4.0.1':{}}}))
-print('xUnit.net v3 In-Process Runner v4.0.1')
+print(os.environ.get('TEST_BUILD_OUTPUT', ''), end='')
+print(os.environ.get('TEST_BANNER', 'xUnit.net v3 In-Process Runner v4.0.1+8ed8aa354c (64-bit .NET 10.0.7)'))
 report.write_text(os.environ.get('TEST_XML', '<assemblies><assembly name="bin/Tests.dll" test-framework="xUnit.net v3 4.0.1" total="1" passed="1" failed="0" errors="0" skipped="0" not-run="0"><test type="Example.DomainTests" result="Pass"/></assembly></assemblies>'))
 ''')
         executable.chmod(0o755)
@@ -99,6 +100,23 @@ report.write_text(os.environ.get('TEST_XML', '<assemblies><assembly name="bin/Te
         self.assertEqual((change / 'verification.yaml').read_text(), 'global sentinel\n')
         global_result = subprocess.run(['bash', str(verify), 'demo'], env=env, capture_output=True, text=True)
         self.assertNotEqual(global_result.returncode, 0)
+
+    def test_runner_banner_after_legitimate_build_warning(self):
+        try:
+            result = self.execute(env=dict(self.env, TEST_BUILD_OUTPUT='test.cs(1,1): warning CS1030: aviso comum\n'))
+        except ValueError:
+            result = {}
+        self.assertEqual(result.get('passed'), 1)
+
+    def test_runner_banner_must_occupy_entire_line(self):
+        invalid = [
+            'prefix xUnit.net v3 In-Process Runner v4.0.1+8ed8aa354c (64-bit .NET 10.0.7)',
+            'xUnit.net v3 In-Process Runner v4.0.1+8ed8aa354c (64-bit .NET 10.0.7) suffix',
+            'xUnit.net v3 In-Process Runner spoof',
+        ]
+        for banner in invalid:
+            with self.subTest(banner=banner), self.assertRaises(ValueError):
+                self.execute(env=dict(self.env, TEST_BANNER=banner))
 
     def test_fails_closed_on_bad_results(self):
         for var, val in [('TEST_EXIT','1'), ('TEST_NO_REPORT','1'), ('TEST_XML','<assemblies><assembly total="0" passed="0" failed="0" errors="0" skipped="0" not-run="0"/></assemblies>'), ('TEST_XML','<assemblies><assembly total="1" passed="0" failed="1" errors="0" skipped="0" not-run="0"/></assemblies>'), ('TEST_XML','not xml')]:

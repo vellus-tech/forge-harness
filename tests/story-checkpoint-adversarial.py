@@ -59,6 +59,63 @@ class CheckpointTest(unittest.TestCase):
             f.write('- [?] TASK-03 — inválida\n')
         self.assertNotEqual(self.run_story().returncode, 0)
 
+    def test_empty_dependency_tokens_are_invalid(self):
+        (self.d / 'tasks.md').write_text('## Wave 1\n- [X] TASK-01 — feita (depende: —)\n## Wave 2\n- [X] TASK-02 — feita (depende: —)\n')
+        story = self.stories / 'STORY-02.md'
+        for invalid in ['[,]', '[STORY-01,]', '[,STORY-01]', '[STORY-01,,STORY-02]']:
+            with self.subTest(invalid=invalid):
+                self.story('02', 'in_progress', [], '02')
+                story.write_text(story.read_text().replace('depends_on: []', f'depends_on: {invalid}'))
+                self.assertNotEqual(self.run_story().returncode, 0)
+
+    def test_directory_replaced_during_check_fails_closed(self):
+        ready, release = self.root / 'ready', self.root / 'release'
+        os.mkfifo(ready)
+        os.mkfifo(release)
+        (self.root / '.forge/FORGE.md').write_text(f'---\nruntime:\n  test: echo ready > {ready}; cat {release}\n---\n')
+        proc = subprocess.Popen(['bash', str(SCRIPT), 'demo', '--story', 'STORY-02'], env=self.env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        fd = os.open(ready, os.O_RDONLY | os.O_NONBLOCK)
+        try:
+            readable, _, _ = select.select([fd], [], [], 20)
+            self.assertTrue(readable, 'runtime did not reach synchronization point')
+            self.assertEqual(os.read(fd, 64).decode().strip(), 'ready')
+            self.stories.rename(self.d / 'stories-validated')
+            self.stories.mkdir()
+            self.story('02', 'todo', ['STORY-99'], '99')
+            release.write_text('release\n')
+            out = proc.communicate(timeout=45)[0]
+            self.assertNotEqual(proc.returncode, 0, out)
+            self.assertFalse((self.stories / 'STORY-02.verification.yaml').exists())
+            self.assertEqual((self.d / 'verification.yaml').read_text(), 'global sentinel\n')
+        finally:
+            os.close(fd)
+            if proc.poll() is None:
+                proc.kill()
+                proc.communicate(timeout=5)
+
+    def test_tasks_changed_during_check_fails_closed(self):
+        ready, release = self.root / 'ready', self.root / 'release'
+        os.mkfifo(ready)
+        os.mkfifo(release)
+        (self.root / '.forge/FORGE.md').write_text(f'---\nruntime:\n  test: echo ready > {ready}; cat {release}\n---\n')
+        proc = subprocess.Popen(['bash', str(SCRIPT), 'demo', '--story', 'STORY-02'], env=self.env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        fd = os.open(ready, os.O_RDONLY | os.O_NONBLOCK)
+        try:
+            readable, _, _ = select.select([fd], [], [], 20)
+            self.assertTrue(readable, 'runtime did not reach synchronization point')
+            self.assertEqual(os.read(fd, 64).decode().strip(), 'ready')
+            tasks = self.d / 'tasks.md'
+            tasks.write_text(tasks.read_text().replace('[X] TASK-02', '[ ] TASK-02'))
+            release.write_text('release\n')
+            out = proc.communicate(timeout=45)[0]
+            self.assertNotEqual(proc.returncode, 0, out)
+            self.assertFalse((self.stories / 'STORY-02.verification.yaml').exists())
+        finally:
+            os.close(fd)
+            if proc.poll() is None:
+                proc.kill()
+                proc.communicate(timeout=5)
+
     def test_symlinked_stories_directory_fails_closed(self):
         real = self.d / 'stories-real'
         self.stories.rename(real)

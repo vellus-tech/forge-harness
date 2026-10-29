@@ -57,19 +57,9 @@ notes=""
 if [ -n "$STORY" ]; then
   # Never leave a previously passing story receipt after a failed recheck.
   command -v python3 >/dev/null 2>&1 || { echo "FAIL (story checkpoint requires python3 for safe atomic evidence)"; exit 1; }
-  if ! python3 - "$DIR/stories" "$STORY" <<'PY_UNLINK'
-import os, sys
-try:
-    fd = os.open(sys.argv[1], os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-    try:
-        try: os.unlink(sys.argv[2] + '.verification.yaml', dir_fd=fd)
-        except FileNotFoundError: pass
-    finally: os.close(fd)
-except OSError as exc:
-    print(f'FAIL (cannot safely access stories: {exc})', file=sys.stderr)
-    sys.exit(1)
-PY_UNLINK
-  then exit 1; fi
+  STORY_HELPER="$SCRIPT_DIR/lib/story-checkpoint.py"
+  python3 "$STORY_HELPER" clear "$ROOT" "$DIR" "$STORY" || exit 1
+  STORY_SNAPSHOT="$(python3 "$STORY_HELPER" snapshot "$ROOT" "$DIR" "$STORY")" || exit 1
   if ! story_out="$(node --input-type=module - "$SCRIPT_DIR/lib" "$DIR" "$STORY" 2>&1 <<'NODE'
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -96,7 +86,7 @@ try {
       if (lines.length !== 1) problems.push(`campo ${key} ausente ou duplicado: ${item.id}`);
     }
     const dep = /^depends_on:\s*\[([^\]]*)\]\s*$/m.exec(front);
-    if (!dep || dep[1].split(',').map(v => v.trim()).filter(Boolean).some(v => !/^STORY-[0-9]+$/.test(v))) problems.push(`depends_on ausente ou inválido: ${item.id}`);
+    if (!dep || (dep[1].trim() !== '' && dep[1].split(',').map(v => v.trim()).some(v => !/^STORY-[0-9]+$/.test(v)))) problems.push(`depends_on ausente ou inválido: ${item.id}`);
     if (!['todo', 'in_progress', 'done', 'blocked'].includes(item.status)) problems.push(`status inválido: ${item.id}`);
     if (invalidTasks(text).length) problems.push(`checkbox inválido: ${item.id}`);
     for (const taskId of item.taskIds) for (const depId of parsed.tasks.find(t => t.id === taskId)?.dependsOn || []) {
@@ -197,27 +187,7 @@ if [ -n "$STORY" ]; then
   [ "$fail" -eq 0 ] && STORY_RESULT=passed
   if ! {
     for ((i=0; i<${#CHECK_NAMES[@]}; i++)); do printf '%s\0%s\0%s\0' "${CHECK_NAMES[$i]}" "${CHECK_COMMANDS[$i]}" "${CHECK_STATUSES[$i]}"; done
-  } | python3 -c '
-import datetime, json, os, secrets, sys
-path, story, status, commit = sys.argv[1:]
-values = sys.stdin.buffer.read().split(b"\0")
-if values[-1] == b"": values.pop()
-if len(values) % 3: raise SystemExit("invalid check records")
-checks = [{"name": values[i].decode(), "command": values[i+1].decode(), "status": values[i+2].decode()} for i in range(0, len(values), 3)]
-record = {"story": story, "status": status, "verified_at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "commit": commit, "checks": checks}
-fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-tmp = "." + story + "." + secrets.token_hex(16) + ".tmp"
-try:
-    filefd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=fd)
-    with os.fdopen(filefd, "w", encoding="utf-8") as f:
-        json.dump(record, f, ensure_ascii=False)
-        f.write("\n")
-    os.replace(tmp, story + ".verification.yaml", src_dir_fd=fd, dst_dir_fd=fd)
-finally:
-    try: os.unlink(tmp, dir_fd=fd)
-    except FileNotFoundError: pass
-    os.close(fd)
-' "$DIR/stories" "$STORY" "$STORY_RESULT" "$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unversioned)"; then
+  } | python3 "$STORY_HELPER" write "$ROOT" "$DIR" "$STORY" "$STORY_SNAPSHOT" "$STORY_RESULT" "$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unversioned)"; then
     echo "FAIL (could not write story verification safely)"; exit 1
   fi
   if [ "$fail" -ne 0 ]; then echo "FAIL (${notes:-check(s) failed})"; exit 1; fi

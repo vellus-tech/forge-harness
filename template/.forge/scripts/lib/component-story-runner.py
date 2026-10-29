@@ -67,7 +67,8 @@ def run(config, env=None):
             counts = [{key: int(a.attrib[key]) for key in ('total', 'passed', 'failed', 'errors', 'skipped', 'not-run')} for a in assemblies]
         except (ET.ParseError, ValueError, KeyError, OSError) as exc:
             raise ValueError('invalid xunit report') from exc
-        if not result.stdout.startswith('xUnit.net v3 In-Process Runner'):
+        banner = re.compile(r'xUnit\.net v3 In-Process Runner v[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.\-]+)? \((?:32|64)-bit \.NET [0-9A-Za-z.+\-]+\)')
+        if not any(banner.fullmatch(line) for line in result.stdout.splitlines()):
             raise ValueError('xunit runner signature missing')
         for assembly in assemblies:
             name = assembly.attrib.get('name', '')

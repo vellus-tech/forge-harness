@@ -46,6 +46,13 @@ def run(config, env=None):
         target = clone / project
         if not target.is_file() or target.is_symlink() or not target.resolve().is_relative_to(clone.resolve()):
             raise ValueError('component test project not found')
+        try:
+            project_xml = ET.parse(target).getroot()
+            references = [node.attrib.get('Include', node.attrib.get('Update', '')).lower() for node in project_xml.iter() if node.tag.rsplit('}', 1)[-1] == 'PackageReference']
+        except (ET.ParseError, OSError) as exc:
+            raise ValueError('invalid test project') from exc
+        if 'xunit.v3' not in references:
+            raise ValueError('project does not declare xunit.v3')
         report = root / 'report.xml'
         argv = ['dotnet', 'run', '--project', str(project), '--', '-class', config['class_filter'], '-result-xml', str(report)]
         try:
@@ -60,13 +67,32 @@ def run(config, env=None):
             counts = [{key: int(a.attrib[key]) for key in ('total', 'passed', 'failed', 'errors', 'skipped', 'not-run')} for a in assemblies]
         except (ET.ParseError, ValueError, KeyError, OSError) as exc:
             raise ValueError('invalid xunit report') from exc
+        if not result.stdout.startswith('xUnit.net v3 In-Process Runner'):
+            raise ValueError('xunit runner signature missing')
+        for assembly in assemblies:
+            name = assembly.attrib.get('name', '')
+            if not name or not assembly.attrib.get('test-framework', '').startswith('xUnit.net v3 '):
+                raise ValueError('invalid xunit assembly metadata')
+            dll = Path(name)
+            if not dll.is_absolute(): dll = clone / dll
+            if dll.is_symlink() or not dll.is_file() or not dll.resolve().is_relative_to(clone.resolve()) or dll.suffix != '.dll':
+                raise ValueError('test assembly missing from checkout')
+            deps_path = dll.with_suffix('.deps.json')
+            try:
+                if deps_path.is_symlink() or not deps_path.is_file(): raise ValueError('missing dependency manifest')
+                libraries = json.loads(deps_path.read_text())['libraries']
+            except (OSError, KeyError, json.JSONDecodeError) as exc:
+                raise ValueError('invalid dependency manifest') from exc
+            for required in ('xunit.v3/', 'xunit.v3.runner.inproc.console/'):
+                if not any(name.lower().startswith(required) for name in libraries):
+                    raise ValueError('xunit runner dependencies missing')
         tests = [t for a in assemblies for t in a.iter('test')]
         passed = sum(a['passed'] for a in counts)
         if not assemblies or passed < 1 or any(a['failed'] or a['errors'] or a['skipped'] or a['not-run'] or a['passed'] != a['total'] for a in counts) or len(tests) != sum(a['total'] for a in counts) or sum(t.attrib.get('result') == 'Pass' for t in tests) != passed or any(not fnmatch.fnmatchcase(t.attrib.get('type', ''), config['class_filter']) for t in tests):
             raise ValueError('no matching passing tests or invalid counts')
         if git('rev-parse', 'HEAD', cwd=clone) != rev or git('diff', '--quiet', cwd=clone) or git('diff', '--cached', '--quiet', cwd=clone):
             raise ValueError('component changed during execution')
-        return {'repository': config['remote'], 'commit': rev, 'tree': tree, 'runner': 'xunit-v3', 'project': str(project), 'class_filter': config['class_filter'], 'passed': passed}
+        return {'source_kind': 'local_git_object', 'configured_remote': config['remote'], 'commit': rev, 'tree': tree, 'runner': 'xunit-v3', 'project': str(project), 'class_filter': config['class_filter'], 'passed': passed}
 
 def reject_duplicate_keys(pairs):
     result = {}

@@ -196,7 +196,7 @@ while IFS= read -r gate; do
     fail=1
   fi
 done < <(forge_runtime_gates_phase source "$ROOT")
-[ -n "$CHECKS_YAML" ] || echo "  (no checks declared in FORGE.md runtime: — skipping check phase)"
+[ -n "$CHECKS_YAML" ] || [ -n "$STORY_COMPONENT" ] || echo "  (no checks declared in FORGE.md runtime: — skipping check phase)"
 
 # Story checkpoint never writes or changes global verification evidence.
 if [ -n "$STORY" ]; then

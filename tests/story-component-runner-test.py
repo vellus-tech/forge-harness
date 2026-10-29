@@ -29,14 +29,17 @@ class ComponentRunnerTests(unittest.TestCase):
         self.bin.mkdir()
         executable = self.bin / 'dotnet'
         executable.write_text('''#!/usr/bin/env python3
-import os,sys
+import json,os,sys
 from pathlib import Path
 args=sys.argv[1:]
 if os.environ.get('TEST_EXIT'): raise SystemExit(7)
 if 'uncommitted' in Path('test.csproj').read_text(): raise SystemExit(8)
 if os.environ.get('TEST_NO_REPORT'): raise SystemExit(0)
 report=Path(args[args.index('-result-xml')+1])
-report.write_text(os.environ.get('TEST_XML', '<assemblies><assembly total="1" passed="1" failed="0" errors="0" skipped="0" not-run="0"><test type="Example.DomainTests" result="Pass"/></assembly></assemblies>'))
+assembly=Path('bin/Tests.dll').resolve(); assembly.parent.mkdir(parents=True, exist_ok=True); assembly.write_bytes(b'dummy')
+assembly.with_suffix('.deps.json').write_text(json.dumps({'libraries':{'xunit.v3/4.0.1':{},'xunit.v3.runner.inproc.console/4.0.1':{}}}))
+print('xUnit.net v3 In-Process Runner v4.0.1')
+report.write_text(os.environ.get('TEST_XML', '<assemblies><assembly name="bin/Tests.dll" test-framework="xUnit.net v3 4.0.1" total="1" passed="1" failed="0" errors="0" skipped="0" not-run="0"><test type="Example.DomainTests" result="Pass"/></assembly></assemblies>'))
 ''')
         executable.chmod(0o755)
         self.env = dict(os.environ, PATH=str(self.bin) + os.pathsep + os.environ['PATH'])

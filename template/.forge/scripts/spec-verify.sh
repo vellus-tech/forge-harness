@@ -6,6 +6,8 @@
 #      typecheck/lint) with a 300s timeout each; raw output goes to /tmp, only
 #      the tail is meant to be read (§17.6)
 #   4. writes verification.yaml (§10.10) with commit + per-check status
+# With --story STORY-NN, verify only that story and its completed dependencies;
+# write stories/STORY-NN.verification.yaml without changing global verification.yaml.
 # It does NOT transition status — /forge:verify runs the HITL gate and then
 # spec-transition.sh <id> verified.
 # Output: "OK <id> (...)" or "FAIL (...)". Exit 1 on any failed check/open task.
@@ -21,7 +23,13 @@ ROOT="${FORGE_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 . "$SCRIPT_DIR/lib/forge-runtime.sh"
 
 ID="${1:-}"
-[ -n "$ID" ] || { echo "FAIL (usage: spec-verify.sh <change-id>)"; exit 2; }
+[ -n "$ID" ] || { echo "FAIL (usage: spec-verify.sh <change-id> [--story STORY-NN])"; exit 2; }
+shift
+STORY=""
+if [ "$#" -gt 0 ]; then
+  [ "$#" -eq 2 ] && [ "$1" = "--story" ] && [[ "$2" =~ ^STORY-[0-9]+$ ]] || { echo "FAIL (invalid story arguments)"; exit 2; }
+  STORY="$2"
+fi
 DIR="$ROOT/.forge/specs/active/$ID"
 MAN="$DIR/manifest.yaml"
 [ -f "$MAN" ] || { echo "FAIL (no active change: $ID)"; exit 1; }
@@ -46,7 +54,44 @@ fail=0
 notes=""
 
 # ── tasks complete? ───────────────────────────────────────────────────────────
-if [ -f "$DIR/tasks.md" ]; then
+if [ -n "$STORY" ]; then
+  # Never leave a previously passing story receipt after a failed recheck.
+  rm -f "$DIR/stories/$STORY.verification.yaml"
+  if ! story_out="$(node --input-type=module - "$SCRIPT_DIR/lib" "$DIR" "$STORY" 2>&1 <<'NODE'
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+const [lib, dir, id] = process.argv.slice(2);
+try {
+  const {parseTasks, checkTasksGraph} = await import(pathToFileURL(join(lib, 'tasks-graph.mjs')).href);
+  const {parseStories, checkStoryCoverage, checkStoryCycle} = await import(pathToFileURL(join(lib, 'story-shard.mjs')).href);
+  const parsed = parseTasks(readFileSync(join(dir, 'tasks.md'), 'utf8'));
+  const {stories, errors} = parseStories(join(dir, 'stories'));
+  const ids = stories.map(s => s.id);
+  const problems = [...errors, ...checkStoryCoverage(parsed.tasks.map(t => t.id), stories), ...checkStoryCycle(stories), ...checkTasksGraph(parsed).filter(f => f.enforceable).map(f => f.msg)];
+  if (!parsed.tasks.length || new Set(ids).size !== ids.length) problems.push('tasks vazias ou stories duplicadas');
+  for (const item of stories) {
+    if (item.file !== `${item.id}.md`) problems.push(`arquivo de story não corresponde ao ID: ${item.file}`);
+    const text = readFileSync(join(dir, 'stories', item.file), 'utf8');
+    if (!/^depends_on:\s*\[[^\]]*\]\s*$/m.test(text)) problems.push(`depends_on ausente ou inválido: ${item.id}`);
+    for (const taskId of item.taskIds) for (const depId of parsed.tasks.find(t => t.id === taskId)?.dependsOn || []) {
+      const owner = stories.find(s => s.taskIds.includes(depId));
+      if (!owner || (owner.id !== item.id && !item.dependsOn.includes(owner.id))) problems.push(`dependência ${depId} omitida em ${item.id}`);
+    }
+  }
+  const story = stories.find(s => s.id === id);
+  if (!story || !story.taskIds.length || story.status !== 'in_progress') problems.push('story ausente, vazia ou não está in_progress');
+  if (story) {
+    for (const dep of story.dependsOn) { const dependency = stories.find(s => s.id === dep); if (dependency?.status !== 'done' || dependency.taskIds.some(t => parsed.tasks.find(x => x.id === t)?.status !== 'X')) problems.push(`dependência ${dep} não concluída`); }
+    for (const taskId of story.taskIds) if (parsed.tasks.find(t => t.id === taskId)?.status !== 'X') problems.push(`${taskId} não concluída em tasks.md`);
+  }
+  if (problems.length) { console.error(problems.join('; ')); process.exit(1); }
+} catch (e) { console.error(e.message); process.exit(1); }
+NODE
+)"; then
+    echo "FAIL (story inválida: $story_out)"; exit 1
+  fi
+elif [ -f "$DIR/tasks.md" ]; then
   open="$(grep -cE '^\s*- \[( |-|!)\] ' "$DIR/tasks.md" || true)"
   if [ "$open" -gt 0 ]; then
     notes="$open open task(s) in tasks.md"
@@ -108,6 +153,24 @@ while IFS= read -r gate; do
   fi
 done < <(forge_runtime_gates_phase source "$ROOT")
 [ -n "$CHECKS_YAML" ] || echo "  (no checks declared in FORGE.md runtime: — skipping check phase)"
+
+# Story checkpoint never writes or changes global verification evidence.
+if [ -n "$STORY" ]; then
+  STORY_RESULT=failed
+  [ "$fail" -eq 0 ] && STORY_RESULT=passed
+  STORY_FILE="$DIR/stories/$STORY.verification.yaml"
+  {
+    printf 'story: "%s"\n' "$STORY"
+    printf 'status: "%s"\n' "$STORY_RESULT"
+    printf 'verified_at: "%s"\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf 'commit: "%s"\n' "$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unversioned)"
+    printf 'checks:\n'
+    if [ -n "$CHECKS_YAML" ]; then printf '%b' "$CHECKS_YAML" | sed 's/^    /  /'; else printf '  []\n'; fi
+  } > "$STORY_FILE"
+  if [ "$fail" -ne 0 ]; then echo "FAIL (${notes:-check(s) failed})"; exit 1; fi
+  echo "OK $ID $STORY (story verification written)"
+  exit 0
+fi
 
 # ── spec-delta.yaml (§10.4): esqueleto nasce AQUI, não no improviso do archive ──
 # Determinista e best-effort: gera/atualiza o scaffold a partir dos REQ-NN + manifest

@@ -56,7 +56,20 @@ notes=""
 # ── tasks complete? ───────────────────────────────────────────────────────────
 if [ -n "$STORY" ]; then
   # Never leave a previously passing story receipt after a failed recheck.
-  rm -f "$DIR/stories/$STORY.verification.yaml"
+  command -v python3 >/dev/null 2>&1 || { echo "FAIL (story checkpoint requires python3 for safe atomic evidence)"; exit 1; }
+  if ! python3 - "$DIR/stories" "$STORY" <<'PY_UNLINK'
+import os, sys
+try:
+    fd = os.open(sys.argv[1], os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        try: os.unlink(sys.argv[2] + '.verification.yaml', dir_fd=fd)
+        except FileNotFoundError: pass
+    finally: os.close(fd)
+except OSError as exc:
+    print(f'FAIL (cannot safely access stories: {exc})', file=sys.stderr)
+    sys.exit(1)
+PY_UNLINK
+  then exit 1; fi
   if ! story_out="$(node --input-type=module - "$SCRIPT_DIR/lib" "$DIR" "$STORY" 2>&1 <<'NODE'
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -65,15 +78,27 @@ const [lib, dir, id] = process.argv.slice(2);
 try {
   const {parseTasks, checkTasksGraph} = await import(pathToFileURL(join(lib, 'tasks-graph.mjs')).href);
   const {parseStories, checkStoryCoverage, checkStoryCycle} = await import(pathToFileURL(join(lib, 'story-shard.mjs')).href);
-  const parsed = parseTasks(readFileSync(join(dir, 'tasks.md'), 'utf8'));
+  const taskText = readFileSync(join(dir, 'tasks.md'), 'utf8');
+  const invalidTasks = (text) => text.split('\n').filter(line => /^\s*[-*]\s*\[[^\]]*\]\s*TASK-\d+\b/i.test(line) && !/^\s*[-*]\s*\[[ xX!\-]\]\s*TASK-\d+\b/i.test(line));
+  const parsed = parseTasks(taskText);
   const {stories, errors} = parseStories(join(dir, 'stories'));
   const ids = stories.map(s => s.id);
   const problems = [...errors, ...checkStoryCoverage(parsed.tasks.map(t => t.id), stories), ...checkStoryCycle(stories), ...checkTasksGraph(parsed).filter(f => f.enforceable).map(f => f.msg)];
   if (!parsed.tasks.length || new Set(ids).size !== ids.length) problems.push('tasks vazias ou stories duplicadas');
+  if (invalidTasks(taskText).length) problems.push('checkbox inválido em tasks.md');
   for (const item of stories) {
     if (item.file !== `${item.id}.md`) problems.push(`arquivo de story não corresponde ao ID: ${item.file}`);
     const text = readFileSync(join(dir, 'stories', item.file), 'utf8');
-    if (!/^depends_on:\s*\[[^\]]*\]\s*$/m.test(text)) problems.push(`depends_on ausente ou inválido: ${item.id}`);
+    const front = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text)?.[1];
+    if (!front) { problems.push(`frontmatter inválido: ${item.id}`); continue; }
+    for (const key of ['story_id', 'status', 'depends_on']) {
+      const lines = front.split('\n').filter(line => new RegExp(`^${key}\\s*:`).test(line));
+      if (lines.length !== 1) problems.push(`campo ${key} ausente ou duplicado: ${item.id}`);
+    }
+    const dep = /^depends_on:\s*\[([^\]]*)\]\s*$/m.exec(front);
+    if (!dep || dep[1].split(',').map(v => v.trim()).filter(Boolean).some(v => !/^STORY-[0-9]+$/.test(v))) problems.push(`depends_on ausente ou inválido: ${item.id}`);
+    if (!['todo', 'in_progress', 'done', 'blocked'].includes(item.status)) problems.push(`status inválido: ${item.id}`);
+    if (invalidTasks(text).length) problems.push(`checkbox inválido: ${item.id}`);
     for (const taskId of item.taskIds) for (const depId of parsed.tasks.find(t => t.id === taskId)?.dependsOn || []) {
       const owner = stories.find(s => s.taskIds.includes(depId));
       if (!owner || (owner.id !== item.id && !item.dependsOn.includes(owner.id))) problems.push(`dependência ${depId} omitida em ${item.id}`);
@@ -82,7 +107,15 @@ try {
   const story = stories.find(s => s.id === id);
   if (!story || !story.taskIds.length || story.status !== 'in_progress') problems.push('story ausente, vazia ou não está in_progress');
   if (story) {
-    for (const dep of story.dependsOn) { const dependency = stories.find(s => s.id === dep); if (dependency?.status !== 'done' || dependency.taskIds.some(t => parsed.tasks.find(x => x.id === t)?.status !== 'X')) problems.push(`dependência ${dep} não concluída`); }
+    const visited = new Set();
+    const visit = dep => {
+      if (visited.has(dep)) return;
+      visited.add(dep);
+      const dependency = stories.find(s => s.id === dep);
+      if (!dependency || dependency.status !== 'done' || dependency.taskIds.some(t => parsed.tasks.find(x => x.id === t)?.status !== 'X')) problems.push(`dependência ${dep} não concluída`);
+      if (dependency) for (const next of dependency.dependsOn) visit(next);
+    };
+    for (const dep of story.dependsOn) visit(dep);
     for (const taskId of story.taskIds) if (parsed.tasks.find(t => t.id === taskId)?.status !== 'X') problems.push(`${taskId} não concluída em tasks.md`);
   }
   if (problems.length) { console.error(problems.join('; ')); process.exit(1); }
@@ -104,6 +137,9 @@ fi
 
 # ── checks from FORGE.md runtime: block ──────────────────────────────────────
 CHECKS_YAML=""
+CHECK_NAMES=()
+CHECK_COMMANDS=()
+CHECK_STATUSES=()
 run_check() { # run_check <name> <command>
   local name="$1" cmd="$2" log="/tmp/forge-verify-$ID-$1.log" status
   if forge_run_gate "$name" "$cmd" "$log" "$ROOT"; then
@@ -112,6 +148,7 @@ run_check() { # run_check <name> <command>
     status="failed"; fail=1
   fi
   echo "  $name: $status (log: $log)"
+  CHECK_NAMES+=("$name"); CHECK_COMMANDS+=("$cmd"); CHECK_STATUSES+=("$status")
   CHECKS_YAML="$CHECKS_YAML    - name: $name\n      command: \"$cmd\"\n      status: $status\n"
 }
 
@@ -158,15 +195,31 @@ done < <(forge_runtime_gates_phase source "$ROOT")
 if [ -n "$STORY" ]; then
   STORY_RESULT=failed
   [ "$fail" -eq 0 ] && STORY_RESULT=passed
-  STORY_FILE="$DIR/stories/$STORY.verification.yaml"
-  {
-    printf 'story: "%s"\n' "$STORY"
-    printf 'status: "%s"\n' "$STORY_RESULT"
-    printf 'verified_at: "%s"\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    printf 'commit: "%s"\n' "$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unversioned)"
-    printf 'checks:\n'
-    if [ -n "$CHECKS_YAML" ]; then printf '%b' "$CHECKS_YAML" | sed 's/^    /  /'; else printf '  []\n'; fi
-  } > "$STORY_FILE"
+  if ! {
+    for ((i=0; i<${#CHECK_NAMES[@]}; i++)); do printf '%s\0%s\0%s\0' "${CHECK_NAMES[$i]}" "${CHECK_COMMANDS[$i]}" "${CHECK_STATUSES[$i]}"; done
+  } | python3 -c '
+import datetime, json, os, secrets, sys
+path, story, status, commit = sys.argv[1:]
+values = sys.stdin.buffer.read().split(b"\0")
+if values[-1] == b"": values.pop()
+if len(values) % 3: raise SystemExit("invalid check records")
+checks = [{"name": values[i].decode(), "command": values[i+1].decode(), "status": values[i+2].decode()} for i in range(0, len(values), 3)]
+record = {"story": story, "status": status, "verified_at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "commit": commit, "checks": checks}
+fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+tmp = "." + story + "." + secrets.token_hex(16) + ".tmp"
+try:
+    filefd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=fd)
+    with os.fdopen(filefd, "w", encoding="utf-8") as f:
+        json.dump(record, f, ensure_ascii=False)
+        f.write("\n")
+    os.replace(tmp, story + ".verification.yaml", src_dir_fd=fd, dst_dir_fd=fd)
+finally:
+    try: os.unlink(tmp, dir_fd=fd)
+    except FileNotFoundError: pass
+    os.close(fd)
+' "$DIR/stories" "$STORY" "$STORY_RESULT" "$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unversioned)"; then
+    echo "FAIL (could not write story verification safely)"; exit 1
+  fi
   if [ "$fail" -ne 0 ]; then echo "FAIL (${notes:-check(s) failed})"; exit 1; fi
   echo "OK $ID $STORY (story verification written)"
   exit 0

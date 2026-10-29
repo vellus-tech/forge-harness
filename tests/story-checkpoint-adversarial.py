@@ -1,4 +1,5 @@
 import os
+import select
 from pathlib import Path
 import subprocess
 import tempfile
@@ -58,17 +59,32 @@ class CheckpointTest(unittest.TestCase):
             f.write('- [?] TASK-03 — inválida\n')
         self.assertNotEqual(self.run_story().returncode, 0)
 
+    def test_symlinked_stories_directory_fails_closed(self):
+        real = self.d / 'stories-real'
+        self.stories.rename(real)
+        self.stories.symlink_to(real, target_is_directory=True)
+        self.assertNotEqual(self.run_story().returncode, 0)
+        self.assertEqual((self.d / 'verification.yaml').read_text(), 'global sentinel\n')
+
     def test_symlink_inserted_during_check_cannot_overwrite_global_receipt(self):
         ready, release = self.root / 'ready', self.root / 'release'
         os.mkfifo(ready)
         os.mkfifo(release)
         (self.root / '.forge/FORGE.md').write_text(f'---\nruntime:\n  test: echo ready > {ready}; cat {release}\n---\n')
         proc = subprocess.Popen(['bash', str(SCRIPT), 'demo', '--story', 'STORY-02'], env=self.env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-        with ready.open() as f:
-            self.assertEqual(f.read().strip(), 'ready')
-        (self.stories / 'STORY-02.verification.yaml').symlink_to(self.d / 'verification.yaml')
-        release.write_text('release\n')
-        proc.communicate(timeout=45)
+        fd = os.open(ready, os.O_RDONLY | os.O_NONBLOCK)
+        try:
+            readable, _, _ = select.select([fd], [], [], 20)
+            self.assertTrue(readable, 'runtime did not reach the synchronization point')
+            self.assertEqual(os.read(fd, 64).decode().strip(), 'ready')
+            (self.stories / 'STORY-02.verification.yaml').symlink_to(self.d / 'verification.yaml')
+            release.write_text('release\n')
+            proc.communicate(timeout=45)
+        finally:
+            os.close(fd)
+            if proc.poll() is None:
+                proc.kill()
+                proc.communicate(timeout=5)
         self.assertEqual((self.d / 'verification.yaml').read_text(), 'global sentinel\n')
 
 if __name__ == '__main__':

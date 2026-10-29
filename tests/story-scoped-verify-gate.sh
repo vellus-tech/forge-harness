@@ -53,6 +53,6 @@ expect_fail --story STORY-02
 perl -pi -e 's/depends_on: \[\]/depends_on: [STORY-01]/' "$T/.forge/specs/active/demo/stories/STORY-02.md"
 perl -pi -e 's/test: "true"/test: "false"/' "$T/.forge/FORGE.md"
 expect_fail --story STORY-02
-grep -q 'status: "failed"' "$T/.forge/specs/active/demo/stories/STORY-02.verification.yaml"
+node -e 'if (JSON.parse(require("fs").readFileSync(process.argv[1])).status !== "failed") process.exit(1)' "$T/.forge/specs/active/demo/stories/STORY-02.verification.yaml"
 [ "$(cat "$T/.forge/specs/active/demo/verification.yaml")" = 'global sentinel' ] || { echo 'FAIL global evidence modified'; exit 1; }
 echo 'PASS story rejection and failed runtime checks'

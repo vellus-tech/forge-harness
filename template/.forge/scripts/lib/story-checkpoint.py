@@ -4,6 +4,7 @@ import datetime
 import hashlib
 import json
 import os
+import re
 import secrets
 import stat
 import sys
@@ -29,7 +30,7 @@ def fingerprint(root, change, stories_fd):
         h.update(data)
     for name, path in [('tasks', os.path.join(change, 'tasks.md')), ('manifest', os.path.join(change, 'manifest.yaml')), ('runtime', os.path.join(root, '.forge', 'FORGE.md'))]:
         add(name, read_fd(os.open(path, FLAGS)))
-    names = sorted(name for name in os.listdir(stories_fd) if name.startswith('STORY-') and name.endswith('.md'))
+    names = sorted(name for name in os.listdir(stories_fd) if name.startswith('STORY-') and (name.endswith('.md') or name.endswith('.component.json')))
     if not names:
         raise ValueError('no stories to verify')
     for name in names:
@@ -49,9 +50,28 @@ def main():
         if action == 'snapshot':
             print(fingerprint(root, change, fd))
             return
+        if action == 'component':
+            story_text = read_fd(os.open(story + '.md', FLAGS, dir_fd=fd)).decode('utf-8')
+            parts = story_text.split('---', 2)
+            if len(parts) != 3 or parts[0].strip():
+                raise ValueError('invalid story frontmatter')
+            markers = [line for line in parts[1].splitlines() if re.match(r'^\s*component_test\s*:', line)]
+            if len(markers) > 1 or (markers and markers[0] != 'component_test: true'):
+                raise ValueError('invalid component_test marker')
+            config_name = story + '.component.json'
+            try:
+                content = read_fd(os.open(config_name, FLAGS, dir_fd=fd))
+            except FileNotFoundError:
+                if markers: raise ValueError('component configuration missing')
+                print('')
+                return
+            if not markers: raise ValueError('component configuration has no marker')
+            print(content.decode('utf-8'))
+            return
         if action != 'write':
             raise ValueError('unknown action')
         expected, status, commit = sys.argv[5:8]
+        component = json.loads(sys.argv[8]) if len(sys.argv) > 8 and sys.argv[8] else None
         def verify_snapshot():
             # Directory FD anchors writes; pathname must still name that same directory.
             pathinfo = os.stat(stories_path, follow_symlinks=False)
@@ -64,6 +84,7 @@ def main():
         if len(values) % 3: raise ValueError('invalid check records')
         checks = [{'name': values[i].decode(), 'command': values[i+1].decode(), 'status': values[i+2].decode()} for i in range(0, len(values), 3)]
         record = {'story': story, 'status': status, 'verified_at': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'commit': commit, 'checks': checks, 'inputs': json.loads(expected)}
+        if component is not None: record['component'] = component
         tmp = '.' + story + '.' + secrets.token_hex(16) + '.tmp'
         published = False
         try:

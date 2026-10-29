@@ -142,10 +142,27 @@ run_check() { # run_check <name> <command>
   CHECKS_YAML="$CHECKS_YAML    - name: $name\n      command: \"$cmd\"\n      status: $status\n"
 }
 
+STORY_COMPONENT=""
+COMPONENT_RESULT=""
+if [ -n "$STORY" ]; then
+  STORY_COMPONENT="$(python3 "$STORY_HELPER" component "$ROOT" "$DIR" "$STORY")" || exit 1
+fi
 for check in test typecheck lint; do
+  # A component story runs its pinned test in an isolated checkout; global verify remains unchanged.
+  [ "$check" = test ] && [ -n "$STORY_COMPONENT" ] && continue
   cmd="$(forge_get_runtime "$check" "$ROOT" || true)"
   [ -n "$cmd" ] && run_check "$check" "$cmd"
 done
+if [ -n "$STORY_COMPONENT" ]; then
+  if COMPONENT_RESULT="$(printf '%s' "$STORY_COMPONENT" | python3 "$SCRIPT_DIR/lib/component-story-runner.py")"; then
+    CHECK_NAMES+=("component-test"); CHECK_COMMANDS+=("xunit-v3 fixed component revision"); CHECK_STATUSES+=("passed")
+    echo "  component-test: passed"
+  else
+    fail=1
+    CHECK_NAMES+=("component-test"); CHECK_COMMANDS+=("xunit-v3 fixed component revision"); CHECK_STATUSES+=("failed")
+    echo "  component-test: failed"
+  fi
+fi
 
 # ── gates declared in FORGE.md runtime: gates (REQ-15/TASK-17, design.md §2.6) ──
 # forge_runtime_gates_phase (lib/forge-runtime.sh) é a MESMA extração usada por run-gates.sh,
@@ -187,7 +204,7 @@ if [ -n "$STORY" ]; then
   [ "$fail" -eq 0 ] && STORY_RESULT=passed
   if ! {
     for ((i=0; i<${#CHECK_NAMES[@]}; i++)); do printf '%s\0%s\0%s\0' "${CHECK_NAMES[$i]}" "${CHECK_COMMANDS[$i]}" "${CHECK_STATUSES[$i]}"; done
-  } | python3 "$STORY_HELPER" write "$ROOT" "$DIR" "$STORY" "$STORY_SNAPSHOT" "$STORY_RESULT" "$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unversioned)"; then
+  } | python3 "$STORY_HELPER" write "$ROOT" "$DIR" "$STORY" "$STORY_SNAPSHOT" "$STORY_RESULT" "$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unversioned)" "$COMPONENT_RESULT"; then
     echo "FAIL (could not write story verification safely)"; exit 1
   fi
   if [ "$fail" -ne 0 ]; then echo "FAIL (${notes:-check(s) failed})"; exit 1; fi

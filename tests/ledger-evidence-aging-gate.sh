@@ -43,7 +43,7 @@ _run_to() { # _run_to <segundos> -- <cmd...> — teto de tempo (macOS não tem `
 
 # Contador de cenários por grupo: declarados × executados DOS GRUPOS SELECIONADOS.
 declare_scn() { case "$1" in schema) echo 4;; stale) echo 8;; verify) echo 7;; supersede) echo 3;; show) echo 2;; specnew) echo 1;; closed) echo 3;; wiring) echo 5;; docs) echo 3;; mutation) echo 3;; esac; }
-ALL_GROUPS="schema stale verify supersede show specnew closed wiring docs"
+ALL_GROUPS="schema stale verify supersede show specnew closed wiring docs mutation"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
 _fail() { echo "FAIL [$1] $2"; exit 1; }
@@ -620,6 +620,55 @@ if _want docs; then
   cp "$T/nfr-aging.orig" "$T/nfr-aging.mjs"; cmp -s "$T/nfr-aging.mjs" "$T/nfr-aging.orig" || _fail docs-3 "restauração não bateu (cmp)"
   _nfr02 "$T/nfr-ops.sh" "$T/nfr-aging.mjs" >/dev/null || _fail docs-3 "recontrole: cópia restaurada reprovou"
   echo "OK [docs-3]"
+fi
+
+# ───────────────────────────── mutation (REQ-09) ─────────────────────────────
+if _want mutation; then
+  F="$T/mut"; _fixture "$F"; LFM="$F/.forge/ledger/ledger.json"
+  OPSF="$F/.forge/scripts/ledger-ops.sh"; RENF="$F/.forge/scripts/lib/ledger-render.mjs"
+  cp "$OPSF" "$T/ops.orig"; cp "$RENF" "$T/render.orig"
+  _lg "$F" add --type tech-debt --title "M" --detail "m" >/dev/null       # LDG-0001, 2019-03-04 (alvo do mutation-1)
+  _lg "$F" add --type tech-debt --title "M2" --detail "m2" >/dev/null     # LDG-0002, 2019-03-04 (alvo do mutation-2)
+  _commit_at "$F" "2019-06-01T10:00:00+00:00" depois
+  mkdir -p "$F/src"; printf 'um\n' > "$F/src/a.txt"
+  BAD=(verify LDG-0001 --kind file --ref "src/nada.txt:1" --observed "o defeito segue presente na linha um" --verdict confirmed)
+  GOOD=(verify LDG-0002 --kind file --ref "src/a.txt:1" --observed "o defeito segue presente na linha um" --verdict confirmed)
+  _evn() { _jget "$LFM" LDG-0001 '(e.evidence||[]).length'; }
+
+  _scn "[mutation-1] validação de conteúdo mínimo: controle recusa, mutação grava, recontrole recusa"
+  n0="$(_evn)"; _lg "$F" "${BAD[@]}" >/dev/null 2>&1 && _fail mutation-1 "controle: evidência inválida gravou"
+  [ "$(_evn)" = "$n0" ] || _fail mutation-1 "controle: evidence cresceu"
+  perl -pi -e 's/const evErr = checkEvidence\(/const evErr = null \&\& checkEvidence(/' "$OPSF"
+  cmp -s "$OPSF" "$T/ops.orig" && _fail mutation-1 "a mutação não alterou o script — o ponto de mutação mudou"
+  _lg "$F" "${BAD[@]}" >/dev/null 2>&1 || _fail mutation-1 "mutação: sem a validação a evidência inválida deveria gravar"
+  [ "$(_evn)" -gt "$n0" ] || _fail mutation-1 "mutação: evidence não cresceu"
+  cp "$T/ops.orig" "$OPSF"; cmp -s "$OPSF" "$T/ops.orig" || _fail mutation-1 "restauração não bateu (cmp)"
+  n1="$(_evn)"; _lg "$F" "${BAD[@]}" >/dev/null 2>&1 && _fail mutation-1 "recontrole: evidência inválida gravou"
+  [ "$(_evn)" = "$n1" ] || _fail mutation-1 "recontrole: evidence cresceu"
+  echo "OK [mutation-1]"
+
+  _scn "[mutation-2] carimbo de last_verified: sem ele o item continua envelhecido"
+  perl -pi -e 's/^\s*e\.last_verified = now;\s*$/\n/' "$OPSF"
+  cmp -s "$OPSF" "$T/ops.orig" && _fail mutation-2 "a mutação não alterou o script"
+  _lg "$F" "${GOOD[@]}" >/dev/null
+  _lg "$F" stale 2>&1 | grep -q "^LDG-0002 —" || _fail mutation-2 "mutação: sem carimbo o item deveria seguir envelhecido"
+  cp "$T/ops.orig" "$OPSF"; cmp -s "$OPSF" "$T/ops.orig" || _fail mutation-2 "restauração não bateu (cmp)"
+  _lg "$F" "${GOOD[@]}" >/dev/null
+  _lg "$F" stale 2>&1 | grep -q "^LDG-0002 —" && _fail mutation-2 "recontrole: reverificado no HEAD não deveria envelhecer"
+  echo "OK [mutation-2]"
+
+  _scn "[mutation-3] 'superseded' no CLOSED do renderizador, contra oráculo fixo da fixture (3 ativos)"
+  _lg "$F" add --type tech-debt --title "N" --detail "n" >/dev/null
+  _lg "$F" add --type tech-debt --title "N2" --detail "n2" --supersedes LDG-0003 >/dev/null
+  ESPERADO=3   # LDG-0001, LDG-0002 e LDG-0004; LDG-0003 está superseded — conhecido por construção
+  _ativos_md() { grep -oE '^\*\*[0-9]+ ite(m|ns) ativos?\*\*' "$F/.forge/ledger/LEDGER.md" | grep -oE '[0-9]+'; }
+  _lg "$F" render >/dev/null; [ "$(_ativos_md)" = "$ESPERADO" ] || _fail mutation-3 "controle: $(_ativos_md) != $ESPERADO"
+  perl -pi -e "s/, 'superseded'\]\)/])/ if /^const CLOSED = new Set/" "$RENF"
+  cmp -s "$RENF" "$T/render.orig" && _fail mutation-3 "a mutação não alterou o renderizador"
+  _lg "$F" render >/dev/null; [ "$(_ativos_md)" != "$ESPERADO" ] || _fail mutation-3 "mutação: contagem não divergiu do oráculo"
+  cp "$T/render.orig" "$RENF"; cmp -s "$RENF" "$T/render.orig" || _fail mutation-3 "restauração não bateu (cmp)"
+  _lg "$F" render >/dev/null; [ "$(_ativos_md)" = "$ESPERADO" ] || _fail mutation-3 "recontrole: $(_ativos_md) != $ESPERADO"
+  echo "OK [mutation-3]"
 fi
 
 # ───────────────────────────── fechamento ─────────────────────────────

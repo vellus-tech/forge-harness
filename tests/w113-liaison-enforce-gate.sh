@@ -248,6 +248,67 @@ grep -q 'dangerously-skip-permissions' "$LIAISON_MD" || { echo "FAIL [10]: a pro
 grep -rq 'forge:ask-peer' "$WS/docs/refer/slash-commands.md" && { echo "FAIL [10]: índice de comandos ainda lista /forge:ask-peer"; exit 1; }
 echo "OK [10]"
 
+echo "[10] REQ-01 — padrões proibidos de conexão/invocação de sessão (TASK-03): ausentes na árvore"
+echo "     real; cada um reprova numa fixture isolada; messagingSocketPath não casa 'socketPath'"
+# _w113_scan_forbidden <dir...> — ecoa, um por linha, cada arquivo que casa QUALQUER padrão do
+# REQ-01. Única função, usada tanto sobre a árvore REAL (tem de dar vazio) quanto sobre a fixture
+# (cada arquivo, construído com UM padrão por vez, tem de aparecer) — o mesmo detector nos dois
+# lados é o que torna "a checagem morde" uma prova, e não uma coincidência de duas lógicas soltas.
+# `socketPath` (minúsculo) é sensível a maiúsculas por desenho: NÃO casa `messagingSocketPath`
+# (S maiúsculo em "Socket") — essa é a leitura permitida do registro de sessões (design §2.3).
+_w113_scan_forbidden() {
+  local dirs=("$@")
+  {
+    grep -rlE 'claude[[:space:]]+(-p|--print|--resume|--continue|-r)([[:space:]]|$)' "${dirs[@]}" 2>/dev/null || true
+    grep -rlE 'nc[[:space:]].*-U' "${dirs[@]}" 2>/dev/null || true
+    grep -rlE '\bsocat\b' "${dirs[@]}" 2>/dev/null || true
+    grep -rlE 'curl.*--unix-socket' "${dirs[@]}" 2>/dev/null || true
+    grep -rlE --include='*.mjs' --include='*.js' 'net\.connect\(|createConnection\(|new[[:space:]]+net\.Socket\(|socketPath' "${dirs[@]}" 2>/dev/null || true
+    grep -rlE --include='*.py' 'AF_UNIX' "${dirs[@]}" 2>/dev/null || true
+    grep -rlE 'CLAUDE_CODE_MESSAGING_TOKEN|CLAUDE_CODE_MESSAGING_SOCKET' "${dirs[@]}" 2>/dev/null || true
+  } | LC_ALL=C sort -u
+}
+
+echo "[10a] controle — a árvore REAL (template/.forge/scripts, template/.forge/hooks) não casa nenhum padrão"
+real_hits="$(_w113_scan_forbidden "$WS/template/.forge/scripts" "$WS/template/.forge/hooks")"
+[ -z "$real_hits" ] || { echo "FAIL [10]: a árvore real casou padrão(ões) proibido(s) do REQ-01 (nenhum script ou gancho pode invocar sessão de agente nem conexão de socket): $real_hits"; exit 1; }
+echo "OK [10a] — árvore real limpa"
+
+echo "[10b] fixture — cada padrão proibido, isolado num arquivo, reprova a checagem"
+FX="$T/w113-forbidden-fixture"
+rm -rf "$FX"; mkdir -p "$FX/scripts" "$FX/hooks"
+printf '#!/usr/bin/env bash\nclaude -p "oi"\n' > "$FX/scripts/a-claude-p.sh"
+printf '#!/usr/bin/env bash\nclaude --print "oi"\n' > "$FX/scripts/b-claude-print.sh"
+printf '#!/usr/bin/env bash\nclaude --resume abc\n' > "$FX/scripts/c-claude-resume.sh"
+printf '#!/usr/bin/env bash\nclaude --continue\n' > "$FX/scripts/d-claude-continue.sh"
+printf '#!/usr/bin/env bash\nclaude -r abc\n' > "$FX/scripts/e-claude-r.sh"
+printf '#!/usr/bin/env bash\nnc -U /tmp/x.sock\n' > "$FX/scripts/f-nc-u.sh"
+printf '#!/usr/bin/env bash\nsocat UNIX-CONNECT:/tmp/x.sock -\n' > "$FX/scripts/g-socat.sh"
+printf '#!/usr/bin/env bash\ncurl --unix-socket /tmp/x.sock http://x\n' > "$FX/scripts/h-curl-unix.sh"
+printf 'const s = net.connect("/tmp/x.sock");\n' > "$FX/scripts/i-net-connect.mjs"
+printf 'const s = net.createConnection("/tmp/x.sock");\n' > "$FX/scripts/j-create-connection.mjs"
+printf 'const s = new net.Socket();\n' > "$FX/scripts/k-new-net-socket.mjs"
+printf 'const p = msg.socketPath;\n' > "$FX/scripts/l-socketpath.mjs"
+printf 'sock.connect(AF_UNIX, path)\n' > "$FX/scripts/m-af-unix.py"
+printf 'const t = process.env.CLAUDE_CODE_MESSAGING_TOKEN;\n' > "$FX/scripts/n-messaging-token.mjs"
+printf 'const s = process.env.CLAUDE_CODE_MESSAGING_SOCKET;\n' > "$FX/hooks/o-messaging-socket.mjs"
+# Controle negativo: leitura PERMITIDA de messagingSocketPath (maiúsculas) nunca pode casar.
+printf 'const s = registry.messagingSocketPath;\n' > "$FX/scripts/z-messaging-socket-path-ok.mjs"
+
+fixture_hits="$(_w113_scan_forbidden "$FX/scripts" "$FX/hooks")"
+for f in a-claude-p.sh b-claude-print.sh c-claude-resume.sh d-claude-continue.sh e-claude-r.sh \
+         f-nc-u.sh g-socat.sh h-curl-unix.sh i-net-connect.mjs j-create-connection.mjs \
+         k-new-net-socket.mjs l-socketpath.mjs m-af-unix.py n-messaging-token.mjs; do
+  grep -q "scripts/$f\$" <<<"$fixture_hits" || { echo "FAIL [10]: fixture '$f' deveria reprovar (padrão do REQ-01 ausente da detecção) — a checagem não morde"; exit 1; }
+done
+grep -q "hooks/o-messaging-socket.mjs\$" <<<"$fixture_hits" || { echo "FAIL [10]: fixture 'o-messaging-socket.mjs' (hooks/) deveria reprovar"; exit 1; }
+if grep -q "z-messaging-socket-path-ok.mjs\$" <<<"$fixture_hits"; then
+  echo "FAIL [10]: a checagem casou 'messagingSocketPath' (leitura permitida do registro de sessões) — deveria ser sensível a maiúsculas e não casar"
+  exit 1
+fi
+echo "OK [10b] — $(wc -l <<<"$fixture_hits" | tr -d ' ') arquivo(s) de fixture reprovados (um por padrão), controle negativo messagingSocketPath intacto"
+echo "OK [10] — padrões proibidos do REQ-01: árvore real limpa, fixture reprova cada padrão isoladamente"
+
 echo "[11] peer-path resolve o repositório do participante (e reprova o desconhecido)"
 LG fv peer set "$CH" axis-go-cloud --path "$T/gc-repo" >/dev/null 2>&1 || true
 out11="$(LG fv peer-path "$CH" axis-go-cloud 2>&1)" || { echo "FAIL [11]: peer-path falhou: $out11"; exit 1; }

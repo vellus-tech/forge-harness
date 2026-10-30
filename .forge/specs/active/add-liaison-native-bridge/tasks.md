@@ -17,10 +17,10 @@
 
 ## Wave 1 — Contratos e ponteiro canônico
 
-- [ ] TASK-01 — Gate vermelho de paridade de envelope e compatibilidade com peer v0.18.0 (tag ausente → FAIL "não verificável") (rastreia: REQ-02, design §4.1, §4.2; paths: `tests/liaison-envelope-parity-gate.sh`; depende: —)
+- [X] TASK-01 — Gate vermelho de paridade de envelope e compatibilidade com peer v0.18.0 (tag ausente → FAIL "não verificável") (rastreia: REQ-02, design §4.1, §4.2; paths: `tests/liaison-envelope-parity-gate.sh`; depende: —)
   - Teste (comando): `bash tests/liaison-envelope-parity-gate.sh`
   - Padrão de falha: `FAIL \[[0-9]+\].*(via|cross_session|cross-session)`
-- [ ] TASK-02 — Schema e `validateEnvelope` aceitam `via: cross-session` e `cross_session` com as mesmas regras (rastreia: REQ-02, design §4.1; paths: `template/.forge/schemas/liaison-message.schema.json`, `template/.forge/scripts/lib/liaison-merge.mjs`; depende: TASK-01)
+- [X] TASK-02 — Schema e `validateEnvelope` aceitam `via: cross-session` e `cross_session` com as mesmas regras (rastreia: REQ-02, design §4.1; paths: `template/.forge/schemas/liaison-message.schema.json`, `template/.forge/scripts/lib/liaison-merge.mjs`; depende: TASK-01)
   - Teste (comando): `bash tests/liaison-envelope-parity-gate.sh && bash tests/w197-normative-text-parity-gate.sh`
   - Padrão de falha: `FAIL \[[0-9]+\].*(via|cross_session|cross-session)`
 - [ ] TASK-03 — Checagem [10] do `w113` estendida com os padrões proibidos de conexão e invocação de sessão do REQ-01, com fixture que contém cada padrão (precisa reprovar) e controle sobre a árvore real (precisa passar), sem casar `messagingSocketPath` (rastreia: REQ-01, design §2.3; paths: `tests/w113-liaison-enforce-gate.sh`; depende: —)

@@ -26,3 +26,12 @@ approvals:
     commit: "b0bdf390"
     scope: "design.md"
     notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: tasks_reviewed
+    decision: approve
+    reason: "Tasks entregam REQ-01..09 e NFRs de ponta a ponta em ordem de dependência, com prova de TDD viável e suíte verde entre tasks; 5 MINOR incorporados (DoD com w211/w194/w193 nas TASK-03/04, follow-up do renomeio wNNN no verification, recorte e mutação do NFR-02, doctor dentro do guard de ledger.json)."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:53:11-03:00"
+    iteration: 1
+    commit: "526b9938"
+    scope: "tasks.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"

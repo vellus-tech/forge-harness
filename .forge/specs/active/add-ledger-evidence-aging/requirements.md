@@ -122,15 +122,15 @@
 
 | REQ | Parâmetro/config exposto | Superfície (tela/endpoint/CLI) | Coberto por task |
 |---|---|---|---|
-| REQ-01 | campos `last_verified`, `evidence`, `supersedes`, `links.superseded_by`, status `superseded` | arquivo `ledger.schema.json` (contrato de dados do `ledger.json`) | a definir em tasks.md |
-| REQ-02 | `--kind`, `--ref`, `--observed`, `--verdict` | CLI `ledger-ops.sh verify` | a definir em tasks.md |
-| REQ-03 | regras de conteúdo mínimo por `kind` | CLI `ledger-ops.sh verify` (mensagens de recusa) | a definir em tasks.md |
-| REQ-04 | `--supersedes` | CLI `ledger-ops.sh add --supersedes`, `ledger-ops.sh show`, `list`, `LEDGER.md` | a definir em tasks.md |
-| REQ-05 | `--days`, `--as-of`, `--strict`, `ledger.stale_days` | CLI `ledger-ops.sh stale`; campo de config `forge.yaml > ledger.stale_days` | a definir em tasks.md |
-| REQ-06 | sem parâmetro exposto novo (reaproveita o limiar do REQ-05) | CLI `ledger-ops.sh status`, `ledger-ops.sh list` (e por ela `/forge:resume` e o hook `SessionStart`), `/forge:doctor`, `LEDGER.md` | a definir em tasks.md |
-| REQ-07 | sem parâmetro exposto (classificação interna de status) | leitores do ledger | a definir em tasks.md |
-| REQ-08 | `ledger.stale_days` documentado | `forge.yaml`, `forge.schema.json`, `commands/harness/ledger.md`, rule | a definir em tasks.md |
-| REQ-09 | sem parâmetro exposto (gate de teste) | `tests/` | a definir em tasks.md |
+| REQ-01 | campos `last_verified`, `evidence`, `supersedes`, `links.superseded_by`, status `superseded` | arquivo `ledger.schema.json` (contrato de dados do `ledger.json`) | TASK-01 |
+| REQ-02 | `--kind`, `--ref`, `--observed`, `--verdict` | CLI `ledger-ops.sh verify` | TASK-03 |
+| REQ-03 | regras de conteúdo mínimo por `kind` | CLI `ledger-ops.sh verify` (mensagens de recusa) | TASK-03 |
+| REQ-04 | `--supersedes` | CLI `ledger-ops.sh add --supersedes`, `ledger-ops.sh show`, `list`, `LEDGER.md` | TASK-04, TASK-05, TASK-06, TASK-07 |
+| REQ-05 | `--days`, `--as-of`, `--strict`, `ledger.stale_days` | CLI `ledger-ops.sh stale`; campo de config `forge.yaml > ledger.stale_days` | TASK-02 |
+| REQ-06 | sem parâmetro exposto novo (reaproveita o limiar do REQ-05) | CLI `ledger-ops.sh status`, `ledger-ops.sh list` (e por ela `/forge:resume` e o hook `SessionStart`), `/forge:doctor`, `LEDGER.md` | TASK-07, TASK-08 |
+| REQ-07 | sem parâmetro exposto (classificação interna de status) | leitores do ledger | TASK-07 |
+| REQ-08 | `ledger.stale_days` documentado | `forge.yaml`, `forge.schema.json`, `commands/harness/ledger.md`, rule | TASK-09, TASK-11 |
+| REQ-09 | sem parâmetro exposto (gate de teste) | `tests/` | TASK-01, TASK-10 |
 
 ## Fora de escopo (reafirmação)
 

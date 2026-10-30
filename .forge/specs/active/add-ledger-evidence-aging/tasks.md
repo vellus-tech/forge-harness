@@ -13,7 +13,7 @@ Para manter `npm test` verde entre tasks (o design §1 conta com a suíte para d
 
 ## Wave 1 — Contrato de dados
 
-- [ ] TASK-01 — Schema aditivo: `last_verified`, `evidence` (objeto inline em `items`, cinco campos obrigatórios, `additionalProperties: false`), `supersedes`, `links.superseded_by`, status `superseded`; esqueleto do gate (fixture hermética, retrato do ledger real, contador por grupo); badge de gates do `README.md` (rastreia: REQ-01, REQ-09, design §2.1, §2.7; paths: `template/.forge/schemas/ledger.schema.json`, `tests/ledger-evidence-aging-gate.sh`, `README.md`; depende: —)
+- [X] TASK-01 — Schema aditivo: `last_verified`, `evidence` (objeto inline em `items`, cinco campos obrigatórios, `additionalProperties: false`), `supersedes`, `links.superseded_by`, status `superseded`; esqueleto do gate (fixture hermética, retrato do ledger real, contador por grupo); badge de gates do `README.md` (rastreia: REQ-01, REQ-09, design §2.1, §2.7; paths: `template/.forge/schemas/ledger.schema.json`, `tests/ledger-evidence-aging-gate.sh`, `README.md`; depende: —)
   - Teste (comando): `bash tests/ledger-evidence-aging-gate.sh schema`
   - Padrão de falha: `FAIL \[schema`
 

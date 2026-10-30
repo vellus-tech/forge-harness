@@ -33,7 +33,7 @@ Para manter `npm test` verde entre tasks (o design §1 conta com a suíte para d
 - [X] TASK-05 — Subcomando `show`: entrada, `last_verified`/"nunca reverificado", registros de `evidence`, `detail` e cadeia de supersessão nas duas direções com guarda de ciclo e de elo quebrado; chama `_init_ledger`; id inexistente sai com rc 1 (rastreia: REQ-04, design §2.3, §8; paths: `template/.forge/scripts/ledger-ops.sh`, `tests/ledger-evidence-aging-gate.sh`; depende: TASK-04)
   - Teste (comando): `bash tests/ledger-evidence-aging-gate.sh show`
   - Padrão de falha: `FAIL \[show`
-- [ ] TASK-06 — `spec-new.sh --from-ledger` com item `superseded`: change criado sem `ledger_origin` e sem `promote`, `WARN` nomeando o sucessor e o comando de ligação; controle com item ativo mantém o elo (rastreia: REQ-04, design §2.3; paths: `template/.forge/scripts/spec-new.sh`, `tests/ledger-evidence-aging-gate.sh`; depende: TASK-04)
+- [X] TASK-06 — `spec-new.sh --from-ledger` com item `superseded`: change criado sem `ledger_origin` e sem `promote`, `WARN` nomeando o sucessor e o comando de ligação; controle com item ativo mantém o elo (rastreia: REQ-04, design §2.3; paths: `template/.forge/scripts/spec-new.sh`, `tests/ledger-evidence-aging-gate.sh`; depende: TASK-04)
   - Teste (comando): `bash tests/ledger-evidence-aging-gate.sh specnew`
   - Padrão de falha: `FAIL \[specnew`
 

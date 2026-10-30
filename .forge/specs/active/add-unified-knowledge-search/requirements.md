@@ -1,0 +1,153 @@
+# Requirements — add-unified-knowledge-search
+
+> Requisitos do change `add-unified-knowledge-search`. Cada requisito é verificável e rastreável à proposal. Vocabulário: "modo lexical" é a busca sem a camada semântica (sempre disponível, zero dependência); "modo semântico" é a busca com a camada semântica ativada pelo consumidor (embeddings + re-rank locais). "Índice" é o artefato derivado em `.forge/kb/`. "Raiz" é o `FORGE_ROOT` (ou a raiz resolvida pelo script).
+
+## REQ-01 — Fontes indexadas e exclusões
+
+- **Quando** o índice é construído, **o sistema deve** indexar exatamente estas fontes, quando existirem na raiz, e ignorar silenciosamente as ausentes: (a) todo `.md`, `.yaml`/`.yml` sob `.forge/product/current/`; (b) todo `.md`, `.yaml`/`.yml` sob `.forge/specs/archived/`; (c) cada entrada de `.forge/ledger/ledger.json` como um documento próprio, identificado pelo id da entrada; (d) todo `.md` sob `docs/plans/`; (e) `CHANGELOG.md` da raiz; (f) cada mensagem do log próprio do liaison (`.forge/liaison/<canal>/log/<self>.jsonl`, sendo `<self>` o `self.id` de `.forge/liaison/liaison.yaml`) cujo campo `trust` seja exatamente `self` e que não tenha `authored_by` (conteúdo de autoria externa escrito no nosso log), usando `subject` e `body` inline; o `body_ref` nunca é seguido, então mensagem cujo corpo está em blob entra só pelo `subject` (decisão deliberada: blobs ficam fora por construção).
+- **Critérios de aceite:**
+  - [ ] Com uma raiz de fixture contendo as seis fontes, `kb.sh build` lista no índice um documento por arquivo de (a), (b), (d), (e), um por entrada de ledger e um por mensagem `self`.
+  - [ ] Nenhum arquivo sob `.forge/liaison/*/blobs/` aparece no índice, mesmo quando referenciado por `body_ref` de uma mensagem `self`.
+  - [ ] Nenhuma mensagem com `trust` diferente de `self` (incluindo `untrusted-peer`, valor ausente ou valor desconhecido), nenhuma mensagem com `authored_by` e nenhuma linha de `log/<outro>.jsonl` aparece no índice.
+  - [ ] `.forge/specs/active/`, código-fonte, `node_modules/`, `.git/` e `.forge/kb/` nunca são indexados.
+  - [ ] Linha JSONL ilegível no liaison ou `ledger.json` ilegível não aborta o build: a fonte é pulada e o build reporta a contagem de itens pulados por fonte.
+  - [ ] Raiz sem nenhuma das fontes produz índice vazio válido e a busca devolve zero resultados com exit 0.
+- **Rastreia:** proposal §2.1, §2.6, §3
+- **Notas:** a lista é fixa neste change; fontes configuráveis ficam fora de escopo (ver Fora de escopo).
+
+## REQ-02 — Reconstrução determinística, sem LLM e sem rede
+
+- **Quando** o operador roda `kb.sh build`, **o sistema deve** reconstruir o índice lexical a partir das fontes do REQ-01 de forma determinística, sem chamar LLM e sem acesso à rede, gravando-o em `.forge/kb/`.
+- **Critérios de aceite:**
+  - [ ] Dois `kb.sh build` consecutivos sem mudança nas fontes produzem arquivos de índice lexical byte-idênticos (nenhum timestamp de relógio, ordem estável).
+  - [ ] O índice registra a impressão digital das fontes (sha256 do conteúdo de cada documento); `kb.sh status` informa se o índice está atual ou defasado em relação às fontes.
+  - [ ] `kb.sh query` sobre índice ausente ou defasado reconstrói o índice lexical antes de buscar e informa isso numa linha.
+  - [ ] Build, query e status concluem com sucesso sob bloqueio de rede (mecanismo e cobertura no REQ-09).
+- **Rastreia:** proposal §2.1, §3
+- **Notas:** o custo medido de reconstrução lexical completa no corpus deste repositório é ~0,7 s (evidence/corpus-measurement.md), o que dispensa build incremental para o modo lexical.
+
+## REQ-03 — Busca lexical fundida (default zero-dep)
+
+- **Quando** o operador roda `kb.sh query "<texto>"` sem camada semântica ativa, **o sistema deve** ranquear documentos fundindo por RRF ponderado três sinais: BM25 sobre o texto dos trechos, correspondência de entidades (ids de ledger, ADR, REQ, TASK, gates `wNNN`, nomes de arquivo, comandos `/forge:*`) e vizinhança por links entre documentos. Link é uma aresta não direcionada entre dois documentos indexados quando o texto de um cita (i) o id de ledger (`LDG-NNNN`) que identifica o outro, (ii) o nome de arquivo do outro, quando esse nome é único no índice e não é um nome genérico de artefato de change (`proposal.md`, `design.md` etc.), ou (iii) o change-id de uma spec arquivada.
+- **Critérios de aceite:**
+  - [ ] Funciona numa raiz sem `node_modules`, sem a camada semântica instalada e com Node >= 20, usando apenas módulos built-in do Node.
+  - [ ] O resultado é determinístico: a mesma consulta sobre o mesmo índice devolve a mesma ordem e os mesmos scores.
+  - [ ] A normalização lexical trata acentuação e caixa (consulta "decisao" encontra "decisão").
+  - [ ] Os pesos de fusão por canal são constantes documentadas no código e reportadas na saída `--json`.
+  - [ ] Numa fixture em que o documento A casa a consulta por BM25 e o documento B não casa mas é citado por A, o `--json` de B traz contribuição do canal de links maior que zero e a de A traz contribuição de BM25 maior que zero.
+  - [ ] Nas duas partições do conjunto de avaliação (REQ-11), o modo lexical fundido atinge hit@5 maior ou igual ao do BM25 isolado (a fusão não pode piorar o recall do canal principal).
+- **Rastreia:** proposal §2.2
+
+## REQ-04 — Saída explicável e de custo baixo de tokens
+
+- **Quando** a busca devolve resultados, **o sistema deve** mostrar, por resultado: identificador do documento (path relativo ou `ledger:<id>`/`liaison:<msg_id>`), localização do trecho (heading ou linha inicial), score final, e por canal a posição e a contribuição RRF; no modo semântico, também o score do re-rank e a posição antes e depois do re-rank.
+- **Critérios de aceite:**
+  - [ ] A primeira linha da saída declara o modo efetivo (`lexical` ou `semantic`) e, quando lexical, o motivo (`camada semântica não instalada`, `desativada por --lexical`, `falha ao carregar: <causa>`).
+  - [ ] `--lexical` força o modo lexical mesmo com a camada semântica instalada, sem carregar o runtime (verificável: com runtime de fixture que lança ao ser importado, `--lexical` devolve resultados com exit 0 e motivo `desativada por --lexical`).
+  - [ ] Todo trecho exibido sai como dado: na saída texto, dentro de bloco cercado, com crases triplas substituídas e com linhas que começam por `/<palavra>:` prefixadas por `⟪neutralizado⟫` (mesma regra de `lib/untrusted-render.mjs`); no `--json`, o campo de trecho traz o texto já neutralizado.
+  - [ ] `--json` emite um objeto JSON válido com os mesmos campos, parseável por `JSON.parse`.
+  - [ ] Default de 8 resultados (`--top N` ajusta, 1..50); trecho exibido com no máximo 240 caracteres por resultado.
+  - [ ] Nenhuma etapa da busca chama LLM: garantido pelo bloqueio de rede do REQ-09 (sem rede não há chamada a provedor de LLM) e por teste estático que reprova referência a hosts ou SDKs de provedores de LLM nos módulos da busca.
+- **Rastreia:** proposal §2.5
+
+## REQ-05 — Ativação explícita da camada semântica, local e verificável
+
+- **Quando** o consumidor roda `kb.sh semantic install`, **o sistema deve** instalar, sob `.forge/kb/semantic/`, o runtime de inferência e os modelos da camada semântica, a partir de versões fixadas no template, e recusar qualquer artefato cuja integridade não confira.
+- **Critérios de aceite:**
+  - [ ] Este é o único comando do change que acessa a rede; ele declara, antes de baixar, o que será baixado, de onde e o tamanho aproximado.
+  - [ ] Pacotes npm do runtime são instalados com versão exata e integridade fixadas por lockfile versionado no template, com scripts de instalação desativados, sem tocar o `package.json` do projeto-alvo.
+  - [ ] Após a instalação, a presença de qualquer binário nativo carregável (`*.node`) sob `.forge/kb/semantic/` reprova a instalação e a desfaz; a mesma varredura roda a cada carga da camada em `build`/`query` e, se achar `*.node`, a camada não é carregada (modo lexical com motivo).
+  - [ ] Cada arquivo de modelo é baixado de uma revisão fixada e conferido por sha256 fixado no template; divergência reprova, apaga o arquivo e não ativa a camada.
+  - [ ] `kb.sh semantic remove` apaga `.forge/kb/semantic/` e a busca volta ao modo lexical.
+  - [ ] `kb.sh semantic status` informa instalado/não instalado e confere: versão de cada pacote instalado igual à do lockfile do template, ausência de `*.node` e sha256 de cada arquivo de modelo igual ao fixado.
+  - [ ] Nenhum outro caminho dispara a instalação: só `kb.sh semantic install` invoca o módulo de instalação (teste estático sobre o template inteiro), e `doctor.sh`, os hooks e o instalador/updater do harness não criam `.forge/kb/semantic/` (teste de execução de `doctor.sh` numa raiz de fixture).
+- **Rastreia:** proposal §2.3, §3, §4 (riscos a e d)
+
+## REQ-06 — Embeddings densos implementados
+
+- **Quando** a camada semântica está instalada, **o sistema deve** calcular, no `kb.sh build`, um vetor denso por trecho com o modelo de embedding local, armazená-lo em cache endereçado por (modelo, sha256 do trecho) e, na consulta, acrescentar à fusão RRF um quarto canal: similaridade de cosseno entre o vetor da consulta e os vetores dos trechos.
+- **Critérios de aceite:**
+  - [ ] Um segundo `kb.sh build` sem mudança nas fontes não recalcula nenhum vetor (contagem de vetores calculados reportada igual a zero).
+  - [ ] Trecho novo ou alterado recebe vetor no build seguinte; trecho removido sai do cache.
+  - [ ] Na consulta, se parte dos trechos ainda não tem vetor, a busca segue com os vetores disponíveis e reporta quantos faltam.
+  - [ ] Um teste exercita a inferência real do runtime (não um dublê) sobre um modelo de fixture e verifica que textos de mesmo sentido ficam mais próximos que textos sem relação.
+  - [ ] Com os modelos de produção fixados, nas duas partições do conjunto de avaliação (REQ-11), o modo semântico (com re-rank) atinge hit@5 maior ou igual ao do modo lexical. É medição manual registrada em evidence no verify (o download dos modelos não cabe na suíte, que é offline); se não passar, o change não segue para archive e a decisão volta ao dono.
+- **Rastreia:** proposal §2.3
+
+## REQ-07 — Re-rank que combina os sinais
+
+- **Quando** a camada semântica está ativa e o operador consulta, **o sistema deve** reordenar os K primeiros candidatos da fusão (K default 10) com um cross-encoder local que pontua o par (consulta, trecho), e produzir a ordem final combinando a posição do cross-encoder com a posição da fusão, de modo que nenhum dos dois sinais sozinho determine a ordem.
+- **Critérios de aceite:**
+  - [ ] A ordem final é função documentada das duas posições (a fórmula está no código e na saída `--json`), não apenas a ordem do cross-encoder.
+  - [ ] Teste com scores de cross-encoder controlados sobre uma fusão `[A, B, C, D]`: (i) cross-encoder concordante (scores decrescentes A > B > C > D) mantém `[A, B, C, D]`; (ii) cross-encoder que põe D em primeiro e A em último move D para uma posição acima da 4ª e A para uma posição abaixo da 1ª; (iii) o resultado final é exatamente o previsto pela fórmula documentada nos dois casos.
+  - [ ] K é constante documentada (10), não exposta como flag.
+  - [ ] `--no-rerank` desativa só o re-rank, mantendo o canal vetorial; candidatos além de K mantêm a ordem da fusão.
+  - [ ] Um teste exercita a inferência real do cross-encoder pelo runtime sobre modelo de fixture.
+- **Rastreia:** proposal §2.3
+
+## REQ-08 — Degradação sem erro
+
+- **Quando** a camada semântica não está instalada, está incompleta, tem integridade divergente ou falha ao carregar ou inferir, **o sistema deve** devolver o resultado do modo lexical, com exit 0, declarando o modo efetivo e o motivo na primeira linha (REQ-04), sem stack trace.
+- **Critérios de aceite:**
+  - [ ] Os quatro casos (ausente, arquivo de modelo faltando, sha256 divergente, runtime que lança na inferência) são cobertos por teste e todos devolvem resultados lexicais com exit 0.
+  - [ ] `kb.sh build` nos mesmos casos constrói o índice lexical, informa que os vetores não foram calculados e sai com exit 0.
+  - [ ] Os quatro casos também rodam sob o bloqueio de rede do REQ-09 (o caminho degradado não pode buscar modelo remoto).
+  - [ ] Erros de uso (consulta vazia, `--top` fora da faixa, subcomando desconhecido) saem com exit diferente de 0 e mensagem de uso.
+- **Rastreia:** proposal §2.3, §2.5
+
+## REQ-09 — Nenhum dado sai da máquina; cloud não suportado neste change
+
+- **Quando** qualquer subcomando de `kb.sh` roda, exceto `semantic install`, **o sistema deve** operar sem nenhuma chamada de rede; e o change não implementa provedor de embedding ou re-rank em cloud.
+- **Critérios de aceite:**
+  - [ ] Teste de execução sob bloqueio de rede cobre `build`, `query` e `status` no modo lexical, no modo semântico com modelos de fixture e nos quatro casos degradados do REQ-08. Bloqueio: quando o Node em uso suporta o modelo de permissões com rede (`--permission` sem `--allow-net`, Node >= 25), a execução roda sob ele, o que cobre também threads de trabalho e processos filhos (bloqueados por ausência de `--allow-child-process`); em qualquer Node, roda também sob um interceptador carregado por `--import` que faz lançar `fetch`, `http(s).request/get`, `net.connect/createConnection`, `tls.connect`, `dns.lookup/resolve` e `child_process.spawn/exec/execFile/fork`. O teste informa qual mecanismo rodou.
+  - [ ] Teste estático reprova se algum módulo da busca (`lib/kb-*.mjs`), fora do módulo de instalação, importar `node:http`, `node:https`, `node:net`, `node:tls`, `node:dgram`, `node:dns`, `node:child_process` ou `node:worker_threads`, ou usar `fetch(`.
+  - [ ] A documentação do comando declara que não há provedor cloud e que qualquer provedor futuro só pode existir como opt-in explícito, nunca default, por causa de dado regulado (PCI DSS) nos repositórios consumidores.
+- **Rastreia:** proposal §2.3, §3
+
+## REQ-10 — Superfície de uso
+
+- **Quando** o harness é instalado num projeto, **o sistema deve** expor a busca por `bash .forge/scripts/kb.sh` com os subcomandos `build`, `query`, `status`, `semantic install|remove|status`, documentada no comando `/forge:kb`, e o comando `/forge:query` deve apontar para `/forge:kb` como a busca sobre conhecimento (não código).
+- **Critérios de aceite:**
+  - [ ] `template/.forge/commands/graph/kb.md` existe com frontmatter válido e o plugin gerado (`plugin/forge`) está sincronizado com ele.
+  - [ ] `template/.forge/commands/graph/query.md` cita `/forge:kb`.
+  - [ ] `.forge/kb/` está no bloco gerenciado de `installer/gitignore.patch`.
+  - [ ] `doctor.sh` informa o estado da camada semântica como informação (nunca como falha) quando ausente.
+- **Rastreia:** proposal §2.4
+
+## REQ-11 — Conjunto de avaliação versionado
+
+- **Quando** o change mede qualidade de ranking (REQ-03, REQ-06), **o sistema deve** usar um conjunto de avaliação versionado em `tests/fixtures/kb/eval/` com duas partições: `calibration.json` (no mínimo 30 consultas, a única usada para escolher pesos e constantes) e `holdout.json` (no mínimo 15 consultas, escritas antes da calibração final e nunca usadas para ajustar nada), e um avaliador determinístico `kb.sh eval <arquivo>`.
+- **Critérios de aceite:**
+  - [ ] Cada consulta tem `q` (texto) e `gold` (lista de fragmentos de id de documento; um resultado é relevante se seu id contém algum fragmento, sem distinção de caixa); toda consulta tem ao menos um documento relevante existente no corpus deste repositório (o avaliador reporta consulta sem relevante como erro).
+  - [ ] Consultas são paráfrases: nenhuma consulta copia literalmente o título do documento relevante; ao menos 4 consultas por partição estão em inglês sobre documentos em português (sinal semântico entre línguas).
+  - [ ] `kb.sh eval` reporta, por modo disponível (BM25 isolado, lexical fundido e, se instalado, semântico com e sem re-rank), hit@1, hit@5, hit@10 e MRR em nível de documento, de forma determinística.
+  - [ ] Limitação registrada no próprio arquivo de evidência: consultas e rótulos foram escritos pelo autor do change sobre este corpus; os números valem como comparação relativa entre modos, não como qualidade absoluta.
+- **Rastreia:** proposal §4 (risco b)
+
+## Requisitos não funcionais do change
+
+- **NFR-01 —** Construção do índice lexical do corpus deste repositório em menos de 5 s e consulta lexical em menos de 200 ms (cache quente, máquina de desenvolvimento; medido por `kb.sh build`/`query` com `time`, registrado em evidence).
+- **NFR-02 —** Consulta no modo semântico com re-rank em menos de 10 s no corpus deste repositório (mesma medição), e build semântico inicial reportando o tempo total.
+- **NFR-03 —** Zero dependência no default: o modo lexical importa apenas módulos `node:*` e arquivos do próprio harness, verificado por teste estático e por execução numa raiz sem `node_modules`.
+
+## Checklist de cobertura de superfície
+
+| REQ | Parâmetro/config exposto | Superfície (tela/endpoint/CLI) | Coberto por task |
+|---|---|---|---|
+| REQ-02 | subcomando `build` | CLI `kb.sh build` | NEEDS-TASKS |
+| REQ-02 | subcomando `status` | CLI `kb.sh status` | NEEDS-TASKS |
+| REQ-03, REQ-04 | consulta, `--top N`, `--json` | CLI `kb.sh query "<texto>" [--top N] [--json]` | NEEDS-TASKS |
+| REQ-07 | `--no-rerank` | CLI `kb.sh query ... --no-rerank` | NEEDS-TASKS |
+| REQ-04, REQ-08 | `--lexical` (força modo lexical) | CLI `kb.sh query ... --lexical` | NEEDS-TASKS |
+| REQ-11 | arquivo de avaliação | CLI `kb.sh eval <arquivo>` | NEEDS-TASKS |
+| REQ-05 | `semantic install|remove|status` | CLI `kb.sh semantic <sub>` | NEEDS-TASKS |
+| REQ-01 | fontes indexadas | sem parâmetro exposto (lista fixa) | NEEDS-TASKS |
+| REQ-10 | comando do agente | `/forge:kb` (commands/graph/kb.md) | NEEDS-TASKS |
+
+## Fora de escopo (reafirmação)
+
+- Mudança em `graph.sh` ou no grafo de código.
+- Fontes configuráveis pelo consumidor e indexação de `.forge/specs/active/` ou código-fonte.
+- Provedor cloud de embeddings ou re-rank (não implementado; só poderia existir como opt-in explícito, decisão futura do dono).
+- Resposta sintetizada por LLM (RAG); a busca devolve evidência.
+- Indexar conteúdo de peers do liaison (`untrusted-peer`) ou blobs, mesmo com flag.

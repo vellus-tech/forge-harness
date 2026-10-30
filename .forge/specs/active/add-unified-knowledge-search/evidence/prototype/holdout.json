@@ -1,0 +1,17 @@
+[
+{"q": "o update do harness desarmava o projeto consumidor", "gold": ["onda-l1-update-desarma", "LDG-0184"]},
+{"q": "contagens do inventário do README ficam velhas porque são mantidas à mão", "gold": ["LDG-0166"]},
+{"q": "scale alto entrava em implementação sem fatiar em stories", "gold": ["LDG-0043"]},
+{"q": "divergência num remetente silenciava todas as mensagens dele e o teto de 200 travava a recuperação", "gold": ["LDG-0047"]},
+{"q": "interruptores de qualidade prometidos no template que nenhum código lê, TDD e testes de propriedade", "gold": ["LDG-0008"]},
+{"q": "gates colapsavam não executei e executei limpo no mesmo código de saída", "gold": ["LDG-0049", "onda-d-falso-verde"]},
+{"q": "enforcement mecânico de qualidade só existia para .NET", "gold": ["LDG-0061", "LDG-0065", "LDG-0130"]},
+{"q": "mutex de suíte pesada com lock por diretório temporário e polling sem fila", "gold": ["LDG-0053", "heavy-mutex"]},
+{"q": "gate destruía arquivo rastreado do template usado como fixture e não restaurava", "gold": ["LDG-0175", "LDG-0179"]},
+{"q": "cartões de pagamento e dado sensível de portador na classificação de dados", "gold": ["guardrail-governanca-dados", "0002-authz", "security-observability"]},
+{"q": "what is the plan for the second MVP about the spec lifecycle", "gold": ["02-mvp2-spec-lifecycle"]},
+{"q": "sustenido dentro de substituição de comando engole o resto da linha no bash", "gold": ["LDG-0052"]},
+{"q": "variável GIT_DIR herdada faz o fixture escrever no repositório errado", "gold": ["LDG-0201"]},
+{"q": "o harvest do ledger captura narrativa histórica do verification como item novo", "gold": ["LDG-0140"]},
+{"q": "incorporar a revisão dos agents e skills existentes", "gold": ["revisao-agents-skills", "plano-melhorias-skills"]}
+]

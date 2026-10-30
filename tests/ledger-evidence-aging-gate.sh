@@ -43,7 +43,7 @@ _run_to() { # _run_to <segundos> -- <cmd...> — teto de tempo (macOS não tem `
 
 # Contador de cenários por grupo: declarados × executados DOS GRUPOS SELECIONADOS.
 declare_scn() { case "$1" in schema) echo 4;; stale) echo 8;; verify) echo 7;; supersede) echo 3;; show) echo 2;; specnew) echo 1;; closed) echo 3;; wiring) echo 5;; docs) echo 3;; mutation) echo 3;; esac; }
-ALL_GROUPS="schema stale verify supersede"
+ALL_GROUPS="schema stale verify supersede show"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
 _fail() { echo "FAIL [$1] $2"; exit 1; }
@@ -415,6 +415,46 @@ if _want supersede; then
 
 fi
 
+
+# ───────────────────────────── show (REQ-04) ─────────────────────────────
+_sup_fixture() {
+  F="$T/$1"; _fixture "$F"
+  LFP="$F/.forge/ledger/ledger.json"
+  HS="$(_head_date "$F")"
+  _lg "$F" add --type tech-debt --title "A" --detail "detalhe de A" >/dev/null   # LDG-0001
+  _lg "$F" add --type tech-debt --title "B" --detail "detalhe de B" >/dev/null   # LDG-0002
+  _lg "$F" add --type tech-debt --title "B revisto" --detail "B medido de novo" --supersedes LDG-0002 >/dev/null   # LDG-0003
+}
+if _want show; then
+  _sup_fixture show
+  _scn "[show-1] show: cadeia nas duas direções a partir de qualquer elo"
+  _lg "$F" add --type tech-debt --title "B terceira versão" --detail "x" --supersedes LDG-0003 >/dev/null   # LDG-0004
+  for id in LDG-0002 LDG-0003 LDG-0004; do
+    o="$(_lg "$F" show "$id" 2>&1)" || _fail show-1 "show $id reprovou: $o"
+    esperado="$(sed "s/$id/[$id]/" <<<"LDG-0002 → LDG-0003 → LDG-0004")"
+    grep -qF "cadeia de supersessão: $esperado" <<<"$o" || _fail show-1 "show $id sem a cadeia '$esperado': $o"
+  done
+  o="$(_lg "$F" show LDG-0001 2>&1)"
+  grep -qF "cadeia de supersessão: —" <<<"$o" || _fail show-1 "item sem cadeia deveria mostrar '—': $o"
+  grep -q "nunca reverificado" <<<"$o" || _fail show-1 "show sem 'nunca reverificado': $o"
+  grep -q "detalhe de A" <<<"$o" || _fail show-1 "show sem detail: $o"
+  set +e; o="$(_lg "$F" show LDG-0099 2>&1)"; rc=$?; set -e
+  [ "$rc" -ne 0 ] || _fail show-1 "show de id inexistente deveria reprovar"
+  echo "OK [show-1] — cadeia LDG-0002 → LDG-0003 → LDG-0004 vista dos três elos"
+
+  _scn "[show-2] show termina e nomeia defeito com ciclo e elo quebrado (dado corrompido à mão)"
+  C="$T/sup-corrompido"; _fixture "$C"
+  node -e '
+    const mk=(id,extra)=>Object.assign({id,type:"tech-debt",title:"c "+id,detail:"",severity:null,priority:null,status:"open",source:{change_id:null,origin:"manual",ref:null},links:{adr:[],capability:[],change:[],promoted_to:null},created_at:"2019-03-04T10:00:00+00:00",updated_at:null,resolved_at:null,dedup_key:"manual:"+id},extra);
+    const entries=[mk("LDG-0001",{supersedes:"LDG-0002"}),mk("LDG-0002",{supersedes:"LDG-0001"}),mk("LDG-0003",{supersedes:"LDG-0999"})];
+    require("fs").writeFileSync(process.argv[1],JSON.stringify({entries}));' "$C/.forge/ledger/ledger.json"
+  o="$(_run_to 10 -- env FORGE_ROOT="$C" bash "$C/.forge/scripts/ledger-ops.sh" show LDG-0001 2>&1)" || _fail show-2 "show com ciclo não terminou/reprovou: $o"
+  grep -q "ciclo" <<<"$o" || _fail show-2 "ciclo não nomeado: $o"
+  o="$(_run_to 10 -- env FORGE_ROOT="$C" bash "$C/.forge/scripts/ledger-ops.sh" show LDG-0003 2>&1)" || _fail show-2 "show com elo quebrado reprovou: $o"
+  grep -q "elo quebrado" <<<"$o" || _fail show-2 "elo quebrado não nomeado: $o"
+  echo "OK [show-2]"
+
+fi
 
 # ───────────────────────────── fechamento ─────────────────────────────
 [ "$(_sha "$REAL_LEDGER")" = "$REAL_SHA_BEFORE" ] || _fail final "o gate ESCREVEU no ledger.json rastreado"

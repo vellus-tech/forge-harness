@@ -43,7 +43,7 @@ _run_to() { # _run_to <segundos> -- <cmd...> — teto de tempo (macOS não tem `
 
 # Contador de cenários por grupo: declarados × executados DOS GRUPOS SELECIONADOS.
 declare_scn() { case "$1" in schema) echo 4;; stale) echo 8;; verify) echo 7;; supersede) echo 3;; show) echo 2;; specnew) echo 1;; closed) echo 3;; wiring) echo 5;; docs) echo 3;; mutation) echo 3;; esac; }
-ALL_GROUPS="schema stale verify supersede show specnew closed"
+ALL_GROUPS="schema stale verify supersede show specnew closed wiring"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
 _fail() { echo "FAIL [$1] $2"; exit 1; }
@@ -513,6 +513,72 @@ if _want closed; then
   linhas="$(grep -c "^- \*\*LDG-" "$R/LEDGER.md" || true)"
   [ "$ativos" = "$linhas" ] || _fail closed-3 "ledger real: $ativos ativos no JSON, $linhas linhas de item no render"
   echo "OK [closed-3] — marcadores só onde há campo novo; ledger legado com $linhas linha(s) de item, nenhuma marcada"
+fi
+
+# ───────────────────────────── wiring (REQ-06) ─────────────────────────────
+if _want wiring; then
+  F="$T/wiring"; _fixture "$F"; LFW="$F/.forge/ledger/ledger.json"
+  _lg "$F" add --type tech-debt --title "velho A" --detail "a" >/dev/null   # 2019-03-04
+  _lg "$F" add --type tech-debt --title "velho B" --detail "b" >/dev/null
+  _lg "$F" add --type tech-debt --title "planejado" --detail "c" >/dev/null
+  _lg "$F" update LDG-0003 --status planned >/dev/null
+  _commit_at "$F" "2019-06-01T10:00:00+00:00" depois       # HEAD: 89 dias depois
+  mkdir -p "$F/src"; printf 'um\n' > "$F/src/a.txt"
+  _lg "$F" verify LDG-0002 --kind file --ref "src/a.txt:1" --observed "o defeito segue presente na linha um" --verdict confirmed >/dev/null
+
+  _scn "[wiring-1] status: sufixo com a contagem; sem sufixo abaixo do limiar; degrada com limiar inválido"
+  o="$(_lg "$F" status)"
+  grep -q " · 2 sem reverificação há mais de 30d" <<<"$o" || _fail wiring-1 "status sem sufixo de 2 envelhecidos: $o"
+  _set_stale_days "$F" 100
+  o="$(_lg "$F" status)"; grep -q "sem reverificação" <<<"$o" && _fail wiring-1 "status com limiar 100 não deveria ter sufixo: $o"
+  _set_stale_days "$F" 0
+  set +e; o="$(_lg "$F" status 2>&1)"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && grep -q "limiar ledger.stale_days inválido" <<<"$o" || _fail wiring-1 "status com limiar inválido: rc=$rc $o"
+  _set_stale_days "$F" 30
+  echo "OK [wiring-1]"
+
+  _scn "[wiring-2] list marca o item ativo envelhecido (o que /forge:resume e SessionStart leem)"
+  o="$(_lg "$F" list --status open --by-priority --top 5 2>&1)"
+  grep "^LDG-0001 " <<<"$o" | grep -q " · sem reverificação há 89d" || _fail wiring-2 "LDG-0001 sem marca: $o"
+  grep "^LDG-0002 " <<<"$o" | grep -q "sem reverificação" && _fail wiring-2 "LDG-0002 reverificado no HEAD não deveria ser marcado: $o"
+  o="$(_lg "$F" list 2>&1)"
+  grep "^LDG-0003 " <<<"$o" | grep -q "sem reverificação há 89d" || _fail wiring-2 "item planned envelhecido sem marca no list sem filtro: $o"
+  _set_stale_days "$F" 0
+  set +e; o="$(_lg "$F" list --status open 2>&1)"; rc=$?; set -e
+  [ "$rc" -eq 0 ] || _fail wiring-2 "list com limiar inválido mudou o rc: $rc"
+  grep -q "sem reverificação há" <<<"$o" && _fail wiring-2 "list com limiar inválido não deveria marcar"
+  grep -q "WARN" <<<"$o" || _fail wiring-2 "list com limiar inválido sem WARN: $o"
+  _set_stale_days "$F" 30
+  echo "OK [wiring-2]"
+
+  _scn "[wiring-3] sem commit HEAD: status e list seguem funcionando, sem contagem e com aviso"
+  N="$T/wiring-nohead"; mkdir -p "$N"; cp -R "$WS/template/.forge" "$N/.forge"; git -C "$N" init -q
+  cp "$LFW" "$N/.forge/ledger/ledger.json"
+  set +e; o="$(_lg "$N" status 2>&1)"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && grep -q "idade não medida (sem commit HEAD)" <<<"$o" || _fail wiring-3 "status sem HEAD: rc=$rc $o"
+  set +e; o="$(_lg "$N" list 2>&1)"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && grep -q "WARN" <<<"$o" && grep -q "^LDG-0001 " <<<"$o" || _fail wiring-3 "list sem HEAD: rc=$rc $o"
+  echo "OK [wiring-3]"
+
+  _scn "[wiring-4] doctor: info com a contagem, ok sem envelhecidos, info com limiar inválido; rc do doctor inalterado"
+  _doc() { set +e; DOC_OUT="$(_run_to 120 -- env FORGE_ROOT="$F" bash "$F/.forge/scripts/doctor.sh" --report 2>&1)"; DOC_RC=$?; set -e; }
+  _set_stale_days "$F" 100000; _doc; rc_ok="$DOC_RC"
+  grep -q "ledger sem itens ativos envelhecidos\|ledger: 0 item" <<<"$DOC_OUT" || _fail wiring-4 "doctor sem linha ok de idade: $(grep -i ledger <<<"$DOC_OUT")"
+  _set_stale_days "$F" 30; _doc
+  grep -q "harness: ledger — 2 item(ns) ativo(s) sem reverificação há mais de 30 dia(s)" <<<"$DOC_OUT" || _fail wiring-4 "doctor sem info de envelhecidos: $(grep -i ledger <<<"$DOC_OUT")"
+  [ "$DOC_RC" = "$rc_ok" ] || _fail wiring-4 "envelhecimento alterou o rc do doctor ($rc_ok → $DOC_RC)"
+  _set_stale_days "$F" 0; _doc
+  grep -q "stale_days" <<<"$DOC_OUT" || _fail wiring-4 "doctor com limiar inválido sem info nomeando a chave"
+  [ "$DOC_RC" = "$rc_ok" ] || _fail wiring-4 "limiar inválido alterou o rc do doctor ($rc_ok → $DOC_RC)"
+  _set_stale_days "$F" 30
+  echo "OK [wiring-4] — rc do doctor $rc_ok nas três condições"
+
+  _scn "[wiring-5] doctor sem ledger.json não cria o arquivo (o stale fica dentro do guard)"
+  D="$T/wiring-noledger"; _fixture "$D"
+  rm -f "$D/.forge/ledger/ledger.json"
+  set +e; _run_to 120 -- env FORGE_ROOT="$D" bash "$D/.forge/scripts/doctor.sh" --report >/dev/null 2>&1; set -e
+  [ ! -e "$D/.forge/ledger/ledger.json" ] || _fail wiring-5 "o doctor criou ledger.json num projeto sem ledger"
+  echo "OK [wiring-5]"
 fi
 
 # ───────────────────────────── fechamento ─────────────────────────────

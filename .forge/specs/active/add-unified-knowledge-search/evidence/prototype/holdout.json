@@ -13,5 +13,8 @@
 {"q": "sustenido dentro de substituição de comando engole o resto da linha no bash", "gold": ["LDG-0052"]},
 {"q": "variável GIT_DIR herdada faz o fixture escrever no repositório errado", "gold": ["LDG-0201"]},
 {"q": "o harvest do ledger captura narrativa histórica do verification como item novo", "gold": ["LDG-0140"]},
-{"q": "incorporar a revisão dos agents e skills existentes", "gold": ["revisao-agents-skills", "plano-melhorias-skills"]}
+{"q": "incorporar a revisão dos agents e skills existentes", "gold": ["revisao-agents-skills", "plano-melhorias-skills"]},
+{"q": "the .NET gitignore template swallowed the liaison message log", "gold": ["LDG-0015"]},
+{"q": "doctor flags literal project placeholders inside archived specs", "gold": ["LDG-0040"]},
+{"q": "commits went straight to develop and had to be moved to a branch afterwards", "gold": ["LDG-0114"]}
 ]

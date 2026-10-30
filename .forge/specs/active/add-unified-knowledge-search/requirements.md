@@ -1,6 +1,6 @@
 # Requirements — add-unified-knowledge-search
 
-> Requisitos do change `add-unified-knowledge-search`. Cada requisito é verificável e rastreável à proposal. Vocabulário: "modo lexical" é a busca sem a camada semântica (sempre disponível, zero dependência); "modo semântico" é a busca com a camada semântica ativada pelo consumidor (embeddings + re-rank locais). "Índice" é o artefato derivado em `.forge/kb/`. "Raiz" é o `FORGE_ROOT` (ou a raiz resolvida pelo script).
+> Requisitos do change `add-unified-knowledge-search`. Cada requisito é verificável e rastreável à proposal. Vocabulário: "modo lexical" é a busca sem a camada semântica (sempre disponível, zero dependência); "modo semântico" é a busca com a camada semântica ativada pelo consumidor (embeddings + re-rank locais). "Índice" é o artefato derivado em `.forge/kb/`. "Raiz" segue a convenção de `lib/forge-root.sh`: com `FORGE_ROOT` definido, tudo é lido e gravado nele; sem ele, os documentos versionados por branch (baseline, specs arquivadas, planos, `CHANGELOG.md`) e o índice vêm da árvore de trabalho corrente (`forge_worktree_root`), e o estado durável de projeto (ledger e liaison) vem do checkout principal (`forge_resolve_root`), como em `ledger-ops.sh` e `liaison-ops.sh`. A resolução usa só `git rev-parse` local.
 
 ## REQ-01 — Fontes indexadas e exclusões
 
@@ -21,7 +21,7 @@
 - **Critérios de aceite:**
   - [ ] Dois `kb.sh build` consecutivos sem mudança nas fontes produzem arquivos de índice lexical byte-idênticos (nenhum timestamp de relógio, ordem estável).
   - [ ] O índice registra a impressão digital das fontes (sha256 do conteúdo de cada documento); `kb.sh status` informa se o índice está atual ou defasado em relação às fontes.
-  - [ ] `kb.sh query` sobre índice ausente ou defasado reconstrói o índice lexical antes de buscar e informa isso numa linha.
+  - [ ] `kb.sh query` sobre índice ausente ou defasado reconstrói o índice lexical antes de buscar e informa isso numa linha em stderr (campo `rebuilt: true` no `--json`).
   - [ ] Build, query e status concluem com sucesso sob bloqueio de rede (mecanismo e cobertura no REQ-09).
 - **Rastreia:** proposal §2.1, §3
 - **Notas:** o custo medido de reconstrução lexical completa no corpus deste repositório é ~0,7 s (evidence/corpus-measurement.md), o que dispensa build incremental para o modo lexical.
@@ -35,13 +35,14 @@
   - [ ] A normalização lexical trata acentuação e caixa (consulta "decisao" encontra "decisão").
   - [ ] Os pesos de fusão por canal são constantes documentadas no código e reportadas na saída `--json`.
   - [ ] Numa fixture em que o documento A casa a consulta por BM25 e o documento B não casa mas é citado por A, o `--json` de B traz contribuição do canal de links maior que zero e a de A traz contribuição de BM25 maior que zero.
-  - [ ] Nas duas partições do conjunto de avaliação (REQ-11), sobre o corpus deste repositório, o modo lexical fundido atinge hit@5 maior ou igual ao do BM25 isolado (a fusão não pode piorar o recall do canal principal). Medição manual registrada em evidence no verify, como a do REQ-06, porque o corpus vivo muda a cada change e um gate sobre ele não seria hermético.
+  - [ ] Nas duas partições do conjunto de avaliação (REQ-11), sobre o corpus deste repositório, o modo lexical fundido atinge hit@5 maior ou igual ao do BM25 isolado (a fusão não pode piorar o recall do canal principal). Medição manual registrada em evidence no verify, como a do REQ-06, porque o corpus vivo muda a cada change e um gate sobre ele não seria hermético; se não passar, o change não segue para archive e a decisão volta ao dono.
 - **Rastreia:** proposal §2.2
 
 ## REQ-04 — Saída explicável e de custo baixo de tokens
 
 - **Quando** a busca devolve resultados, **o sistema deve** mostrar, por resultado: identificador do documento (path relativo ou `ledger:<id>`/`liaison:<msg_id>`), localização do trecho (heading ou linha inicial), score final, e por canal a posição e a contribuição RRF; no modo semântico, também o score do re-rank e a posição antes e depois do re-rank.
 - **Critérios de aceite:**
+  - [ ] Canais de saída: o resultado vai para stdout; avisos operacionais (reconstrução automática do índice, vetores faltando) vão para stderr. Na saída texto, a primeira linha de stdout declara o modo; no `--json`, stdout contém exatamente um objeto JSON e o modo vem nos campos `mode` e `mode_reason`.
   - [ ] A primeira linha da saída declara o modo efetivo (`lexical` ou `semantic`) e, quando lexical, o motivo (`camada semântica não instalada`, `desativada por --lexical`, `falha ao carregar: <causa>`).
   - [ ] `--lexical` força o modo lexical mesmo com a camada semântica instalada, sem carregar o runtime (verificável: com runtime de fixture que lança ao ser importado, `--lexical` devolve resultados com exit 0 e motivo `desativada por --lexical`).
   - [ ] Todo trecho exibido sai como dado: na saída texto, dentro de bloco cercado, com crases triplas substituídas e com linhas que começam por `/<palavra>:` prefixadas por `⟪neutralizado⟫` (mesma regra de `lib/untrusted-render.mjs`); no `--json`, o campo de trecho traz o texto já neutralizado.
@@ -56,10 +57,11 @@
 - **Critérios de aceite:**
   - [ ] Este é o único comando do change que acessa a rede; ele declara, antes de baixar, o que será baixado, de onde e o tamanho aproximado.
   - [ ] Pacotes npm do runtime são instalados com versão exata e integridade fixadas por lockfile versionado no template, com scripts de instalação desativados, sem tocar o `package.json` do projeto-alvo.
-  - [ ] Após a instalação, a presença sob `.forge/kb/semantic/` de qualquer binário nativo — arquivo `*.node`, `*.dylib`, `*.so`, `*.dll`, ou qualquer arquivo cujos primeiros bytes sejam a assinatura de executável Mach-O, ELF ou PE — reprova a instalação e a desfaz; a mesma varredura roda a cada carga da camada em `build`/`query` e, se achar binário nativo, a camada não é carregada (modo lexical com motivo).
+  - [ ] Após a instalação, a presença sob `.forge/kb/semantic/` de qualquer binário nativo — arquivo `*.node`, `*.dylib`, `*.so`, `*.dll`, ou qualquer arquivo cujos primeiros bytes sejam a assinatura de executável Mach-O, ELF ou PE — reprova a instalação e a desfaz; a mesma varredura roda a cada carga da camada em `build`, `query` e `eval` e, se achar binário nativo, a camada não é carregada (modo lexical com motivo).
   - [ ] Cada arquivo de modelo é baixado de uma revisão fixada e conferido por sha256 fixado no template; divergência reprova, apaga o arquivo e não ativa a camada.
   - [ ] `kb.sh semantic remove` apaga `.forge/kb/semantic/` (e só ele; os pins em `lib/kb-pins/` permanecem) e a busca volta ao modo lexical; um `semantic install` seguinte funciona.
   - [ ] `kb.sh semantic status` informa instalado/não instalado e confere: versão de cada pacote instalado igual à do lockfile dos pins, ausência de binário nativo (critério acima) e sha256 de cada arquivo de modelo igual ao fixado.
+  - [ ] O `package.json` do harness não tem bloco `dependencies` e suas `devDependencies` `onnxruntime-web` e `@huggingface/tokenizers` têm exatamente as versões do `package.json` dos pins (gate da suíte).
   - [ ] Nenhum outro caminho dispara a instalação: só `kb.sh semantic install` invoca o módulo de instalação (teste estático sobre o template inteiro), e `doctor.sh`, os hooks e o instalador/updater do harness não criam `.forge/kb/semantic/` (teste de execução de `doctor.sh` numa raiz de fixture).
 - **Rastreia:** proposal §2.3, §3, §4 (riscos a e d)
 
@@ -100,7 +102,9 @@
 - **Quando** qualquer subcomando de `kb.sh` roda (`build`, `query`, `status`, `eval`, `semantic status`, `semantic remove`), exceto `semantic install`, **o sistema deve** operar sem nenhuma chamada de rede; e o change não implementa provedor de embedding ou re-rank em cloud.
 - **Critérios de aceite:**
   - [ ] Teste de execução sob bloqueio de rede cobre `build`, `query`, `status`, `eval` e `semantic status` no modo lexical, no modo semântico com modelos de fixture e nos seis casos degradados do REQ-08. Bloqueio: quando o Node em uso suporta o modelo de permissões com rede (`--permission` sem `--allow-net`, Node >= 25), a execução roda sob ele, o que cobre também threads de trabalho e processos filhos (bloqueados por ausência de `--allow-child-process`); em qualquer Node, roda também sob um interceptador carregado por `--import` que faz lançar `fetch`, `http(s).request/get`, `net.connect/createConnection`, `tls.connect`, `dns.lookup/resolve`, `http2.connect`, `dgram.createSocket` e todas as funções de `child_process` (`spawn`, `exec`, `execFile`, `fork` e as variantes `*Sync`). O teste informa qual mecanismo rodou.
-  - [ ] Teste estático reprova se algum módulo da busca (`lib/kb-*.mjs`), fora do módulo de instalação, importar `node:http`, `node:https`, `node:net`, `node:tls`, `node:dgram`, `node:dns`, `node:child_process` `node:http2` ou `node:worker_threads`, ou usar `fetch(`; e reprova se `kb.sh` executar qualquer programa além de `node` e utilitários locais de shell (`curl`, `wget`, `git`, `nc`, `npm`, `npx`, `ssh` proibidos no script; o `npm ci` da instalação roda de dentro de `lib/kb-install.mjs`, a única exceção, carregado só por `semantic install`).
+  - [ ] Teste estático reprova se algum módulo da busca (`lib/kb-*.mjs`), fora do módulo de instalação, importar `node:http`, `node:https`, `node:net`, `node:tls`, `node:dgram`, `node:dns`, `node:child_process`, `node:http2` ou `node:worker_threads`, ou usar `fetch(`; e reprova se `kb.sh` ou qualquer arquivo que ele inclua por `source` invocar `curl`, `wget`, `nc`, `ssh`, `npm`, `npx` ou subcomando de rede do git (`fetch`, `pull`, `push`, `clone`, `ls-remote`, `remote`); o único uso de git permitido é `rev-parse` (resolução de raiz). O `npm ci` da instalação roda de dentro de `lib/kb-install.mjs`, a única exceção, carregado só por `semantic install`.
+  - [ ] Teste de execução roda `kb.sh build`, `query` e `status` com um `git` substituto no `PATH` que registra cada subcomando recebido e confere que só `rev-parse` foi chamado.
+  - [ ] No caso "modo semântico com modelos de fixture" sob bloqueio de rede, o teste confere que o modo efetivo foi `semantic` (campo `mode` do `--json`), para que uma queda silenciosa para lexical causada pelo próprio bloqueio não passe como sucesso; o bloqueio por permissões concede `--allow-worker` e leitura/escrita de sistema de arquivos, nunca rede nem processo filho.
   - [ ] A documentação do comando declara que não há provedor cloud e que qualquer provedor futuro só pode existir como opt-in explícito, nunca default, por causa de dado regulado (PCI DSS) nos repositórios consumidores.
 - **Rastreia:** proposal §2.3, §3
 
@@ -120,7 +124,7 @@
 - **Critérios de aceite:**
   - [ ] Cada consulta tem `q` (texto) e `gold` (lista de fragmentos de id de documento; um resultado é relevante se seu id contém algum fragmento, sem distinção de caixa); toda consulta tem ao menos um documento relevante existente no corpus deste repositório (o avaliador reporta consulta sem relevante como erro).
   - [ ] Consultas são paráfrases: nenhuma consulta copia literalmente o título do documento relevante; ao menos 4 consultas por partição estão em inglês sobre documentos em português (sinal semântico entre línguas).
-  - [ ] O `holdout.json` entra no histórico do git em commit anterior ao commit que introduz as constantes de fusão em `lib/kb-fuse.mjs` (verificável por `git log`).
+  - [ ] O `holdout.json` entra no histórico do git em commit anterior ao commit que introduz as constantes de fusão em `lib/kb-fuse.mjs`, e não muda depois desse commit (verificável por `git log --follow` do arquivo). A pré-calibração do protótipo (`evidence/prototype/`) usou só a partição de calibração; a escolha final de constantes também usa só ela, e o holdout é reportado, nunca otimizado.
   - [ ] Um gate da suíte, hermético, roda `kb.sh eval` sobre um corpus de fixture com consultas de fixture e confere as métricas calculadas contra valores esperados escritos à mão.
   - [ ] `kb.sh eval` reporta, por modo disponível (BM25 isolado, lexical fundido e, se instalado, semântico com e sem re-rank), hit@1, hit@5, hit@10 e MRR em nível de documento, de forma determinística.
   - [ ] Limitação registrada no próprio arquivo de evidência: consultas e rótulos foram escritos pelo autor do change sobre este corpus; os números valem como comparação relativa entre modos, não como qualidade absoluta.

@@ -43,7 +43,7 @@ _run_to() { # _run_to <segundos> -- <cmd...> — teto de tempo (macOS não tem `
 
 # Contador de cenários por grupo: declarados × executados DOS GRUPOS SELECIONADOS.
 declare_scn() { case "$1" in schema) echo 4;; stale) echo 8;; verify) echo 7;; supersede) echo 3;; show) echo 2;; specnew) echo 1;; closed) echo 3;; wiring) echo 5;; docs) echo 3;; mutation) echo 3;; esac; }
-ALL_GROUPS="schema stale verify supersede show"
+ALL_GROUPS="schema stale verify supersede show specnew"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
 _fail() { echo "FAIL [$1] $2"; exit 1; }
@@ -454,6 +454,21 @@ if _want show; then
   grep -q "elo quebrado" <<<"$o" || _fail show-2 "elo quebrado não nomeado: $o"
   echo "OK [show-2]"
 
+fi
+
+# ───────────────────────────── specnew (REQ-04) ─────────────────────────────
+if _want specnew; then
+  _sup_fixture specnew
+  _scn "[specnew-1] spec-new --from-ledger com item superseded: change criado sem elo, WARN com o sucessor"
+  o="$(_run_to 60 -- env FORGE_ROOT="$F" bash "$F/.forge/scripts/spec-new.sh" from-velho --type feature --scale 1 --from-ledger LDG-0002 2>&1)" || _fail specnew-1 "spec-new reprovou: $o"
+  M="$F/.forge/specs/active/from-velho/manifest.yaml"
+  [ -f "$M" ] || _fail specnew-1 "change não foi criado: $o"
+  grep -q "^ledger_origin:" "$M" && _fail specnew-1 "manifest ganhou ledger_origin para item superseded"
+  grep -q "WARN" <<<"$o" && grep -q "LDG-0003" <<<"$o" || _fail specnew-1 "WARN sem o sucessor: $o"
+  [ "$(_jget "$LFP" LDG-0002 'e.status')" = "superseded" ] || _fail specnew-1 "spec-new mexeu no status do superseded"
+  o="$(_run_to 60 -- env FORGE_ROOT="$F" bash "$F/.forge/scripts/spec-new.sh" from-vivo --type feature --scale 1 --from-ledger LDG-0001 2>&1)" || _fail specnew-1 "controle: spec-new reprovou: $o"
+  grep -q "^ledger_origin: LDG-0001" "$F/.forge/specs/active/from-vivo/manifest.yaml" || _fail specnew-1 "controle: item ativo deveria gravar ledger_origin"
+  echo "OK [specnew-1] — superseded sem elo + WARN; controle ativo com elo"
 fi
 
 # ───────────────────────────── fechamento ─────────────────────────────

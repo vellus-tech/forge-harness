@@ -241,6 +241,11 @@ new_repo "$T/A5"; put "$T/A5" test/soma.test.mjs "$TEST_OK"; put "$T/A5" src/som
 put "$T/A5" src/soma.mjs "$SRC_IMPL"; cm "$T/A5" "feat(soma): TASK-01 - soma"
 new_repo "$T/A6"; put "$T/A6" test/soma.test.mjs "$TEST_OK"; put "$T/A6" src/soma.mjs "$SRC_STUB"; cm "$T/A6" "test(soma): TASK-01 - vermelho"
 put "$T/A6" src/soma.mjs "$SRC_IMPL"; git -C "$T/A6" add -A; git -C "$T/A6" commit -q -m "feat(soma): TASK-01 - soma" -m "Referência no corpo: TASK-01 - vermelho"
+# A identificação só considera a TASK principal, não uma referência posterior no assunto.
+new_repo "$T/A7"; put "$T/A7" test/soma.test.mjs "$TEST_OK"; put "$T/A7" src/soma.mjs "$SRC_STUB"; cm "$T/A7" "test(soma): TASK-01 - vermelho"
+put "$T/A7" src/soma.mjs "$SRC_IMPL"; cm "$T/A7" "feat(soma): TASK-99 - referência: TASK-01 - soma"
+new_repo "$T/A8"; put "$T/A8" test/soma.test.mjs "$TEST_OK"; put "$T/A8" src/soma.mjs "$SRC_STUB"; cm "$T/A8" "test(soma): TASK-99 - referência: TASK-01 - vermelho"
+put "$T/A8" src/soma.mjs "$SRC_IMPL"; cm "$T/A8" "feat(soma): TASK-01 - soma"
 # B — o vermelho já traz a implementação; o verde é vazio
 new_repo "$T/B"; put "$T/B" test/soma.test.mjs "$TEST_OK"; put "$T/B" src/soma.mjs "$SRC_IMPL"; cm "$T/B" "$RED_MSG"; cm "$T/B" "$GREEN_MSG"
 # B2 — o vermelho já traz a implementação; o verde só mexe num comentário de produção
@@ -294,6 +299,8 @@ if [ -s "$SNIP" ]; then
   expect 6A4 "$T/A4" "$SCRIPTS" "$SNIP" '0 encontrado(s)'                            || overall_rc=1
   expect 6A5 "$T/A5" "$SCRIPTS" "$SNIP" '0 encontrado(s)'                            || overall_rc=1
   expect 6A6 "$T/A6" "$SCRIPTS" "$SNIP" ok                                            || overall_rc=1
+  expect 6A7 "$T/A7" "$SCRIPTS" "$SNIP" '[topologia]'                                 || overall_rc=1
+  expect 6A8 "$T/A8" "$SCRIPTS" "$SNIP" '0 encontrado(s)'                            || overall_rc=1
   expect 6B  "$T/B"  "$SCRIPTS" "$SNIP" '[vermelho-vazio]'                         || overall_rc=1
   expect 6B2 "$T/B2" "$SCRIPTS" "$SNIP" '[vermelho-passa]'                         || overall_rc=1
   expect 6C  "$T/C"  "$SCRIPTS" "$SNIP" '[vermelho-compilacao]'                    || overall_rc=1
@@ -317,7 +324,7 @@ else
   echo "FAIL [6]: sem bloco bash no §3.5 para executar"; overall_rc=1
 fi
 # O replayTask é uma fronteira própria; não depende da descoberta pelo task-coder.
-for caso in A4 A5; do
+for caso in A4 A5 A7 A8; do
   out="$(cd "$T/$caso" && bash "$SCRIPTS/red-evidence.sh" task --red HEAD^ --green HEAD --task-id TASK-01 --command 'node test/soma.test.mjs' --failure-pattern AssertionError 2>&1)"; rc=$?
   if [ "$rc" -ne 0 ] && grep -qF '[topologia]' <<<"$out"; then
     echo "OK [6-$caso-direto] — identificador ou marcador inválido recusado"

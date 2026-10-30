@@ -459,7 +459,7 @@ const prev = e.detail || '';
 if (prev && prev.indexOf(text) !== -1) {
   console.error("WARN: ledger-ops: o texto de '--text' já aparece no detail de " + id + " — 'note' é acumulativo por desenho e vai acrescentar assim mesmo, deixando o bloco duplicado no registro durável. Confira se a nota já não foi registrada antes de repetir o comando.");
 }
-const CLOSED = ['resolved', 'wont-fix', 'promoted'];
+const CLOSED = ['resolved', 'wont-fix', 'promoted', 'superseded'];
 if (CLOSED.indexOf(e.status) !== -1) {
   console.error('WARN: ledger-ops: ' + id + " está em '" + e.status + "' — a nota foi acrescentada e o status NÃO mudou. Anotar um item encerrado é legítimo (voltou a reproduzir, chegou medição nova); refechá-lo não seria, e 'note' nunca fecha nem reabre.");
 }
@@ -885,7 +885,7 @@ status)
   node - "$LF" <<'NODEEOF'
 const { readFileSync } = require('fs');
 const data = JSON.parse(readFileSync(process.argv[2], 'utf8'));
-const CLOSED = new Set(['resolved', 'wont-fix', 'promoted']);
+const CLOSED = new Set(['resolved', 'wont-fix', 'promoted', 'superseded']);
 const active = (data.entries || []).filter((e) => !CLOSED.has(e.status));
 if (!active.length) { console.log('LEDGER: vazio'); process.exit(0); }
 const by = {};

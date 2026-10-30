@@ -26,10 +26,10 @@
 - [X] TASK-03 — Checagem [10] do `w113` estendida com os padrões proibidos de conexão e invocação de sessão do REQ-01, com fixture que contém cada padrão (precisa reprovar) e controle sobre a árvore real (precisa passar), sem casar `messagingSocketPath` (rastreia: REQ-01, design §2.3; paths: `tests/w113-liaison-enforce-gate.sh`; depende: —)
   - Teste (comando): `bash tests/w113-liaison-enforce-gate.sh`
   - Padrão de falha: `FAIL \[10\]`
-- [ ] TASK-04 — Gate vermelho do `notify` (ponteiro idêntico ao log, recusas "não existe", "não é mensagem própria", "não publicada" com o `sync`, flags) e da fonte única de classes efêmeras e regex de declaração (rastreia: REQ-01, REQ-06, design §2.2, §2.3; paths: `tests/liaison-notify-gate.sh`; depende: —)
+- [X] TASK-04 — Gate vermelho do `notify` (ponteiro idêntico ao log, recusas "não existe", "não é mensagem própria", "não publicada" com o `sync`, flags) e da fonte única de classes efêmeras e regex de declaração (rastreia: REQ-01, REQ-06, design §2.2, §2.3; paths: `tests/liaison-notify-gate.sh`; depende: —)
   - Teste (comando): `bash tests/liaison-notify-gate.sh`
   - Padrão de falha: `FAIL \[[0-9]+\].*(notify|resolvePointer|EPHEMERAL)`
-- [ ] TASK-05 — `native-classes.mjs`, `liaison-pointer.mjs` (`resolvePointer`), `isPublished` em `liaison-publish.mjs` e subcomando `notify` (rastreia: REQ-01, REQ-06, design §2.2, §2.3, §4.5; paths: `template/.forge/scripts/lib/native-classes.mjs`, `template/.forge/scripts/lib/liaison-pointer.mjs`, `template/.forge/scripts/lib/liaison-publish.mjs`, `template/.forge/scripts/liaison-ops.sh`; depende: TASK-04)
+- [X] TASK-05 — `native-classes.mjs`, `liaison-pointer.mjs` (`resolvePointer`), `isPublished` em `liaison-publish.mjs` e subcomando `notify` (rastreia: REQ-01, REQ-06, design §2.2, §2.3, §4.5; paths: `template/.forge/scripts/lib/native-classes.mjs`, `template/.forge/scripts/lib/liaison-pointer.mjs`, `template/.forge/scripts/lib/liaison-publish.mjs`, `template/.forge/scripts/liaison-ops.sh`; depende: TASK-04)
   - Teste (comando): `bash tests/liaison-notify-gate.sh`
   - Padrão de falha: `FAIL \[[0-9]+\].*(notify|resolvePointer|EPHEMERAL)`
 

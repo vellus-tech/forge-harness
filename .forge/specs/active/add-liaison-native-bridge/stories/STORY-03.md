@@ -3,7 +3,7 @@ story_id: STORY-03
 epic: add-liaison-native-bridge
 title: "Ponteiro canônico: notify, resolvePointer e classes efêmeras"
 depends_on: []
-status: todo
+status: done
 ---
 
 # STORY-03 — Ponteiro canônico: notify, resolvePointer e classes efêmeras

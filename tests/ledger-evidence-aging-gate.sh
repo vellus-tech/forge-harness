@@ -43,7 +43,7 @@ _run_to() { # _run_to <segundos> -- <cmd...> — teto de tempo (macOS não tem `
 
 # Contador de cenários por grupo: declarados × executados DOS GRUPOS SELECIONADOS.
 declare_scn() { case "$1" in schema) echo 4;; stale) echo 8;; verify) echo 7;; supersede) echo 3;; show) echo 2;; specnew) echo 1;; closed) echo 3;; wiring) echo 5;; docs) echo 3;; mutation) echo 3;; esac; }
-ALL_GROUPS="schema stale verify supersede show specnew closed wiring"
+ALL_GROUPS="schema stale verify supersede show specnew closed wiring docs"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
 _fail() { echo "FAIL [$1] $2"; exit 1; }
@@ -579,6 +579,47 @@ if _want wiring; then
   set +e; _run_to 120 -- env FORGE_ROOT="$D" bash "$D/.forge/scripts/doctor.sh" --report >/dev/null 2>&1; set -e
   [ ! -e "$D/.forge/ledger/ledger.json" ] || _fail wiring-5 "o doctor criou ledger.json num projeto sem ledger"
   echo "OK [wiring-5]"
+fi
+
+# ───────────────────────────── docs (REQ-08) ─────────────────────────────
+if _want docs; then
+  _scn "[docs-1] comando, rule, resume, forge.yaml, forge.schema.json e help documentam o mecanismo"
+  CMD="$WS/template/.forge/commands/harness/ledger.md"
+  for agulha in "ledger-ops.sh verify" "ledger-ops.sh show" "ledger-ops.sh stale" "--supersedes" "--strict" "nunca execut" "commit HEAD" "/forge:close" "stale_days"; do
+    grep -qF -- "$agulha" "$CMD" || _fail docs-1 "ledger.md sem '$agulha'"
+  done
+  grep -qF "sem reverificação" "$WS/template/.forge/commands/harness/resume.md" || _fail docs-1 "resume.md sem a instrução sobre item marcado"
+  RULE="$WS/template/.forge/rules/conventions/ledger-consultation.md"
+  grep -qF "verify" "$RULE" && grep -qF -- "--supersedes" "$RULE" || _fail docs-1 "rule sem verify/--supersedes"
+  awk '/^ledger:/{f=1;next} f&&/^[a-z]/{f=0} f&&/^[[:space:]]*stale_days:[[:space:]]*30/{print "y"}' "$WS/template/.forge/forge.yaml" | grep -q y || _fail docs-1 "forge.yaml sem ledger.stale_days: 30"
+  node -e '
+    const s=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
+    let ok=false; const walk=(o)=>{ if(!o||typeof o!=="object") return; if(o.ledger&&o.ledger.properties&&o.ledger.properties.stale_days){const d=o.ledger.properties.stale_days; if(d.type==="integer"&&d.minimum===1) ok=true;} for(const k of Object.keys(o)) walk(o[k]); };
+    walk(s); process.exit(ok?0:1);' "$WS/template/.forge/schemas/forge.schema.json" || _fail docs-1 "forge.schema.json sem ledger.stale_days inteiro >= 1"
+  h="$(bash "$WS/template/.forge/scripts/ledger-ops.sh" --help)"
+  for c in verify show stale; do grep -q "$c" <<<"$h" || _fail docs-1 "help sem '$c'"; done
+  for c in ledger resume; do
+    cmp -s "$WS/template/.forge/commands/harness/$c.md" "$WS/plugin/forge/commands/$c.md" || _fail docs-1 "plugin/forge/commands/$c.md dessincronizado (rode npm run build:plugin)"
+  done
+  echo "OK [docs-1]"
+
+  _scn "[docs-2] NFR-02 — nenhuma leitura de relógio de parede no módulo de idade nem no ledger-ops.sh (recorte: os dois arquivos inteiros, superconjunto das portas novas)"
+  _nfr02() { # _nfr02 <ledger-ops.sh> <ledger-aging.mjs> — rc 0 se limpo; imprime as ocorrências
+    [ -f "$1" ] && [ -f "$2" ] || { echo "arquivo do recorte ausente"; return 2; }
+    ! grep -nE 'Date\.now|new Date\(\)|\$\(date' "$1" "$2"
+  }
+  _nfr02 "$WS/template/.forge/scripts/ledger-ops.sh" "$WS/template/.forge/scripts/lib/ledger-aging.mjs" || _fail docs-2 "leitura de relógio de parede encontrada no recorte"
+  echo "OK [docs-2] — ledger-ops.sh e ledger-aging.mjs sem relógio de parede"
+
+  _scn "[docs-3] mutação da medição do NFR-02: inserir new Date() no recorte faz reprovar; restaurar volta a passar"
+  cp "$WS/template/.forge/scripts/ledger-ops.sh" "$T/nfr-ops.sh"; cp "$WS/template/.forge/scripts/lib/ledger-aging.mjs" "$T/nfr-aging.mjs"
+  cp "$T/nfr-aging.mjs" "$T/nfr-aging.orig"
+  _nfr02 "$T/nfr-ops.sh" "$T/nfr-aging.mjs" >/dev/null || _fail docs-3 "controle: cópia limpa reprovou"
+  printf '\nconst relogio = new Date();\n' >> "$T/nfr-aging.mjs"
+  if _nfr02 "$T/nfr-ops.sh" "$T/nfr-aging.mjs" >/dev/null; then _fail docs-3 "mutação: new Date() no recorte não reprovou"; fi
+  cp "$T/nfr-aging.orig" "$T/nfr-aging.mjs"; cmp -s "$T/nfr-aging.mjs" "$T/nfr-aging.orig" || _fail docs-3 "restauração não bateu (cmp)"
+  _nfr02 "$T/nfr-ops.sh" "$T/nfr-aging.mjs" >/dev/null || _fail docs-3 "recontrole: cópia restaurada reprovou"
+  echo "OK [docs-3]"
 fi
 
 # ───────────────────────────── fechamento ─────────────────────────────

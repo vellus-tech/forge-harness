@@ -233,7 +233,7 @@ template/.forge/        # o harness instalável (fonte única)
 ├── skills/   (46)      # skills especialistas (gate-runner, capability-dispatcher, dotnet-quality-scan, data-*-practices, …)
 ├── rules/   (50)       # convenções (arquitetura, domínio, testing, …)
 ├── schemas/ (27)       # JSON Schemas (manifest, run-manifest, benchmark, graph, …)
-└── scripts/ (146)      # engine determinista (graph, archive, eval, provenance, hooks, …) — inclui lib/ e tests/
+└── scripts/ (147)      # engine determinista (graph, archive, eval, provenance, hooks, …) — inclui lib/ e tests/
 bin/forge.mjs           # CLI do npx (forge-harness init) — porta cross-platform do install.sh
 installer/              # install.sh + gitignore.patch + delegação global do /init-project
 tests/                  # gates deterministas + run-all.sh

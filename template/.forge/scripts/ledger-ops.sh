@@ -174,6 +174,36 @@ _render() {
     node "$SCRIPT_DIR/lib/ledger-render.mjs"
 }
 
+# ── envelhecimento (change add-ledger-evidence-aging, REQ-05/REQ-06) ─────────────────────────────
+# _resolve_stale_days <valor de --days ou vazio> — fixa STALE_DAYS e STALE_ORIGIN, ou devolve 2 com
+# a mensagem em STALE_ERR. Precedência: --days > forge.yaml ledger.stale_days > 30. Valor presente
+# e inválido em qualquer fonte é ERRO nomeando a fonte, nunca queda silenciosa no default — um
+# limiar que o operador declarou e o script ignorou é a forma de o sinal de idade mentir sem
+# ninguém ver. forge.yaml é lido com o mesmo idioma awk de bloco que doctor.sh usa para
+# heavy_mutex (sem parser YAML: zero dependência de runtime).
+AGING_LIB="$SCRIPT_DIR/lib/ledger-aging.mjs"
+_resolve_stale_days() {
+  local flag="${1:-}" cfg
+  STALE_ERR=""
+  if [ -n "$flag" ]; then
+    if [[ "$flag" =~ ^[1-9][0-9]*$ ]]; then STALE_DAYS="$flag"; STALE_ORIGIN="--days"; return 0; fi
+    STALE_ERR="FAIL: ledger-ops: --days '$flag' inválido — o limiar é um inteiro >= 1 (dias)."
+    return 2
+  fi
+  cfg="$(awk '/^ledger:/{f=1;next} f&&/^[^[:space:]#]/{f=0} f&&/^[[:space:]]*stale_days:/{sub(/^[[:space:]]*stale_days:[[:space:]]*/,"");sub(/[[:space:]]*#.*$/,"");gsub(/["'"'"']/,"");print;exit}' "$ROOT/.forge/forge.yaml" 2>/dev/null || true)"
+  if [ -n "$cfg" ]; then
+    if [[ "$cfg" =~ ^[1-9][0-9]*$ ]]; then STALE_DAYS="$cfg"; STALE_ORIGIN="forge.yaml"; return 0; fi
+    STALE_ERR="FAIL: ledger-ops: forge.yaml ledger.stale_days '$cfg' inválido — o limiar é um inteiro >= 1 (dias). Corrija em $ROOT/.forge/forge.yaml."
+    return 2
+  fi
+  STALE_DAYS=30; STALE_ORIGIN="default"; return 0
+}
+# _asof_valid <texto> — data ISO-8601 que o Date.parse do node interpreta.
+_asof_valid() {
+  [[ "$1" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2} ]] || return 1
+  node -e 'process.exit(Number.isNaN(Date.parse(process.argv[1])) ? 1 : 0)' "$1"
+}
+
 # LDG-0068: as portas que ESCREVEM anunciam quando o ROOT resolvido difere do repositório de
 # trabalho de quem invocou. Só `status` e `list` ficam de fora — aviso em porta de leitura é ruído
 # que treina o operador a ignorar a linha quando ela importa.
@@ -583,6 +613,41 @@ NODEEOF
   _render
   after="$(node -e "const d=JSON.parse(require('fs').readFileSync('$LF','utf8'));console.log((d.entries||[]).length)")"
   echo "OK harvest $change_id ($origin) — $((after - before)) nova(s) entrada(s) no ledger"
+  ;;
+
+# stale — sinal determinístico de idade (change add-ledger-evidence-aging, REQ-05). Porta de
+# LEITURA: lista as entradas ativas sem reverificação há mais de N dias. NÃO-BLOQUEANTE por padrão
+# (rc 0 com ou sem itens envelhecidos, como manda ledger-consultation.md); só `--strict`, pedido em
+# letra, devolve rc 1 — é a porta para quem quiser travar em CI. rc 2 = uso inválido (limiar ou
+# --as-of ilegível, ou sem commit HEAD e sem --as-of). O cálculo vive em lib/ledger-aging.mjs, a
+# fonte única também do sufixo do `status`, da marca do `list` e (por delegação) do doctor.
+stale)
+  s_days=""; s_asof=""; s_strict=""
+  STALE_FLAGS="--days --as-of --strict"
+  while [ $# -gt 0 ]; do case "$1" in
+    --days) _require_value "stale" --days "${2-}" "$STALE_FLAGS"; s_days="$2"; shift 2 ;;
+    --as-of) _require_value "stale" --as-of "${2-}" "$STALE_FLAGS"; s_asof="$2"; shift 2 ;;
+    --strict) s_strict="1"; shift ;;
+    *) _reject_unknown "stale" "$STALE_FLAGS" "$1" ;;
+  esac; done
+  _resolve_stale_days "$s_days" || { echo "$STALE_ERR" >&2; exit 2; }
+  if [ -n "$s_asof" ]; then
+    _asof_valid "$s_asof" || { echo "FAIL: ledger-ops: --as-of '$s_asof' não é data ISO-8601 interpretável (ex.: 2026-10-30 ou 2026-10-30T10:00:00-03:00)." >&2; exit 2; }
+  else
+    # `_git_date` direto, no shell principal: `_require_git_date` sairia com rc 1 e não apontaria a
+    # saída que existe aqui (--as-of).
+    s_asof="$(_git_date)"
+    [ -n "$s_asof" ] || { echo "FAIL: ledger-ops: stale sem data de commit HEAD em '$ROOT' — fora de git ou sem nenhum commit. Passe --as-of <data ISO> para medir contra uma data declarada." >&2; exit 2; }
+  fi
+  _init_ledger
+  set +e
+  node "$AGING_LIB" report "$LF" "$s_asof" "$STALE_DAYS" "$STALE_ORIGIN"; s_rc=$?
+  set -e
+  case "$s_rc" in
+    0) exit 0 ;;
+    10) [ -n "$s_strict" ] && exit 1; exit 0 ;;
+    *) exit "$s_rc" ;;
+  esac
   ;;
 
 render)

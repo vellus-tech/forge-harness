@@ -43,7 +43,7 @@ _run_to() { # _run_to <segundos> -- <cmd...> — teto de tempo (macOS não tem `
 
 # Contador de cenários por grupo: declarados × executados DOS GRUPOS SELECIONADOS.
 declare_scn() { case "$1" in schema) echo 4;; stale) echo 8;; verify) echo 7;; supersede) echo 3;; show) echo 2;; specnew) echo 1;; closed) echo 3;; wiring) echo 5;; docs) echo 3;; mutation) echo 3;; esac; }
-ALL_GROUPS="schema stale verify"
+ALL_GROUPS="schema stale verify supersede"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
 _fail() { echo "FAIL [$1] $2"; exit 1; }
@@ -361,6 +361,60 @@ if _want verify; then
   grep -q "^LDG-0001 — 26d — reverificado em 2019-03-20" <<<"$o" || _fail verify-7 "idade não partiu do last_verified (esperado 26d): $o"
   echo "OK [verify-7]"
 fi
+
+# ───────────────────────────── supersede (REQ-04) ─────────────────────────────
+if _want supersede; then
+  F="$T/sup"; _fixture "$F"
+  LFP="$F/.forge/ledger/ledger.json"
+  HS="$(_head_date "$F")"
+  _lg "$F" add --type tech-debt --title "A" --detail "detalhe de A" >/dev/null   # LDG-0001
+  _lg "$F" add --type tech-debt --title "B" --detail "detalhe de B" >/dev/null   # LDG-0002
+  _lg "$F" add --type tech-debt --title "P" --detail "x" >/dev/null              # LDG-0003
+  _lg "$F" promote LDG-0003 --to um-change >/dev/null
+  _lg "$F" add --type tech-debt --title "R" --detail "x" >/dev/null              # LDG-0004
+  _lg "$F" resolve LDG-0004 --note "feito" >/dev/null
+
+  _scn "[supersede-1] add --supersedes cria o sucessor e encerra o anterior numa escrita, com elo bidirecional"
+  out="$(_lg "$F" add --type tech-debt --title "B revisto" --detail "B medido de novo" --supersedes LDG-0002 2>&1)" || _fail supersede-1 "add --supersedes reprovou: $out"
+  [ "$(_jget "$LFP" LDG-0005 'e.supersedes')" = "LDG-0002" ] || _fail supersede-1 "sucessor sem supersedes"
+  [ "$(_jget "$LFP" LDG-0002 'e.status')" = "superseded" ] || _fail supersede-1 "anterior não ficou superseded"
+  [ "$(_jget "$LFP" LDG-0002 'e.links.superseded_by')" = "LDG-0005" ] || _fail supersede-1 "anterior sem links.superseded_by"
+  [ "$(_jget "$LFP" LDG-0002 'e.resolved_at')" = "$HS" ] || _fail supersede-1 "resolved_at do anterior != HEAD"
+  [ "$(_jget "$LFP" LDG-0002 'e.updated_at')" = "$HS" ] || _fail supersede-1 "updated_at do anterior != HEAD"
+  [ "$(_jget "$LFP" LDG-0002 'e.detail')" = "detalhe de B"$'\n\n'"SUBSTITUÍDO (${HS:0:10}): por LDG-0005" ] || _fail supersede-1 "bloco SUBSTITUÍDO fora do formato: $(_jget "$LFP" LDG-0002 'e.detail')"
+  echo "OK [supersede-1] — $out"
+
+  _scn "[supersede-2] recusas de --supersedes sem tocar o ledger"
+  _sref() { local label="$1" frag="$2"; shift 2
+    cp "$LFP" "$T/sref.json"; set +e; local o; o="$(_lg "$F" "$@" 2>&1)"; local rc=$?; set -e
+    [ "$rc" -ne 0 ] || _fail supersede-2 "$label: deveria reprovar — $o"
+    grep -q -- "$frag" <<<"$o" || _fail supersede-2 "$label: mensagem sem '$frag' — $o"
+    cmp -s "$LFP" "$T/sref.json" || _fail supersede-2 "$label: ledger mudou numa recusa"; }
+  _sref "alvo inexistente"  "LDG-0099"   add --type tech-debt --title "n" --detail "d" --supersedes LDG-0099
+  _sref "alvo superseded"   "superseded" add --type tech-debt --title "n" --detail "d" --supersedes LDG-0002
+  _sref "alvo promoted"     "promoted"   add --type tech-debt --title "n" --detail "d" --supersedes LDG-0003
+  _sref "alvo resolved"     "resolved"   add --type tech-debt --title "n" --detail "d" --supersedes LDG-0004
+  _sref "padrão inválido"   "LDG-12"     add --type tech-debt --title "n" --detail "d" --supersedes LDG-12
+  _sref "update --supersedes" "--supersedes" update LDG-0001 --supersedes LDG-0002
+  _sref "add --status superseded" "--supersedes" add --type tech-debt --title "n" --status superseded
+  _sref "update --status superseded" "--supersedes" update LDG-0001 --status superseded
+  _sref "update --status em superseded" "LDG-0005" update LDG-0002 --status open
+  _sref "promote em superseded" "LDG-0005" promote LDG-0002 --to outro-change
+  _sref "resolve em superseded" "superseded" resolve LDG-0002 --note "x"
+  _lg "$F" update LDG-0002 --title "B (histórico)" >/dev/null || _fail supersede-2 "update de título em superseded deveria ser permitido"
+  [ "$(_jget "$LFP" LDG-0002 'e.status')" = "superseded" ] || _fail supersede-2 "update de título reabriu o item"
+  echo "OK [supersede-2] — 11 recusas; correção de título permitida sem reabrir"
+
+  _scn "[supersede-3] list mostra o elo e a reverificação"
+  mkdir -p "$F/src"; printf 'um\ndois\n' > "$F/src/a.txt"
+  _lg "$F" verify LDG-0001 --kind file --ref "src/a.txt:1" --observed "o defeito segue presente na linha um" --verdict confirmed >/dev/null
+  o="$(_lg "$F" list --status open 2>&1)"
+  grep "^LDG-0005 " <<<"$o" | grep -q "(substitui LDG-0002)" || _fail supersede-3 "list sem '(substitui LDG-0002)': $o"
+  grep "^LDG-0001 " <<<"$o" | grep -q "· reverificado em ${HS:0:10}" || _fail supersede-3 "list sem '· reverificado em': $o"
+  echo "OK [supersede-3]"
+
+fi
+
 
 # ───────────────────────────── fechamento ─────────────────────────────
 [ "$(_sha "$REAL_LEDGER")" = "$REAL_SHA_BEFORE" ] || _fail final "o gate ESCREVEU no ledger.json rastreado"

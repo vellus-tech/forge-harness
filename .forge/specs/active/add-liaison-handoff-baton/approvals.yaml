@@ -1,0 +1,19 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: review
+    reason: "Revisor adversarial delegado pelo dono (opus), rodada 1: REVIEW sem BLOCKER; MAJOR M1 REQ-12/NFR-02 (teto de latencia do gancho so no caminho sem bastao; push sincrono sem timeout); 9 MINOR (renovacao concorrente, ruido no inbox, teto de seq, subject das ops, empate contra dona diligente, transporte manual, fim de sessao, janela da trava, estado local)"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:38:18-03:00"
+    iteration: 1
+    commit: "34f9d2c1"
+    scope: "requirements.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: requirements_reviewed
+    decision: approve
+    reason: "Revisor adversarial delegado pelo dono (opus), rodada 2: APPROVE sem BLOCKER nem MAJOR; M1 resolvido (teto de 150 ms nos caminhos sem renovacao, push desacoplado com timeout de 30 s, teto de 2,5 s no caminho que renova); m1-m9 corrigidos; MINOR m-a/m-b/m-c (invalidacao do cache de renovacao, espera da trava no gancho, processo destacado sem timeout(1)) levados ao design; excecao ao item 5 da rule declarada no REQ-16"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:41:00-03:00"
+    iteration: 2
+    commit: "34f9d2c1"
+    scope: "requirements.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"

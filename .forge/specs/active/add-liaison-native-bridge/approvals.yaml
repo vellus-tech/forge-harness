@@ -1,0 +1,28 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: review
+    reason: "Revisor adversarial delegado pelo dono (opus) decidiu REVIEW: BLOCKER REQ-07/12 (agente contido consegue liberar a contencao via native allow no mesmo turno, com granted_by humano); MAJOR REQ-08 (diagnostico de fim de sessao sem fiacao nem leitor), REQ-02/03 (authored_by falso contorna C1), REQ-11 (CHANGELOG e slash-commands ausentes)"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T18:17:40-03:00"
+    iteration: 1
+    commit: "34f9d2c1"
+    scope: "requirements.md"
+    notes: "Decisao delegada pelo dono em 2026-10-30: APPROVE do revisor vale como aceite formal; REVIEW volta ao builder"
+  - gate: requirements_reviewed
+    decision: review
+    reason: "Revisor delegado (opus) rodada 2: REVIEW por MAJOR REQ-04/06 (SendMessage so com notify_when_idle, sem corpo, seria bloqueado). Rodada 1 resolvida. Nota de convergencia de causa raiz devolvida ao dono: a contencao do cadastro mora em estado alteravel pelo proprio agente (manifesto/settings, remote, git checkout); opcoes (a) simplificar para recusa do CLI + deteccao deterministica em pre-push/doctor, ou (b) managed settings fora do escopo"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T18:22:26-03:00"
+    iteration: 2
+    commit: "34f9d2c1"
+    scope: "requirements.md"
+    notes: "Delegacao do dono vigente; escalada de causa raiz ao dono conforme regra de convergencia"
+  - gate: requirements_reviewed
+    decision: approve
+    reason: "Revisor adversarial delegado pelo dono (opus), rodada 3: APPROVE sem BLOCKER nem MAJOR; 10 MINOR e notas de convergencia (causa raiz ja decidida pelo dono: contencao nao e fronteira de seguranca; envio direto pelo socket com CLAUDE_CODE_MESSAGING_TOKEN contorna o gancho inteiro) levadas ao design"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T18:37:42-03:00"
+    iteration: 3
+    commit: "34f9d2c1"
+    scope: "requirements.md"
+    notes: "Aceite formal: o dono declarou em 2026-10-30 que o APPROVE do revisor delegado vale como seu aceite formal"

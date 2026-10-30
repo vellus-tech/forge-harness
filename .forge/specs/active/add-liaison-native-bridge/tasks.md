@@ -10,6 +10,9 @@
 - O commit do vermelho só traz arquivos em `tests/` (stub em `template/.forge/scripts/` conta como infraestrutura e reprova `[vermelho-infra]`).
 - O gate vermelho emite linhas `FAIL [n] <motivo>` por asserção e não pode quebrar por módulo ausente (importar o módulo novo dentro de `try`/checar existência antes e reportar `FAIL [n] ... ausente`), senão cai em `[vermelho-compilacao]`/`[vermelho-padrao]`.
 - Gates novos levam nome provisório sem ordinal (`tests/<nome>-gate.sh`, descobertos pelo glob do `run-all.sh`) e a linha `# ORDINAL: wNNN atribuído na hora do merge` no cabeçalho; o número só é decidido no merge.
+- Execução estritamente sequencial, na ordem em que as tasks aparecem neste arquivo (a TASK-27 vem antes da TASK-26, que é a última) (várias tasks tocam `liaison-ops.sh`, e o verde precisa ser filho direto do vermelho); nunca duas tasks em paralelo.
+- Vermelho esperado fora da task: o `w200-readme-inventory-gate.sh` conta `tests/*-gate.sh` para o badge do `README.md` e fica vermelho desde o primeiro gate novo até a TASK-25, que atualiza o badge e o inventário; isso não é regressão das tasks intermediárias.
+- Fixtures de transcript e registro usam `FORGE_CLAUDE_PROJECTS_DIR` e `FORGE_CLAUDE_SESSIONS_DIR` (design §2.4 passo 3 e §2.5), nunca `HOME` redirecionado.
 - Exceção declarada: a TASK-03 só toca `tests/` (a checagem [10] do `w113` vive no próprio gate), então não há par provável pelo `red-evidence` (`[vermelho-vazio]`); a prova de que a checagem morde é interna ao gate: uma árvore de fixture com cada padrão proibido precisa reprovar a checagem, e a árvore real precisa passar (controle e recontrole no mesmo run).
 
 ## Wave 1 — Contratos e ponteiro canônico
@@ -56,10 +59,10 @@
 
 ## Wave 4 — Saída: cadastro, detector e gancho
 
-- [ ] TASK-12 — Gate vermelho do cadastro e do detector: recusa de `allow`/`revoke`/`pin` por cada marcador e por ancestral `claude` simulado; idempotência, revogação, reativação, formato, `--reason`; cadastro efetivo só commitado; schema; detector `native containment` nos quatro tipos e no caso sem mudança, rc 2 quando não mede; `hook-unwired` pela derivação de `derivePreToolUseHooks` com controle negativo de consumidor existente semeado inativo (nenhum achado) e por intervalo quando a fiação some do `settings.json` entre as pontas (rastreia: REQ-12, design §2.7, §4.3; paths: `tests/native-containment-gate.sh`; depende: TASK-07)
+- [ ] TASK-12 — Gate vermelho do cadastro e do detector: recusa do CLI `allow`/`revoke`/`pin` por cada marcador e por ancestral `claude`; lógica de escrita (idempotência, revogação, reativação, `self_identity`, formato, `--reason`) exercitada pela API de `native-allowlist.mjs`; caminho completo do CLI uma vez com `env -i` e um `ps` de fixture à frente do `PATH` (design §2.7, achado A-01 do analyze); cadastro efetivo só commitado; schema; detector `native containment` nos quatro tipos e no caso sem mudança, rc 2 quando não mede; `hook-unwired` pela derivação de `preToolUseWiring` com controle negativo de consumidor existente semeado inativo (nenhum achado) e por intervalo quando a fiação some do `settings.json` entre as pontas; `hooks.manifest` de consumidor corrompido (derivação `unresolved`) → rc 2, nunca "nada mudou" (rastreia: REQ-12, design §2.7, §4.3; paths: `tests/native-containment-gate.sh`; depende: TASK-07)
   - Teste (comando): `bash tests/native-containment-gate.sh`
   - Padrão de falha: `FAIL \[[0-9]+\].*(allow|revoke|pin|containment|hook-unwired)`
-- [ ] TASK-13 — `native-allowlist.mjs`, `native-containment.mjs`, schema `liaison-allowed-workspaces.schema.json`, export de `derivePreToolUseHooks` sem mudança de comportamento e subcomandos `native allow|revoke|pin|containment` (rastreia: REQ-12, design §2.7, §4.3; paths: `template/.forge/scripts/lib/native-allowlist.mjs`, `template/.forge/scripts/lib/native-containment.mjs`, `template/.forge/scripts/lib/sync-adapters.mjs`, `template/.forge/schemas/liaison-allowed-workspaces.schema.json`, `template/.forge/scripts/liaison-ops.sh`; depende: TASK-12)
+- [ ] TASK-13 — `native-allowlist.mjs`, `native-containment.mjs`, schema `liaison-allowed-workspaces.schema.json` e subcomandos `native allow|revoke|pin|containment` (rastreia: REQ-12, design §2.7, §4.3; paths: `template/.forge/scripts/lib/native-allowlist.mjs`, `template/.forge/scripts/lib/native-containment.mjs`, `template/.forge/schemas/liaison-allowed-workspaces.schema.json`, `template/.forge/scripts/liaison-ops.sh`; depende: TASK-12)
   - Teste (comando): `bash tests/native-containment-gate.sh && bash tests/w30-schemas-gate.sh && bash tests/w215-hook-wiring-derived-gate.sh`
   - Padrão de falha: `FAIL \[[0-9]+\].*(allow|revoke|pin|containment|hook-unwired)`
 - [ ] TASK-14 — Gate vermelho do gancho de saída, parte 1 (classificação e segredo): os payloads da evidência a com os vereditos do REQ-05 (`main`, agentId, nome com registro único, `uds:`, só aviso de ociosidade, `[ref]`, nome sem registro com e sem `Agent` nomeado no transcript, nome de sessão igual a `Agent` nomeado, `*`/vírgula/quebra de linha, `recipient_kind` desconhecido); cada família de `SECRET_PATTERNS` → exit 2 sem eco; segredo em campo aninhado e em array; payload vazio, malformado e sem corpo → exit 2; teste de leitor único que altera um padrão de `secret-scan.mjs` e vê `send` e gancho mudarem juntos. Para destino de sessão com corpo limpo, o gate observa a classificação por uma saída que não depende das etapas 5 e 6 (a função de classificação exportada pelo módulo, ou o mesmo payload com segredo dando exit 2 pelo segredo), porque o exit final desses casos muda quando a TASK-17 entra (rastreia: REQ-04, REQ-05, design §2.5 etapas 1 a 4; paths: `tests/native-send-guard-gate.sh`; depende: TASK-05, TASK-07, TASK-13)
@@ -92,10 +95,10 @@
 
 ## Wave 6 — Normas, documentação e baseline
 
-- [ ] TASK-22 — Gate vermelho das normas: classes da rule = `EPHEMERAL_CLASSES` com mutação dos dois lados; frases normativas obrigatórias do design §2.8; `validate-rules.sh` com `FORGE_ROOT` no template; `last_reviewed` atualizado; itens de ledger com origem no change (configuração gerenciada PCI; medição do formato de agente nomeado; ADR "mensageria nativa é sinalização" sugerida no design §10) (rastreia: REQ-09, design §2.2, §2.8, §10; paths: `tests/native-rules-parity-gate.sh`; depende: TASK-05)
+- [ ] TASK-22 — Gate vermelho das normas: classes da rule = `EPHEMERAL_CLASSES` com mutação dos dois lados; frases normativas obrigatórias do design §2.8; `validate-rules.sh` com `FORGE_ROOT` no template; `last_reviewed` atualizado; itens de ledger com origem no change, lidos de `.forge/ledger/ledger.json` da worktree (configuração gerenciada PCI; medição do formato de agente nomeado; ADR "mensageria nativa é sinalização" sugerida no design §10, aceito aberto ou resolvido, porque a TASK-27 o resolve) (rastreia: REQ-09, design §2.2, §2.8, §10; paths: `tests/native-rules-parity-gate.sh`; depende: TASK-05)
   - Teste (comando): `bash tests/native-rules-parity-gate.sh`
   - Padrão de falha: `FAIL \[[0-9]+\].*(rule|classes|ledger|last_reviewed)`
-- [ ] TASK-23 — `liaison-protocol.md` e `liaison-untrusted-input.md` atualizadas e os três itens de ledger abertos (rastreia: REQ-09, design §2.8, §10; paths: `template/.forge/rules/conventions/liaison-protocol.md`, `template/.forge/rules/conventions/liaison-untrusted-input.md`, `.forge/ledger/`; depende: TASK-22)
+- [ ] TASK-23 — `liaison-protocol.md` e `liaison-untrusted-input.md` atualizadas e os três itens de ledger abertos com `FORGE_ROOT=<worktree>` (o ledger escrito e lido pelo gate é o da branch, `.forge/ledger/` desta worktree, commitado na task; o tronco nunca é tocado — afastamento declarado da rule `machinery-propagation` ("estado de projeto mora no tronco"), que segue a prática do dogfood de levar o ledger ao tronco pelo PR, e é a única forma de cumprir o limite desta execução de não tocar o checkout principal) (rastreia: REQ-09, design §2.8, §10; paths: `template/.forge/rules/conventions/liaison-protocol.md`, `template/.forge/rules/conventions/liaison-untrusted-input.md`, `.forge/ledger/`; depende: TASK-22)
   - Teste (comando): `bash tests/native-rules-parity-gate.sh`
   - Padrão de falha: `FAIL \[[0-9]+\].*(rule|classes|ledger|last_reviewed)`
 - [ ] TASK-24 — Gate vermelho de documentação: `argument-hint` com os subcomandos novos; flags do bloco de protocolo = flags aceitas do script por subcomando novo ou alterado; `send` cross-session sem flags de origem; `slash-commands.md`; `CHANGELOG.md` com o passo de armar; `upgrade.md` template e plugin; ponteiro na primeira linha documentado (rastreia: REQ-11, REQ-10, design §4.5, §5; paths: `tests/native-docs-gate.sh`; depende: TASK-21)
@@ -104,7 +107,10 @@
 - [ ] TASK-25 — Documentação: `/forge:liaison` (template e plugin), `upgrade.md` (template e plugin), `docs/refer/slash-commands.md`, inventário de gates e scripts, `CHANGELOG.md` `[Unreleased]`, badge do `README.md` (rastreia: REQ-11, REQ-10, design §5; paths: `template/.forge/commands/harness/liaison.md`, `template/.forge/commands/harness/upgrade.md`, `plugin/forge/commands/liaison.md`, `plugin/forge/commands/upgrade.md`, `docs/`, `CHANGELOG.md`, `README.md`; depende: TASK-24)
   - Teste (comando): `bash tests/native-docs-gate.sh && bash tests/w200-readme-inventory-gate.sh && bash tests/plugin-sync-gate.sh`
   - Padrão de falha: `FAIL \[[0-9]+\].*(argument-hint|flags|CHANGELOG|slash-commands|upgrade)`
-- [ ] TASK-26 — `spec-delta.yaml` real do change (requisitos novos da capacidade `forge-harness-template`) e suíte completa verde, rodada sem outro gate em paralelo (rastreia: REQ-01..REQ-12, NFR-03; paths: `.forge/specs/active/add-liaison-native-bridge/spec-delta.yaml`; depende: TASK-02, TASK-03, TASK-11, TASK-17, TASK-21, TASK-23, TASK-25)
+- [ ] TASK-27 — ADR "Mensageria nativa entre sessões é sinalização; o registro durável é o liaison" no baseline, no protocolo do `/forge:adr` (constitution §9; design §10; achado A-03 do analyze), com índice atualizado e o item de ledger correspondente resolvido (rastreia: REQ-09, design §10; paths: `.forge/product/current/adr/`, `.forge/ledger/`; depende: TASK-23)
+  - Teste (comando): `FORGE_ROOT="$(pwd)" bash template/.forge/scripts/validate-spec.sh add-liaison-native-bridge && grep -q 'Mensageria nativa' .forge/product/current/adr/README.md`
+  - Padrão de falha: `(FAIL|^$)`
+- [ ] TASK-26 — `spec-delta.yaml` real do change (requisitos novos da capacidade `forge-harness-template`) e suíte completa verde, rodada sem outro gate em paralelo (rastreia: REQ-01..REQ-12, NFR-03; paths: `.forge/specs/active/add-liaison-native-bridge/spec-delta.yaml`; depende: TASK-02, TASK-03, TASK-11, TASK-17, TASK-21, TASK-25, TASK-27)
   - Teste (comando): `FORGE_ROOT="$(pwd)" bash template/.forge/scripts/validate-spec.sh add-liaison-native-bridge && bash tests/run-all.sh`
   - Padrão de falha: `(FAIL|placeholder)`
 
@@ -120,7 +126,7 @@
 | REQ-06 | TASK-04, TASK-05, TASK-16, TASK-17 |
 | REQ-07 | TASK-06, TASK-07, TASK-16, TASK-17 |
 | REQ-08 | TASK-06, TASK-07, TASK-10, TASK-11 |
-| REQ-09 | TASK-22, TASK-23 |
+| REQ-09 | TASK-22, TASK-23, TASK-27 |
 | REQ-10 | TASK-18, TASK-19, TASK-24, TASK-25 |
 | REQ-11 | TASK-24, TASK-25 |
 | REQ-12 | TASK-12, TASK-13, TASK-20, TASK-21 |
@@ -133,7 +139,7 @@
 | design §2.5 | TASK-14, TASK-15, TASK-16, TASK-17 |
 | design §2.6 | TASK-06, TASK-07, TASK-10, TASK-11 |
 | design §2.7 (inclui merge humano em ship/yolo) | TASK-12, TASK-13, TASK-20, TASK-21 |
-| design §2.8, §10 | TASK-22, TASK-23 |
+| design §2.8, §10 | TASK-22, TASK-23, TASK-27 |
 | design §4.1, §4.2 | TASK-01, TASK-02 |
 | design §4.3 | TASK-12, TASK-13, TASK-20 |
 | design §4.4, §5 | TASK-18, TASK-19, TASK-24, TASK-25 |

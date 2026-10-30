@@ -69,7 +69,7 @@ Termos usados abaixo.
   - [ ] Destino endereçado por identificador curto (forma usada pelo Claude Code quando vários destinos respondem ao mesmo nome) → tratado como destino de sessão; se não resolver de forma única no registro local, exit 2 com mensagem dizendo que o destino é ambíguo ou remoto.
   - [ ] Destino que não se consegue classificar com certeza → tratado como destino de sessão (fail-closed), com mensagem dizendo por quê.
 - **Rastreia:** proposal §2.3 e §4
-- **Notas:** o mecanismo de classificação é decisão de design, a partir da medição do payload.
+- **Notas:** o mecanismo de classificação é decisão de design, a partir da medição do payload. Emenda de 2026-10-30, decorrente do gate `design_reviewed` (aceite delegado pelo dono): "subagente por nome" passa com exit 0 só quando o nome é provado interno (chamada `Agent` com `input.name` igual no transcript da sessão, sem registro de sessão viva homônimo); um nome que não resolve a nenhuma sessão local nem a agente nomeado no transcript (o caso 1 medido, `Agent` sem parâmetro `name` em 2.1.314) é destino não classificável e recebe exit 2 pelo critério de fail-closed acima, com a orientação de endereçar o subagente pelo agentId (design §2.5 etapa 2).
 
 ## REQ-06 — Destino declarado em toda mensagem que sai para sessão (C2)
 
@@ -81,7 +81,7 @@ Termos usados abaixo.
   - [ ] Mensagem sem ponteiro nem declaração → exit 2 explicando as duas formas de declarar.
   - [ ] A validação do ponteiro lê o canal pelo tronco (`--git-common-dir`), igual ao `liaison-ops.sh`; uma sessão rodando numa worktree valida o mesmo ponteiro que a sessão do checkout principal.
 - **Rastreia:** proposal §2.4 (decisão C2)
-- **Notas:** o gate cobra a existência da declaração; se a classe escolhida está certa, só auditoria amostral responde (limite registrado na rule do REQ-09).
+- **Notas:** o gate cobra a existência da declaração; se a classe escolhida está certa, só auditoria amostral responde (limite registrado na rule do REQ-09). Emenda de 2026-10-30, decorrente do gate `design_reviewed` (aceite delegado pelo dono): o ponteiro também precisa estar na primeira linha não vazia da mensagem, como a declaração efêmera (é a forma que o `notify` imprime; ponteiro no meio do texto seria ambíguo com uma citação) (design §2.5 etapa 6).
 
 ## REQ-07 — Contenção por workspace com workspaces permitidos (C3)
 
@@ -140,7 +140,7 @@ Termos usados abaixo.
 
 ## REQ-11 — Documentação operacional
 
-- **Quando** este change for entregue, **o sistema deve** ter `/forge:liaison` documentando `notify`, `native check`, `native dispose`, `native allow`/`native revoke` (com a restrição de execução humana), `--via cross-session` com `--native-ref` e `--session`, o gancho de saída e o fluxo campainha → `sync` → `inbox --show`; e ter atualizados o inventário de gates e scripts, `docs/refer/slash-commands.md`, a entrada em `CHANGELOG.md` sob `[Unreleased]` e o badge de contagem de gates do `README.md`.
+- **Quando** este change for entregue, **o sistema deve** ter `/forge:liaison` documentando `notify`, `native check`, `native dispose`, `native allow`/`native revoke`/`native pin` (com a restrição de execução humana), `native containment [--range] [--format]`, `--via cross-session` com `--native-ref` e `--session`, o gancho de saída e o fluxo campainha → `sync` → `inbox --show`; e ter atualizados o inventário de gates e scripts, `docs/refer/slash-commands.md`, a entrada em `CHANGELOG.md` sob `[Unreleased]` e o badge de contagem de gates do `README.md`.
 - **Critérios de aceite:**
   - [ ] Os subcomandos novos constam do `argument-hint`; para cada subcomando novo ou alterado, o conjunto de flags no bloco de protocolo do comando é igual ao conjunto da mensagem de flags aceitas do script, conferido por teste.
   - [ ] O inventário de gates e scripts lista os gates e scripts novos.
@@ -184,7 +184,8 @@ Termos usados abaixo.
 | REQ-07 | sem parâmetro próprio (usa REQ-12); desligar o gancho pelo `hooks.manifest` é mudança de contenção detectada pelo REQ-12 | gancho PreToolUse `SendMessage` | TASK-16, TASK-17 |
 | REQ-08 | `native check [--session <id>]`; `native dispose <fingerprint> --ephemeral <class>` | CLI `liaison-ops.sh native`; ganchos `SessionEnd` e `SessionStart` | TASK-10, TASK-11 |
 | REQ-10 | linha do gancho em `hooks.manifest` (matcher, contrato, estado) | `hooks.manifest` do consumidor | TASK-18, TASK-19 |
-| REQ-12 | `native allow <id> --reason`, `native revoke <id> --reason` (só fora de sessão de agente); chaves `allowed_workspaces` e `self_identity` | CLI `liaison-ops.sh native` em terminal humano; arquivo de configuração versionado; `pre-push`, `doctor`, `/forge:prepare-pr`, `/forge:ship` | TASK-12, TASK-13, TASK-20, TASK-21 |
+| REQ-11 | `--help` e mensagem de flags aceitas de `notify` e de cada `native <sub>` | CLI `liaison-ops.sh --help`; comando `/forge:liaison` (template e plugin); `docs/refer/slash-commands.md` | TASK-24, TASK-25 |
+| REQ-12 | `native allow <id> --reason`, `native revoke <id> --reason`, `native pin` (só fora de sessão de agente); `native containment [--range <a>..<b>] [--format text|markdown]`; chaves `allowed_workspaces` e `self_identity` | CLI `liaison-ops.sh native` em terminal humano; arquivo de configuração versionado; `pre-push`, `doctor`, `/forge:prepare-pr`, `/forge:ship` | TASK-12, TASK-13, TASK-20, TASK-21 |
 
 ## Fora de escopo (reafirmação)
 

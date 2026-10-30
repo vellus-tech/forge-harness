@@ -33,6 +33,8 @@ affected_paths:
   - CHANGELOG.md
   - README.md
   - tests/
+  - .forge/ledger/
+  - .forge/product/current/adr/
 dependencies:
   specs: []
   code: []
@@ -43,9 +45,9 @@ gates:
   implementation_verified: false
   human_archive_approval: false
 dev_loop:
-  sharded: false
+  sharded: true
   stories_path: stories/
-  epic_context_compiled: false
+  epic_context_compiled: true
 quick_plan:
   enabled: false
   skipped_phases: []

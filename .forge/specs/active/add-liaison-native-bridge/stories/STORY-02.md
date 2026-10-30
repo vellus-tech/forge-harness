@@ -3,7 +3,7 @@ story_id: STORY-02
 epic: add-liaison-native-bridge
 title: "Checagem [10] do w113 contra invocação e conexão de sessão"
 depends_on: []
-status: todo
+status: done
 ---
 
 # STORY-02 — Checagem [10] do w113 contra invocação e conexão de sessão

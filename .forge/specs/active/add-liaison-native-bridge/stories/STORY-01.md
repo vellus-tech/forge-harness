@@ -3,7 +3,7 @@ story_id: STORY-01
 epic: add-liaison-native-bridge
 title: "Paridade de envelope cross-session e compatibilidade v0.18.0"
 depends_on: []
-status: todo
+status: done
 ---
 
 # STORY-01 — Paridade de envelope cross-session e compatibilidade v0.18.0

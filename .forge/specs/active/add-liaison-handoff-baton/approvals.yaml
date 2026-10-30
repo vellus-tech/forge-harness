@@ -17,3 +17,30 @@ approvals:
     commit: "34f9d2c1"
     scope: "requirements.md"
     notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: design_reviewed
+    decision: review
+    reason: "Revisor adversarial delegado pelo dono (opus), rodada 1: REVIEW; BLOCKER B1 push concorrente do mesmo self sem serializacao (hub regride, marca de publicacao mente); MAJOR M1 recuperacao da trava nao exclusiva, M2 estado local regravado sem trava, M3 timeout nao mata a arvore de processos, M4 avisos do PostToolUse invisiveis ao agente, M5 namespace em .forge/cache/liaison colide com o clone do transporte git; 5 MINOR"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:56:28-03:00"
+    iteration: 1
+    commit: "85e481ca"
+    scope: "design.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: design_reviewed
+    decision: review
+    reason: "Revisor delegado (opus) rodada 2: REVIEW; B1, M1, M3, M4, M5 resolvidos; MAJOR: M2 contraditorio entre 2.4 e 2.8 sobre quem escreve baton-local.json; trava de push herda recuperacao por idade de 120 s e pode ser tomada durante git push lento (consequencia da correcao do B1, sem BLOCKER pela regra de convergencia). Causa raiz pedida: uma regra de recuperacao servindo duas fronteiras de duracao diferente; mover a fronteira (trava de push sem recuperacao por idade, teto explicito no push manual, destacado nunca recupera, nonce antes do mv no hub e do markPublished)"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:59:32-03:00"
+    iteration: 2
+    commit: "85e481ca"
+    scope: "design.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: design_reviewed
+    decision: review
+    reason: "Revisor delegado (opus) rodada 3: REVIEW; correcoes da rodada 2 resolvidas; resta MAJOR de especificacao: identidade do dono da trava de push num fluxo bash de varios processos (pid gravado deve ser o do bash do sync, stillOwned chamado do bash antes do mv no hub e do markPublished); notas de convergencia: trava de push presa por pid reaproveitado apos reboot ou hostname diferente sem saida documentada. Teto de 3 rodadas atingido: escalada ao dono obrigatoria"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T20:01:22-03:00"
+    iteration: 3
+    commit: "85e481ca"
+    scope: "design.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30; correcao textual proposta aplicada no design para decisao do dono, sem nova rodada adversarial"

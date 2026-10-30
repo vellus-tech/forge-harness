@@ -156,7 +156,8 @@ _validate_enum_field() {
     const segs = path.split(".");
     segs.forEach((seg, i) => {
       node = node && node[seg];
-      if (i < segs.length - 1) node = node && node.properties;
+      // Campo que é array de objetos (ex.: evidence): desce em items antes das properties.
+      if (i < segs.length - 1) node = node && ((node.items && node.items.properties) || node.properties);
     });
     const enumVals = node && Array.isArray(node.enum) ? node.enum.filter((v) => v !== null) : null;
     if (!enumVals) process.exit(0);
@@ -216,7 +217,7 @@ _asof_valid() {
 # aviso. O operador lia `OK` e não tinha como saber que gravou fora da árvore em que trabalhava.
 # Coberto por `tests/w207-ledger-render-write-port-gate.sh`.
 case "$cmd" in
-  add|update|note|resolve|promote|harvest|render)
+  add|update|note|verify|resolve|promote|harvest|render)
     forge_warn_root_divergence "$ROOT" "ledger" "ledger-ops" ;;
 esac
 
@@ -391,6 +392,11 @@ note)
     progress|measurement|correction|decision) : ;;
     *) echo "FAIL: ledger-ops: '--kind $kind' não é rótulo aceito em 'note' — o enum é fechado e tem quatro valores: $NOTE_KINDS" >&2; exit 1 ;;
   esac
+  # `note --kind measurement` é o hábito antigo de "reconferi o item"; ele continua gravando, mas não
+  # conta como reverificação: não carrega referência conferível nem carimba last_verified.
+  if [ "$kind" = "measurement" ]; then
+    echo "WARN: ledger-ops: 'note --kind measurement' acrescenta o texto ao detail mas NÃO conta como reverificação (não grava last_verified). Para registrar a reconferência com evidência: ledger-ops.sh verify $id --kind file|commit|test|command --ref \"<ref>\" --observed \"<o que viu>\" --verdict confirmed|changed" >&2
+  fi
   _require_git_date
   _init_ledger
   set +e
@@ -429,6 +435,121 @@ NODEEOF
   _write_json "$LF" "$result"
   _render
   echo "OK note — $id anotado ($kind)"
+  ;;
+
+# verify — a única porta que grava `last_verified` (change add-ledger-evidence-aging, REQ-02/03).
+# Reverificação é ato explícito com evidência conferível contra o estado real do repositório,
+# nunca carimbo automático: um `last_verified` sem registro que o justifique seria exatamente o
+# campo de preenchimento vazio que o change existe para evitar. Toda recusa acontece ANTES de
+# qualquer escrita. O `ref` de `--kind command` é texto e NUNCA é executado: executar comando
+# vindo de flag numa porta de escrita seria superfície de execução sem ganho de prova — a saída
+# observada já chega em `--observed`. `command` é, por isso, a evidência mais fraca dos quatro.
+verify)
+  id="${1:-}"; shift || true
+  [ -n "$id" ] || { echo "FAIL: LDG-id obrigatório" >&2; exit 1; }
+  v_kind=""; v_ref=""; v_obs=""; v_verdict=""
+  VERIFY_FLAGS="--kind --ref --observed --verdict"
+  while [ $# -gt 0 ]; do case "$1" in
+    --kind) _require_value "verify" --kind "${2-}" "$VERIFY_FLAGS"; v_kind="$2"; shift 2 ;;
+    --ref) _require_value "verify" --ref "${2-}" "$VERIFY_FLAGS"; v_ref="$2"; shift 2 ;;
+    --observed) _require_value "verify" --observed "${2-}" "$VERIFY_FLAGS"; v_obs="$2"; shift 2 ;;
+    --verdict) _require_value "verify" --verdict "${2-}" "$VERIFY_FLAGS"; v_verdict="$2"; shift 2 ;;
+    *) _reject_unknown "verify" "$VERIFY_FLAGS" "$1" ;;
+  esac; done
+  for pair in "--kind:$v_kind" "--ref:$v_ref" "--observed:$v_obs" "--verdict:$v_verdict"; do
+    [ -n "${pair#*:}" ] || { echo "FAIL: ledger-ops: '${pair%%:*}' é obrigatório em 'verify' — reverificação sem ela não é conferível. Flags de 'verify': $VERIFY_FLAGS" >&2; exit 1; }
+  done
+  _validate_enum_field "$SCHEMA" "evidence.kind" "$v_kind" "kind"
+  _validate_enum_field "$SCHEMA" "evidence.verdict" "$v_verdict" "verdict"
+  _require_git_date
+  _init_ledger
+  if [ "$v_kind" = "commit" ]; then
+    sha="$(git -C "$ROOT" rev-parse --verify --quiet "${v_ref}^{commit}" 2>/dev/null || true)"
+    [ -n "$sha" ] || { echo "FAIL: ledger-ops: verify $id --kind commit: '$v_ref' não resolve para um commit em $ROOT (git rev-parse --verify)." >&2; exit 1; }
+    v_ref="$sha"
+  fi
+  set +e
+  result="$(node - "$LF" "$id" "$v_kind" "$v_ref" "$v_obs" "$v_verdict" "$GIT_DATE_NOW" "$ROOT" <<'NODEEOF'
+const fs = require('fs');
+const path = require('path');
+const [, , lf, id, kind, ref, observed, verdict, now, root] = process.argv;
+const data = JSON.parse(fs.readFileSync(lf, 'utf8'));
+const e = (data.entries || []).find((x) => x.id === id);
+if (!e) { console.error("FAIL: ledger-ops: entrada '" + id + "' não encontrada — 'verify' reverifica entrada que existe."); process.exit(1); }
+const ENCERRADOS = ['resolved', 'wont-fix', 'promoted', 'superseded'];
+if (ENCERRADOS.indexOf(e.status) !== -1) {
+  console.error('FAIL: ledger-ops: verify ' + id + " — a entrada está em '" + e.status + "', status encerrado: item encerrado não envelhece e não se reverifica" + (e.status === 'superseded' && e.links && e.links.superseded_by ? ' (o trabalho continua em ' + e.links.superseded_by + ')' : '') + '.');
+  process.exit(1);
+}
+// checkEvidence — conteúdo mínimo por kind, conferido contra a árvore do ROOT. Devolve a mensagem
+// da regra violada, ou null. A prova de mutação do gate desliga exatamente esta chamada.
+function checkEvidence() {
+  const obs = observed.trim();
+  if (obs.length < 20) return '--observed precisa de ao menos 20 caracteres (o que foi visto, não um "ok")';
+  if (obs === ref.trim()) return '--observed não pode repetir o --ref: diga o que foi observado, não onde';
+  if (obs === String(e.title || '').trim()) return '--observed não pode repetir o título da entrada';
+  const rootReal = fs.realpathSync(root);
+  // inside(p) -> { real } ou { err }: caminho relativo, existente, arquivo regular e, depois de
+  // resolvido por realpath (links simbólicos inclusos), contido na raiz do projeto.
+  const inside = (p) => {
+    if (!p || path.isAbsolute(p)) return { err: 'caminho precisa ser relativo à raiz do projeto (' + root + ')' };
+    let real;
+    try { real = fs.realpathSync(path.join(root, p)); } catch { return { err: "'" + p + "' não existe sob " + root }; }
+    const rel = path.relative(rootReal, real);
+    if (rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) return { err: "'" + p + "' resolve para fora da raiz do projeto" };
+    if (!fs.statSync(real).isFile()) return { err: "'" + p + "' não é arquivo regular" };
+    return { real };
+  };
+  if (kind === 'file') {
+    const m = /^(.+):([0-9]+)(?:-([0-9]+))?$/.exec(ref);
+    if (!m) return "formato é '<caminho>:<linha>' ou '<caminho>:<linha>-<linha>'";
+    const f = inside(m[1]); if (f.err) return f.err;
+    const txt = fs.readFileSync(f.real, 'utf8');
+    const n = txt === '' ? 0 : txt.split('\n').length - (txt.endsWith('\n') ? 1 : 0);
+    const l1 = parseInt(m[2], 10), l2 = m[3] ? parseInt(m[3], 10) : l1;
+    if (l1 < 1) return 'linha começa em 1';
+    if (l2 < l1) return 'intervalo invertido (' + l1 + '-' + l2 + ')';
+    if (l2 > n) return "linha " + l2 + " além do fim de '" + m[1] + "' (" + n + ' linha(s))';
+    return null;
+  }
+  if (kind === 'test') {
+    const i = ref.indexOf('::');
+    const p = i === -1 ? ref : ref.slice(0, i);
+    const name = i === -1 ? '' : ref.slice(i + 2);
+    const f = inside(p); if (f.err) return f.err;
+    if (i !== -1 && (!name || fs.readFileSync(f.real, 'utf8').indexOf(name) === -1)) return "o nome '" + name + "' não aparece em '" + p + "'";
+    return null;
+  }
+  if (kind === 'command') {
+    if (!ref.trim()) return 'a linha de comando não pode ser só espaços';
+    return null;
+  }
+  return null; // commit: resolvido no shell antes daqui
+}
+const evErr = checkEvidence();
+if (evErr) { console.error('FAIL: ledger-ops: verify ' + id + ' --kind ' + kind + ': ' + evErr + '. Nada foi gravado.'); process.exit(1); }
+if (e.last_verified && Date.parse(now) < Date.parse(e.last_verified)) {
+  console.error('WARN: ledger-ops: verify ' + id + ' — a data do commit HEAD (' + now + ') é anterior ao last_verified corrente (' + e.last_verified + '): o relógio do ROOT voltou no tempo. O registro é gravado assim mesmo, com a data do HEAD.');
+}
+if (!Array.isArray(e.evidence)) e.evidence = [];
+e.evidence.push({ at: now, kind, ref, observed, verdict });
+e.last_verified = now;
+e.updated_at = now;
+if (verdict === 'changed') {
+  // Mesma convenção acumulativa do `note` (append, linha em branco, marcador datado), escrita com
+  // nomes próprios: as linhas do `note` são alvo de mutação de primeira ocorrência do w211.
+  const correcaoV = 'CORREÇÃO DE REGISTRO (' + now.slice(0, 10) + '): ' + observed + ' [evidência: ' + kind + ' ' + ref + ']';
+  const anteriorV = e.detail || '';
+  e.detail = anteriorV ? anteriorV + '\n\n' + correcaoV : correcaoV;
+}
+console.log(JSON.stringify(data, null, 2));
+NODEEOF
+)"; node_rc=$?
+  set -e
+  [ "$node_rc" -eq 0 ] || exit "$node_rc"
+  _write_json "$LF" "$result"
+  _render
+  echo "OK verify — $id reverificado ($v_verdict, $v_kind)"
   ;;
 
 resolve)

@@ -290,8 +290,8 @@ Via Agent tool, com payload estruturado:
     ".forge/rules/domain/money-as-cents.md",
     ".forge/rules/domain/nbr-5891-rounding.md"
   ],
-  "commit_policy": "Commit atômico ao final com mensagem: 'feat(<scope>): TASK-01 — <título conciso pt-BR>'. Quando test_policy aplicou TDD-first, este é o commit do verde — o vermelho já foi commitado separado ('test(<scope>): TASK-01 — vermelho'). NÃO push (task-coder controla push). Sem co-autoria de IA.",
-  "test_policy": "TDD-first quando a TASK declara teste no plano — mecanismo, não só princípio: escreva primeiro o teste declarado (<test_command>); para ele compilar sem a implementação real, use tipos vazios ou stubs que devolvem valor neutro (default, vazio, zero) — nunca deixe o teste vermelho por falha de compilação ou import quebrado; o vermelho é uma falha de asserção que casa <failure_pattern>, com o stub no lugar (stub que lança 'não implementado' faz o teste falhar por exceção, não por asserção, e é reprovado); commite o vermelho separado ('test(<scope>): TASK-01 — vermelho') como o PRIMEIRO commit da TASK, contendo só testes, mais os stubs de produção necessários para compilar — nunca infraestrutura (package.json, lockfile, .csproj/.sln, config de teste, scripts/, dotfiles, arquivo citado pelo comando do teste); a implementação de verdade vai no commit seguinte, o verde, que é o ÚLTIMO commit da TASK (nada entre os dois, nada depois). O teste que vale é o do verde: o task-coder enxerta os arquivos de teste do verde na árvore do vermelho e roda (red-evidence.sh task) — reprova se o verde não muda nenhum arquivo fora dos testes, se esse teste passa sobre o vermelho, falha por compilação, por exceção sem asserção, por timeout ou sem casar o padrão, se não passa no verde, se o vermelho toca infraestrutura ou se há commit fora do par vermelho→verde. Build local + testes locais devem passar antes do commit do verde. PBT obrigatória em Money.* conforme .forge/rules/testing/quality-gates.md."
+  "commit_policy": "Commit atômico ao final com mensagem: 'feat(<scope>): TASK-01 - <título conciso pt-BR>'. Quando test_policy aplicou TDD-first, este é o commit do verde — o vermelho já foi commitado separado ('test(<scope>): TASK-01 - vermelho'). NÃO push (task-coder controla push). Sem co-autoria de IA.",
+  "test_policy": "TDD-first quando a TASK declara teste no plano — mecanismo, não só princípio: escreva primeiro o teste declarado (<test_command>); para ele compilar sem a implementação real, use tipos vazios ou stubs que devolvem valor neutro (default, vazio, zero) — nunca deixe o teste vermelho por falha de compilação ou import quebrado; o vermelho é uma falha de asserção que casa <failure_pattern>, com o stub no lugar (stub que lança 'não implementado' faz o teste falhar por exceção, não por asserção, e é reprovado); commite o vermelho separado ('test(<scope>): TASK-01 - vermelho') como o PRIMEIRO commit da TASK, contendo só testes, mais os stubs de produção necessários para compilar — nunca infraestrutura (package.json, lockfile, .csproj/.sln, config de teste, scripts/, dotfiles, arquivo citado pelo comando do teste); a implementação de verdade vai no commit seguinte, o verde, que é o ÚLTIMO commit da TASK (nada entre os dois, nada depois). O teste que vale é o do verde: o task-coder enxerta os arquivos de teste do verde na árvore do vermelho e roda (red-evidence.sh task) — reprova se o verde não muda nenhum arquivo fora dos testes, se esse teste passa sobre o vermelho, falha por compilação, por exceção sem asserção, por timeout ou sem casar o padrão, se não passa no verde, se o vermelho toca infraestrutura ou se há commit fora do par vermelho→verde. Build local + testes locais devem passar antes do commit do verde. PBT obrigatória em Money.* conforme .forge/rules/testing/quality-gates.md."
 }
 ```
 
@@ -307,7 +307,7 @@ LAST_SHA=$(git rev-parse HEAD)
 COMMIT_MSG=$(git log -1 --format=%s)
 
 # Validar formato do commit message
-echo "$COMMIT_MSG" | grep -qE "^(feat|fix|refactor|test|chore|docs|style|perf|build|ci|revert)\([a-z-]+\): TASK-[0-9]+ — " \
+echo "$COMMIT_MSG" | grep -qE "^(feat|fix|refactor|test|chore|docs|style|perf|build|ci|revert)\([a-z-]+\): TASK-[0-9]+ [—-] " \
   || { echo "Commit message inválido: $COMMIT_MSG"; mark_failed; }
 
 # TDD-first, por execução — nunca por leitura do diff nem pelo relato do specialist. O teste do
@@ -329,7 +329,7 @@ elif [ -z "${FAILURE_PATTERN:-}" ]; then
 elif [ -z "${TASK_BASE:-}" ]; then
   echo "${TASK_ID}: TASK_BASE não preenchido (3.3) — sem o início da TASK não há intervalo para achar o vermelho"; mark_failed
 else
-  RED_SHAS=$(git log --format=%H --fixed-strings --grep="${TASK_ID} — vermelho" --max-count=2 "${TASK_BASE}..HEAD")
+  RED_SHAS=$(git log --format=%H --fixed-strings --grep="${TASK_ID} — vermelho" --grep="${TASK_ID} - vermelho" --max-count=2 "${TASK_BASE}..HEAD")
   RED_N=$(printf '%s' "$RED_SHAS" | grep -c . || true)
   if [ "$RED_N" -ne 1 ]; then
     echo "Commit do vermelho de ${TASK_ID} entre TASK_BASE e HEAD: ${RED_N} encontrado(s), exigido exatamente 1 — falha"; mark_failed

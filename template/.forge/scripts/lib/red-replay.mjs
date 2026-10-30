@@ -966,10 +966,11 @@ export async function replayTask({ root, red, green = null, taskBase = null, tas
     if (rp.length !== 1 || rp[0] !== baseSha) return topo('o pai do vermelho não é o início da TASK (--task-base) — há commit(s) da TASK antes do vermelho');
   }
   if (taskId) {
-    if (!subjectOf(redSha).includes(`${taskId} — vermelho`)) return topo(`o assunto do commit de vermelho não contém '${taskId} — vermelho'`);
+    const hasTaskSubject = (subject, suffix) => [' — ', ' - '].some((separator) => subject.includes(`${taskId}${separator}${suffix}`));
+    if (!hasTaskSubject(subjectOf(redSha), 'vermelho')) return topo(`o assunto do commit de vermelho não contém '${taskId} - vermelho'`);
     if (greenSha) {
       const gs = subjectOf(greenSha);
-      if (!gs.includes(`${taskId} — `) || gs.includes('vermelho')) return topo(`o commit de implementação não é da ${taskId} (assunto: '${gs}')`);
+      if (!hasTaskSubject(gs, '') || gs.includes('vermelho')) return topo(`o commit de implementação não é da ${taskId} (assunto: '${gs}')`);
     }
   }
 

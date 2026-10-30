@@ -7,15 +7,20 @@
 # Uso:
 #   ledger-ops.sh add     --type <t> --title "<txt>" [--detail "<txt>"] [--severity S] [--priority P]
 #                         [--status ST] [--origin O] [--change <id>] [--ref R] [--adr A] [--capability C]
+#                         [--supersedes <LDG-NNNN>]   # a anterior vira superseded, na mesma escrita
 #   ledger-ops.sh update  <LDG-NNNN> [--status ST] [--priority P] [--severity S] [--title "<txt>"]
 #                         [--detail "<txt>"] [--replace-detail]
 #   ledger-ops.sh note    <LDG-NNNN> --kind progress|measurement|correction|decision --text "<txt>"
+#   ledger-ops.sh verify  <LDG-NNNN> --kind file|commit|test|command --ref "<r>" --observed "<txt>"
+#                         --verdict confirmed|changed   # única porta que grava last_verified
 #   ledger-ops.sh resolve <LDG-NNNN> --note "<txt>" [--status resolved|wont-fix]   # default: resolved
 #   ledger-ops.sh promote <LDG-NNNN> --to <change-id>
 #   ledger-ops.sh harvest <change-id> --origin close|archive   # colhe deferrals/findings antes do mv
 #   ledger-ops.sh render                                        # regenera LEDGER.md
 #   ledger-ops.sh status                                        # one-line (para /forge:status)
 #   ledger-ops.sh list    [--status S] [--type T] [--top N] [--by-priority]
+#   ledger-ops.sh show    <LDG-NNNN>                    # entrada + evidência + cadeia de supersessão
+#   ledger-ops.sh stale   [--days N] [--as-of <ISO>] [--strict]   # ativos sem reverificação há > N dias
 #
 # Determinístico: created_at = data do commit HEAD (não wall clock); harvest é idempotente (dedup_key)
 # e best-effort (NUNCA falha o caller). Ver deferral-ops.sh / handoff-gen.sh para os idiomas.
@@ -115,9 +120,9 @@ OUT="$LEDGER_DIR/LEDGER.md"
 
 cmd="${1:-}"; shift || true
 case "$cmd" in
-  -h|--help|help) echo "Usage: ledger-ops.sh add|update|note|resolve|promote|harvest|render|status|list [args...]"; exit 0 ;;
+  -h|--help|help) echo "Usage: ledger-ops.sh add|update|note|verify|resolve|promote|harvest|render|status|list|show|stale [args...]"; exit 0 ;;
 esac
-[ -n "$cmd" ] || { echo "Usage: ledger-ops.sh add|update|note|resolve|promote|harvest|render|status|list [args...]" >&2; exit 1; }
+[ -n "$cmd" ] || { echo "Usage: ledger-ops.sh add|update|note|verify|resolve|promote|harvest|render|status|list|show|stale [args...]" >&2; exit 1; }
 
 _git_date() { git -C "$ROOT" log -1 --format=%cI 2>/dev/null || echo ""; }
 # _require_git_date — busca a data e RECUSA no caller se vier vazia (fora de git, ou git sem

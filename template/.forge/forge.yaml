@@ -79,6 +79,12 @@ ledger:
   # Quando true, o hook SessionStart também lista os itens open de maior prioridade (rule-based, sem
   # LLM), como o handoff.auto. A captura automática no close/archive independe deste flag. Default off.
   auto: false
+  # Limiar de envelhecimento, em dias: item ativo sem reverificação (`ledger-ops.sh verify`) há mais
+  # que isto aparece em `ledger-ops.sh stale`, no sufixo do `/forge:status`, marcado no `list` (que o
+  # /forge:resume e o SessionStart leem) e numa linha informativa do `/forge:doctor`. ADVISORY: não
+  # trava nada. Para travar em CI, opte explicitamente por `ledger-ops.sh stale --strict` num step
+  # seu (rc 1 com item envelhecido). Inteiro >= 1; valor inválido é erro nomeado, nunca o default.
+  stale_days: 30
 liaison:
   # Canal de mensagens ORDENADAS entre agentes de repositórios distintos (ex.: dono do .proto e app
   # cliente), em .forge/liaison/. Ver rules/conventions/liaison-protocol.md e liaison-untrusted-input.md.

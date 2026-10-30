@@ -3,7 +3,7 @@ title: Consulta ao ledger durável (roadmap & dívida técnica)
 applies_to:
   - all
 priority: high
-last_reviewed: 2026-07-11
+last_reviewed: 2026-10-30
 based_on: []
 ---
 
@@ -59,6 +59,8 @@ não feito". Operado por `/forge:ledger` (script `ledger-ops.sh`); ver o comando
    `detail` corrente, e aponta os dois caminhos: `note` para acrescentar, `--replace-detail` para
    substituir de propósito, com a perda anunciada em bytes. A medição que sustenta um item é o que
    permite decidir sobre ele meses depois; seis blocos já foram perdidos assim neste repositório.
+
+7. **Item envelhece; reverifique antes de agir.** Um item é uma afirmação sobre o código numa data. Antes de agir sobre um item ou sugeri-lo como próximo trabalho, confira se ele está envelhecido (`ledger-ops.sh stale`, a marca `· sem reverificação há <idade>d` do `list`, ou `show <LDG-NNNN>`) e reverifique com `ledger-ops.sh verify <LDG-NNNN> --kind file|commit|test|command --ref ... --observed ... --verdict confirmed|changed` — a única porta que grava `last_verified`, sempre com evidência conferível. Se o item mudou de natureza, não o reescreva: registre o sucessor com `ledger-ops.sh add ... --supersedes <LDG-NNNN>`, que encerra o anterior como `superseded` com elo bidirecional. O sinal de idade é advisory; travar em CI é opt-in (`stale --strict`).
 
 ## Fronteira com outros mecanismos (não confundir)
 

@@ -1,6 +1,6 @@
 # Viabilidade da camada semântica — add-unified-knowledge-search
 
-Medido em 2026-10-30, Apple M5 (10 núcleos), macOS, Node 26.0.0 (e checagens pontuais em 20.20.2 e 22.22.2). Protótipo em `evidence/prototype/` (`measure.mjs` primeira rodada; `measure2.mjs` calibração com cache). Tudo aqui é medido, salvo onde marcado "estimativa".
+Medido em 2026-10-30, Apple M5 (10 núcleos), macOS, Node 26.0.0 (e checagens pontuais em 20.20.2 e 22.22.2). Protótipo em `evidence/prototype/` (`measure.mjs`, primeira rodada; `measure2.mjs`, tentativa de calibração com cache que abortou por variável indefinida após calcular os vetores — substituída pela rodada da §5 com os rascunhos de produção em `draft/`). Tudo aqui é medido, salvo onde marcado "estimativa".
 
 ## 1. Runtime de inferência sem binário nativo
 
@@ -93,7 +93,42 @@ Por que o canal RRF falha: a distância entre posições vizinhas do BM25 em RRF
 
 ## 5. Calibração final (com tokenizador oficial e cache)
 
-PREENCHER-RUN2
+Rodada com os rascunhos dos módulos de produção (`evidence/prototype/draft/`), a camada instalada de verdade pelo instalador de produção a partir dos pins (`kb-pins/`: `onnxruntime-web` 1.31.1 + `@huggingface/tokenizers` 0.2.0 via `npm ci --ignore-scripts`; e5-small int8 + mmarco-mMiniLMv2 qint8, 271 MB, sha256 conferidos), tokenização oficial (`@huggingface/tokenizers`) e stemmer corrigido (plural `-ões`/`-ães` → `-ão`). Saída completa da grade em `evidence/prototype/draft/gridsem-calibration.txt`; script `draft/grid-sem.mjs`.
+
+Build semântico real do corpus deste repositório: 5.007 vetores distintos (5.126 trechos) em 529 s (~9 min, ~0,11 s por trecho, WASM com threads). Consulta (processo inteiro, cache quente, Apple M5): lexical 0,34 s; semântica sem re-rank 2,5 s; semântica com re-rank 3,2 s.
+
+**Calibração (35 consultas) — a única partição usada para escolher:**
+
+| Configuração | hit@1 | hit@5 | hit@10 | MRR |
+|---|---|---|---|---|
+| BM25 isolado | 0,429 | 0,743 | 0,771 | 0,556 |
+| Lexical sem links (BM25 + entidades) | 0,429 | 0,743 | 0,771 | 0,556 |
+| **Lexical default** (+ propagação α = 0,1, T = 10) | 0,457 | 0,743 | 0,771 | 0,571 |
+| Vetor isolado (e5) | 0,371 | 0,800 | 0,886 | 0,562 |
+| Semântico WV = 1, sem propagação | 0,429 | 0,829 | 0,857 | 0,596 |
+| Semântico WV = 1, com propagação | 0,514 | 0,829 | 0,857 | 0,643 |
+| **Semântico + re-rank** (WV = 1, propagação, representante vetorial, k = 5, w_ce = 1) | **0,600** | **0,857** | 0,857 | **0,710** |
+| Semântico + re-rank, representante BM25, k = 5 | 0,486 | 0,829 | 0,857 | 0,632 |
+| Semântico + re-rank, representante vetorial, k = 10 | 0,543 | 0,857 | 0,857 | 0,676 |
+| Semântico + re-rank, w_ce = 0,5 | 0,486 | 0,857 | 0,857 | 0,640 |
+| Semântico WV = 1,5 + re-rank (k = 5) | 0,571 | 0,857 | 0,886 | 0,695 |
+
+Grade completa: WV ∈ {0,5; 1; 1,5; 2} × propagação {sim, não} × representante {vetorial, BM25} × k ∈ {5, 10, 30, 60} × w_ce ∈ {0,5; 1}. Escolha: WV = 1,0; propagação ligada nos dois modos (α = 0,1, T = 10); re-rank com o trecho de maior similaridade vetorial como representante, combinação `1/(5 + rank_ce) + 1/(5 + rank_propagado)`, K = 10.
+
+**Holdout (18 consultas) — reportado, não otimizado (configuração escolhida acima, sem nenhum ajuste):**
+
+| Configuração | hit@1 | hit@5 | hit@10 | MRR |
+|---|---|---|---|---|
+| BM25 isolado | 0,611 | 0,889 | 0,944 | 0,730 |
+| Lexical sem links | 0,500 | 0,889 | 0,944 | 0,674 |
+| Lexical default | 0,556 | 0,889 | 0,944 | 0,714 |
+| Vetor isolado | 0,389 | 0,722 | 0,833 | 0,543 |
+| Semântico sem propagação, sem re-rank | 0,611 | 0,833 | 0,944 | 0,707 |
+| Semântico com propagação, sem re-rank | 0,667 | 0,944 | 0,944 | 0,753 |
+| Semântico + re-rank (default semântico) | 0,556 | 0,889 | 0,944 | 0,721 |
+
+Leitura honesta, sem ajustar nada ao holdout: (a) no holdout, o lexical default fica 0,016 de MRR abaixo do BM25 isolado (menos que o valor de uma consulta, 0,028) com o mesmo hit@5; a perda vem das entidades (sem links: 0,674) e a propagação recupera parte; (b) o re-rank ganha +0,067 de MRR na calibração e perde −0,032 no holdout (~1 consulta); somadas as 53 consultas, o efeito líquido é positivo; (c) o modo semântico com re-rank supera o lexical default nas duas partições em MRR e hit@5. Pelos critérios aprovados (REQ-03 e REQ-07), a medição final do verify com o código de produção decide: se (a) ou (b) se repetirem, o change para antes do archive e a decisão vai ao dono — com estes números à vista desde o design.
+
 
 ## 6. Limitações
 

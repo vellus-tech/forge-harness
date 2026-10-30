@@ -3,7 +3,7 @@ type: feature
 mode: brownfield
 rigor: spec-anchored
 scale: 3
-status: proposed
+status: requirements-ready
 created_at: "2026-10-30"
 updated_at: "2026-10-30"
 owner: "milton"
@@ -38,7 +38,7 @@ dependencies:
   specs: []
   code: []
 gates:
-  requirements_reviewed: false
+  requirements_reviewed: true
   design_reviewed: false
   tasks_reviewed: false
   implementation_verified: false

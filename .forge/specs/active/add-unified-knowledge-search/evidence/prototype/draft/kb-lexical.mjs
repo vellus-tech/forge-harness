@@ -20,15 +20,17 @@ export function normalize(s) {
 // Redução de sufixos comuns do português; o mesmo corte é aplicado à consulta e ao texto, então
 // "decisões" e "decisão" convergem. Só em palavras longas, para não destruir ids e siglas curtas.
 export function stem(w) {
-  if (w.length <= 5 || /\d/.test(w)) return w;
-  return w.replace(/(coes|cao|mente|idade|ados|adas|ado|ada|ando|endo|ar|er|ir|es|s)$/, '');
+  if (w.length <= 4 || /\d/.test(w)) return w;
+  let s = w.replace(/(oes|aes)$/, 'ao').replace(/([^s])s$/, '$1');
+  if (s.length > 5) s = s.replace(/(mente|idade|cao|ado|ada|ando|endo|ar|er|ir)$/, '');
+  return s;
 }
 export function tokenize(s) {
   return normalize(s).split(/[^a-z0-9]+/).filter((w) => w.length > 1 && !STOP.has(w)).map(stem);
 }
 
 // Entidades: identificadores que o harness usa como chave. Correspondência exata (sem stem).
-const ENTITY_RE = /\b(LDG-\d{4}|ADR[ -]?\d{4}|REQ-[A-Z0-9][A-Z0-9-]*|TASK-\d+|STORY-\d+|w\d{2,3}(?:-[a-z0-9]+)*|[A-Za-z0-9_.-]+\.(?:sh|mjs|cjs|js|md|ya?ml|json)|\/forge:[a-z-]+|[A-Z][A-Z0-9_]{2,})\b/g;
+const ENTITY_RE = /(?<![A-Za-z0-9_./:-])(LDG-\d{4}|ADR[ -]?\d{4}|REQ-[A-Z0-9][A-Z0-9-]*|TASK-\d+|STORY-\d+|w\d{2,3}(?:-[a-z0-9]+)*|[A-Za-z0-9_.-]+\.(?:sh|mjs|cjs|js|md|ya?ml|json)|\/forge:[a-z-]+|[A-Z][A-Z0-9_]{2,})(?![A-Za-z0-9_])/g;
 export function entities(s) {
   const out = new Set();
   for (const m of String(s).matchAll(ENTITY_RE)) out.add(m[1].toLowerCase().replace(/^adr[ -]?/, 'adr-'));

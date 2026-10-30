@@ -882,9 +882,23 @@ render)
 
 status)
   _init_ledger
-  node - "$LF" <<'NODEEOF'
+  # Sufixo de envelhecimento (add-ledger-evidence-aging, REQ-06): mesmo módulo, limiar e relógio
+  # (commit HEAD) do `stale`. Nunca derruba o /forge:status: sem HEAD ou com limiar inválido, a
+  # linha diz por que a idade não foi medida em vez de falhar.
+  st_suffix=""
+  st_head="$(_git_date)"
+  if [ -z "$st_head" ]; then
+    st_suffix=" · idade não medida (sem commit HEAD)"
+  elif ! _resolve_stale_days ""; then
+    st_suffix=" · limiar ledger.stale_days inválido"
+  else
+    st_k="$(node "$AGING_LIB" summary "$LF" "$st_head" "$STALE_DAYS" | awk '{print $1}')"
+    if [ -n "$st_k" ] && [ "$st_k" -gt 0 ]; then st_suffix=" · $st_k sem reverificação há mais de ${STALE_DAYS}d"; fi
+  fi
+  node - "$LF" "$st_suffix" <<'NODEEOF'
 const { readFileSync } = require('fs');
 const data = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+const agingSuffix = process.argv[3] || '';
 const CLOSED = new Set(['resolved', 'wont-fix', 'promoted', 'superseded']);
 const active = (data.entries || []).filter((e) => !CLOSED.has(e.status));
 if (!active.length) { console.log('LEDGER: vazio'); process.exit(0); }
@@ -892,7 +906,7 @@ const by = {};
 for (const e of active) by[e.type] = (by[e.type] || 0) + 1;
 const hi = active.filter((e) => e.severity === 'BLOCKER' || e.severity === 'HIGH' || e.priority === 'P0' || e.priority === 'P1').length;
 const parts = Object.keys(by).sort().map((t) => `${t} ${by[t]}`).join(' · ');
-console.log(`LEDGER: ${active.length} ativo(s)${hi ? ` (${hi} alta prioridade)` : ''} · ${parts}`);
+console.log(`LEDGER: ${active.length} ativo(s)${hi ? ` (${hi} alta prioridade)` : ''} · ${parts}${agingSuffix}`);
 NODEEOF
   ;;
 
@@ -907,9 +921,22 @@ list)
     *) _reject_unknown "list" "$LIST_FLAGS" "$1" ;;
   esac; done
   _init_ledger
-  node - "$LF" "$f_status" "$f_type" "$top" "$by_priority" <<'NODEEOF'
+  # Marca de envelhecimento (add-ledger-evidence-aging, REQ-06): é por aqui que /forge:resume e o
+  # hook SessionStart (ambos chamam `list --status open --by-priority --top 5`) recebem o item
+  # envelhecido marcado, sem depender de alguém lembrar do `stale`. Degrada sem mudar o rc.
+  l_ages=""
+  l_head="$(_git_date)"
+  if [ -z "$l_head" ]; then
+    echo "WARN: ledger-ops: list sem marca de envelhecimento — sem data de commit HEAD em '$ROOT'." >&2
+  elif ! _resolve_stale_days ""; then
+    echo "WARN: ledger-ops: list sem marca de envelhecimento — $STALE_ERR" >&2
+  else
+    l_ages="$(node "$AGING_LIB" ages "$LF" "$l_head" "$STALE_DAYS")"
+  fi
+  node - "$LF" "$f_status" "$f_type" "$top" "$by_priority" "$l_ages" <<'NODEEOF'
 const { readFileSync } = require('fs');
-const [, , lf, fStatus, fType, topRaw, byPriority] = process.argv;
+const [, , lf, fStatus, fType, topRaw, byPriority, agesRaw] = process.argv;
+const ages = new Map(String(agesRaw || '').split('\n').filter(Boolean).map((l) => l.split(' ')));
 const data = JSON.parse(readFileSync(lf, 'utf8'));
 let items = data.entries || [];
 if (fStatus) items = items.filter((e) => e.status === fStatus);
@@ -926,7 +953,8 @@ for (const e of items) {
   // Ordem canônica dos sufixos (design §8): substitui, reverificado, sem reverificação.
   const sup = e.supersedes ? ` (substitui ${e.supersedes})` : '';
   const ver = e.last_verified ? ` · reverificado em ${String(e.last_verified).slice(0, 10)}` : '';
-  console.log(`${e.id} [${e.type}/${e.status}]${tag ? ' (' + tag + ')' : ''} — ${e.title}${sup}${ver}`);
+  const old = ages.has(e.id) ? ` · sem reverificação há ${ages.get(e.id)}d` : '';
+  console.log(`${e.id} [${e.type}/${e.status}]${tag ? ' (' + tag + ')' : ''} — ${e.title}${sup}${ver}${old}`);
 }
 NODEEOF
   ;;

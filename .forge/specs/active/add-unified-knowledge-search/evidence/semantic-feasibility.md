@@ -91,6 +91,10 @@ Por que o canal RRF falha: a distância entre posições vizinhas do BM25 em RRF
 | Re-rank cross-encoder de 10 candidatos (380 tokens) | 3,4–4,6 s por consulta |
 | Memória residente no fim da rodada completa | baixa (o processo devolve a memória dos modelos; pico não instrumentado) |
 
+### 4.1 Orçamento da consulta lexical (NFR-01), rascunho com o texto dentro do índice
+
+Medido em 2026-10-30 com `performance.now()` sobre o índice do corpus deste repositório gerado pelo rascunho (antes de separar o texto): `index.json` de 10,8 MB, dos quais 6,3 MB são o texto dos trechos e 4,1 MB as postings; ler as fontes e calcular a impressão de conteúdo, 93 ms; ler o `index.json`, 27 ms; `JSON.parse`, 42 ms (o validator de design mediu 76 ms numa execução própria); busca BM25 + entidades, 1 ms; partida do `node` vazio, ~45 ms; processo inteiro de `query --lexical`, 0,34 s. Hashear por inteiro os arquivos de modelo da camada semântica (~270 MB): 225 ms. Destes números saem as duas decisões do design §2.4 (texto em `texts.bin` e impressão rápida por stat) e a de hashear os modelos a cada carga sem memória (§2.6).
+
 ## 5. Calibração final (com tokenizador oficial e cache)
 
 Rodada com os rascunhos dos módulos de produção (`evidence/prototype/draft/`), a camada instalada de verdade pelo instalador de produção a partir dos pins (`kb-pins/`: `onnxruntime-web` 1.31.1 + `@huggingface/tokenizers` 0.2.0 via `npm ci --ignore-scripts`; e5-small int8 + mmarco-mMiniLMv2 qint8, 271 MB, sha256 conferidos), tokenização oficial (`@huggingface/tokenizers`) e stemmer corrigido (plural `-ões`/`-ães` → `-ão`). Saída completa da grade em `evidence/prototype/draft/gridsem-calibration.txt`; script `draft/grid-sem.mjs`.

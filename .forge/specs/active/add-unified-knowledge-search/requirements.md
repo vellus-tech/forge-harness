@@ -35,7 +35,7 @@
   - [ ] A normalização lexical trata acentuação e caixa (consulta "decisao" encontra "decisão").
   - [ ] Os pesos de fusão por canal são constantes documentadas no código e reportadas na saída `--json`.
   - [ ] Numa fixture em que o documento A casa a consulta por BM25 e o documento B não casa mas é citado por A, o `--json` de B traz contribuição do canal de links maior que zero e a de A traz contribuição de BM25 maior que zero.
-  - [ ] Nas duas partições do conjunto de avaliação (REQ-11), o modo lexical fundido atinge hit@5 maior ou igual ao do BM25 isolado (a fusão não pode piorar o recall do canal principal).
+  - [ ] Nas duas partições do conjunto de avaliação (REQ-11), sobre o corpus deste repositório, o modo lexical fundido atinge hit@5 maior ou igual ao do BM25 isolado (a fusão não pode piorar o recall do canal principal). Medição manual registrada em evidence no verify, como a do REQ-06, porque o corpus vivo muda a cada change e um gate sobre ele não seria hermético.
 - **Rastreia:** proposal §2.2
 
 ## REQ-04 — Saída explicável e de custo baixo de tokens
@@ -47,19 +47,19 @@
   - [ ] Todo trecho exibido sai como dado: na saída texto, dentro de bloco cercado, com crases triplas substituídas e com linhas que começam por `/<palavra>:` prefixadas por `⟪neutralizado⟫` (mesma regra de `lib/untrusted-render.mjs`); no `--json`, o campo de trecho traz o texto já neutralizado.
   - [ ] `--json` emite um objeto JSON válido com os mesmos campos, parseável por `JSON.parse`.
   - [ ] Default de 8 resultados (`--top N` ajusta, 1..50); trecho exibido com no máximo 240 caracteres por resultado.
-  - [ ] Nenhuma etapa da busca chama LLM: garantido pelo bloqueio de rede do REQ-09 (sem rede não há chamada a provedor de LLM) e por teste estático que reprova referência a hosts ou SDKs de provedores de LLM nos módulos da busca.
+  - [ ] Nenhuma etapa da busca chama LLM: garantido pelo bloqueio de rede do REQ-09 (sem rede não há chamada a provedor de LLM) e por teste estático que reprova, nos módulos da busca (`kb.sh`, `lib/kb-*.mjs`), qualquer referência a hosts ou SDKs de provedores de LLM: `anthropic`, `openai`, `generativelanguage.googleapis`, `voyageai`, `cohere`, `mistral`, `bedrock`, `ollama` (lista mantida no próprio gate).
 - **Rastreia:** proposal §2.5
 
 ## REQ-05 — Ativação explícita da camada semântica, local e verificável
 
-- **Quando** o consumidor roda `kb.sh semantic install`, **o sistema deve** instalar, sob `.forge/kb/semantic/`, o runtime de inferência e os modelos da camada semântica, a partir de versões fixadas no template, e recusar qualquer artefato cuja integridade não confira.
+- **Quando** o consumidor roda `kb.sh semantic install`, **o sistema deve** instalar, sob `.forge/kb/semantic/` (diretório que só passa a existir por este comando), o runtime de inferência e os modelos da camada semântica, a partir das versões e hashes fixados na maquinaria do template (`template/.forge/scripts/lib/kb-pins/`, entregue pelo instalador e pelo `forge update` como qualquer script, fora de `.forge/kb/`), e recusar qualquer artefato cuja integridade não confira. A camada está "instalada" se e só se `.forge/kb/semantic/installed.json` existe.
 - **Critérios de aceite:**
   - [ ] Este é o único comando do change que acessa a rede; ele declara, antes de baixar, o que será baixado, de onde e o tamanho aproximado.
   - [ ] Pacotes npm do runtime são instalados com versão exata e integridade fixadas por lockfile versionado no template, com scripts de instalação desativados, sem tocar o `package.json` do projeto-alvo.
-  - [ ] Após a instalação, a presença de qualquer binário nativo carregável (`*.node`) sob `.forge/kb/semantic/` reprova a instalação e a desfaz; a mesma varredura roda a cada carga da camada em `build`/`query` e, se achar `*.node`, a camada não é carregada (modo lexical com motivo).
+  - [ ] Após a instalação, a presença sob `.forge/kb/semantic/` de qualquer binário nativo — arquivo `*.node`, `*.dylib`, `*.so`, `*.dll`, ou qualquer arquivo cujos primeiros bytes sejam a assinatura de executável Mach-O, ELF ou PE — reprova a instalação e a desfaz; a mesma varredura roda a cada carga da camada em `build`/`query` e, se achar binário nativo, a camada não é carregada (modo lexical com motivo).
   - [ ] Cada arquivo de modelo é baixado de uma revisão fixada e conferido por sha256 fixado no template; divergência reprova, apaga o arquivo e não ativa a camada.
-  - [ ] `kb.sh semantic remove` apaga `.forge/kb/semantic/` e a busca volta ao modo lexical.
-  - [ ] `kb.sh semantic status` informa instalado/não instalado e confere: versão de cada pacote instalado igual à do lockfile do template, ausência de `*.node` e sha256 de cada arquivo de modelo igual ao fixado.
+  - [ ] `kb.sh semantic remove` apaga `.forge/kb/semantic/` (e só ele; os pins em `lib/kb-pins/` permanecem) e a busca volta ao modo lexical; um `semantic install` seguinte funciona.
+  - [ ] `kb.sh semantic status` informa instalado/não instalado e confere: versão de cada pacote instalado igual à do lockfile dos pins, ausência de binário nativo (critério acima) e sha256 de cada arquivo de modelo igual ao fixado.
   - [ ] Nenhum outro caminho dispara a instalação: só `kb.sh semantic install` invoca o módulo de instalação (teste estático sobre o template inteiro), e `doctor.sh`, os hooks e o instalador/updater do harness não criam `.forge/kb/semantic/` (teste de execução de `doctor.sh` numa raiz de fixture).
 - **Rastreia:** proposal §2.3, §3, §4 (riscos a e d)
 
@@ -89,24 +89,24 @@
 
 - **Quando** a camada semântica não está instalada, está incompleta, tem integridade divergente ou falha ao carregar ou inferir, **o sistema deve** devolver o resultado do modo lexical, com exit 0, declarando o modo efetivo e o motivo na primeira linha (REQ-04), sem stack trace.
 - **Critérios de aceite:**
-  - [ ] Os quatro casos (ausente, arquivo de modelo faltando, sha256 divergente, runtime que lança na inferência) são cobertos por teste e todos devolvem resultados lexicais com exit 0.
+  - [ ] Os seis casos (camada ausente; arquivo de modelo faltando; sha256 divergente; pacote do runtime faltando; binário nativo presente; runtime que lança na inferência) são cobertos por teste e todos devolvem resultados lexicais com exit 0 e o motivo correspondente.
   - [ ] `kb.sh build` nos mesmos casos constrói o índice lexical, informa que os vetores não foram calculados e sai com exit 0.
-  - [ ] Os quatro casos também rodam sob o bloqueio de rede do REQ-09 (o caminho degradado não pode buscar modelo remoto).
+  - [ ] Os seis casos também rodam sob o bloqueio de rede do REQ-09 (o caminho degradado não pode buscar modelo remoto).
   - [ ] Erros de uso (consulta vazia, `--top` fora da faixa, subcomando desconhecido) saem com exit diferente de 0 e mensagem de uso.
 - **Rastreia:** proposal §2.3, §2.5
 
 ## REQ-09 — Nenhum dado sai da máquina; cloud não suportado neste change
 
-- **Quando** qualquer subcomando de `kb.sh` roda, exceto `semantic install`, **o sistema deve** operar sem nenhuma chamada de rede; e o change não implementa provedor de embedding ou re-rank em cloud.
+- **Quando** qualquer subcomando de `kb.sh` roda (`build`, `query`, `status`, `eval`, `semantic status`, `semantic remove`), exceto `semantic install`, **o sistema deve** operar sem nenhuma chamada de rede; e o change não implementa provedor de embedding ou re-rank em cloud.
 - **Critérios de aceite:**
-  - [ ] Teste de execução sob bloqueio de rede cobre `build`, `query` e `status` no modo lexical, no modo semântico com modelos de fixture e nos quatro casos degradados do REQ-08. Bloqueio: quando o Node em uso suporta o modelo de permissões com rede (`--permission` sem `--allow-net`, Node >= 25), a execução roda sob ele, o que cobre também threads de trabalho e processos filhos (bloqueados por ausência de `--allow-child-process`); em qualquer Node, roda também sob um interceptador carregado por `--import` que faz lançar `fetch`, `http(s).request/get`, `net.connect/createConnection`, `tls.connect`, `dns.lookup/resolve` e `child_process.spawn/exec/execFile/fork`. O teste informa qual mecanismo rodou.
-  - [ ] Teste estático reprova se algum módulo da busca (`lib/kb-*.mjs`), fora do módulo de instalação, importar `node:http`, `node:https`, `node:net`, `node:tls`, `node:dgram`, `node:dns`, `node:child_process` ou `node:worker_threads`, ou usar `fetch(`.
+  - [ ] Teste de execução sob bloqueio de rede cobre `build`, `query`, `status`, `eval` e `semantic status` no modo lexical, no modo semântico com modelos de fixture e nos seis casos degradados do REQ-08. Bloqueio: quando o Node em uso suporta o modelo de permissões com rede (`--permission` sem `--allow-net`, Node >= 25), a execução roda sob ele, o que cobre também threads de trabalho e processos filhos (bloqueados por ausência de `--allow-child-process`); em qualquer Node, roda também sob um interceptador carregado por `--import` que faz lançar `fetch`, `http(s).request/get`, `net.connect/createConnection`, `tls.connect`, `dns.lookup/resolve`, `http2.connect`, `dgram.createSocket` e todas as funções de `child_process` (`spawn`, `exec`, `execFile`, `fork` e as variantes `*Sync`). O teste informa qual mecanismo rodou.
+  - [ ] Teste estático reprova se algum módulo da busca (`lib/kb-*.mjs`), fora do módulo de instalação, importar `node:http`, `node:https`, `node:net`, `node:tls`, `node:dgram`, `node:dns`, `node:child_process` `node:http2` ou `node:worker_threads`, ou usar `fetch(`; e reprova se `kb.sh` executar qualquer programa além de `node` e utilitários locais de shell (`curl`, `wget`, `git`, `nc`, `npm`, `npx`, `ssh` proibidos no script; o `npm ci` da instalação roda de dentro de `lib/kb-install.mjs`, a única exceção, carregado só por `semantic install`).
   - [ ] A documentação do comando declara que não há provedor cloud e que qualquer provedor futuro só pode existir como opt-in explícito, nunca default, por causa de dado regulado (PCI DSS) nos repositórios consumidores.
 - **Rastreia:** proposal §2.3, §3
 
 ## REQ-10 — Superfície de uso
 
-- **Quando** o harness é instalado num projeto, **o sistema deve** expor a busca por `bash .forge/scripts/kb.sh` com os subcomandos `build`, `query`, `status`, `semantic install|remove|status`, documentada no comando `/forge:kb`, e o comando `/forge:query` deve apontar para `/forge:kb` como a busca sobre conhecimento (não código).
+- **Quando** o harness é instalado num projeto, **o sistema deve** expor a busca por `bash .forge/scripts/kb.sh` com os subcomandos `build`, `query`, `status`, `eval`, `semantic install|remove|status`, documentada no comando `/forge:kb`, e o comando `/forge:query` deve apontar para `/forge:kb` como a busca sobre conhecimento (não código).
 - **Critérios de aceite:**
   - [ ] `template/.forge/commands/graph/kb.md` existe com frontmatter válido e o plugin gerado (`plugin/forge`) está sincronizado com ele.
   - [ ] `template/.forge/commands/graph/query.md` cita `/forge:kb`.
@@ -120,6 +120,8 @@
 - **Critérios de aceite:**
   - [ ] Cada consulta tem `q` (texto) e `gold` (lista de fragmentos de id de documento; um resultado é relevante se seu id contém algum fragmento, sem distinção de caixa); toda consulta tem ao menos um documento relevante existente no corpus deste repositório (o avaliador reporta consulta sem relevante como erro).
   - [ ] Consultas são paráfrases: nenhuma consulta copia literalmente o título do documento relevante; ao menos 4 consultas por partição estão em inglês sobre documentos em português (sinal semântico entre línguas).
+  - [ ] O `holdout.json` entra no histórico do git em commit anterior ao commit que introduz as constantes de fusão em `lib/kb-fuse.mjs` (verificável por `git log`).
+  - [ ] Um gate da suíte, hermético, roda `kb.sh eval` sobre um corpus de fixture com consultas de fixture e confere as métricas calculadas contra valores esperados escritos à mão.
   - [ ] `kb.sh eval` reporta, por modo disponível (BM25 isolado, lexical fundido e, se instalado, semântico com e sem re-rank), hit@1, hit@5, hit@10 e MRR em nível de documento, de forma determinística.
   - [ ] Limitação registrada no próprio arquivo de evidência: consultas e rótulos foram escritos pelo autor do change sobre este corpus; os números valem como comparação relativa entre modos, não como qualidade absoluta.
 - **Rastreia:** proposal §4 (risco b)

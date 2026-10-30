@@ -362,6 +362,112 @@ const { createHash } = require('crypto');
 NODEEOF
 }
 
+# Registro de mensagem nativa recebida (REQ-02, REQ-03, design §2.4 passos 2 a 6), chamado só por
+# `send --via cross-session`. NENHUMA escrita acontece aqui — só leitura e validação; a recusa C1
+# e qualquer falha de leitura/extração/origem devolvem rc 1 sem tocar liaison.yaml, log, blobs ou
+# cursor. Em sucesso, ecoa "from_addr\x1ffrom_name\x1ffrom_mode\x1forigin_verified" em stdout.
+#
+# Reusa os leitores únicos da Wave 2 (native-transcript.mjs, native-registry.mjs,
+# native-workspace.mjs) e as constantes da Wave 1 (native-classes.mjs) — nunca duplica a lógica
+# de parsing de transcript, resolução de registro ou cálculo de identidade de workspace.
+_resolve_cross_session() {  # _resolve_cross_session <channel> <authored_by> <native_ref> <session_arg>
+  local channel="$1" authored_by="$2" native_ref="$3" session_arg="$4"
+  node - "$LIBDIR" "$CONFIG" "$channel" "$authored_by" "$native_ref" "$session_arg" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, cfg, channel, authoredBy, nativeRef, sessionArg] = process.argv;
+  const Config = await import(pathToFileURL(join(lib, 'liaison-config.mjs')).href);
+  const Transcript = await import(pathToFileURL(join(lib, 'native-transcript.mjs')).href);
+  const Registry = await import(pathToFileURL(join(lib, 'native-registry.mjs')).href);
+  const Workspace = await import(pathToFileURL(join(lib, 'native-workspace.mjs')).href);
+  const Classes = await import(pathToFileURL(join(lib, 'native-classes.mjs')).href);
+  const { findSecrets } = await import(pathToFileURL(join(lib, 'secret-scan.mjs')).href);
+
+  // C1 (REQ-03, design §2.4 passo 2): authored_by precisa participar do canal — recusa ANTES de
+  // tocar o transcript ou o registro, nomeando os dois caminhos de resolução com os ids
+  // preenchidos (open <channel> --participants <peer>; ou open <novo-canal> + transport set).
+  const doc = Config.readConfig(cfg);
+  const ch = doc.channels[channel];
+  const participants = (ch && ch.participants) || [];
+  if (!participants.includes(authoredBy)) {
+    console.error(`FAIL: '${authoredBy}' não participa do canal '${channel}' (REQ-03/C1) — nada gravado`);
+    console.error(`  opção 1: liaison-ops.sh open ${channel} --participants ${authoredBy}`);
+    console.error(`  opção 2: liaison-ops.sh open <novo-canal> --participants ${authoredBy}  (e liaison-ops.sh transport set <novo-canal> --kind <kind>)`);
+    console.error(`  o peer '${authoredBy}' precisa fazer o mesmo (abrir ou entrar no canal) do lado dele`);
+    process.exit(1);
+  }
+
+  // Localização + leitura do transcript (design §2.4 passo 3/4) pelo MESMO leitor do native check
+  // (native-transcript.mjs): roda a fixture de controle embutida, localiza por --session ou
+  // CLAUDE_CODE_SESSION_ID, e decide "instrumento quebrado" quando há candidata sem extração.
+  const sessionId = sessionArg || process.env.CLAUDE_CODE_SESSION_ID || '';
+  const read = Transcript.readTranscript({ sessionId: sessionId || undefined });
+  if (!read.ok) {
+    console.error(`FAIL: ${read.reason}`);
+    process.exit(1);
+  }
+  const rec = (read.receptions || []).find((r) => r.fingerprint === nativeRef);
+  if (!rec) {
+    console.error(`FAIL: fingerprint '${nativeRef}' não encontrado no transcript (cross-session/native-ref) — nada gravado`);
+    process.exit(1);
+  }
+
+  // Valores extraídos da tag (design §2.4 passo 5): teto de 128 caracteres, caractere de
+  // controle, segredo — qualquer falha recusa sem gravar.
+  const checks = [['from', rec.from], ['from-name', rec.fromName], ['from-mode', rec.fromMode]];
+  for (const [field, value] of checks) {
+    if (String(value).length > Classes.NATIVE_FIELD_MAX) {
+      console.error(`FAIL: ${field} extraído da tag excede ${Classes.NATIVE_FIELD_MAX} caracteres (cross-session)`);
+      process.exit(1);
+    }
+    if (/[\u0000-\u001f\u007f]/.test(value)) {
+      console.error(`FAIL: ${field} extraído da tag contém caractere de controle (cross-session)`);
+      process.exit(1);
+    }
+    const hits = findSecrets(value);
+    if (hits.length) {
+      console.error(`FAIL: possível segredo em ${field} extraído da tag (${hits.join(', ')}) (cross-session)`);
+      process.exit(1);
+    }
+  }
+
+  // Conferência de origem (design §2.4 passo 6): registro consultado pelo socket de `from`;
+  // quando a linha traz verifiedPeerPid, pid divergente DESCARTA o registro (cai em "ausente",
+  // nunca em origin_verified:true). Achado o registro, compara o repositório principal do `cwd`
+  // dele com o repositório principal do peer-path do authored_by — divergência recusa nomeando os
+  // dois caminhos; ausência de registro ou de peer-path é origin_verified:false (aceito).
+  let originVerified = false;
+  // `rec.from` traz o prefixo `uds:` (forma da tag — evidência b); o registro de sessões guarda
+  // `messagingSocketPath` SEM prefixo (evidência c). Despir o prefixo antes de consultar o
+  // registro por socket é o que torna a resolução possível.
+  const socketPath = rec.from.startsWith('uds:') ? rec.from.slice(4) : rec.from;
+  const bySocket = Registry.resolveBySocket({ socketPath });
+  let entry = bySocket.ok ? bySocket.entry : null;
+  if (entry && typeof rec.verifiedPeerPid === 'number' && entry.pid !== rec.verifiedPeerPid) {
+    entry = null; // socket reutilizado por outra sessão — descartado, cai no caso "registro ausente"
+  }
+  if (entry) {
+    const originRepo = Workspace.mainRepoRoot(entry.cwd);
+    const peerPath = Config.getPeerPath(doc, channel, authoredBy);
+    if (peerPath) {
+      const peerRepo = Workspace.mainRepoRoot(peerPath);
+      if (originRepo && peerRepo && originRepo === peerRepo) {
+        originVerified = true;
+      } else {
+        console.error(`FAIL: origem diverge (cross-session/origem) — registro de '${authoredBy}' aponta para repositório '${originRepo}', peer-path aponta para '${peerRepo}' — nada gravado`);
+        process.exit(1);
+      }
+    }
+    // peerPath ausente: authored_by sem peer-path configurado → origin_verified fica false.
+  }
+  // registro ausente (sessão encerrada, Remote Control, nuvem) → origin_verified fica false.
+
+  process.stdout.write([rec.from, rec.fromName, rec.fromMode, String(originVerified)].join('\x1f'));
+})();
+NODEEOF
+}
+
 case "$cmd" in
 
 # ---------------------------------------------------------------------------------------------
@@ -593,8 +699,8 @@ send)
   [ -n "$self" ] || { echo "FAIL: self não configurado (rode 'open' primeiro)" >&2; exit 1; }
 
   thread_id=""; kind=""; subject=""; body=""; body_file=""; requires_ack="false"; authored_by=""; via=""
-  in_reply_to=""; change=""; contract_files=""; commit=""
-  SEND_FLAGS="--thread, --kind, --subject, --body, --body-file, --requires-ack, --in-reply-to, --change, --contract-files, --commit, --authored-by, --via"
+  in_reply_to=""; change=""; contract_files=""; commit=""; native_ref=""; session_arg=""
+  SEND_FLAGS="--thread, --kind, --subject, --body, --body-file, --requires-ack, --in-reply-to, --change, --contract-files, --commit, --authored-by, --via, --native-ref, --session"
   while [ $# -gt 0 ]; do case "$1" in
     --thread) forge_reject_flag_as_value send --thread "${2-}" "$SEND_FLAGS"; thread_id="$2"; shift 2 ;;
     --kind) forge_reject_flag_as_value send --kind "${2-}" "$SEND_FLAGS"; kind="$2"; shift 2 ;;
@@ -608,8 +714,22 @@ send)
     --commit) forge_reject_flag_as_value send --commit "${2-}" "$SEND_FLAGS"; commit="$2"; shift 2 ;;
     --authored-by) forge_reject_flag_as_value send --authored-by "${2-}" "$SEND_FLAGS"; authored_by="$2"; shift 2 ;;
     --via) forge_reject_flag_as_value send --via "${2-}" "$SEND_FLAGS"; via="$2"; shift 2 ;;
+    --native-ref) forge_reject_flag_as_value send --native-ref "${2-}" "$SEND_FLAGS"; native_ref="$2"; shift 2 ;;
+    --session) forge_reject_flag_as_value send --session "${2-}" "$SEND_FLAGS"; session_arg="$2"; shift 2 ;;
     *) _reject_unknown "send" "$SEND_FLAGS" "$1" ;;
   esac; done
+  # Coerência de flags do REQ-02/design §2.4 passo 1 — ANTES de qualquer outra validação ou
+  # escrita: --native-ref/--session só fazem sentido com --via cross-session, e --via
+  # cross-session exige os dois (--native-ref e --authored-by, checado mais abaixo).
+  if [ "$via" != "cross-session" ]; then
+    [ -z "$native_ref" ] || { echo "FAIL: --native-ref exige --via cross-session" >&2; exit 1; }
+    [ -z "$session_arg" ] || { echo "FAIL: --session exige --via cross-session" >&2; exit 1; }
+  fi
+  if [ "$via" = "cross-session" ]; then
+    [ -n "$native_ref" ] || { echo "FAIL: --via cross-session exige --native-ref <fingerprint>" >&2; exit 1; }
+    [ -n "$authored_by" ] || { echo "FAIL: --via cross-session exige --authored-by <repo-do-peer>" >&2; exit 1; }
+    printf '%s' "$native_ref" | grep -Eq '^[0-9a-f]{64}$' || { echo "FAIL: --native-ref fora do padrão sha256 hex: '$native_ref'" >&2; exit 1; }
+  fi
   # authored_by registra a autoria REAL quando o conteúdo veio de outro repositório (o caso do
   # /forge:liaison ask). O sender continua sendo este repositório — é o invariante de um escritor por
   # arquivo que torna o merge livre de conflito; gravar no log alheio faria o log dele divergir do
@@ -617,6 +737,15 @@ send)
   if [ -n "${authored_by:-}" ]; then
     self_local="$(_read_self)"
     [ "$authored_by" != "$self_local" ] || { echo "FAIL: --authored-by igual ao self ($self_local) — omita a flag" >&2; exit 1; }
+  fi
+  # Registro de mensagem nativa recebida (REQ-02/REQ-03, design §2.4 passos 2 a 6): recusa C1,
+  # localização/leitura do transcript pelo leitor único (native-transcript.mjs), tetos/controle/
+  # segredo nos valores extraídos e conferência de origem pelo registro de sessões — tudo ANTES de
+  # qualquer escrita. Em sucesso, ecoa from_addr/from_name/from_mode/origin_verified.
+  cs_from=""; cs_from_name=""; cs_from_mode=""; cs_origin_verified=""
+  if [ "$via" = "cross-session" ]; then
+    resolved="$(_resolve_cross_session "$channel" "$authored_by" "$native_ref" "$session_arg")" || exit 1
+    IFS=$'\x1f' read -r cs_from cs_from_name cs_from_mode cs_origin_verified <<< "$resolved"
   fi
   [ -n "$thread_id" ] || { echo "FAIL: --thread obrigatório" >&2; exit 1; }
   [ -n "$kind" ] || { echo "FAIL: --kind obrigatório (note|question|answer|contract-change)" >&2; exit 1; }
@@ -642,13 +771,15 @@ send)
   IFS=',' read -ra cfiles <<< "${contract_files:-}"
   out="$(node - "$LIBDIR" "$ch_dir" "$self" "$channel" "$thread_id" "$kind" "$subject" "$body" "$body_ref" \
     "$requires_ack" "${in_reply_to:-}" "${change:-}" "${cfiles[*]:-}" "${commit:-}" "$(_git_date)" \
-    "${authored_by:-}" "${via:-}" <<'NODEEOF'
+    "${authored_by:-}" "${via:-}" "${cs_from:-}" "${cs_from_name:-}" "${cs_from_mode:-}" \
+    "${native_ref:-}" "${cs_origin_verified:-}" <<'NODEEOF'
 const { readFileSync, writeFileSync, readdirSync, existsSync, renameSync } = require('fs');
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
   const [, , lib, chDir, self, channel, threadId, kind, subject, body, bodyRef,
-    requiresAck, inReplyTo, change, cfilesRaw, commit, now, authoredBy, via] = process.argv;
+    requiresAck, inReplyTo, change, cfilesRaw, commit, now, authoredBy, via,
+    csFrom, csFromName, csFromMode, csNativeRef, csOriginVerified] = process.argv;
   const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
   const logDir = join(chDir, 'log');
   const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
@@ -673,6 +804,14 @@ const { pathToFileURL } = require('url');
     refs: { change_id: change || null, contract_files: cfiles, commit: commit || null },
     ...(authoredBy ? { authored_by: authoredBy } : {}),
     ...(via ? { via } : {}),
+    // REQ-02/design §2.4 passo 8 — cross_session só quando via=cross-session; os cinco subcampos
+    // já vieram calculados e validados por _resolve_cross_session (origem, tetos, segredo).
+    ...(via === 'cross-session' ? {
+      cross_session: {
+        from_addr: csFrom, from_name: csFromName, from_mode: csFromMode,
+        native_ref: csNativeRef, origin_verified: csOriginVerified === 'true',
+      },
+    } : {}),
     created_at: now,
     // Conteúdo cuja autoria é de outro repositório NUNCA é 'self', mesmo tendo sido escrito no
     // nosso arquivo: quem lê precisa saber que a procedência é externa antes de agir sobre ele.
@@ -874,10 +1013,29 @@ const { pathToFileURL } = require('url');
       // O corpo só sai com --show, e nunca cru: vai dentro do banner UNTRUSTED, em fence, com
       // `/forge:` neutralizado. Assunto e metadados são gerados por nós a partir do envelope;
       // o corpo é texto arbitrário de outro repositório.
-      if (showBody === 'true' && m.body) {
-        for (const line of R.renderUntrusted(m.body, m.sender).split('\n')) console.log(`  ${line}`);
-      } else if (showBody === 'true' && m.body_ref) {
-        console.log(`    corpo em \`${m.body_ref}\` (blob — abra deliberadamente)`);
+      //
+      // REQ-02/design §2.4: mensagem via=cross-session ganha, DENTRO da mesma moldura, as linhas
+      // `via: cross-session`, nome e modo declarados (autodeclarados, não provam repositório) e,
+      // quando origin_verified é false, "origem não verificada" — tudo neutralizado pela mesma
+      // função que embrulha o corpo.
+      if (showBody === 'true') {
+        const cs = m.via === 'cross-session' && m.cross_session ? m.cross_session : null;
+        const extra = [];
+        if (cs) {
+          extra.push('via: cross-session');
+          extra.push(`nome declarado (autodeclarado): ${cs.from_name}`);
+          extra.push(`modo declarado: ${cs.from_mode}`);
+          if (cs.origin_verified === false) extra.push('origem não verificada');
+        }
+        if (m.body) {
+          const composite = extra.length ? `${extra.join('\n')}\n\n${m.body}` : m.body;
+          for (const line of R.renderUntrusted(composite, m.sender).split('\n')) console.log(`  ${line}`);
+        } else if (m.body_ref) {
+          if (extra.length) for (const line of R.renderUntrusted(extra.join('\n'), m.sender).split('\n')) console.log(`  ${line}`);
+          console.log(`    corpo em \`${m.body_ref}\` (blob — abra deliberadamente)`);
+        } else if (extra.length) {
+          for (const line of R.renderUntrusted(extra.join('\n'), m.sender).split('\n')) console.log(`  ${line}`);
+        }
       }
     }
   }

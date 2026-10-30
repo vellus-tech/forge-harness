@@ -58,7 +58,9 @@ export function propagateLinks(fused, links, alpha = LINK_ALPHA, top = LINK_TOP)
 // combineRerank(fused, ceScores) — fused: lista ordenada de docIds (a fusão); ceScores: Map(docId →
 // score do cross-encoder) para os K primeiros. A ordem final dos K é RRF entre a posição do
 // cross-encoder e a posição da fusão (k = RERANK_RRF_K): nenhum dos dois sinais decide sozinho. Os
-// documentos além de K mantêm a ordem da fusão.
+// documentos além de K mantêm a ordem da fusão. Empate no score combinado é desempatado pela posição
+// do cross-encoder (emenda do REQ-07: pela posição propagada, uma inversão simétrica dos extremos
+// mantinha o primeiro no lugar).
 export function combineRerank(fused, ceScores, k = RERANK_K) {
   const top = fused.slice(0, k);
   const ceOrder = [...top].sort((a, b) => (ceScores.get(b) ?? -Infinity) - (ceScores.get(a) ?? -Infinity) || top.indexOf(a) - top.indexOf(b));
@@ -68,8 +70,8 @@ export function combineRerank(fused, ceScores, k = RERANK_K) {
     const score = RERANK_WEIGHTS.cross_encoder / (RERANK_RRF_K + cr) + RERANK_WEIGHTS.fusion / (RERANK_RRF_K + fr);
     return { doc: d, score, fusion_rank: fr, ce_rank: cr, ce_score: ceScores.get(d) ?? null };
   });
-  rows.sort((a, b) => b.score - a.score || a.fusion_rank - b.fusion_rank);
+  rows.sort((a, b) => b.score - a.score || a.ce_rank - b.ce_rank);
   return [...rows, ...fused.slice(k).map((d, i) => ({ doc: d, score: null, fusion_rank: k + i + 1, ce_rank: null, ce_score: null }))];
 }
 
-export const RERANK_FORMULA = `score = ${RERANK_WEIGHTS.cross_encoder}/(${RERANK_RRF_K} + rank_cross_encoder) + ${RERANK_WEIGHTS.fusion}/(${RERANK_RRF_K} + rank_fusao), sobre os ${RERANK_K} primeiros da fusão`;
+export const RERANK_FORMULA = `score = ${RERANK_WEIGHTS.cross_encoder}/(${RERANK_RRF_K} + rank_cross_encoder) + ${RERANK_WEIGHTS.fusion}/(${RERANK_RRF_K} + rank_propagado), sobre os ${RERANK_K} primeiros do ranking propagado; empate desempatado pela posição do cross-encoder`;

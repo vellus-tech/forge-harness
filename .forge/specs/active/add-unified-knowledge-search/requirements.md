@@ -109,7 +109,7 @@
 
 - **Quando** qualquer subcomando de `kb.sh` roda (`build`, `query`, `status`, `eval`, `semantic status`, `semantic remove`), exceto `semantic install`, **o sistema deve** operar sem nenhuma chamada de rede; e o change não implementa provedor de embedding ou re-rank em cloud.
 - **Critérios de aceite:**
-  - [ ] Teste de execução sob bloqueio de rede cobre `build`, `query`, `status`, `eval`, `semantic status` e `semantic remove` no modo lexical, no modo semântico com modelos de fixture e nos oito casos degradados do REQ-08. Bloqueio: quando o Node em uso suporta o modelo de permissões com rede (`--permission` sem `--allow-net`, Node >= 25), a execução roda sob ele, o que cobre também threads de trabalho e processos filhos (bloqueados por ausência de `--allow-child-process`); em qualquer Node, roda também sob um interceptador carregado por `--import` que faz lançar `fetch`, `http(s).request/get`, `net.connect/createConnection`, `tls.connect`, `dns.lookup/resolve`, `http2.connect`, `dgram.createSocket` e todas as funções de `child_process` (`spawn`, `exec`, `execFile`, `fork` e as variantes `*Sync`). O teste informa qual mecanismo rodou.
+  - [ ] Teste de execução sob bloqueio de rede cobre `build`, `query`, `status`, `eval`, `semantic status` e `semantic remove` no modo lexical, no modo semântico com modelos de fixture e nos oito casos degradados do REQ-08. Bloqueio: quando o Node em uso suporta o modelo de permissões com rede (`--permission` sem `--allow-net`, Node >= 25), a execução roda sob ele, o que cobre também threads de trabalho e processos filhos (bloqueados por ausência de `--allow-child-process`); em qualquer Node, roda também sob um interceptador pré-carregado pelo Node (`--require`, que, ao contrário de `--import`, é aplicado também dentro de cada Worker — emenda de 2026-10-30 na fase de design, medida) que faz lançar `fetch`, `http(s).request/get`, `net.connect/createConnection`, `tls.connect`, `dns.lookup/resolve`, `http2.connect`, `dgram.createSocket` e todas as funções de `child_process` (`spawn`, `exec`, `execFile`, `fork` e as variantes `*Sync`). O teste informa qual mecanismo rodou e, como controle positivo, roda um canário que tenta `fetch` e `net.connect` contra um servidor local na thread principal e dentro de um Worker: sob cada mecanismo, as quatro tentativas têm de falhar; sem bloqueio (recontrole), as quatro têm de passar.
   - [ ] Teste estático reprova se algum módulo da busca (`lib/kb-*.mjs`), fora do módulo de instalação, importar `node:http`, `node:https`, `node:net`, `node:tls`, `node:dgram`, `node:dns`, `node:child_process`, `node:http2` ou `node:worker_threads`, ou usar `fetch(`; e reprova se `kb.sh` ou qualquer arquivo que ele inclua por `source` invocar `curl`, `wget`, `nc`, `ssh`, `npm`, `npx` ou subcomando de rede do git (`fetch`, `pull`, `push`, `clone`, `ls-remote`, `remote`); o único uso de git permitido é `rev-parse` (resolução de raiz). O `npm ci` da instalação roda de dentro de `lib/kb-install.mjs`, a única exceção, carregado só por `semantic install`.
   - [ ] Teste de execução roda `kb.sh build`, `query` e `status` com um `git` substituto no `PATH` que registra cada subcomando recebido e confere que só `rev-parse` foi chamado.
   - [ ] No caso "modo semântico com modelos de fixture" sob bloqueio de rede, o teste confere que o modo efetivo foi `semantic` (campo `mode` do `--json`), para que uma queda silenciosa para lexical causada pelo próprio bloqueio não passe como sucesso; o bloqueio por permissões concede `--allow-worker` e leitura/escrita de sistema de arquivos, nunca rede nem processo filho.
@@ -150,15 +150,15 @@
 
 | REQ | Parâmetro/config exposto | Superfície (tela/endpoint/CLI) | Coberto por task |
 |---|---|---|---|
-| REQ-02 | subcomando `build` | CLI `kb.sh build` | NEEDS-TASKS |
-| REQ-02 | subcomando `status` | CLI `kb.sh status` | NEEDS-TASKS |
-| REQ-03, REQ-04 | consulta, `--top N`, `--json` | CLI `kb.sh query "<texto>" [--top N] [--json]` | NEEDS-TASKS |
-| REQ-07 | `--no-rerank` | CLI `kb.sh query ... --no-rerank` | NEEDS-TASKS |
-| REQ-04, REQ-08 | `--lexical` (força modo lexical) | CLI `kb.sh query ... --lexical` | NEEDS-TASKS |
-| REQ-11 | arquivo de avaliação | CLI `kb.sh eval <arquivo>` | NEEDS-TASKS |
-| REQ-05 | `semantic install|remove|status` | CLI `kb.sh semantic <sub>` | NEEDS-TASKS |
-| REQ-01 | fontes indexadas | sem parâmetro exposto (lista fixa) | NEEDS-TASKS |
-| REQ-10 | comando do agente | `/forge:kb` (commands/graph/kb.md) | NEEDS-TASKS |
+| REQ-02 | subcomando `build` | CLI `kb.sh build` | TASK-04 |
+| REQ-02 | subcomando `status` | CLI `kb.sh status` | TASK-04 |
+| REQ-03, REQ-04 | consulta, `--top N`, `--json` | CLI `kb.sh query "<texto>" [--top N] [--json]` | TASK-04 |
+| REQ-07 | `--no-rerank` | CLI `kb.sh query ... --no-rerank` | TASK-07 |
+| REQ-04, REQ-08 | `--lexical` (força modo lexical) | CLI `kb.sh query ... --lexical` | TASK-04 |
+| REQ-11 | arquivo de avaliação | CLI `kb.sh eval <arquivo>` | TASK-05 |
+| REQ-05 | `semantic install|remove|status` | CLI `kb.sh semantic <sub>` | TASK-07 |
+| REQ-01 | fontes indexadas | sem parâmetro exposto (lista fixa) | TASK-01 |
+| REQ-10 | comando do agente | `/forge:kb` (commands/graph/kb.md) | TASK-09 |
 
 ## Fora de escopo (reafirmação)
 

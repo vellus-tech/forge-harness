@@ -53,3 +53,21 @@ approvals:
     commit: "bbbc27ab"
     scope: "design.md"
     notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: tasks_reviewed
+    decision: review
+    reason: "Revisor adversarial delegado (opus) rodada 1: grafo valido e REQs cobertos; 4 MAJOR - par TASK-03/04 so em tests/ nao e provavel pelo red-evidence (vermelho-vazio), padroes FAIL genericos nas tasks pares sem regras de operacao do par, export de derivePreToolUseHooks sem path nem w215, cruzamento de origem por session_id sem fixture; 6 MINOR"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:25:50-03:00"
+    iteration: 1
+    commit: "a31fcbba"
+    scope: "tasks.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: tasks_reviewed
+    decision: approve
+    reason: "Revisor adversarial delegado (opus) rodada 2: APPROVE. 4 MAJOR e 6 MINOR da rodada 1 corrigidos; validate-spec OK e grafo sem achados; padroes FAIL [n] especificos repetidos no verde; MINOR residual (casos da TASK-14 nao dependem das etapas 5-6; estado intermediario da TASK-15 nunca fiado) incorporado"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:28:25-03:00"
+    iteration: 2
+    commit: "a31fcbba"
+    scope: "tasks.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"

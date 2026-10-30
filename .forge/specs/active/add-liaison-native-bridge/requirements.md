@@ -175,16 +175,16 @@ Termos usados abaixo.
 
 | REQ | Parâmetro/config exposto | Superfície (tela/endpoint/CLI) | Coberto por task |
 |---|---|---|---|
-| REQ-01 | `notify <channel> <msg_id> --to <destino>` | CLI `liaison-ops.sh notify` | a definir em `/forge:tasks` |
-| REQ-02 | `--via cross-session`, `--native-ref`, `--session` | CLI `liaison-ops.sh send` | a definir em `/forge:tasks` |
-| REQ-03 | sem parâmetro exposto (comportamento de recusa do `send`) | CLI `liaison-ops.sh send` | a definir em `/forge:tasks` |
-| REQ-04 | sem parâmetro exposto (padrões vêm de `secret-scan.mjs`) | gancho PreToolUse `SendMessage` | a definir em `/forge:tasks` |
-| REQ-05 | sem parâmetro exposto | gancho PreToolUse `SendMessage` | a definir em `/forge:tasks` |
-| REQ-06 | linha `liaison:<channel>/<msg_id>`; primeira linha `ephemeral: <class>` | corpo do `SendMessage` | a definir em `/forge:tasks` |
-| REQ-07 | sem parâmetro próprio (usa REQ-12); desligar o gancho pelo `hooks.manifest` é mudança de contenção detectada pelo REQ-12 | gancho PreToolUse `SendMessage` | a definir em `/forge:tasks` |
-| REQ-08 | `native check [--session <id>]`; `native dispose <fingerprint> --ephemeral <class>` | CLI `liaison-ops.sh native`; ganchos `SessionEnd` e `SessionStart` | a definir em `/forge:tasks` |
-| REQ-10 | linha do gancho em `hooks.manifest` (matcher, contrato, estado) | `hooks.manifest` do consumidor | a definir em `/forge:tasks` |
-| REQ-12 | `native allow <id> --reason`, `native revoke <id> --reason` (só fora de sessão de agente); chaves `allowed_workspaces` e `self_identity` | CLI `liaison-ops.sh native` em terminal humano; arquivo de configuração versionado; `pre-push`, `doctor`, `/forge:prepare-pr`, `/forge:ship` | a definir em `/forge:tasks` |
+| REQ-01 | `notify <channel> <msg_id> --to <destino>` | CLI `liaison-ops.sh notify` | TASK-03, TASK-04, TASK-05 |
+| REQ-02 | `--via cross-session`, `--native-ref`, `--session` | CLI `liaison-ops.sh send` | TASK-08, TASK-09 |
+| REQ-03 | sem parâmetro exposto (comportamento de recusa do `send`) | CLI `liaison-ops.sh send` | TASK-08, TASK-09 |
+| REQ-04 | sem parâmetro exposto (padrões vêm de `secret-scan.mjs`) | gancho PreToolUse `SendMessage` | TASK-14, TASK-15 |
+| REQ-05 | sem parâmetro exposto | gancho PreToolUse `SendMessage` | TASK-14, TASK-15 |
+| REQ-06 | linha `liaison:<channel>/<msg_id>`; primeira linha `ephemeral: <class>` | corpo do `SendMessage` | TASK-16, TASK-17 |
+| REQ-07 | sem parâmetro próprio (usa REQ-12); desligar o gancho pelo `hooks.manifest` é mudança de contenção detectada pelo REQ-12 | gancho PreToolUse `SendMessage` | TASK-16, TASK-17 |
+| REQ-08 | `native check [--session <id>]`; `native dispose <fingerprint> --ephemeral <class>` | CLI `liaison-ops.sh native`; ganchos `SessionEnd` e `SessionStart` | TASK-10, TASK-11 |
+| REQ-10 | linha do gancho em `hooks.manifest` (matcher, contrato, estado) | `hooks.manifest` do consumidor | TASK-18, TASK-19 |
+| REQ-12 | `native allow <id> --reason`, `native revoke <id> --reason` (só fora de sessão de agente); chaves `allowed_workspaces` e `self_identity` | CLI `liaison-ops.sh native` em terminal humano; arquivo de configuração versionado; `pre-push`, `doctor`, `/forge:prepare-pr`, `/forge:ship` | TASK-12, TASK-13, TASK-20, TASK-21 |
 
 ## Fora de escopo (reafirmação)
 

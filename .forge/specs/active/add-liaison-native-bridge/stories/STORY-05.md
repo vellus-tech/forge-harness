@@ -3,7 +3,7 @@ story_id: STORY-05
 epic: add-liaison-native-bridge
 title: "Registro de mensagem nativa recebida (send --via cross-session) e recusa C1"
 depends_on: [STORY-01, STORY-04]
-status: todo
+status: done
 ---
 
 # STORY-05 — Registro de mensagem nativa recebida (send --via cross-session) e recusa C1
@@ -32,15 +32,15 @@ Entregar, em TDD vermelho → verde, registro de mensagem nativa recebida (send 
 
 ## Tasks
 
-- [ ] TASK-08 — Gate vermelho de `send --via cross-session` e da recusa C1 (flags, fingerprint ausente, instrumento quebrado, tetos, caracteres de controle, segredo nos valores extraídos e no corpo, conferência de origem com os casos diverge/não resolve/ok/peer em worktree/pid divergente de `verifiedPeerPid`, hash de `liaison.yaml`/log/blobs/cursor antes e depois, nada criado como efeito colateral, `check-liaison-acks.sh`, `inbox --show` com "origem não verificada", `render`) (paths: `tests/liaison-cross-session-record-gate.sh`; depende: TASK-02, TASK-07)
-- [ ] TASK-09 — `send` com `--via cross-session`, `--native-ref`, `--session`; recusa C1; conferência de origem; exibição em `inbox --show` e `render` (paths: `template/.forge/scripts/liaison-ops.sh`, `template/.forge/scripts/lib/liaison-render.mjs`; depende: TASK-08)
+- [X] TASK-08 — Gate vermelho de `send --via cross-session` e da recusa C1 (flags, fingerprint ausente, instrumento quebrado, tetos, caracteres de controle, segredo nos valores extraídos e no corpo, conferência de origem com os casos diverge/não resolve/ok/peer em worktree/pid divergente de `verifiedPeerPid`, hash de `liaison.yaml`/log/blobs/cursor antes e depois, nada criado como efeito colateral, `check-liaison-acks.sh`, `inbox --show` com "origem não verificada", `render`) (paths: `tests/liaison-cross-session-record-gate.sh`; depende: TASK-02, TASK-07)
+- [X] TASK-09 — `send` com `--via cross-session`, `--native-ref`, `--session`; recusa C1; conferência de origem; exibição em `inbox --show` e `render` (paths: `template/.forge/scripts/liaison-ops.sh`, `template/.forge/scripts/lib/liaison-render.mjs`; depende: TASK-08)
 
 ## Acceptance criteria
 
-- [ ] ``bash tests/liaison-cross-session-record-gate.sh`` verde; no vermelho falhava com ``FAIL \[[0-9]+\].*(cross-session|native-ref|C1|origem)``
-- [ ] ``bash tests/liaison-cross-session-record-gate.sh`` verde; no vermelho falhava com ``FAIL \[[0-9]+\].*(cross-session|native-ref|C1|origem)``
-- [ ] Nenhum achado de gate aberto
-- [ ] Commit atômico por task; nenhum `TODO`/`FIXME` residual
+- [X] ``bash tests/liaison-cross-session-record-gate.sh`` verde; no vermelho falhava com ``FAIL \[[0-9]+\].*(cross-session|native-ref|C1|origem)``
+- [X] ``bash tests/liaison-cross-session-record-gate.sh`` verde; no vermelho falhava com ``FAIL \[[0-9]+\].*(cross-session|native-ref|C1|origem)``
+- [X] Nenhum achado de gate aberto
+- [X] Commit atômico por task; nenhum `TODO`/`FIXME` residual
 
 ## Out of scope
 

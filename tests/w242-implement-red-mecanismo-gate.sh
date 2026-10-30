@@ -227,6 +227,13 @@ echo "[6] comportamental — bloco bash do §3.5 num repo git temporário"
 # A — caminho legítimo: stub no vermelho, implementação no verde
 new_repo "$T/A"; put "$T/A" test/soma.test.mjs "$TEST_OK"; put "$T/A" src/soma.mjs "$SRC_STUB"; cm "$T/A" "$RED_MSG"
 put "$T/A" src/soma.mjs "$SRC_IMPL"; cm "$T/A" "$GREEN_MSG"
+# A2 — hífen simples também é convenção de commit válida para o mesmo gate.
+new_repo "$T/A2"; put "$T/A2" test/soma.test.mjs "$TEST_OK"; put "$T/A2" src/soma.mjs "$SRC_STUB"; cm "$T/A2" "test(soma): TASK-01 - vermelho"
+put "$T/A2" src/soma.mjs "$SRC_IMPL"; cm "$T/A2" "feat(soma): TASK-01 - soma"
+# A3 — duas grafias do mesmo vermelho continuam sendo dois commits, nunca um só.
+new_repo "$T/A3"; put "$T/A3" test/soma.test.mjs "$TEST_OK"; put "$T/A3" src/soma.mjs "$SRC_STUB"; cm "$T/A3" "$RED_MSG"
+put "$T/A3" README "segundo vermelho"; cm "$T/A3" "test(soma): TASK-01 - vermelho"
+put "$T/A3" src/soma.mjs "$SRC_IMPL"; cm "$T/A3" "feat(soma): TASK-01 - soma"
 # B — o vermelho já traz a implementação; o verde é vazio
 new_repo "$T/B"; put "$T/B" test/soma.test.mjs "$TEST_OK"; put "$T/B" src/soma.mjs "$SRC_IMPL"; cm "$T/B" "$RED_MSG"; cm "$T/B" "$GREEN_MSG"
 # B2 — o vermelho já traz a implementação; o verde só mexe num comentário de produção
@@ -275,6 +282,8 @@ cm "$T/IP" "$RED_MSG"; put "$T/IP" package.json "$PKG_OK"; cm "$T/IP" "$GREEN_MS
 
 if [ -s "$SNIP" ]; then
   expect 6A  "$T/A"  "$SCRIPTS" "$SNIP" ok                                         || overall_rc=1
+  expect 6A2 "$T/A2" "$SCRIPTS" "$SNIP" ok                                         || overall_rc=1
+  expect 6A3 "$T/A3" "$SCRIPTS" "$SNIP" '2 encontrado(s)'                            || overall_rc=1
   expect 6B  "$T/B"  "$SCRIPTS" "$SNIP" '[vermelho-vazio]'                         || overall_rc=1
   expect 6B2 "$T/B2" "$SCRIPTS" "$SNIP" '[vermelho-passa]'                         || overall_rc=1
   expect 6C  "$T/C"  "$SCRIPTS" "$SNIP" '[vermelho-compilacao]'                    || overall_rc=1

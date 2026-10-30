@@ -32,7 +32,7 @@ O corpus é majoritariamente pt-BR, por isso modelos só-inglês (ex.: `all-Mini
 
 Download total da camada escolhida: ~150 MB do runtime npm (descompactado) + ~270 MB de modelos e tokenizadores.
 
-## 3. Qualidade no conjunto de calibração (34 consultas, `evidence/prototype/queries.json`)
+## 3. Qualidade no conjunto de calibração (primeira rodada, 34 consultas, `evidence/prototype/queries.json`)
 
 Métricas em nível de documento. Primeira rodada (`measure.mjs`, tokenizador Unigram aproximado escrito no protótipo; pesos lexicais WE = 0,5, WL = 0,1, links restritos ao top 20 das sementes):
 
@@ -63,6 +63,23 @@ Calibração dos pesos lexicais (mesma rodada, sem camada semântica):
 | 0,5 | 0,25 | top 20 | 0,324 | 0,676 | 0,794 | 0,455 |
 | 0,5 | 0,25 | top 50 | 0,294 | 0,676 | 0,765 | 0,438 |
 
+### 3.1 Links: canal RRF versus propagação (calibração, 35 consultas, rascunho dos módulos de produção)
+
+Com o índice dos módulos `kb-corpus`/`kb-lexical` (334 documentos, 5.126 trechos) e só a partição de calibração (`evidence/prototype/grid*.mjs`):
+
+| Forma dos links | Parâmetros | hit@1 | hit@5 | hit@10 | MRR |
+|---|---|---|---|---|---|
+| sem links (BM25 + entidades, WE = 0,2) | — | 0,429 | 0,743 | 0,771 | 0,554 |
+| canal RRF | WL = 0,05, pool 20 | 0,371 | 0,657 | 0,771 | 0,519 |
+| canal RRF | WL = 0,1, pool 20 | 0,371 | 0,629 | 0,829 | 0,503 |
+| canal RRF | WL = 0,2, pool 20 | 0,371 | 0,600 | 0,800 | 0,490 |
+| propagação de score | α = 0,05, T = 10 | 0,457 | 0,714 | 0,771 | 0,568 |
+| **propagação de score** | **α = 0,1, T = 10** | **0,486** | 0,714 | 0,800 | **0,584** |
+| propagação de score | α = 0,15, T = 10 | 0,457 | 0,714 | 0,800 | 0,569 |
+| propagação de score | α = 0,1, T = 5 | 0,457 | 0,714 | 0,771 | 0,568 |
+
+Por que o canal RRF falha: a distância entre posições vizinhas do BM25 em RRF (k = 60) é ~1/(61+r)², menor que a contribuição mínima de qualquer canal com peso ≥ 0,05; os links passam a reordenar o topo por estrutura, não por relevância. A propagação transfere uma fração do score de quem já é relevante, então só reforça vizinhos de bons resultados. Escolha para o default (só pela calibração): WE = 0,2, α = 0,1, T = 10 — melhor MRR e hit@1, com hit@5 uma consulta abaixo do BM25 isolado (dentro do ruído de uma consulta). As entidades quase não pesam neste conjunto (só 2 das 35 consultas citam um identificador) e existem para consultas por id (`LDG-0012`, `w283`), que o gate hermético cobre.
+
 ## 4. Latência e custo
 
 | Operação | Medido |
@@ -79,4 +96,4 @@ PREENCHER-RUN2
 
 ## 6. Limitações
 
-As consultas e os rótulos foram escritos pelo autor do change sobre este corpus. O conjunto de calibração (34) foi usado para escolher pesos; o holdout (15, `evidence/prototype/holdout.json`) foi escrito e versionado (commit `5a2675bc`) antes da calibração final e não foi usado para escolher nada. Com 34 consultas, uma consulta vale ~0,03 em hit@k: diferenças menores que 0,06 são ruído. Números valem como comparação relativa entre modos neste corpus, não como qualidade absoluta, e não são comparáveis ao hit@5 citado pelo autor do `ai-memory` (0,617 → 0,779), que é de outro corpus e não foi verificado.
+As consultas e os rótulos foram escritos pelo autor do change sobre este corpus. Histórico das partições: a calibração tinha 34 consultas na primeira rodada (tabelas da §3) e ganhou a 35ª (em inglês) no commit `7dd0a8bc`; o holdout nasceu com 15 consultas no commit `5a2675bc` e ganhou 3 em inglês no `7dd0a8bc`, para cumprir o mínimo de 4 em inglês por partição do REQ-11 — as duas mudanças antecedem `lib/kb-fuse.mjs`. Nenhuma rodada da §3 leu o holdout (o `measure.mjs` só lê `queries.json`); a calibração final (§5) escolhe constantes só pela calibração, e o holdout é reportado. `tests/fixtures/kb/eval/` recebe cópias literais das duas partições. Com 34 consultas, uma consulta vale ~0,03 em hit@k: diferenças menores que 0,06 são ruído. Números valem como comparação relativa entre modos neste corpus, não como qualidade absoluta, e não são comparáveis ao hit@5 citado pelo autor do `ai-memory` (0,617 → 0,779), que é de outro corpus e não foi verificado.

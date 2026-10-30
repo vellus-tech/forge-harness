@@ -1,0 +1,10 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: review
+    reason: "Revisor delegado (opus): REVIEW. MAJOR: origem do runtime carregado não definida (resolução de pacote contornaria pins e varredura nativa); ativação do modo semântico com modelos de fixture na suíte sem desligar a integridade não especificada. MINORs: drift de pins pós-update, semantic remove sob bloqueio, lista de provedores por limite de palavra, nomes genéricos de link, desempate do re-rank, fragmentos amplos no eval, evidência desatualizada, pesos degenerados, build interrompido."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:47:53-03:00"
+    iteration: 1
+    commit: "7dd0a8bc"
+    scope: "requirements.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"

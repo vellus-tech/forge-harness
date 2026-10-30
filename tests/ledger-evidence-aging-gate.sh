@@ -43,7 +43,7 @@ _run_to() { # _run_to <segundos> -- <cmd...> — teto de tempo (macOS não tem `
 
 # Contador de cenários por grupo: declarados × executados DOS GRUPOS SELECIONADOS.
 declare_scn() { case "$1" in schema) echo 4;; stale) echo 8;; verify) echo 7;; supersede) echo 3;; show) echo 2;; specnew) echo 1;; closed) echo 3;; wiring) echo 5;; docs) echo 3;; mutation) echo 3;; esac; }
-ALL_GROUPS="schema stale"
+ALL_GROUPS="schema stale verify"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
 _fail() { echo "FAIL [$1] $2"; exit 1; }
@@ -246,6 +246,120 @@ if _want stale; then
   o="$(_lg "$N" stale --as-of "$ASOF" 2>&1)" || _fail stale-8 "sem HEAD mas com --as-of deveria rodar: $o"
   head -1 <<<"$o" | grep -q "^LEDGER stale: 0 de 0 ativo(s)" || _fail stale-8 "ledger vazio sem '0 de 0': $o"
   echo "OK [stale-8] — HEAD como relógio; sem HEAD exige --as-of; vazio = 0 de 0"
+fi
+
+# ───────────────────────────── verify (REQ-02, REQ-03) ─────────────────────────────
+if _want verify; then
+  F="$T/verify"; _fixture "$F"
+  LFV="$F/.forge/ledger/ledger.json"
+  mkdir -p "$F/src" "$F/tests"
+  printf 'linha um\nlinha dois\nlinha tres\nlinha quatro\nlinha cinco\n' > "$F/src/alvo.txt"
+  printf '#!/bin/sh\n# caso_alvo verifica o alvo\n' > "$F/tests/alvo-test.sh"
+  mkdir -p "$T/fora"; printf 'segredo\n' > "$T/fora/x.txt"; ln -s "$T/fora/x.txt" "$F/src/link-fora.txt"
+  _run_to 30 -- git -C "$F" add -A
+  _commit_at "$F" "2019-03-05T10:00:00+00:00" alvos
+  H1="$(_head_date "$F")"
+  SHA="$(git -C "$F" rev-parse HEAD)"
+  _lg "$F" add --type known-bug --title "alvo do verify" --detail "MEDIÇÃO ORIGINAL: o defeito mora na linha dois." >/dev/null   # LDG-0001
+  _lg "$F" add --type tech-debt --title "item a resolver" --detail "x" >/dev/null                                         # LDG-0002
+  _lg "$F" resolve LDG-0002 --note "feito" >/dev/null
+  _lg "$F" add --type tech-debt --title "item a promover" --detail "x" >/dev/null                                         # LDG-0003
+  _lg "$F" promote LDG-0003 --to um-change >/dev/null
+  OBS="o defeito continua exatamente na linha dois do alvo"
+
+  _scn "[verify-1] evidência file válida grava registro, last_verified e updated_at = HEAD; detail intacto (confirmed)"
+  cp "$LFV" "$T/v1-antes.json"
+  out="$(_lg "$F" verify LDG-0001 --kind file --ref "src/alvo.txt:2" --observed "$OBS" --verdict confirmed 2>&1)" || _fail verify-1 "verify válido reprovou: $out"
+  [ "$(_jget "$LFV" LDG-0001 'e.evidence.length')" = "1" ] || _fail verify-1 "evidence não tem 1 registro"
+  [ "$(_jget "$LFV" LDG-0001 'e.evidence[0].at')" = "$H1" ] || _fail verify-1 "evidence.at diferente do HEAD ($H1)"
+  [ "$(_jget "$LFV" LDG-0001 'e.last_verified')" = "$H1" ] || _fail verify-1 "last_verified diferente do HEAD"
+  [ "$(_jget "$LFV" LDG-0001 'e.updated_at')" = "$H1" ] || _fail verify-1 "updated_at diferente do HEAD"
+  [ "$(_jget "$LFV" LDG-0001 'e.evidence[0].kind+"|"+e.evidence[0].ref+"|"+e.evidence[0].verdict')" = "file|src/alvo.txt:2|confirmed" ] || _fail verify-1 "registro com campos errados"
+  [ "$(_jget "$LFV" LDG-0001 'e.detail')" = "$(_jget "$T/v1-antes.json" LDG-0001 'e.detail')" ] || _fail verify-1 "confirmed alterou o detail"
+  for k in status resolved_at priority severity title; do
+    [ "$(_jget "$LFV" LDG-0001 "e.$k")" = "$(_jget "$T/v1-antes.json" LDG-0001 "e.$k")" ] || _fail verify-1 "verify alterou $k"
+  done
+  echo "OK [verify-1] — $out"
+
+  _scn "[verify-2] cada violação de conteúdo mínimo reprova nomeando kind/regra, ledger byte-a-byte intacto"
+  _refuse() { # _refuse <rótulo> <fragmento esperado> <args...>
+    local label="$1" frag="$2"; shift 2
+    cp "$LFV" "$T/ref-antes.json"
+    set +e; local o; o="$(_lg "$F" "$@" 2>&1)"; local rc=$?; set -e
+    [ "$rc" -ne 0 ] || _fail verify-2 "$label: deveria reprovar e saiu 0 — $o"
+    grep -q -- "$frag" <<<"$o" || _fail verify-2 "$label: mensagem sem '$frag' — $o"
+    cmp -s "$LFV" "$T/ref-antes.json" || _fail verify-2 "$label: ledger.json mudou numa recusa"
+  }
+  V=(verify LDG-0001 --observed "$OBS" --verdict confirmed)
+  _refuse "file sem linha"        "--kind file" "${V[@]}" --kind file --ref "src/alvo.txt"
+  _refuse "file linha zero"       "--kind file" "${V[@]}" --kind file --ref "src/alvo.txt:0"
+  _refuse "file além do fim"      "--kind file" "${V[@]}" --kind file --ref "src/alvo.txt:6"
+  _refuse "file intervalo inverso" "--kind file" "${V[@]}" --kind file --ref "src/alvo.txt:4-2"
+  _refuse "file inexistente"      "--kind file" "${V[@]}" --kind file --ref "src/nada.txt:1"
+  _refuse "file absoluto"         "--kind file" "${V[@]}" --kind file --ref "$F/src/alvo.txt:1"
+  _refuse "file com .."           "--kind file" "${V[@]}" --kind file --ref "../fora/x.txt:1"
+  _refuse "file symlink p/ fora"  "--kind file" "${V[@]}" --kind file --ref "src/link-fora.txt:1"
+  _refuse "commit inexistente"    "--kind commit" "${V[@]}" --kind commit --ref "deadbeefdeadbeef"
+  _refuse "test inexistente"      "--kind test" "${V[@]}" --kind test --ref "tests/nada.sh"
+  _refuse "test nome ausente"     "--kind test" "${V[@]}" --kind test --ref "tests/alvo-test.sh::caso_inexistente"
+  _refuse "command só espaços"    "--kind command" "${V[@]}" --kind command --ref "   "
+  _refuse "kind fora do enum"     "file|commit|test|command" "${V[@]}" --kind palpite --ref "x"
+  _refuse "observed curto"        "20" verify LDG-0001 --kind command --ref "rg x" --observed "ainda existe" --verdict confirmed
+  _refuse "observed = ref"        "observed" verify LDG-0001 --kind command --ref "rg defeito no alvo agora" --observed "rg defeito no alvo agora" --verdict confirmed
+  _refuse "observed = title"      "observed" verify LDG-0001 --kind command --ref "rg x" --observed "alvo do verify" --verdict confirmed
+  _refuse "verdict fora do enum"  "confirmed|changed" verify LDG-0001 --kind command --ref "rg x" --observed "$OBS" --verdict talvez
+  echo "OK [verify-2] — 17 violações recusadas sem tocar o ledger"
+
+  _scn "[verify-3] flags obrigatórias, flag desconhecida, entrada inexistente e status encerrado"
+  _refuse "sem --kind"     "--kind"     verify LDG-0001 --ref "rg x" --observed "$OBS" --verdict confirmed
+  _refuse "sem --ref"      "--ref"      verify LDG-0001 --kind command --observed "$OBS" --verdict confirmed
+  _refuse "sem --observed" "--observed" verify LDG-0001 --kind command --ref "rg x" --verdict confirmed
+  _refuse "sem --verdict"  "--verdict"  verify LDG-0001 --kind command --ref "rg x" --observed "$OBS"
+  _refuse "flag desconhecida" "--nota" verify LDG-0001 --kind command --ref "rg x" --observed "$OBS" --verdict confirmed --nota y
+  _refuse "inexistente"    "LDG-0099"   verify LDG-0099 --kind command --ref "rg x" --observed "$OBS" --verdict confirmed
+  _refuse "resolved"       "resolved"   verify LDG-0002 --kind command --ref "rg x" --observed "$OBS" --verdict confirmed
+  _refuse "promoted"       "promoted"   verify LDG-0003 --kind command --ref "rg x" --observed "$OBS" --verdict confirmed
+  echo "OK [verify-3] — 8 recusas de uso"
+
+  _scn "[verify-4] commit curto grava SHA completo; test::nome e range de linhas aceitos; command nunca executado"
+  _lg "$F" verify LDG-0001 --kind commit --ref "${SHA:0:8}" --observed "$OBS" --verdict confirmed >/dev/null || _fail verify-4 "commit curto válido reprovou"
+  [ "$(_jget "$LFV" LDG-0001 'e.evidence[e.evidence.length-1].ref')" = "$SHA" ] || _fail verify-4 "ref do commit não é o SHA completo"
+  _lg "$F" verify LDG-0001 --kind test --ref "tests/alvo-test.sh::caso_alvo" --observed "$OBS" --verdict confirmed >/dev/null || _fail verify-4 "test::nome válido reprovou"
+  _lg "$F" verify LDG-0001 --kind file --ref "src/alvo.txt:2-5" --observed "$OBS" --verdict confirmed >/dev/null || _fail verify-4 "range válido reprovou"
+  _lg "$F" verify LDG-0001 --kind command --ref "touch $T/executou" --observed "$OBS" --verdict confirmed >/dev/null || _fail verify-4 "command válido reprovou"
+  [ ! -e "$T/executou" ] || _fail verify-4 "o ref de command foi EXECUTADO"
+  echo "OK [verify-4] — commit completo, test::nome, range, command não executado"
+
+  _scn "[verify-5] verdict changed acrescenta CORREÇÃO DE REGISTRO preservando o detail; ordem e last_verified do último"
+  _commit_at "$F" "2019-03-20T10:00:00+00:00" depois
+  H2="$(_head_date "$F")"
+  node -e 'const d=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.stdout.write(d.entries.find(e=>e.id==="LDG-0001").detail)' "$LFV" > "$T/v5-antes.txt"
+  NOVO="o defeito mudou: agora mora na linha quatro"
+  _lg "$F" verify LDG-0001 --kind file --ref "src/alvo.txt:4" --observed "$NOVO" --verdict changed >/dev/null || _fail verify-5 "verify changed reprovou"
+  node -e 'const d=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.stdout.write(d.entries.find(e=>e.id==="LDG-0001").detail)' "$LFV" > "$T/v5-depois.txt"
+  head -c "$(wc -c < "$T/v5-antes.txt" | tr -d ' ')" "$T/v5-depois.txt" | cmp -s - "$T/v5-antes.txt" || _fail verify-5 "detail anterior não é prefixo do novo"
+  esperado="$(cat "$T/v5-antes.txt")"$'\n\n'"CORREÇÃO DE REGISTRO (${H2:0:10}): $NOVO [evidência: file src/alvo.txt:4]"
+  [ "$(cat "$T/v5-depois.txt")" = "$esperado" ] || _fail verify-5 "bloco de correção fora do formato: $(tail -c 200 "$T/v5-depois.txt")"
+  grep -qF "$NOVO" "$F/.forge/ledger/LEDGER.md" || _fail verify-5 "LEDGER.md não foi re-renderizado depois do verify"
+  [ "$(_jget "$LFV" LDG-0001 'e.evidence.length')" = "6" ] || _fail verify-5 "esperado 6 registros acumulados"
+  [ "$(_jget "$LFV" LDG-0001 'e.evidence.map(x=>x.kind).join(",")')" = "file,commit,test,file,command,file" ] || _fail verify-5 "ordem dos registros alterada"
+  [ "$(_jget "$LFV" LDG-0001 'e.last_verified')" = "$H2" ] || _fail verify-5 "last_verified não é o at do último registro"
+  [ "$(_jget "$LFV" LDG-0001 'e.evidence[0].at')" = "$H1" ] || _fail verify-5 "registro antigo reescrito"
+  echo "OK [verify-5] — correção acumulada, 6 registros em ordem, last_verified = último"
+
+  _scn "[verify-6] note --kind measurement avisa que não é reverificação; progress não avisa; nenhum dos dois grava last_verified"
+  _lg "$F" add --type tech-debt --title "alvo do note" --detail "x" >/dev/null; IDN="$(_last_id "$LFV")"
+  o="$(_lg "$F" note "$IDN" --kind measurement --text "medi de novo" 2>&1)"
+  grep -q "verify" <<<"$o" || _fail verify-6 "note measurement não apontou verify: $o"
+  o="$(_lg "$F" note "$IDN" --kind progress --text "andou" 2>&1)"
+  grep -q "verify" <<<"$o" && _fail verify-6 "note progress não deveria falar de verify: $o"
+  [ "$(_jget "$LFV" "$IDN" '"last_verified" in e')" = "false" ] || _fail verify-6 "note gravou last_verified"
+  echo "OK [verify-6]"
+
+  _scn "[verify-7] reverificação muda a referência de idade do stale (last_verified, não created_at)"
+  o="$(_lg "$F" stale --as-of "2019-04-15T10:00:00+00:00" --days 20 2>&1 || true)"
+  grep -q "^LDG-0001 — 26d — reverificado em 2019-03-20" <<<"$o" || _fail verify-7 "idade não partiu do last_verified (esperado 26d): $o"
+  echo "OK [verify-7]"
 fi
 
 # ───────────────────────────── fechamento ─────────────────────────────

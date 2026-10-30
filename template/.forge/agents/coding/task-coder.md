@@ -329,7 +329,15 @@ elif [ -z "${FAILURE_PATTERN:-}" ]; then
 elif [ -z "${TASK_BASE:-}" ]; then
   echo "${TASK_ID}: TASK_BASE não preenchido (3.3) — sem o início da TASK não há intervalo para achar o vermelho"; mark_failed
 else
-  RED_SHAS=$(git log --format=%H --fixed-strings --grep="${TASK_ID} — vermelho" --grep="${TASK_ID} - vermelho" --max-count=2 "${TASK_BASE}..HEAD")
+  # Somente o assunto, com limites do identificador e da palavra vermelho; o corpo não identifica commits.
+  find_task_reds() {
+    git log --format='%H%x09%s' "${TASK_BASE}..HEAD" | { count=0; while IFS="$(printf '\t')" read -r sha subject; do
+    case "$subject" in
+      "$TASK_ID - vermelho"|"$TASK_ID - vermelho "*|*": $TASK_ID - vermelho"|*": $TASK_ID - vermelho "*|"$TASK_ID — vermelho"|"$TASK_ID — vermelho "*|*": $TASK_ID — vermelho"|*": $TASK_ID — vermelho "*) if [ "$count" -lt 2 ]; then printf '%s\n' "$sha"; count=$((count + 1)); fi ;;
+    esac
+    done; }
+  }
+  RED_SHAS=$(find_task_reds)
   RED_N=$(printf '%s' "$RED_SHAS" | grep -c . || true)
   if [ "$RED_N" -ne 1 ]; then
     echo "Commit do vermelho de ${TASK_ID} entre TASK_BASE e HEAD: ${RED_N} encontrado(s), exigido exatamente 1 — falha"; mark_failed

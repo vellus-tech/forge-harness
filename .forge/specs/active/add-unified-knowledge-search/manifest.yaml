@@ -34,6 +34,7 @@ affected_paths:
   - tests/fixtures/kb/
   - tests/
   - README.md
+  - docs/refer/slash-commands.md
   - .forge/product/current/adr/0004-opt-in-runtime-layer.md
   - .forge/product/current/adr/README.md
   - CHANGELOG.md

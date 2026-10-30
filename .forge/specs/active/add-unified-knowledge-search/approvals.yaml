@@ -62,3 +62,12 @@ approvals:
     commit: "3f303644"
     scope: "tasks.md"
     notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: tasks_reviewed
+    decision: review
+    reason: "Revisor delegado (opus), rodada 2: REVIEW. MAJOR: o gate w288 da TASK-05 chama kb_env_setup, que depende de fake-npm/make-semantic-fixture (TASK-07) e de kb-pins (TASK-06) — verde impossível. MINOR: semantic remove/status (não instalada) exigidos no verde da TASK-05 mas atribuídos à TASK-07. NOTAs: w291 [7] textual casaria comentário; rótulos do assert_clean no w293."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T20:48:09-03:00"
+    iteration: 2
+    commit: "deb83fb2"
+    scope: "tasks.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"

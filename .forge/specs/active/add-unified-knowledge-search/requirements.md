@@ -153,9 +153,9 @@
 | REQ-02 | subcomando `build` | CLI `kb.sh build` | TASK-04 |
 | REQ-02 | subcomando `status` | CLI `kb.sh status` | TASK-04 |
 | REQ-03, REQ-04 | consulta, `--top N`, `--json` | CLI `kb.sh query "<texto>" [--top N] [--json]` | TASK-04 |
-| REQ-07 | `--no-rerank` | CLI `kb.sh query ... --no-rerank` | TASK-07 |
+| REQ-07 | `--no-rerank` | CLI `kb.sh query ... --no-rerank` | TASK-08 |
 | REQ-04, REQ-08 | `--lexical` (força modo lexical) | CLI `kb.sh query ... --lexical` | TASK-04 |
-| REQ-11 | arquivo de avaliação | CLI `kb.sh eval <arquivo>` | TASK-05 |
+| REQ-11 | arquivo de avaliação | CLI `kb.sh eval <arquivo>` | TASK-05, TASK-08 |
 | REQ-05 | `semantic install|remove|status` | CLI `kb.sh semantic <sub>` | TASK-07 |
 | REQ-01 | fontes indexadas | sem parâmetro exposto (lista fixa) | TASK-01 |
 | REQ-10 | comando do agente | `/forge:kb` (commands/graph/kb.md) | TASK-09 |

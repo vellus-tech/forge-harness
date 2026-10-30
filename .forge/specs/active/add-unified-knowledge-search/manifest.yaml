@@ -3,7 +3,7 @@ type: feature
 mode: brownfield
 rigor: spec-anchored
 scale: 3
-status: requirements-ready
+status: design-ready
 created_at: "2026-10-30"
 updated_at: "2026-10-30"
 owner: "milton"
@@ -17,6 +17,7 @@ affected_paths:
   - template/.forge/scripts/lib/kb-lexical.mjs
   - template/.forge/scripts/lib/kb-fuse.mjs
   - template/.forge/scripts/lib/kb-semantic.mjs
+  - template/.forge/scripts/lib/kb-integrity.mjs
   - template/.forge/scripts/lib/kb-install.mjs
   - template/.forge/scripts/lib/kb-cli.mjs
   - template/.forge/scripts/lib/kb-pins/package.json
@@ -33,6 +34,8 @@ affected_paths:
   - tests/fixtures/kb/
   - tests/
   - README.md
+  - .forge/product/current/adr/0004-opt-in-runtime-layer.md
+  - .forge/product/current/adr/README.md
   - CHANGELOG.md
 dependencies:
   specs: []

@@ -1,6 +1,6 @@
 # Design — add-unified-knowledge-search
 
-> Design técnico do change `add-unified-knowledge-search`. Medições que sustentam as decisões: `evidence/corpus-measurement.md` (corpus e plataforma) e `evidence/semantic-feasibility.md` (runtime, modelos, qualidade e latência). Decisão durável e transversal (primeira camada opt-in com dependência instalada sob demanda no projeto-alvo) a registrar como ADR 0004 no baseline pela TASK-10 (§2.9), emendando de forma explícita o "sem dependência no alvo" da ADR 0001.
+> Design técnico do change `add-unified-knowledge-search`. Medições que sustentam as decisões: `evidence/corpus-measurement.md` (corpus e plataforma) e `evidence/semantic-feasibility.md` (runtime, modelos, qualidade e latência). Decisão durável e transversal (primeira camada opt-in com dependência instalada sob demanda no projeto-alvo) a registrar como ADR 0004 no baseline pela TASK-09 (§2.9), emendando de forma explícita o "sem dependência no alvo" da ADR 0001.
 
 ## 1. Contexto e restrições
 
@@ -42,6 +42,7 @@ O default (camada lexical) usa apenas `node:*` e módulos do próprio harness. A
 | `lib/kb-lexical.mjs` | normalização, BM25, entidades, grafo de links, serialização do índice | `node:*` |
 | `lib/kb-fuse.mjs` | RRF ponderado, propagação de links e combinação do re-rank (funções puras) | nenhum |
 | `lib/kb-semantic.mjs` | verificação de integridade (pins, varredura nativa, versões, sha256), carga do runtime confinada a `.forge/kb/semantic/runtime/node_modules/`, embeddings, cross-encoder, cache de vetores | `node:*` + runtime instalado (caminho resolvido conferido) |
+| `lib/kb-integrity.mjs` | varredura de binário nativo, hash dos pins, conferência completa de uma instalação e `semantic status` (compartilhado por instalador e carga) | `node:*` |
 | `lib/kb-install.mjs` | único módulo com rede e processo filho: `npm ci` do runtime e download dos modelos com sha256 | `node:*` (inclusive `child_process` e `fetch`) |
 | `lib/kb-cli.mjs` | orquestra build, query, status, eval; formata saída texto e `--json`; neutraliza trechos | módulos acima |
 | `template/.forge/scripts/lib/kb-pins/package.json` + `package-lock.json` | runtime fixado: `onnxruntime-web` e `@huggingface/tokenizers`, versões exatas, `integrity` sha512 por pacote | dado |

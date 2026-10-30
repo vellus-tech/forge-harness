@@ -967,7 +967,7 @@ export async function replayTask({ root, red, green = null, taskBase = null, tas
   }
   if (taskId) {
     const escapedTask = taskId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const taskPrefix = `(?:^|: )${escapedTask} (?:—|-) `;
+    const taskPrefix = `^(?:feat|fix|refactor|test|chore|docs|style|perf|build|ci|revert)\\([a-z-]+\\): ${escapedTask} (?:—|-) `;
     const redSubject = new RegExp(`${taskPrefix}vermelho(?: |$)`);
     const taskSubject = new RegExp(`${taskPrefix}\\S`);
     if (!redSubject.test(subjectOf(redSha))) return topo(`o assunto do commit de vermelho não contém '${taskId} - vermelho'`);

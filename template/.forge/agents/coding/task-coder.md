@@ -332,8 +332,12 @@ else
   # Somente o assunto, com limites do identificador e da palavra vermelho; o corpo não identifica commits.
   find_task_reds() {
     git log --format='%H%x09%s' "${TASK_BASE}..HEAD" | { count=0; while IFS="$(printf '\t')" read -r sha subject; do
-    case "$subject" in
-      "$TASK_ID - vermelho"|"$TASK_ID - vermelho "*|*": $TASK_ID - vermelho"|*": $TASK_ID - vermelho "*|"$TASK_ID — vermelho"|"$TASK_ID — vermelho "*|*": $TASK_ID — vermelho"|*": $TASK_ID — vermelho "*) if [ "$count" -lt 2 ]; then printf '%s\n' "$sha"; count=$((count + 1)); fi ;;
+    prefix=${subject%%: *}
+    [ "$prefix" != "$subject" ] || continue
+    printf '%s\n' "$prefix" | grep -qE '^(feat|fix|refactor|test|chore|docs|style|perf|build|ci|revert)\([a-z-]+\)$' || continue
+    principal=${subject#*: }
+    case "$principal" in
+      "$TASK_ID - vermelho"|"$TASK_ID - vermelho "*|"$TASK_ID — vermelho"|"$TASK_ID — vermelho "*) if [ "$count" -lt 2 ]; then printf '%s\n' "$sha"; count=$((count + 1)); fi ;;
     esac
     done; }
   }

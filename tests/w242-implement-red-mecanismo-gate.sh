@@ -246,6 +246,10 @@ new_repo "$T/A7"; put "$T/A7" test/soma.test.mjs "$TEST_OK"; put "$T/A7" src/som
 put "$T/A7" src/soma.mjs "$SRC_IMPL"; cm "$T/A7" "feat(soma): TASK-99 - referência: TASK-01 - soma"
 new_repo "$T/A8"; put "$T/A8" test/soma.test.mjs "$TEST_OK"; put "$T/A8" src/soma.mjs "$SRC_STUB"; cm "$T/A8" "test(soma): TASK-99 - referência: TASK-01 - vermelho"
 put "$T/A8" src/soma.mjs "$SRC_IMPL"; cm "$T/A8" "feat(soma): TASK-01 - soma"
+new_repo "$T/A9"; put "$T/A9" test/soma.test.mjs "$TEST_OK"; put "$T/A9" src/soma.mjs "$SRC_STUB"; cm "$T/A9" "test(soma): TASK-01 — vermelho"
+put "$T/A9" src/soma.mjs "$SRC_IMPL"; cm "$T/A9" "feat(soma): TASK-99 — referência: TASK-01 — soma"
+new_repo "$T/A10"; put "$T/A10" test/soma.test.mjs "$TEST_OK"; put "$T/A10" src/soma.mjs "$SRC_STUB"; cm "$T/A10" "test(soma): TASK-99 — referência: TASK-01 — vermelho"
+put "$T/A10" src/soma.mjs "$SRC_IMPL"; cm "$T/A10" "feat(soma): TASK-01 — soma"
 # B — o vermelho já traz a implementação; o verde é vazio
 new_repo "$T/B"; put "$T/B" test/soma.test.mjs "$TEST_OK"; put "$T/B" src/soma.mjs "$SRC_IMPL"; cm "$T/B" "$RED_MSG"; cm "$T/B" "$GREEN_MSG"
 # B2 — o vermelho já traz a implementação; o verde só mexe num comentário de produção
@@ -301,6 +305,8 @@ if [ -s "$SNIP" ]; then
   expect 6A6 "$T/A6" "$SCRIPTS" "$SNIP" ok                                            || overall_rc=1
   expect 6A7 "$T/A7" "$SCRIPTS" "$SNIP" '[topologia]'                                 || overall_rc=1
   expect 6A8 "$T/A8" "$SCRIPTS" "$SNIP" '0 encontrado(s)'                            || overall_rc=1
+  expect 6A9 "$T/A9" "$SCRIPTS" "$SNIP" '[topologia]'                                 || overall_rc=1
+  expect 6A10 "$T/A10" "$SCRIPTS" "$SNIP" '0 encontrado(s)'                          || overall_rc=1
   expect 6B  "$T/B"  "$SCRIPTS" "$SNIP" '[vermelho-vazio]'                         || overall_rc=1
   expect 6B2 "$T/B2" "$SCRIPTS" "$SNIP" '[vermelho-passa]'                         || overall_rc=1
   expect 6C  "$T/C"  "$SCRIPTS" "$SNIP" '[vermelho-compilacao]'                    || overall_rc=1
@@ -324,7 +330,7 @@ else
   echo "FAIL [6]: sem bloco bash no §3.5 para executar"; overall_rc=1
 fi
 # O replayTask é uma fronteira própria; não depende da descoberta pelo task-coder.
-for caso in A4 A5 A7 A8; do
+for caso in A4 A5 A7 A8 A9 A10; do
   out="$(cd "$T/$caso" && bash "$SCRIPTS/red-evidence.sh" task --red HEAD^ --green HEAD --task-id TASK-01 --command 'node test/soma.test.mjs' --failure-pattern AssertionError 2>&1)"; rc=$?
   if [ "$rc" -ne 0 ] && grep -qF '[topologia]' <<<"$out"; then
     echo "OK [6-$caso-direto] — identificador ou marcador inválido recusado"

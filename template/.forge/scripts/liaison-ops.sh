@@ -38,7 +38,9 @@
 #   liaison-ops.sh transport probe <channel>
 #   liaison-ops.sh sync     <channel> [--push-only | --pull-only] [--repair-own-log]
 #   liaison-ops.sh render   <channel>
+#   liaison-ops.sh notify   <channel> <msg_id> --to <destino>
 #
+
 # TRANSPORTE (Onda 2): plugável, em lib/transports/<kind>.sh, com o contrato t_probe/t_push/t_pull.
 # Move ARQUIVOS OPACOS — nunca parseia mensagem, nunca sabe o que é thread, nunca decide merge. A
 # política de merge é uma só, em lib/liaison-import.mjs, compartilhada por `import` e `sync`: se
@@ -107,9 +109,9 @@ TPL="$(cd "$SCRIPT_DIR/.." && pwd)/templates/liaison/CHANNEL.md"
 
 cmd="${1:-}"; shift || true
 case "$cmd" in
-  -h|--help|help) echo "Usage: liaison-ops.sh open|thread|send|inbox|read|ack|status|export|import|conflicts|peer|peer-path|transport|sync|render [args...]"; exit 0 ;;
+  -h|--help|help) echo "Usage: liaison-ops.sh open|thread|send|inbox|read|ack|status|export|import|conflicts|peer|peer-path|transport|sync|render|notify [args...]"; exit 0 ;;
 esac
-[ -n "$cmd" ] || { echo "Usage: liaison-ops.sh open|thread|send|inbox|read|ack|status|export|import|conflicts|peer|peer-path|transport|sync|render [args...]" >&2; exit 1; }
+[ -n "$cmd" ] || { echo "Usage: liaison-ops.sh open|thread|send|inbox|read|ack|status|export|import|conflicts|peer|peer-path|transport|sync|render|notify [args...]" >&2; exit 1; }
 
 _git_date() { git -C "$ROOT" log -1 --format=%cI 2>/dev/null || echo ""; }
 _id_ok() { printf '%s' "$1" | grep -Eq '^[a-z0-9][a-z0-9._-]*$'; }
@@ -1420,6 +1422,42 @@ render)
   [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado" >&2; exit 1; }
   _render "$channel"
   echo "OK $ch_dir/CHANNEL.md"
+  ;;
+
+# ---------------------------------------------------------------------------------------------
+# notify — ponteiro canônico (REQ-01, design §2.3): imprime, em stdout, o ponteiro
+# `liaison:<channel>/<msg_id>` só se a mensagem existir no log próprio, for mensagem própria e já
+# tiver sido publicada por um `sync` com push bem-sucedido. NÃO envia nada — a doc do comando
+# instrui o agente a colar o bloco impresso no `message` do SendMessage. `--to` é só informativo.
+notify)
+  channel="${1:-}"; shift || true
+  msg_id="${1:-}"; shift || true
+  [ -n "$channel" ] && [ -n "$msg_id" ] || { echo "FAIL: uso: notify <channel> <msg_id> --to <destino>" >&2; exit 1; }
+  to=""
+  NOTIFY_FLAGS="--to"
+  while [ $# -gt 0 ]; do case "$1" in
+    --to) forge_reject_flag_as_value notify --to "${2-}" "$NOTIFY_FLAGS"; to="$2"; shift 2 ;;
+    *) _reject_unknown "notify" "$NOTIFY_FLAGS" "$1" ;;
+  esac; done
+  [ -n "$to" ] || { echo "FAIL: '--to' obrigatório no subcomando 'notify'" >&2; echo "  flags aceitas em 'notify': $NOTIFY_FLAGS" >&2; exit 1; }
+
+  pointer_out="$(node - "$LIBDIR" "$ROOT" "$channel" "$msg_id" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, channel, msgId] = process.argv;
+  const { resolvePointer } = await import(pathToFileURL(join(lib, 'liaison-pointer.mjs')).href);
+  const r = resolvePointer({ root, channel, msgId });
+  if (!r.ok) { console.error(`FAIL: ${r.reason}`); process.exit(1); }
+  console.log(`liaison:${channel}/${msgId}`);
+  console.log(`thread_id: ${r.thread_id}`);
+  console.log(`content_sha: ${r.content_sha}`);
+  console.log(`subject: ${r.subject}`);
+})();
+NODEEOF
+)" || exit 1
+  echo "$pointer_out"
+  echo "to: $to"
   ;;
 
 *)

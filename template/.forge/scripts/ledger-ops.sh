@@ -822,6 +822,60 @@ stale)
   esac
   ;;
 
+# show — leitura de uma entrada com a evidência e a cadeia de supersessão (REQ-04). A cadeia anda
+# para trás por `supersedes` e para frente por `links.superseded_by`, com conjunto de visitados:
+# `supersedes` só nasce no `add`, então a porta não forma ciclo, mas um ledger editado à mão pode
+# — e um laço infinito numa porta de leitura travaria /forge:ledger inteiro.
+show)
+  id="${1:-}"; shift || true
+  [ -n "$id" ] || { echo "FAIL: LDG-id obrigatório" >&2; exit 1; }
+  while [ $# -gt 0 ]; do _reject_unknown "show" "(nenhuma)" "$1"; done
+  _init_ledger
+  node - "$LF" "$id" <<'NODEEOF'
+const { readFileSync } = require('fs');
+const [, , lf, id] = process.argv;
+const data = JSON.parse(readFileSync(lf, 'utf8'));
+const byId = new Map((data.entries || []).map((x) => [x.id, x]));
+const e = byId.get(id);
+if (!e) { console.error("FAIL: ledger-ops: entrada '" + id + "' não encontrada."); process.exit(1); }
+const day = (s) => (s ? String(s).slice(0, 10) : '');
+const tag = [e.priority, e.severity].filter(Boolean).join('/');
+const out = [];
+out.push(`${e.id} [${e.type}/${e.status}]${tag ? ' (' + tag + ')' : ''} — ${e.title}`);
+out.push(`  registrado: ${day(e.created_at)} · ${e.last_verified ? 'reverificado: ' + day(e.last_verified) : 'nunca reverificado'}`);
+const ev = Array.isArray(e.evidence) ? e.evidence : [];
+if (ev.length) {
+  out.push('  evidência:');
+  ev.forEach((x, i) => out.push(`    ${i + 1}. ${day(x.at)} ${x.verdict} ${x.kind} ${x.ref} — ${x.observed}`));
+}
+// Cadeia: para trás até a raiz, para frente até a ponta.
+const back = []; const seen = new Set([id]); let defect = '';
+for (let cur = e; cur && cur.supersedes; ) {
+  const prev = cur.supersedes;
+  if (seen.has(prev)) { defect = `(ciclo em ${prev})`; break; }
+  seen.add(prev);
+  const p = byId.get(prev);
+  if (!p) { defect = `(elo quebrado: ${prev} não existe)`; back.unshift(prev); break; }
+  back.unshift(prev); cur = p;
+}
+const fwd = []; let fdefect = '';
+for (let cur = e; cur && cur.links && cur.links.superseded_by; ) {
+  const next = cur.links.superseded_by;
+  if (seen.has(next)) { fdefect = `(ciclo em ${next})`; break; }
+  seen.add(next);
+  const n = byId.get(next);
+  if (!n) { fdefect = `(elo quebrado: ${next} não existe)`; fwd.push(next); break; }
+  fwd.push(next); cur = n;
+}
+const chain = [...back, `[${id}]`, ...fwd];
+const defects = [defect, fdefect].filter(Boolean).join(' ');
+out.push('  cadeia de supersessão: ' + (chain.length > 1 || defects ? chain.join(' → ') + (defects ? ' ' + defects : '') : '—'));
+out.push('  detail:');
+for (const l of String(e.detail || '').split('\n')) out.push('    ' + l);
+console.log(out.join('\n'));
+NODEEOF
+  ;;
+
 render)
   _init_ledger; _render; echo "OK $OUT"
   ;;

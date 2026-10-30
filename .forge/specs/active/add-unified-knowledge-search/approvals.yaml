@@ -35,3 +35,21 @@ approvals:
     commit: "2a45ba74"
     scope: "design.md"
     notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: design_reviewed
+    decision: approve
+    reason: "Revisor delegado (opus), rodada 2: APPROVE. MAJOR da rodada 1 corrigido (interceptador por --require alcança Workers; canário com recontrole), reproduzido pelo revisor em Node 22 e 26. Ratificadas como dono delegado as emendas do REQ-07 (desempate pelo cross-encoder) e do REQ-09 (--require + canário). MINOR para a TASK-08: interceptar net.Socket.prototype.connect, dgram.Socket.prototype.send/bind e dns; canário com import ESM nomeado, socket cru e child_process."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T20:33:36-03:00"
+    iteration: 2
+    commit: "4610ae2f"
+    scope: "design.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: requirements_reviewed
+    decision: approve
+    reason: "Ratificação, pelo revisor delegado do gate design_reviewed (rodadas 1 e 2), das emendas feitas no requirements depois do approve: REQ-07 (desempate do re-rank pela posição do cross-encoder, motivado por contradição interna do critério ii) e REQ-09 (interceptador por --require, que alcança Workers, mais canário de controle positivo)."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T20:33:36-03:00"
+    iteration: 1
+    commit: "4610ae2f"
+    scope: "requirements.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"

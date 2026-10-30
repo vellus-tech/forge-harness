@@ -39,7 +39,7 @@ dependencies:
   code: []
 gates:
   requirements_reviewed: true
-  design_reviewed: false
+  design_reviewed: true
   tasks_reviewed: false
   implementation_verified: false
   human_archive_approval: false

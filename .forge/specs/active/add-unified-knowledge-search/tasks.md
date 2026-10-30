@@ -39,7 +39,7 @@
 
 ## Wave 4 — Guardas de rede e zero-dep, superfície, ADR
 
-- [ ] TASK-08 — Gates de rede (permissões do Node e interceptador, nos modos lexical, semântico e nos oito degradados), `git` substituto, estáticos (imports, hosts de LLM, programas do `kb.sh`, zero-dep do caminho lexical) (rastreia: REQ-04, REQ-08, REQ-09, NFR-03, design §2.8, §2.12; paths: `tests/w292-kb-offline-gate.sh`, `tests/fixtures/kb/no-network.mjs`, `tests/fixtures/kb/fake-git.sh`; depende: TASK-07)
+- [ ] TASK-08 — Gates de rede (permissões do Node e interceptador por `--require`, com pontos de estrangulamento de socket e canário de controle positivo, nos modos lexical, semântico e nos oito degradados), `git` substituto, estáticos (imports, hosts de LLM, programas do `kb.sh`, zero-dep do caminho lexical) (rastreia: REQ-04, REQ-08, REQ-09, NFR-03, design §2.8, §2.12; paths: `tests/w292-kb-offline-gate.sh`, `tests/fixtures/kb/no-network.cjs`, `tests/fixtures/kb/net-canary.mjs`, `tests/fixtures/kb/fake-git.sh`; depende: TASK-07)
   - Teste (comando): `bash tests/w292-kb-offline-gate.sh`
   - Padrão de falha: `FAIL \[[0-9]+\]`
 - [ ] TASK-09 — Superfície: `/forge:kb`, remissão em `/forge:query`, `.gitignore` e `gitignore.patch`, linha `info` do `doctor.sh` (raiz de estado), plugin regenerado, README (rastreia: REQ-05, REQ-10, design §2.9, §2.12; paths: `template/.forge/commands/graph/kb.md`, `template/.forge/commands/graph/query.md`, `installer/gitignore.patch`, `.gitignore`, `template/.forge/scripts/doctor.sh`, `plugin/forge/`, `README.md`, `tests/w293-kb-surface-gate.sh`; depende: TASK-07)

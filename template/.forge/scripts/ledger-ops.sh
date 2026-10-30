@@ -224,8 +224,8 @@ esac
 case "$cmd" in
 
 add)
-  type=""; title=""; detail=""; severity=""; priority=""; status="open"; origin="manual"; change=""; ref=""; adr=""; capability=""
-  ADD_FLAGS="--type --title --detail --severity --priority --status --origin --change --ref --adr --capability"
+  type=""; title=""; detail=""; severity=""; priority=""; status="open"; origin="manual"; change=""; ref=""; adr=""; capability=""; supersedes=""
+  ADD_FLAGS="--type --title --detail --severity --priority --status --origin --change --ref --adr --capability --supersedes"
   while [ $# -gt 0 ]; do case "$1" in
     --type) _require_value "add" --type "${2-}" "$ADD_FLAGS"; type="$2"; shift 2 ;;
     --title) _require_value "add" --title "${2-}" "$ADD_FLAGS"; title="$2"; shift 2 ;;
@@ -238,6 +238,7 @@ add)
     --ref) _require_value "add" --ref "${2-}" "$ADD_FLAGS"; ref="$2"; shift 2 ;;
     --adr) _require_value "add" --adr "${2-}" "$ADD_FLAGS"; adr="$2"; shift 2 ;;
     --capability) _require_value "add" --capability "${2-}" "$ADD_FLAGS"; capability="$2"; shift 2 ;;
+    --supersedes) _require_value "add" --supersedes "${2-}" "$ADD_FLAGS"; supersedes="$2"; shift 2 ;;
     *) _reject_unknown "add" "$ADD_FLAGS" "$1" ;;
   esac; done
   [ -n "$type" ] || { echo "FAIL: --type obrigatório (roadmap|tech-debt|known-bug|follow-up|feature-idea)" >&2; exit 1; }
@@ -248,7 +249,17 @@ add)
       echo "  ledger-ops.sh resolve <LDG-NNNN> --note \"<motivo>\"$([ "$status" = wont-fix ] && echo " --status wont-fix")" >&2
       exit 1
       ;;
+    superseded)
+      # Mesma lógica da issue #78: o status só nasce junto do elo e do carimbo, pela porta que os grava.
+      echo "FAIL: ledger-ops: 'add --status superseded' gravaria um item encerrado sem sucessor, sem elo e sem resolved_at — o status 'superseded' só nasce por 'ledger-ops.sh add ... --supersedes <LDG-NNNN>', na entrada ANTERIOR, quando a nova a substitui." >&2
+      exit 1
+      ;;
   esac
+  # --supersedes: padrão conferido aqui; existência e status do alvo, no bloco node (escrita única).
+  if [ -n "$supersedes" ] && ! [[ "$supersedes" =~ ^LDG-[0-9]{4}$ ]]; then
+    echo "FAIL: ledger-ops: --supersedes '$supersedes' não é um id de ledger (LDG-NNNN)." >&2
+    exit 1
+  fi
   _validate_enum_field "$SCHEMA" "type" "$type" "type"
   _validate_enum_field "$SCHEMA" "severity" "$severity" "severity"
   _validate_enum_field "$SCHEMA" "priority" "$priority" "priority"
@@ -256,13 +267,26 @@ add)
   _validate_enum_field "$SCHEMA" "source.origin" "$origin" "origin"
   _require_git_date
   _init_ledger
-  result="$(node - "$LF" "$type" "$title" "$detail" "$severity" "$priority" "$status" "$origin" "$change" "$ref" "$adr" "$capability" "$GIT_DATE_NOW" <<'NODEEOF'
+  result="$(node - "$LF" "$type" "$title" "$detail" "$severity" "$priority" "$status" "$origin" "$change" "$ref" "$adr" "$capability" "$GIT_DATE_NOW" "$supersedes" <<'NODEEOF'
 const { readFileSync } = require('fs');
-const [, , lf, type, title, detail, severity, priority, status, origin, change, ref, adr, capability, now] = process.argv;
+const [, , lf, type, title, detail, severity, priority, status, origin, change, ref, adr, capability, now, supersedes] = process.argv;
 const data = JSON.parse(readFileSync(lf, 'utf8'));
 if (!Array.isArray(data.entries)) data.entries = [];
 const max = data.entries.reduce((m, e) => { const n = parseInt((e.id || '').replace('LDG-', ''), 10); return Number.isFinite(n) && n > m ? n : m; }, 0);
 const id = 'LDG-' + String(max + 1).padStart(4, '0');
+// Supersessão (add-ledger-evidence-aging, REQ-04): o anterior só pode ser substituído enquanto está
+// ATIVO. 'promoted' está sob rastreio de um change (a baixa é do archive/close); um encerrado não
+// tem o que substituir; um 'superseded' já tem sucessor. As duas mutações vão na MESMA escrita.
+let anterior = null;
+if (supersedes) {
+  anterior = data.entries.find((x) => x.id === supersedes);
+  if (!anterior) { console.error("FAIL: ledger-ops: --supersedes " + supersedes + ' — entrada não encontrada.'); process.exit(1); }
+  if (['open', 'planned', 'in-progress'].indexOf(anterior.status) === -1) {
+    const extra = anterior.status === 'promoted' && anterior.links && anterior.links.promoted_to ? ' (rastreada pelo change ' + anterior.links.promoted_to + ')' : (anterior.status === 'superseded' && anterior.links && anterior.links.superseded_by ? ' (já substituída por ' + anterior.links.superseded_by + ')' : '');
+    console.error('FAIL: ledger-ops: --supersedes ' + supersedes + " — a entrada está em '" + anterior.status + "'" + extra + '; só uma entrada ativa (open, planned, in-progress) pode ser substituída.');
+    process.exit(1);
+  }
+}
 const dedup = (change && ref) ? `${change}:${ref}` : `manual:${id}`;
 data.entries.push({
   id, type, title,
@@ -275,13 +299,23 @@ data.entries.push({
   created_at: now, updated_at: null, resolved_at: null,
   dedup_key: dedup,
 });
+if (anterior) {
+  data.entries[data.entries.length - 1].supersedes = supersedes;
+  anterior.status = 'superseded';
+  anterior.resolved_at = now;
+  anterior.updated_at = now;
+  if (!anterior.links) anterior.links = { adr: [], capability: [], change: [], promoted_to: null };
+  anterior.links.superseded_by = id;
+  const substV = 'SUBSTITUÍDO (' + now.slice(0, 10) + '): por ' + id;
+  anterior.detail = anterior.detail ? anterior.detail + '\n\n' + substV : substV;
+}
 console.log(JSON.stringify(data, null, 2));
 NODEEOF
 )"
   _write_json "$LF" "$result"
   _render
   new_id="$(node -e "const d=JSON.parse(require('fs').readFileSync('$LF','utf8'));console.log(d.entries[d.entries.length-1].id)")"
-  echo "OK add — $new_id registrado ($type)"
+  echo "OK add — $new_id registrado ($type)$([ -n "$supersedes" ] && echo " — substitui $supersedes (agora superseded)")"
   # Entrada sem --detail nasce como título sem conteúdo, que é a forma de item que envelhece pior:
   # daqui a dois meses ninguém reconstrói o que ela queria dizer. AVISA, não reprova — reprovar
   # quebraria todo consumidor com script que já chama `add` sem `--detail`.
@@ -317,6 +351,10 @@ update)
       echo "  ledger-ops.sh resolve $id --note \"<motivo>\"$([ "$n_status" = wont-fix ] && echo " --status wont-fix")" >&2
       exit 1
       ;;
+    superseded)
+      echo "FAIL: ledger-ops: 'update --status superseded' gravaria um item encerrado sem sucessor e sem elo — registre o sucessor com 'ledger-ops.sh add ... --supersedes $id', que encerra este na mesma escrita." >&2
+      exit 1
+      ;;
   esac
   _require_git_date
   _init_ledger
@@ -327,6 +365,11 @@ const [, , lf, id, st, pr, sv, ti, de, now, repl] = process.argv;
 const data = JSON.parse(readFileSync(lf, 'utf8'));
 const e = (data.entries || []).find((x) => x.id === id);
 if (!e) { console.error('entrada ' + id + ' não encontrada'); process.exit(1); }
+// 'superseded' não sai do status por porta nenhuma: o trabalho continua no sucessor.
+if (e.status === 'superseded' && st) {
+  console.error("FAIL: ledger-ops: 'update " + id + " --status " + st + "' — a entrada está em 'superseded' e não sai desse status; o trabalho continua em " + ((e.links && e.links.superseded_by) || '(sucessor ausente)') + '. Correção de título/prioridade/detail continua permitida.');
+  process.exit(5);
+}
 // Assinatura de CONTEÚDO antes e depois: `updated_at` deliberadamente fora dela. Um update cujo
 // único efeito é mexer no carimbo faz a entrada parecer recente sem carregar informação nova, e
 // era indistinguível de um update que gravou de fato — os dois imprimiam `OK`.
@@ -575,6 +618,10 @@ const [, , lf, id, note, newStatus, now] = process.argv;
 const data = JSON.parse(readFileSync(lf, 'utf8'));
 const e = (data.entries || []).find((x) => x.id === id);
 if (!e) { console.error('entrada ' + id + ' não encontrada'); process.exit(1); }
+if (e.status === 'superseded') {
+  console.error('FAIL: ' + id + " já está encerrada como 'superseded' desde " + e.resolved_at + ' — o trabalho continua em ' + ((e.links && e.links.superseded_by) || '(sucessor ausente)') + '; resolva o sucessor.');
+  process.exit(1);
+}
 if (e.status === 'resolved' || e.status === 'wont-fix') {
   console.error('FAIL: ' + id + " já está '" + e.status + "' desde " + e.resolved_at + ' — use update --detail para acrescentar nota');
   process.exit(1);
@@ -609,6 +656,10 @@ const [, , lf, id, to, now] = process.argv;
 const data = JSON.parse(readFileSync(lf, 'utf8'));
 const e = (data.entries || []).find((x) => x.id === id);
 if (!e) { console.error('entrada ' + id + ' não encontrada'); process.exit(1); }
+if (e.status === 'superseded') {
+  console.error("FAIL: ledger-ops: promote " + id + " — a entrada está em 'superseded'; promova o sucessor: ledger-ops.sh promote " + ((e.links && e.links.superseded_by) || '<sucessor>') + ' --to ' + to);
+  process.exit(1);
+}
 e.status = 'promoted';
 e.updated_at = now;
 if (!e.links) e.links = { adr: [], capability: [], change: [], promoted_to: null };
@@ -818,7 +869,10 @@ if (Number.isFinite(top) && top > 0) items = items.slice(0, top);
 if (!items.length) { console.log('(nenhuma entrada)'); process.exit(0); }
 for (const e of items) {
   const tag = [e.priority, e.severity].filter(Boolean).join('/');
-  console.log(`${e.id} [${e.type}/${e.status}]${tag ? ' (' + tag + ')' : ''} — ${e.title}`);
+  // Ordem canônica dos sufixos (design §8): substitui, reverificado, sem reverificação.
+  const sup = e.supersedes ? ` (substitui ${e.supersedes})` : '';
+  const ver = e.last_verified ? ` · reverificado em ${String(e.last_verified).slice(0, 10)}` : '';
+  console.log(`${e.id} [${e.type}/${e.status}]${tag ? ' (' + tag + ')' : ''} — ${e.title}${sup}${ver}`);
 }
 NODEEOF
   ;;

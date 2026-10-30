@@ -37,7 +37,7 @@ async function rerank(p, order, rep, k, wce, K = 10) {
   }
   const ceOrder = [...top].sort((a, b) => sc.get(b) - sc.get(a) || top.indexOf(a) - top.indexOf(b));
   const cr = new Map(ceOrder.map((d, i) => [d, i + 1]));
-  const rows = top.map((d, i) => [d, wce / (k + cr.get(d)) + 1 / (k + i + 1), i]);
+  const rows = top.map((d, i) => [d, wce / (k + cr.get(d)) + 1 / (k + i + 1), process.env.TIE === "ce" ? cr.get(d) : i]);
   rows.sort((a, b) => b[1] - a[1] || a[2] - b[2]);
   return [...rows.map((r) => r[0]), ...order.slice(K)];
 }

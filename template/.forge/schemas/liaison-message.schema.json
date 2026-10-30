@@ -143,9 +143,48 @@
       "type": "string",
       "enum": [
         "ask-peer",
-        "divergence-resolve"
+        "divergence-resolve",
+        "cross-session"
       ],
-      "description": "Como o conteúdo de terceiro chegou até aqui. Registrado para que a procedência seja auditável no log, e não inferida. O valor nomeia o MECANISMO (perguntou-se ao peer; recuperou-se uma posição retida por divergência), não o comando que o disparou."
+      "description": "Como o conteúdo de terceiro chegou até aqui. Registrado para que a procedência seja auditável no log, e não inferida. O valor nomeia o MECANISMO (perguntou-se ao peer; recuperou-se uma posição retida por divergência; chegou por mensageria nativa entre sessões do Claude Code), não o comando que o disparou."
+    },
+    "cross_session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from_addr",
+        "from_name",
+        "from_mode",
+        "native_ref",
+        "origin_verified"
+      ],
+      "description": "Só em via=cross-session: dados extraídos do transcript da sessão receptora para uma mensagem nativa recebida (REQ-02). from_addr/from_name/from_mode são AUTODECLARADOS pela sessão de origem — não provam repositório nem empresa (rules/conventions/liaison-untrusted-input.md). native_ref é o fingerprint (sha256 hex) calculado pelo mesmo leitor do REQ-08. origin_verified é o resultado da conferência contra o registro de sessões (design §2.4 passo 6).",
+      "properties": {
+        "from_addr": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]*$",
+          "description": "Endereço declarado pela sessão de origem (forma medida: uds:/tmp/cc-socks/<pid>.sock). Autodeclarado."
+        },
+        "from_name": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]*$",
+          "description": "Nome declarado pela sessão de origem. Autodeclarado: não prova repositório nem empresa."
+        },
+        "from_mode": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]*$"
+        },
+        "native_ref": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "origin_verified": {
+          "type": "boolean"
+        }
+      }
     },
     "resolves": {
       "type": "object",
@@ -226,6 +265,43 @@
           "body",
           "body_ref"
         ]
+      }
+    },
+    {
+      "$comment": "REQ-02/design §4.1: via=cross-session exige authored_by e cross_session com os cinco subcampos.",
+      "if": {
+        "properties": {
+          "via": {
+            "const": "cross-session"
+          }
+        },
+        "required": [
+          "via"
+        ]
+      },
+      "then": {
+        "required": [
+          "authored_by",
+          "cross_session"
+        ]
+      }
+    },
+    {
+      "$comment": "REQ-02/design §4.1: cross_session só é aceito com via=cross-session (mão dupla da condição acima).",
+      "if": {
+        "required": [
+          "cross_session"
+        ]
+      },
+      "then": {
+        "required": [
+          "via"
+        ],
+        "properties": {
+          "via": {
+            "const": "cross-session"
+          }
+        }
       }
     }
   ]

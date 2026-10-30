@@ -7,7 +7,7 @@
 ## Como os pares vermelho → verde são operados
 
 - Cada par é uma task de gate vermelho (`test(...)`) seguida da task de implementação (`feat(...)`), e o commit do verde é **filho direto** do commit do vermelho (senão a prova reprova `[topologia]`). A prova mecânica é `red-evidence.sh task` com `--red <sha do vermelho> --green <sha do verde>` sobre o `Teste (comando)` da task do verde; por isso a task do verde repete o `Padrão de falha` específico da task do vermelho.
-- O commit do vermelho só traz arquivos em `tests/` (stub em `template/.forge/scripts/` conta como infraestrutura e reprova `[vermelho-infra]`).
+- O commit do vermelho só traz arquivos em `tests/` (stub em `template/.forge/scripts/` conta como infraestrutura e reprova `[vermelho-infra]`). A marca `[X]` no `tasks.md` e o `status` da story também ficam fora do par (todo caminho `.forge/...` é infraestrutura para o `red-evidence`): vão num commit `chore(spec)` depois do verde, medido na Wave 1.
 - O gate vermelho emite linhas `FAIL [n] <motivo>` por asserção e não pode quebrar por módulo ausente (importar o módulo novo dentro de `try`/checar existência antes e reportar `FAIL [n] ... ausente`), senão cai em `[vermelho-compilacao]`/`[vermelho-padrao]`.
 - Gates novos levam nome provisório sem ordinal (`tests/<nome>-gate.sh`, descobertos pelo glob do `run-all.sh`) e a linha `# ORDINAL: wNNN atribuído na hora do merge` no cabeçalho; o número só é decidido no merge.
 - Execução estritamente sequencial, na ordem em que as tasks aparecem neste arquivo (a TASK-27 vem antes da TASK-26, que é a última) (várias tasks tocam `liaison-ops.sh`, e o verde precisa ser filho direto do vermelho); nunca duas tasks em paralelo.

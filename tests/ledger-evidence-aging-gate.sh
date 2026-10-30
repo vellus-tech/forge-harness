@@ -43,7 +43,7 @@ _run_to() { # _run_to <segundos> -- <cmd...> — teto de tempo (macOS não tem `
 
 # Contador de cenários por grupo: declarados × executados DOS GRUPOS SELECIONADOS.
 declare_scn() { case "$1" in schema) echo 4;; stale) echo 8;; verify) echo 7;; supersede) echo 3;; show) echo 2;; specnew) echo 1;; closed) echo 3;; wiring) echo 5;; docs) echo 3;; mutation) echo 3;; esac; }
-ALL_GROUPS="schema stale verify supersede show specnew"
+ALL_GROUPS="schema stale verify supersede show specnew closed"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
 _fail() { echo "FAIL [$1] $2"; exit 1; }
@@ -469,6 +469,50 @@ if _want specnew; then
   o="$(_run_to 60 -- env FORGE_ROOT="$F" bash "$F/.forge/scripts/spec-new.sh" from-vivo --type feature --scale 1 --from-ledger LDG-0001 2>&1)" || _fail specnew-1 "controle: spec-new reprovou: $o"
   grep -q "^ledger_origin: LDG-0001" "$F/.forge/specs/active/from-vivo/manifest.yaml" || _fail specnew-1 "controle: item ativo deveria gravar ledger_origin"
   echo "OK [specnew-1] — superseded sem elo + WARN; controle ativo com elo"
+fi
+
+# ───────────────────────────── closed (REQ-07, REQ-06 render) ─────────────────────────────
+if _want closed; then
+  _scn "[closed-1] 'superseded' presente em cada conjunto encerrado inventariado (guarda: padrão encontrado)"
+  RENDER_SRC="$WS/template/.forge/scripts/lib/ledger-render.mjs"
+  OPS_SRC="$WS/template/.forge/scripts/ledger-ops.sh"
+  n_r="$(grep -c "^const CLOSED = new Set(\[" "$RENDER_SRC" || true)"
+  [ "$n_r" = "1" ] || _fail closed-1 "padrão CLOSED do renderizador não encontrado ($n_r) — o sítio mudou de forma"
+  grep "^const CLOSED = new Set(\[" "$RENDER_SRC" | grep -q "'superseded'" || _fail closed-1 "renderizador sem 'superseded' no CLOSED"
+  n_o="$(grep -cE "^const CLOSED = (new Set\()?\[" "$OPS_SRC" || true)"
+  [ "$n_o" = "2" ] || _fail closed-1 "esperados 2 conjuntos CLOSED em ledger-ops.sh (note, status), achados $n_o"
+  n_os="$(grep -E "^const CLOSED = (new Set\()?\[" "$OPS_SRC" | grep -c "'superseded'" || true)"
+  [ "$n_os" = "2" ] || _fail closed-1 "só $n_os de 2 conjuntos de ledger-ops.sh têm 'superseded'"
+  grep "^const RECLASSIFIED = new Set(\[" "$WS/tools/plan-progress.mjs" | grep -q "'superseded'" || _fail closed-1 "tools/plan-progress.mjs sem 'superseded' no balde RECLASSIFIED"
+  echo "OK [closed-1] — renderizador 1/1, ledger-ops 2/2, plan-progress 1/1"
+
+  _scn "[closed-2] contagem ativa do LEDGER.md e do status excluem superseded; note avisa item encerrado"
+  F="$T/closed"; _fixture "$F"; LFC="$F/.forge/ledger/ledger.json"
+  _lg "$F" add --type tech-debt --title "A" --detail "a" >/dev/null
+  _lg "$F" add --type tech-debt --title "B" --detail "b" >/dev/null
+  _lg "$F" add --type tech-debt --title "B2" --detail "b2" --supersedes LDG-0002 >/dev/null
+  grep -q "^\*\*2 itens ativos\*\*" "$F/.forge/ledger/LEDGER.md" || _fail closed-2 "LEDGER.md não conta 2 ativos: $(grep 'ativo' "$F/.forge/ledger/LEDGER.md" | head -1)"
+  grep -q "superseded 1" "$F/.forge/ledger/LEDGER.md" || _fail closed-2 "LEDGER.md não lista superseded entre encerrados"
+  _lg "$F" status | grep -q "^LEDGER: 2 ativo(s)" || _fail closed-2 "status não conta 2 ativos: $(_lg "$F" status)"
+  o="$(_lg "$F" note LDG-0002 --kind correction --text "nota tardia" 2>&1)"
+  grep -q "está em 'superseded'" <<<"$o" || _fail closed-2 "note não avisou item superseded: $o"
+  echo "OK [closed-2]"
+
+  _scn "[closed-3] render: 'reverificado em' e '↳ substitui' só nas entradas com os campos novos"
+  mkdir -p "$F/src"; printf 'um\n' > "$F/src/a.txt"
+  _lg "$F" verify LDG-0001 --kind file --ref "src/a.txt:1" --observed "o defeito segue presente na linha um" --verdict confirmed >/dev/null
+  MDC="$F/.forge/ledger/LEDGER.md"
+  grep "^- \*\*LDG-0001\*\*" "$MDC" | grep -q "· reverificado em " || _fail closed-3 "entrada verificada sem 'reverificado em'"
+  grep -A3 "^- \*\*LDG-0003\*\*" "$MDC" | grep -qF '↳ substitui `LDG-0002`' || _fail closed-3 "entrada sucessora sem '↳ substitui'"
+  # Entradas legadas renderizam sem nenhum dos marcadores novos: o ledger real não tem campo novo.
+  R="$T/closed-real"; mkdir -p "$R"
+  LEDGER_ROOT="$R" LEDGER_JSON="$REAL_LEDGER" LEDGER_TPL="$WS/template/.forge/templates/ledger/LEDGER.md" LEDGER_OUT="$R/LEDGER.md" \
+    _run_to 20 -- node "$WS/template/.forge/scripts/lib/ledger-render.mjs"
+  if grep -q "reverificado em\|↳ substitui" "$R/LEDGER.md"; then _fail closed-3 "ledger legado ganhou marcador novo no render"; fi
+  ativos="$(node -e 'const d=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(d.entries.filter(e=>!["resolved","wont-fix","promoted","superseded"].includes(e.status)).length)' "$REAL_LEDGER")"
+  linhas="$(grep -c "^- \*\*LDG-" "$R/LEDGER.md" || true)"
+  [ "$ativos" = "$linhas" ] || _fail closed-3 "ledger real: $ativos ativos no JSON, $linhas linhas de item no render"
+  echo "OK [closed-3] — marcadores só onde há campo novo; ledger legado com $linhas linha(s) de item, nenhuma marcada"
 fi
 
 # ───────────────────────────── fechamento ─────────────────────────────

@@ -65,10 +65,11 @@ Calibração dos pesos lexicais (mesma rodada, sem camada semântica):
 
 ### 3.1 Links: canal RRF versus propagação (calibração, 35 consultas, rascunho dos módulos de produção)
 
-Com o índice dos módulos `kb-corpus`/`kb-lexical` (334 documentos, 5.126 trechos) e só a partição de calibração (`evidence/prototype/grid*.mjs`):
+Com o índice dos rascunhos dos módulos de produção (334 documentos, 5.126 trechos) e só a partição de calibração. Reprodução: os rascunhos usados e os scripts de grade estão versionados em `evidence/prototype/draft/` (copie `template/.forge/scripts/lib/yaml-lite.mjs` para o mesmo diretório, rode `node draft/kb-cli.mjs build --doc-root <raiz>` e depois `node draft/grid3.mjs <raiz> prototype/queries.json`).
 
 | Forma dos links | Parâmetros | hit@1 | hit@5 | hit@10 | MRR |
 |---|---|---|---|---|---|
+| BM25 isolado | — | 0,429 | 0,743 | 0,771 | 0,554 |
 | sem links (BM25 + entidades, WE = 0,2) | — | 0,429 | 0,743 | 0,771 | 0,554 |
 | canal RRF | WL = 0,05, pool 20 | 0,371 | 0,657 | 0,771 | 0,519 |
 | canal RRF | WL = 0,1, pool 20 | 0,371 | 0,629 | 0,829 | 0,503 |
@@ -78,7 +79,7 @@ Com o índice dos módulos `kb-corpus`/`kb-lexical` (334 documentos, 5.126 trech
 | propagação de score | α = 0,15, T = 10 | 0,457 | 0,714 | 0,800 | 0,569 |
 | propagação de score | α = 0,1, T = 5 | 0,457 | 0,714 | 0,771 | 0,568 |
 
-Por que o canal RRF falha: a distância entre posições vizinhas do BM25 em RRF (k = 60) é ~1/(61+r)², menor que a contribuição mínima de qualquer canal com peso ≥ 0,05; os links passam a reordenar o topo por estrutura, não por relevância. A propagação transfere uma fração do score de quem já é relevante, então só reforça vizinhos de bons resultados. Escolha para o default (só pela calibração): WE = 0,2, α = 0,1, T = 10 — melhor MRR e hit@1, com hit@5 uma consulta abaixo do BM25 isolado (dentro do ruído de uma consulta). As entidades quase não pesam neste conjunto (só 2 das 35 consultas citam um identificador) e existem para consultas por id (`LDG-0012`, `w283`), que o gate hermético cobre.
+Por que o canal RRF falha: a distância entre posições vizinhas do BM25 em RRF (k = 60) é ~1/(61+r)², menor que a contribuição mínima de qualquer canal com peso ≥ 0,05; os links passam a reordenar o topo por estrutura, não por relevância. A propagação transfere uma fração do score de quem já é relevante, então só reforça vizinhos de bons resultados. Escolha para o default (só pela calibração): WE = 0,2, α = 0,1, T = 10 — melhor MRR e hit@1, com hit@5 uma consulta abaixo do BM25 isolado (dentro do ruído de uma consulta). Nesta partição BM25 isolado e BM25 + entidades coincidem porque só 2 consultas citam identificador e nenhuma delas muda de posição no topo. O verify registra também, como informação, a linha "sem links" no holdout, para mostrar se a propagação agrega ali. As entidades quase não pesam neste conjunto (só 2 das 35 consultas citam um identificador) e existem para consultas por id (`LDG-0012`, `w283`), que o gate hermético cobre.
 
 ## 4. Latência e custo
 

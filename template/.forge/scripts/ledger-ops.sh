@@ -991,7 +991,7 @@ for (const e of items) {
   const sup = e.supersedes ? ` (substitui ${e.supersedes})` : '';
   const ver = e.last_verified ? ` · reverificado em ${String(e.last_verified).slice(0, 10)}` : '';
   const ag = ages.get(e.id);
-  const old = ag === '!' ? ' · inconsistente (last_verified sem evidência que o sustente — ledger-ops.sh stale)' : (ag ? ` · sem reverificação há ${ag}d` : '');
+  const old = ag === '!' ? ' · inconsistente (motivo em ledger-ops.sh stale)' : (ag ? ` · sem reverificação há ${ag}d` : '');
   console.log(`${e.id} [${e.type}/${e.status}]${tag ? ' (' + tag + ')' : ''} — ${e.title}${sup}${ver}${old}`);
 }
 NODEEOF

@@ -1,18 +1,25 @@
 // lib/native-send-guard.mjs — leitor/avaliador ÚNICO do gancho de saída `guard-cross-session-send.sh`
 // (design §2.5, REQ-04 a REQ-07). O `.sh` só localiza esta lib pelo próprio caminho e faz
-// `exec node native-send-guard.mjs` com o stdin — toda a lógica mora aqui.
+// `exec node native-send-guard.mjs` com o stdin — toda a lógica mora aqui. Nenhuma conexão com
+// socket, nenhuma invocação do CLI do Claude Code (NFR-02, w113 [10]).
 //
 // Etapas, na ordem do design (§2.5): 1 parse; 2 classificação do destino (REQ-05); 3 pedido só
 // de aviso de ociosidade; 4 varredura de segredo (REQ-04); 5 contenção por workspace (REQ-07); 6
-// destino declarado (REQ-06). Nesta wave (TASK-15, STORY-08) só as etapas 1 a 4 existem — 5 e 6
-// chegam na TASK-17 (STORY-09). Até lá, destino de sessão com corpo limpo passa (`exit 0`): o
-// estado intermediário nunca é fiado nem publicado (a linha do manifesto só entra na TASK-19 e a
-// branch não é publicada antes do fim do change — preâmbulo de tasks.md, nota da TASK-15).
+// destino declarado (REQ-06). A etapa 5 vem antes da 6 porque a 6 precisa do repositório do
+// destino já resolvido e porque contenção é a recusa de maior consequência (design §2.5).
 import { realpathSync } from 'node:fs';
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { findSecrets } from './secret-scan.mjs';
 import { readRegistryFiles, isAlive, normalizeSocketPath } from './native-registry.mjs';
 import { findNamedAgentInTranscript } from './native-transcript.mjs';
+import { mainRepoRoot, workspaceRoot, workspaceIdentity } from './native-workspace.mjs';
+import { readEffectiveAllowlist } from './native-allowlist.mjs';
+import { resolvePointer } from './liaison-pointer.mjs';
+import { readConfig, getPeerPath } from './liaison-config.mjs';
+import { EPHEMERAL_CLASSES, POINTER_LINE_RE, EPHEMERAL_LINE_RE, NATIVE_EXTRA_TEXT_MAX_BYTES } from './native-classes.mjs';
+
+const CANONICAL_NOTIFY_PREFIXES = ['thread_id:', 'content_sha:', 'subject:', 'to:'];
 
 const REF_SUFFIX_RE = /\s\[[0-9a-f]+\]$/;
 const BAD_TO_CHARS_RE = /[*,\n]/;
@@ -62,22 +69,37 @@ function resolveSessionByNameCached(cache, name) {
   return { entry: alive[0] };
 }
 
-// resolveSessionBySocketCached(cache, sockFile) -> entry | null — mesma semântica de
-// `resolveBySocket`, sobre o snapshot cacheado.
+// resolveSessionBySocketCached(cache, sockFile) -> { entry? , error? } — mesma semântica de
+// `resolveBySocket` (native-registry.mjs), sobre o snapshot cacheado: fail-closed só quando
+// NENHUM registro válido deu match E existe arquivo ilegível no diretório (a resolução pode ter
+// perdido o match verdadeiro nesse arquivo); achado o destino certo, um OUTRO arquivo ilegível
+// no diretório não impede a resolução.
 export function resolveSessionBySocketCached(cache, sockFile) {
-  const { entries, dirError } = cache.registry();
-  if (dirError) return null;
+  const { entries, errors, dirError } = cache.registry();
+  if (dirError) return { error: dirError };
   const target = normalizeSocketPath(sockFile);
   const alive = entries.filter((e) => isAlive(e) && normalizeSocketPath(e.messagingSocketPath) === target);
-  return alive.length > 0 ? alive[0] : null;
+  if (alive.length === 0) {
+    const fc = registryFailClosedReason(errors);
+    if (fc) return { error: fc };
+    return {};
+  }
+  return { entry: alive[0] };
 }
 
-// resolveOwnSessionCached(cache, sessionId) -> entry | null — mesma semântica de
-// `resolveBySessionId`, sobre o snapshot cacheado.
+// resolveOwnSessionCached(cache, sessionId) -> { entry?, error? } — acha o registro da PRÓPRIA
+// sessão pelo `sessionId` (design §2.5 etapa 5, "origem cruzada"). Diferente da resolução de
+// DESTINO (por nome ou por socket), que é fail-closed quando um arquivo alheio ilegível pode ter
+// escondido o match verdadeiro: aqui "não encontrei" é um estado normal e esperado (sessão
+// encerrada, Remote Control, nuvem — nenhum desses tem registro local), e o design resolve esse
+// caso explicitamente ("quando não existe, vale o cwd do payload"), sem terceiro estado de
+// fail-closed. Um arquivo ilegível de OUTRA sessão nunca bloqueia esta checagem; só o próprio
+// diretório do registro inacessível (`dirError`) é fail-closed.
 export function resolveOwnSessionCached(cache, sessionId) {
   const { entries, dirError } = cache.registry();
-  if (dirError) return null;
-  return entries.find((e) => e.sessionId === sessionId) || null;
+  if (dirError) return { error: dirError };
+  const match = entries.find((e) => e.sessionId === sessionId);
+  return match ? { entry: match } : {};
 }
 
 // classifyRecipient(payload, opts) -> { kind: 'internal'|'session'|'blocked', reason?, entry?,
@@ -154,6 +176,192 @@ export function scanToolInputForSecrets(toolInput) {
   return { found: false };
 }
 
+// resolveOwnOrigin(payload, cache) -> { ok, originCwd } | { ok: false, reason } (design §2.5
+// etapa 5, "origem cruzada"). Origem é o `cwd` do payload, cruzado com o registro da PRÓPRIA
+// sessão (achado pelo `session_id` do payload): quando esse registro existe e a identidade de
+// workspace do `cwd` dele difere da do `cwd` do payload, a origem é ambígua (o `cwd` do payload
+// segue o `cd` do Bash e pode estar num diretório adicional de outro workspace) — exit 2. Sem
+// registro próprio, vale o `cwd` do payload (limite declarado no design/rule).
+function resolveOwnOrigin(payload, cache, opts) {
+  const payloadCwd = payload.cwd;
+  const sessionId = payload.session_id;
+  if (!sessionId) return { ok: true, originCwd: payloadCwd };
+  const own = resolveOwnSessionCached(cache, sessionId);
+  if (own.error) return { ok: false, reason: own.error };
+  if (!own.entry) return { ok: true, originCwd: payloadCwd };
+  const ownIdentity = workspaceIdentity(workspaceRoot(own.entry.cwd, { home: opts.home }));
+  const payloadIdentity = workspaceIdentity(workspaceRoot(payloadCwd, { home: opts.home }));
+  if (ownIdentity !== payloadIdentity) {
+    return {
+      ok: false,
+      reason: `origem ambígua: o 'cwd' do payload ('${payloadCwd}') e o 'cwd' do registro da própria sessão ('${own.entry.cwd}') resolvem para workspaces diferentes`,
+    };
+  }
+  return { ok: true, originCwd: payloadCwd };
+}
+
+// checkContainment({ payload, classification, cache, opts }) -> { ok, originCwd?, destCwd? } |
+// { ok: false, reason } (design §2.5 etapa 5, REQ-07). Resolve a origem cruzada, resolve o
+// destino no registro (se a classificação ainda não trouxe a entrada, caso `uds:`), compara
+// identidade de workspace e, se diferente, consulta o cadastro efetivo do repositório principal
+// da ORIGEM.
+function checkContainment({ payload, classification, cache, opts }) {
+  const origin = resolveOwnOrigin(payload, cache, opts);
+  if (!origin.ok) return origin;
+  const originCwd = origin.originCwd;
+
+  let destEntry = classification.entry || null;
+  if (!destEntry && classification.address) {
+    const resolved = resolveSessionBySocketCached(cache, classification.address);
+    if (resolved.error) return { ok: false, reason: resolved.error };
+    if (!resolved.entry) {
+      return { ok: false, reason: `destino sem registro local (sessão remota, na nuvem, ou encerrada) para 'uds:${classification.address}'` };
+    }
+    destEntry = resolved.entry;
+  }
+  if (!destEntry) return { ok: false, reason: 'destino sem registro local' };
+  const destCwd = destEntry.cwd;
+
+  const originWorkspaceRoot = workspaceRoot(originCwd, { home: opts.home });
+  const destWorkspaceRoot = workspaceRoot(destCwd, { home: opts.home });
+  const originIdentity = workspaceIdentity(originWorkspaceRoot);
+  const destIdentity = workspaceIdentity(destWorkspaceRoot);
+
+  if (originIdentity === destIdentity) {
+    return { ok: true, originCwd, destCwd };
+  }
+
+  const originMainRepo = mainRepoRoot(originCwd) || originWorkspaceRoot;
+  const { doc } = readEffectiveAllowlist({ root: originMainRepo });
+
+  if (doc.self_identity && doc.self_identity !== originIdentity) {
+    return {
+      ok: false,
+      reason: `remote do repositório diverge da identidade fixada ('${doc.self_identity}' vs '${originIdentity}'); contenção suspensa até decisão humana`,
+    };
+  }
+
+  const active = (doc.allowed_workspaces || []).some((e) => e.id === destIdentity && !e.revoked_at);
+  if (!active) {
+    return {
+      ok: false,
+      reason: `destino em outro workspace sem cadastro: origem '${originIdentity}', destino '${destIdentity}'; liberar esse workspace é decisão do operador humano, feita fora de qualquer sessão do Claude Code`,
+    };
+  }
+  return { ok: true, originCwd, destCwd };
+}
+
+// firstNonEmptyLineIndex(lines) -> índice da primeira linha não vazia, ou -1.
+function firstNonEmptyLineIndex(lines) {
+  return lines.findIndex((l) => l.trim() !== '');
+}
+
+// freeTextBytesExcludingCanonical(message, pointerLineIdx) -> bytes do texto livre que
+// acompanha um ponteiro, excluindo a linha do próprio ponteiro e as linhas canônicas que
+// `notify` imprime (design §2.5 etapa 6, item do teto).
+function freeTextBytesExcludingCanonical(message, pointerLineIdx) {
+  const lines = message.split('\n');
+  const kept = lines.filter((l, i) => {
+    if (i === pointerLineIdx) return false;
+    const t = l.trim();
+    return !CANONICAL_NOTIFY_PREFIXES.some((p) => t.startsWith(p));
+  });
+  return Buffer.byteLength(kept.join('\n'), 'utf8');
+}
+
+// checkChannelParticipation({ root, channel, destMainRepo }) -> true | false | 'inconclusive'
+// (design §2.5 etapa 6, item do ponteiro): participante sem `peer-path` torna a checagem
+// inconclusiva (o doctor já avisa participante sem `peer-path`); com todos os `peer-path`
+// resolvidos, o destino precisa coincidir com ao menos um.
+function checkChannelParticipation({ root, channel, destMainRepo }) {
+  const cfg = readConfig(join(root, '.forge', 'liaison', 'liaison.yaml'));
+  const selfId = cfg.self && cfg.self.id;
+  // O próprio remetente nunca precisa de `peer-path` (é a origem, não um peer remoto) — contá-lo
+  // na lista tornaria toda checagem "inconclusiva" por construção, mesmo com os DEMAIS
+  // participantes totalmente resolvidos.
+  const participants = ((cfg.channels && cfg.channels[channel] && cfg.channels[channel].participants) || []).filter((p) => p !== selfId);
+  if (participants.length === 0) return 'inconclusive';
+  const destIdentity = destMainRepo ? workspaceIdentity(destMainRepo) : null;
+  let anyWithoutPeerPath = false;
+  for (const p of participants) {
+    const peerPath = getPeerPath(cfg, channel, p);
+    if (!peerPath) {
+      anyWithoutPeerPath = true;
+      continue;
+    }
+    const peerMainRepo = mainRepoRoot(peerPath) || peerPath;
+    const peerIdentity = workspaceIdentity(peerMainRepo);
+    if (destIdentity && peerIdentity === destIdentity) return true;
+  }
+  return anyWithoutPeerPath ? 'inconclusive' : false;
+}
+
+// checkDeclaredDestination({ payload, originCwd, destCwd, opts }) -> { ok } | { ok: false,
+// reason } (design §2.5 etapa 6, REQ-06). A primeira linha não vazia de `message` precisa ser
+// um ponteiro `liaison:<channel>/<msg_id>` válido ou uma declaração `ephemeral: <class>`.
+function checkDeclaredDestination({ payload, originCwd, destCwd, opts }) {
+  const input = payload.tool_input || {};
+  const message = typeof input.message === 'string' ? input.message : '';
+  const lines = message.split('\n');
+  const idx = firstNonEmptyLineIndex(lines);
+  const NO_DECLARATION_REASON = "mensagem sem ponteiro nem declaração: use 'liaison:<channel>/<msg_id>' ou, na primeira linha, 'ephemeral: <class>'";
+  if (idx === -1) return { ok: false, reason: NO_DECLARATION_REASON };
+  const firstLine = lines[idx].trim();
+
+  const originMainRepo = mainRepoRoot(originCwd);
+  const destMainRepo = mainRepoRoot(destCwd);
+  const sameRepo = Boolean(originMainRepo && destMainRepo && originMainRepo === destMainRepo);
+
+  const pointerMatch = POINTER_LINE_RE.exec(firstLine);
+  if (pointerMatch) {
+    const [, channel, msgId] = pointerMatch;
+    const rootForPointer = originMainRepo || workspaceRoot(originCwd, { home: opts.home });
+    const resolved = resolvePointer({ root: rootForPointer, channel, msgId });
+    if (!resolved.ok) return { ok: false, reason: `ponteiro inválido: ${resolved.reason}` };
+    if (!sameRepo) {
+      const participation = checkChannelParticipation({ root: rootForPointer, channel, destMainRepo });
+      if (participation === false) {
+        return { ok: false, reason: `o destino não participa do canal '${channel}' do ponteiro` };
+      }
+    }
+    const freeBytes = freeTextBytesExcludingCanonical(message, idx);
+    if (freeBytes > NATIVE_EXTRA_TEXT_MAX_BYTES) {
+      return { ok: false, reason: `texto livre do ponteiro excede ${NATIVE_EXTRA_TEXT_MAX_BYTES} bytes (${freeBytes} bytes)` };
+    }
+    return { ok: true };
+  }
+
+  const ephemeralMatch = EPHEMERAL_LINE_RE.exec(firstLine);
+  if (ephemeralMatch) {
+    const cls = ephemeralMatch[1];
+    if (!EPHEMERAL_CLASSES.includes(cls)) {
+      return { ok: false, reason: `classe efêmera desconhecida '${cls}' — classes aceitas: ${EPHEMERAL_CLASSES.join(', ')}` };
+    }
+    if (cls === 'internal-coordination') {
+      if (!sameRepo) {
+        return {
+          ok: false,
+          reason: "ephemeral: internal-coordination só vale dentro do mesmo repositório — conteúdo substantivo entre repositórios é material de liaison",
+        };
+      }
+      return { ok: true };
+    }
+    const bodyBytes = Buffer.byteLength(message, 'utf8');
+    if (bodyBytes > NATIVE_EXTRA_TEXT_MAX_BYTES) {
+      return { ok: false, reason: `corpo da declaração efêmera excede ${NATIVE_EXTRA_TEXT_MAX_BYTES} bytes (${bodyBytes} bytes)` };
+    }
+    return { ok: true };
+  }
+
+  const laterHasDeclaration = lines.some(
+    (l, i) => i !== idx && (POINTER_LINE_RE.test(l.trim()) || EPHEMERAL_LINE_RE.test(l.trim())),
+  );
+  if (laterHasDeclaration) {
+    return { ok: false, reason: 'declaração de ponteiro ou efêmero encontrada fora da primeira linha não vazia — mova para a primeira linha' };
+  }
+  return { ok: false, reason: NO_DECLARATION_REASON };
+}
+
 // parsePayload(rawStdin) -> { ok, payload } | { ok: false, reason } (design §2.5 etapa 1).
 export function parsePayload(rawStdin) {
   if (!rawStdin || !rawStdin.trim()) {
@@ -210,8 +418,16 @@ export function evaluateSendGuard(payload, opts = {}) {
     }
   }
 
-  // Etapas 5 (contenção) e 6 (destino declarado) chegam na TASK-17 — até lá, destino de sessão
-  // com corpo limpo passa (ver cabeçalho do módulo).
+  // Etapa 5 — contenção por workspace (REQ-07).
+  const containment = checkContainment({ payload, classification, cache, opts });
+  if (!containment.ok) return { exitCode: 2, message: containment.reason };
+
+  if (!notifyOnly) {
+    // Etapa 6 — destino declarado (REQ-06).
+    const declared = checkDeclaredDestination({ payload, originCwd: containment.originCwd, destCwd: containment.destCwd, opts });
+    if (!declared.ok) return { exitCode: 2, message: declared.reason };
+  }
+
   return { exitCode: 0 };
 }
 

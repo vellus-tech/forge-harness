@@ -3,7 +3,7 @@ story_id: STORY-10
 epic: add-liaison-native-bridge
 title: "Empacotamento do gancho e passo de armar"
 depends_on: [STORY-09]
-status: todo
+status: done
 ---
 
 # STORY-10 — Empacotamento do gancho e passo de armar
@@ -32,15 +32,15 @@ Entregar, em TDD vermelho → verde, empacotamento do gancho e passo de armar, c
 
 ## Tasks
 
-- [ ] TASK-18 — Gate vermelho de empacotamento do gancho: linha do manifesto, fiação derivada sem literal novo em `sync-adapters.mjs`, consumidor com `settings.json` recebe inativo e nomeado, instalação nova recebe armado; passo de armar do §5 num consumidor existente mantém os quatro ganchos atuais fiados (com matcher e contrato efetivos) e arma o novo; manifesto sem marcador com só a linha nova não arma (controle); varredura de imports dos arquivos novos só `node:*`/relativos e `package.json` sem dependência nova (paths: `tests/native-hook-packaging-gate.sh`; depende: TASK-17)
-- [ ] TASK-19 — Linha do gancho em `hooks.manifest.default` e ajustes nos gates de manifesto existentes (paths: `template/.forge/hooks/pre-tool-use/hooks.manifest.default`; depende: TASK-18)
+- [x] TASK-18 — Gate vermelho de empacotamento do gancho: linha do manifesto, fiação derivada sem literal novo em `sync-adapters.mjs`, consumidor com `settings.json` recebe inativo e nomeado, instalação nova recebe armado; passo de armar do §5 num consumidor existente mantém os quatro ganchos atuais fiados (com matcher e contrato efetivos) e arma o novo; manifesto sem marcador com só a linha nova não arma (controle); varredura de imports dos arquivos novos só `node:*`/relativos e `package.json` sem dependência nova (paths: `tests/native-hook-packaging-gate.sh`; depende: TASK-17)
+- [x] TASK-19 — Linha do gancho em `hooks.manifest.default` e ajustes nos gates de manifesto existentes (paths: `template/.forge/hooks/pre-tool-use/hooks.manifest.default`; depende: TASK-18)
 
 ## Acceptance criteria
 
-- [ ] ``bash tests/native-hook-packaging-gate.sh`` verde; no vermelho falhava com ``FAIL \[[0-9]+\].*(manifest|armado|inativo|SendMessage|import)``
-- [ ] ``bash tests/native-hook-packaging-gate.sh && bash tests/w208-hooks-manifest-esquema-gate.sh && bash tests/w215-hook-wiring-derived-gate.sh`` verde; no vermelho falhava com ``FAIL \[[0-9]+\].*(manifest|armado|inativo|SendMessage|import)``
-- [ ] Nenhum achado de gate aberto
-- [ ] Commit atômico por task; nenhum `TODO`/`FIXME` residual
+- [x] ``bash tests/native-hook-packaging-gate.sh`` verde; no vermelho falhava com ``FAIL \[[0-9]+\].*(manifest|armado|inativo|SendMessage|import)``
+- [x] ``bash tests/native-hook-packaging-gate.sh && bash tests/w208-hooks-manifest-esquema-gate.sh && bash tests/w215-hook-wiring-derived-gate.sh`` verde; no vermelho falhava com ``FAIL \[[0-9]+\].*(manifest|armado|inativo|SendMessage|import)``
+- [x] Nenhum achado de gate aberto
+- [x] Commit atômico por task; nenhum `TODO`/`FIXME` residual
 
 ## Out of scope
 

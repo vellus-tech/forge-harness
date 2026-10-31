@@ -257,14 +257,17 @@ _settings_hooks_is_derived() { # _settings_hooks_is_derived <root>
     // se um comando owned novo for esquecido nesta lista, o pior efeito é "no" (recomenda sync sem
     // necessidade), nunca "yes" escondendo perda real de hook de terceiro. Desde a #125 o universo
     // de PreToolUse não é mais fixo (deriva de `.forge/hooks/pre-tool-use/`), então esta lista
-    // cobre hoje os quatro ganchos distribuídos pelo template, nas duas formas de comando que o
+    // cobre hoje os cinco ganchos distribuídos pelo template (achado desta correção: TASK-19/#214
+    // armou `guard-cross-session-send.sh` em `hooks.manifest.default` sem atualizar esta lista
+    // duplicada, fazendo a projeção owned do doctor divergir de `preToolUseWiring(root)` mesmo sem
+    // nenhum drift real — [1]/[6]/[6b] do w238 mediram o efeito), nas duas formas de comando que o
     // gerador pode emitir (direta e via `lib/argv-bridge.sh`) — um gancho de consumidor adicionado
     // depois cai no "no" conservador, nunca escondido. As formas COM ASPAS em `$CLAUDE_PROJECT_DIR`
     // e as formas *Legacy* SEM aspas convivem aqui (achado de correção MEDIUM, iteração 3 do modo
     // correção — mesma migração sem duplicar de `hookCommandDirect`/`hookCommandDirectLegacy` na
     // lib): um consumidor recém-migrado tem a forma nova fiada, um ainda não sincronizado tem a
     // legada, e as duas são igualmente owned para efeito deste diagnóstico.
-    const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "check-language-policy.sh", "validate-naming-conventions.sh"];
+    const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "check-language-policy.sh", "validate-naming-conventions.sh", "guard-cross-session-send.sh"];
     const OWNED = new Set([
       "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-start.sh",
       "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-end.sh",

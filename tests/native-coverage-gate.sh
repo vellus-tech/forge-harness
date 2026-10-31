@@ -338,4 +338,20 @@ grep -q 'mensagens nativas recebidas' <<<"$start_out" || fail "on-session-start.
 grep -q 'd-session' <<<"$start_out" || fail "on-session-start.sh não citou a sessão do relatório pendente: $start_out"
 pass "on-session-start.sh — bloco do liaison exibe native check --pending"
 
+# Stdin que nunca fecha (chamador que não fecha o pipe, como o cenário [26] do w215): o gancho
+# precisa terminar sozinho em tempo limitado, nunca ficar bloqueado lendo o payload.
+t0=$(date +%s)
+mkfifo "$T/stdin-aberto"
+(sleep 25 > "$T/stdin-aberto") &
+writer_pid=$!
+(cd "$T/d" && exec bash .forge/hooks/session/on-session-end.sh) < "$T/stdin-aberto" >/dev/null 2>&1 &
+hang_pid=$!
+while kill -0 "$hang_pid" 2>/dev/null && [ $(( $(date +%s) - t0 )) -lt 15 ]; do sleep 1; done
+if kill -0 "$hang_pid" 2>/dev/null; then
+  pkill -P "$hang_pid" 2>/dev/null; kill "$hang_pid" 2>/dev/null
+  fail "on-session-end.sh ficou bloqueado lendo stdin que nunca fecha (mais de 15 s)"
+fi
+kill "$writer_pid" 2>/dev/null || true
+pass "on-session-end.sh termina em tempo limitado com stdin que nunca fecha"
+
 echo "PASS native-coverage-gate ($N assertions)"

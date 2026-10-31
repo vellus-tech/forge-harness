@@ -178,3 +178,7 @@ As duas consultas: 24º → 4º e 20º → 5º. Re-rank no holdout-2: melhora 10
 | REQ-07 | 0,710 ≥ 0,628 | 0,821 ≥ 0,756 | passa |
 
 Limite que permanece (documentado no `/forge:kb`): o viés do canal vetorial a favor de documentos longos continua existindo; a correção garante que o topo lexical sempre chegue ao cross-encoder, não remove o viés da etapa de fusão. No holdout original (só histórico, visto), o re-rank segue abaixo do semântico sem re-rank em MRR (0,750 contra 0,790).
+
+## 10. Suíte completa após TASK-10 e TASK-11
+
+`npm test` no HEAD `11c033ca`: `PASS=194 FAIL=0 SKIP=0 UNVERIFIED=0 (4133s)`.

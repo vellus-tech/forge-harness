@@ -3,7 +3,7 @@ story_id: STORY-03
 epic: add-unified-knowledge-search
 title: Camada semântica — pins, instalador, embeddings e re-rank
 depends_on: [STORY-02]
-status: in_progress
+status: done
 ---
 
 # STORY-03 — Camada semântica — pins, instalador, embeddings e re-rank

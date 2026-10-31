@@ -9,8 +9,13 @@ updated_at: "2026-10-31"
 owner: "milton"
 parent:
   baseline: .forge/product/current
-affected_capabilities: []
-affected_paths: []
+affected_capabilities: [forge-harness-template]
+affected_paths:
+  - template/.forge/rules/data/migration-review.md
+  - template/.forge/scripts/check-migration-review.sh
+  - template/.forge/scripts/lib/check-migration-review.mjs
+  - template/.forge/scripts/lib/check-data-governance.mjs
+  - template/.forge/hooks/git/pre-push
 dependencies:
   specs: []
   code: []

@@ -202,12 +202,14 @@ else
 fi
 
 # ── [5] consumidor novo: primeiro sync ───────────────────────────────────────────────────────────
-echo "[5] consumidor novo — enforce-worktree-location.sh e prevent-secrets-leak.sh armados; check-language-policy.sh e validate-naming-conventions.sh retidos"
+# TASK-19 (add-liaison-native-bridge): guard-cross-session-send.sh entrou em hooks.manifest.default
+# com estado `armado`, então a instalação nova passa a armar os três por padrão.
+echo "[5] consumidor novo — enforce-worktree-location.sh, prevent-secrets-leak.sh e guard-cross-session-send.sh armados; check-language-policy.sh e validate-naming-conventions.sh retidos"
 T5="$(mktemp -d "$TMPROOT/forge-w215-5.XXXXXX")"; track "$T5"
 nova_fixture "$T5"
 bash "$T5/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
 GOT5="$(hooks_of "$T5/.claude/settings.json")"
-EXPECTED5='["enforce-worktree-location.sh","prevent-secrets-leak.sh"]'
+EXPECTED5='["enforce-worktree-location.sh","guard-cross-session-send.sh","prevent-secrets-leak.sh"]'
 if [ "$GOT5" != "$EXPECTED5" ]; then
   echo "FAIL [5]: conjunto de ganchos ativos = $GOT5 — esperado $EXPECTED5"
   overall_rc=1
@@ -1147,16 +1149,33 @@ elif ! printf '%s' "$OUT22A" | grep -q "LDG-0178"; then
   echo "FAIL [22]: 1º sync não nomeou LDG-0178 (esperado: sem settings.json anterior, cai no caminho de instalação nova). Saída: $OUT22A"
   overall_rc=1
 else
+  # TASK-19 (add-liaison-native-bridge): a partir de guard-cross-session-send.sh em
+  # hooks.manifest.default, o 1º sync (sem .claude/settings.json anterior) cai no caminho de
+  # "instalação nova" e arma TODOS os ganchos armados por padrão do produtor — inclusive um que a
+  # fixture real axis-pad-simulator/hooks.manifest nunca declarou. No 2º sync, agora COM
+  # settings.json legível, o manifesto do consumidor (sem marcador) resolve pela fiação
+  # observada e passa a governar: o gancho que o dono nunca declarou sai do conjunto, nomeado em
+  # WARN — não é a vacuidade silenciosa que esta correção fecha (o conjunto nunca fica `[]`), é o
+  # dono retomando o governo do próprio manifesto assim que ele se torna resolvível. Por isso a
+  # idempotência real desta correção é a partir do 2º sync (estado em que o manifesto do
+  # consumidor já resolve), não entre 1º e 2º.
   OUT22B="$(bash "$T22/.forge/scripts/sync-adapters.sh" --set claude 2>&1)"
   GOT22B="$(hooks_of "$T22/.claude/settings.json")"
-  if [ "$GOT22B" != "$GOT22A" ]; then
-    echo "FAIL [22]: 2º sync mudou o conjunto ativo ($GOT22A -> $GOT22B) — deveria ser idempotente sobre o estado que ele mesmo armou"
-    overall_rc=1
-  elif [ "$GOT22B" = '[]' ]; then
+  if [ "$GOT22B" = '[]' ]; then
     echo "FAIL [22]: 2º sync colapsou para vacuidade silenciosa — o desarme permanente que esta correção existe para fechar"
     overall_rc=1
   else
-    echo "OK [22] — 1º sync armou $GOT22A (nomeando LDG-0178), 2º sync idempotente, sem colapso para vacuidade"
+    OUT22C="$(bash "$T22/.forge/scripts/sync-adapters.sh" --set claude 2>&1)"
+    GOT22C="$(hooks_of "$T22/.claude/settings.json")"
+    if [ "$GOT22C" != "$GOT22B" ]; then
+      echo "FAIL [22]: 3º sync mudou o conjunto ativo ($GOT22B -> $GOT22C) — deveria ser idempotente a partir do estado em que o manifesto do consumidor já resolve"
+      overall_rc=1
+    elif [ "$GOT22C" = '[]' ]; then
+      echo "FAIL [22]: 3º sync colapsou para vacuidade silenciosa — o desarme permanente que esta correção existe para fechar"
+      overall_rc=1
+    else
+      echo "OK [22] — 1º sync armou $GOT22A (nomeando LDG-0178); 2º sync ($GOT22B) e 3º sync idempotentes, sem colapso para vacuidade"
+    fi
   fi
 fi
 
@@ -1224,13 +1243,24 @@ elif ! printf '%s' "$OUT22B" | grep -q "ilegível"; then
   echo "FAIL [22b]: nenhum WARN nomeou o settings.json anterior como ilegível. Saída: $OUT22B"
   overall_rc=1
 else
+  # TASK-19 (add-liaison-native-bridge): mesmo ajuste do [22] — o manifesto do consumidor sem
+  # marcador só resolve pela fiação observada a partir do 2º sync (1º sync ainda cai no caminho
+  # de settings.json ilegível/instalação nova e arma também o gancho novo que o dono nunca
+  # declarou); a idempotência real é a partir do 2º sync.
   OUT22B2="$(bash "$T22B/.forge/scripts/sync-adapters.sh" --set claude 2>&1)"
   GOT22B2="$(hooks_of "$T22B/.claude/settings.json")"
-  if [ "$GOT22B2" != "$GOT22B" ] || [ "$GOT22B2" = '[]' ]; then
-    echo "FAIL [22b]: 2º sync não foi idempotente ou colapsou para vacuidade ($GOT22B -> $GOT22B2)"
+  if [ "$GOT22B2" = '[]' ]; then
+    echo "FAIL [22b]: 2º sync colapsou para vacuidade ($GOT22B -> $GOT22B2)"
     overall_rc=1
   else
-    echo "OK [22b] — 1º sync fez backup e armou $GOT22B, 2º sync idempotente, sem colapso"
+    OUT22B3="$(bash "$T22B/.forge/scripts/sync-adapters.sh" --set claude 2>&1)"
+    GOT22B3="$(hooks_of "$T22B/.claude/settings.json")"
+    if [ "$GOT22B3" != "$GOT22B2" ] || [ "$GOT22B3" = '[]' ]; then
+      echo "FAIL [22b]: 3º sync não foi idempotente a partir do 2º, ou colapsou para vacuidade ($GOT22B2 -> $GOT22B3)"
+      overall_rc=1
+    else
+      echo "OK [22b] — 1º sync fez backup e armou $GOT22B; 2º sync ($GOT22B2) e 3º sync idempotentes, sem colapso"
+    fi
   fi
 fi
 

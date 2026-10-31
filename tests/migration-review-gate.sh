@@ -13,12 +13,16 @@
 #   [9b] migration-review.md com "- [x]" só na working tree (não commitado) → ainda FAIL
 #   [10] --path em diretório fixture sem migration → PASS (sem migration)
 #   [11] --path em diretório fixture com migration e migration-review.md local (disco) → PASS
+#   [12] wiring no pre-push — push com migration nova sem migration-review.md commitado → recusado
+#   [13] wiring no pre-push — push com migration e migration-review.md completo → aceito
+#   [14] wiring no pre-push — .forge/scripts/ inteiro ausente → push não é afetado por este bloco
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RULE="$WS/template/.forge/rules/data/migration-review.md"
 MJS="$WS/template/.forge/scripts/lib/check-migration-review.mjs"
 SH="$WS/template/.forge/scripts/check-migration-review.sh"
+PRE_PUSH="$WS/template/.forge/hooks/git/pre-push"
 
 echo "[1] rule migration-review.md existe"
 [ -f "$RULE" ] || { echo "FAIL [1]: $RULE não existe"; exit 1; }
@@ -197,5 +201,105 @@ else
   echo "$out" | grep -q "^PASS" || { echo "FAIL [11]: $out"; exit 1; }
   echo "OK [11]"
 fi
+
+echo "[12]-[14] wiring no pre-push — bloco MIGRATION_REVIEW_CHECK"
+# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
+# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
+
+T2="$(mktemp -d "${TMPDIR:-/tmp}/forge-migreview-hook.XXXXXX")"
+trap 'rm -rf "$T" "$T2"' EXIT
+T2="$(cd "$T2" && pwd -P)"
+ZERO2=0000000000000000000000000000000000000000
+
+# mkminrepo <dir> — repositório git com .forge/hooks/git/pre-push (o hook REAL, único arquivo
+# copiado de .forge/hooks/) e .forge/scripts/ só com check-migration-review.sh +
+# lib/check-migration-review.mjs reais — nunca .forge/scripts/ inteiro (isso incluiria
+# scripts/tests/ e ativaria HARNESS_SUITE, além dos demais blocos delegados). Os blocos irmãos
+# (DOCS_LIB, RED_LIB, AI_CHECK, ACKS) recebem stub de uma linha, mesmo padrão de
+# tests/w223-delegacao-arvore-do-hook-gate.sh, para que [12]/[13] fiquem deterministicos.
+mkminrepo() {
+  local d="$1"
+  mkdir -p "$d/.forge/hooks/git/lib" "$d/.forge/scripts/lib"
+  cp "$PRE_PUSH" "$d/.forge/hooks/git/pre-push"
+  chmod +x "$d/.forge/hooks/git/pre-push"
+  printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$d/.forge/hooks/git/lib/check-docs-reviewed.sh"
+  printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$d/.forge/hooks/git/lib/check-red-first.sh"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$d/.forge/scripts/check-ai-attribution.sh"
+  chmod +x "$d/.forge/scripts/check-ai-attribution.sh"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$d/.forge/scripts/check-liaison-acks.sh"
+  chmod +x "$d/.forge/scripts/check-liaison-acks.sh"
+  cp "$SH" "$d/.forge/scripts/check-migration-review.sh"
+  chmod +x "$d/.forge/scripts/check-migration-review.sh"
+  cp "$MJS" "$d/.forge/scripts/lib/check-migration-review.mjs"
+  git -C "$d" init -q -b main
+  git -C "$d" config user.email dev@test
+  git -C "$d" config user.name dev
+  git -C "$d" config commit.gpgsign false
+}
+
+echo "[12] push com migration nova sem migration-review.md commitado → recusado"
+R12="$T2/r12"
+mkminrepo "$R12"
+echo "base" > "$R12/README.md"
+git -C "$R12" add -A >/dev/null 2>&1
+git -C "$R12" commit -qm "chore: init"
+mkdir -p "$R12/db/migrate"
+echo "CREATE TABLE foo (id int);" > "$R12/db/migrate/001_foo.sql"
+git -C "$R12" add -A >/dev/null 2>&1
+git -C "$R12" commit -qm "feat: migration sem evidencia"
+SHA12="$(git -C "$R12" rev-parse HEAD)"
+set +e
+out="$(cd "$R12" && printf 'refs/heads/main %s refs/heads/main %s\n' "$SHA12" "$ZERO2" | bash "$R12/.forge/hooks/git/pre-push" origin "file://$R12" 2>&1)"; rc=$?
+set -e
+[ "$rc" -ne 0 ] || { echo "FAIL [12]: push deveria ter sido recusado (saída: '$out')"; exit 1; }
+case "$out" in
+  *"migration sem parecer de revisão"*) : ;;
+  *) echo "FAIL [12]: saída não cita 'migration sem parecer de revisão' (saída: '$out')"; exit 1 ;;
+esac
+echo "OK [12]"
+
+echo "[13] push com migration e migration-review.md completo → aceito"
+R13="$T2/r13"
+mkminrepo "$R13"
+echo "base" > "$R13/README.md"
+git -C "$R13" add -A >/dev/null 2>&1
+git -C "$R13" commit -qm "chore: init"
+mkdir -p "$R13/db/migrate"
+echo "CREATE TABLE foo (id int);" > "$R13/db/migrate/001_foo.sql"
+printf -- '- [x] db/migrate/001_foo.sql\n' > "$R13/migration-review.md"
+git -C "$R13" add -A >/dev/null 2>&1
+git -C "$R13" commit -qm "feat: migration com evidencia"
+SHA13="$(git -C "$R13" rev-parse HEAD)"
+out="$(cd "$R13" && printf 'refs/heads/main %s refs/heads/main %s\n' "$SHA13" "$ZERO2" | bash "$R13/.forge/hooks/git/pre-push" origin "file://$R13" 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] || { echo "FAIL [13]: push deveria ter sido aceito (saída: '$out')"; exit 1; }
+case "$out" in
+  *"migration sem parecer"*) echo "FAIL [13]: saída cita bloqueio indevido (saída: '$out')"; exit 1 ;;
+  *) : ;;
+esac
+echo "OK [13]"
+
+echo "[14] .forge/scripts/ inteiro ausente (harness não instalado) → push não é afetado por este bloco"
+R14="$T2/r14"
+mkdir -p "$R14/.forge/hooks/git"
+cp "$PRE_PUSH" "$R14/.forge/hooks/git/pre-push"
+chmod +x "$R14/.forge/hooks/git/pre-push"
+git -C "$R14" init -q -b main
+git -C "$R14" config user.email dev@test
+git -C "$R14" config user.name dev
+git -C "$R14" config commit.gpgsign false
+mkdir -p "$R14/db/migrate"
+echo "CREATE TABLE foo (id int);" > "$R14/db/migrate/001_foo.sql"
+git -C "$R14" add -A >/dev/null 2>&1
+git -C "$R14" commit -qm "feat: migration sem harness instalado"
+SHA14="$(git -C "$R14" rev-parse HEAD)"
+set +e
+out="$(cd "$R14" && printf 'refs/heads/main %s refs/heads/main %s\n' "$SHA14" "$ZERO2" | bash "$R14/.forge/hooks/git/pre-push" origin "file://$R14" 2>&1)"; rc=$?
+set -e
+case "$out" in
+  *"migration sem parecer"*) echo "FAIL [14]: bloco migration-review afetou push sem .forge/scripts/ (saída: '$out')"; exit 1 ;;
+  *) : ;;
+esac
+echo "OK [14] (rc=$rc)"
 
 echo "PASS migration-review-gate"

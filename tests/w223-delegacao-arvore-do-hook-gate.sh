@@ -123,6 +123,11 @@ mktrunk() {
     > "$1/.forge/scripts/lib/heavy-mutex.sh"
   printf '#!/usr/bin/env bash\nexit 0\n' > "$1/.forge/scripts/tests/run-all.sh"
   chmod +x "$1/.forge/scripts/tests/run-all.sh"
+  # check-migration-review.sh (bloco MIGRATION_REVIEW_CHECK, issue #241) sempre presente (stub)
+  # no tronco: nenhum cenário deste arquivo é SOBRE esse alvo, e sem o stub cada repositório que
+  # cria .forge/scripts/ passaria a bloquear por um alvo alheio ao que o cenário testa.
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$1/.forge/scripts/check-migration-review.sh"
+  chmod +x "$1/.forge/scripts/check-migration-review.sh"
 }
 
 # mkrepo <dir> <hooksPath-dir> — repositório git mínimo com hooksPath apontando para
@@ -245,8 +250,8 @@ case "$out" in
 esac
 echo "OK [3]"
 
-# ── [4] pre-push — DOCS_LIB, RED_LIB, AI_CHECK, ACKS ────────────────────────────────────────
-echo "[4] pre-push — DOCS_LIB, RED_LIB, AI_CHECK, ACKS ausentes na worktree, presentes no tronco"
+# ── [4] pre-push — DOCS_LIB, RED_LIB, AI_CHECK, ACKS, MIGRATION_REVIEW_CHECK ────────────────
+echo "[4] pre-push — DOCS_LIB, RED_LIB, AI_CHECK, ACKS, MIGRATION_REVIEW_CHECK ausentes na worktree, presentes no tronco"
 R4="$T/r4"; TR4="$T/tr4"
 mktrunk "$TR4"
 cp "$HOOKS/pre-push" "$TR4/.forge/hooks/git/pre-push"; chmod +x "$TR4/.forge/hooks/git/pre-push"
@@ -255,14 +260,14 @@ printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR4/.forge/h
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TR4/.forge/scripts/check-ai-attribution.sh"; chmod +x "$TR4/.forge/scripts/check-ai-attribution.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TR4/.forge/scripts/check-liaison-acks.sh"; chmod +x "$TR4/.forge/scripts/check-liaison-acks.sh"
 mkrepo "$R4" "$TR4/.forge/hooks/git"
-mkdir -p "$R4/.forge/hooks/git/lib" "$R4/.forge/scripts"   # os diretórios existem; os 4 alvos, não
+mkdir -p "$R4/.forge/hooks/git/lib" "$R4/.forge/scripts"   # os diretórios existem; os 5 alvos, não
 SHA4="$(git -C "$R4" rev-parse HEAD)"
 out="$(cd "$R4" && printf 'refs/heads/main %s refs/heads/main %s\n' "$SHA4" "$ZERO" | bash "$TR4/.forge/hooks/git/pre-push" origin "file://$R4" 2>&1)"; rc=$?
-[ "$rc" -eq 0 ] || { echo "FAIL [4]: pre-push bloqueou com os quatro alvos presentes no tronco (saída: '$out')"; exit 1; }
+[ "$rc" -eq 0 ] || { echo "FAIL [4]: pre-push bloqueou com os cinco alvos presentes no tronco (saída: '$out')"; exit 1; }
 case "$out" in *"pre-push OK"*) : ;; *) echo "FAIL [4]: não terminou 'pre-push OK' (saída: '$out')"; exit 1 ;; esac
 n_warn="$(grep -c "usando o do tronco" <<<"$out")"
-[ "$n_warn" -eq 4 ] || { echo "FAIL [4]: esperava 4 linhas nomeando o tronco (DOCS_LIB, RED_LIB, AI_CHECK, ACKS), veio $n_warn (saída: '$out')"; exit 1; }
-echo "OK [4] — 4 alvos resolvidos via tronco"
+[ "$n_warn" -eq 5 ] || { echo "FAIL [4]: esperava 5 linhas nomeando o tronco (DOCS_LIB, RED_LIB, AI_CHECK, ACKS, MIGRATION_REVIEW_CHECK), veio $n_warn (saída: '$out')"; exit 1; }
+echo "OK [4] — 5 alvos resolvidos via tronco"
 
 # ── [5] pre-push — HARNESS_SUITE ─────────────────────────────────────────────────────────────
 echo "[5] pre-push — run-all.sh ausente na worktree, presente no tronco"
@@ -475,10 +480,10 @@ echo "OK [8b]"
 # ── [9] AUTO-IRONIA ──────────────────────────────────────────────────────────────────────────
 # Sem `declare -A`: o bash 3.2 do macOS (issue de portabilidade irmã do w97) não tem array
 # associativo. Pares "hook:esperado" numa lista simples, um por linha.
-echo "[9] os 16 sítios (12 de L3 §0 + RUNTIME_LIB + gate-phase.mjs + os 2 sítios de aviso, achados"
-echo "    do adendo de revisão do w223) chamam o mesmo resolvedor — contagem + corpo"
+echo "[9] os 17 sítios (12 de L3 §0 + RUNTIME_LIB + gate-phase.mjs + os 2 sítios de aviso, achados"
+echo "    do adendo de revisão do w223, + MIGRATION_REVIEW_CHECK da issue #241) chamam o mesmo resolvedor — contagem + corpo"
 total=0
-for par in "pre-commit:1" "commit-msg:1" "post-merge:2" "pre-push:10"; do
+for par in "pre-commit:1" "commit-msg:1" "post-merge:2" "pre-push:11"; do
   h="${par%%:*}"; esperado="${par##*:}"
   # `\$\(resolve_delegated ` — só a INVOCAÇÃO real (substituição de comando), nunca a linha da
   # definição nem o comentário que a documenta (que também contém o nome da função de propósito).
@@ -491,8 +496,8 @@ n_rf="$(grep -cE '\$\(_redfirst_resolve_delegated ' "$HOOKS/lib/check-red-first.
 n_rf="${n_rf:-0}"
 total=$((total + n_rf))
 [ "$n_rf" -eq 2 ] || { echo "FAIL [9]: lib/check-red-first.sh — esperava 2 chamadas ao resolvedor interno, achei $n_rf"; exit 1; }
-[ "$total" -eq 16 ] || { echo "FAIL [9]/vacuidade — total de sítios contados foi $total, esperado 16 (L3 §0: pre-push 10 [6 + RUNTIME_LIB + gate-phase.mjs + log-integrity + worktree-prereqs], pre-commit 1, commit-msg 1, post-merge 2, check-red-first.sh 2)"; exit 1; }
-echo "OK [9] — 16 sítios cobertos ($total)"
+[ "$total" -eq 17 ] || { echo "FAIL [9]/vacuidade — total de sítios contados foi $total, esperado 17 (L3 §0: pre-push 11 [6 + RUNTIME_LIB + gate-phase.mjs + log-integrity + worktree-prereqs + MIGRATION_REVIEW_CHECK], pre-commit 1, commit-msg 1, post-merge 2, check-red-first.sh 2)"; exit 1; }
+echo "OK [9] — 17 sítios cobertos ($total)"
 
 # Identidade byte a byte do CORPO da função entre as 4 cópias (pre-commit, commit-msg, post-merge,
 # pre-push): a contagem acima só prova que cada arquivo CHAMA o resolvedor o número certo de vezes,

@@ -3,7 +3,7 @@ story_id: STORY-14
 epic: add-liaison-native-bridge
 title: "spec-delta e suíte completa"
 depends_on: [STORY-01, STORY-02, STORY-06, STORY-09, STORY-11, STORY-12, STORY-13]
-status: todo
+status: in_progress
 ---
 
 # STORY-14 — spec-delta e suíte completa
@@ -33,7 +33,7 @@ Entregar, em TDD vermelho → verde, spec-delta e suíte completa, conforme as t
 
 ## Tasks
 
-- [ ] TASK-26 — `spec-delta.yaml` real do change (requisitos novos da capacidade `forge-harness-template`) e suíte completa verde, rodada sem outro gate em paralelo (paths: `.forge/specs/active/add-liaison-native-bridge/spec-delta.yaml`; depende: TASK-02, TASK-03, TASK-11, TASK-17, TASK-21, TASK-23, TASK-25)
+- [-] TASK-26 — `spec-delta.yaml` real do change (requisitos novos da capacidade `forge-harness-template`) e suíte completa verde, rodada sem outro gate em paralelo (paths: `.forge/specs/active/add-liaison-native-bridge/spec-delta.yaml`; depende: TASK-02, TASK-03, TASK-11, TASK-17, TASK-21, TASK-23, TASK-25)
 
 ## Acceptance criteria
 

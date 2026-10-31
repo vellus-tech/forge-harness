@@ -192,6 +192,43 @@ export function runControlFixture() {
   return { ok: true };
 }
 
+// findNamedAgentInTranscript({ transcriptPath, name }) -> bool. Procura, no transcript da
+// PRÓPRIA sessão, uma chamada de ferramenta `Agent` cujo `input.name` seja exatamente `name`
+// (design §2.5 etapa 2, REQ-05 — formato de subagente nomeado não medido em 2.1.314, evidência
+// a). Usada só pelo gancho de saída para provar destino interno quando o nome não resolve no
+// registro de sessões. Sem relação com a recepção de mensagem entre sessões: percorre linhas
+// `type: "assistant"` com blocos `tool_use`, decodificando cada linha JSONL isoladamente — uma
+// linha malformada não derruba a busca nas demais. `transcriptPath` ausente ou ilegível -> false
+// (fail-closed: quem chama trata "não achou" como "não é interno").
+export function findNamedAgentInTranscript({ transcriptPath, name } = {}) {
+  if (!transcriptPath || !name) return false;
+  let text;
+  try {
+    text = readFileSync(transcriptPath, 'utf8');
+  } catch {
+    return false;
+  }
+  for (const raw of text.split('\n')) {
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    let obj;
+    try {
+      obj = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    if (!obj || obj.type !== 'assistant') continue;
+    const content = obj.message && obj.message.content;
+    if (!Array.isArray(content)) continue;
+    for (const block of content) {
+      if (block && block.type === 'tool_use' && block.name === 'Agent' && block.input && block.input.name === name) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 // defaultProjectsDir() -> diretório onde o Claude Code guarda `<slug>/<session-id>.jsonl`.
 // Sobreponível por FORGE_CLAUDE_PROJECTS_DIR só para fixtures (design §2.4 passo 3) — nunca
 // redirecionar HOME, o que mudaria a subida de workspace e o git config global.

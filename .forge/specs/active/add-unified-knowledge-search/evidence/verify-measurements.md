@@ -114,3 +114,33 @@ Ver `evidence/task-red-proofs.txt`: TASK-01..09 com `OK task — teste do verde 
 ## 7. Licença dos dados de treino
 
 Risco (dados de treino derivados do MS MARCO, termos não comerciais) aceito explicitamente por Milton, dono do projeto, em 2026-10-31, após pesquisa de licenciamento do orquestrador; sem troca de modelo nem revisão jurídica pendente.
+
+## 8. Remedição após a emenda do REQ-03 (2026-10-31)
+
+Código: TASK-10 (siglas genéricas fora do canal de entidades, `INDEX_FORMAT` 2; vermelho provado, `task-red-proofs.txt`). Nenhuma outra constante mudou. Partição nova `holdout-2` (30 consultas, 5 em inglês), escrita sem rodar nenhuma busca e versionada no commit `f59565ef`, anterior ao vermelho da TASK-10 (`e8f1d9d8`). Saída bruta em `evidence/remeasure-2026-10-31.txt`; scripts `prototype/abl.mjs` e `prototype/perq.mjs`.
+
+| Partição | bm25 | lexical | semantic | semantic+rerank |
+|---|---|---|---|---|
+| Calibração (MRR / hit@5) | 0,556 / 0,743 | 0,571 / 0,743 | 0,628 / 0,829 | 0,695 / 0,857 |
+| Holdout-2, limpo (MRR / hit@5) | 0,751 / 1,000 | 0,759 / 0,967 | 0,756 / 0,900 | 0,809 / 0,933 |
+| Holdout original, visto — só histórico (MRR / hit@5) | 0,730 / 0,889 | 0,779 / 0,889 | 0,790 / 0,944 | 0,750 / 0,889 |
+
+hit@1 no holdout-2: bm25 0,567 · lexical 0,600 · semantic 0,633 · semantic+rerank 0,700.
+
+Ablação (MRR): calibração bm25 0,556 · +links 0,571 · +entidades 0,556 · completo 0,571; holdout-2 bm25 0,751 · +links 0,796 · +entidades 0,721 · completo 0,759.
+
+### Critérios, julgados na calibração e no holdout-2 (REQ-11 emendado)
+
+| Critério | Calibração | Holdout-2 | Veredito |
+|---|---|---|---|
+| REQ-03 — lexical: MRR ≥ bm25 e hit@5 no máximo uma consulta abaixo | 0,571 ≥ 0,556; hit@5 igual | 0,759 ≥ 0,751; hit@5 0,967 contra 1,000 (uma consulta) | passa |
+| REQ-06 — hit@5 de semantic+rerank ≥ lexical | 0,857 ≥ 0,743 | **0,933 < 0,967** (uma consulta) | **não passa no holdout-2** |
+| REQ-07 — re-rank não piora o MRR | 0,695 ≥ 0,628 | 0,809 ≥ 0,756 | passa |
+
+### Decisão do re-rank (critério do dono: opt-in se piorar mais consultas do que melhora)
+
+No holdout-2, entre semantic e semantic+rerank, o re-rank melhora 8 consultas (2→1, 4→2, 2→1, 3→2, 3→1, 2→1, 6→2, 2→1) e piora 4 (1→2, 1→2, 2→3, 1→3); na calibração melhora 6 e piora 2. **O re-rank continua padrão.** (Medido sobre `--no-rerank` contra o default, posição do primeiro relevante por consulta.)
+
+### O que falha e por quê (REQ-06)
+
+A falha não é do re-rank: é do canal vetorial em duas consultas do holdout-2 cujo documento certo está em 1º no lexical e cai para 24º e 20º no semântico ("máquina de estados canônica do archive" e "guarda anti-recursão do gate da suíte"); o re-rank recupera uma parte do resto, mas não essas duas, porque elas saem do top 10. Em MRR e hit@1 o semantic+rerank é o melhor modo do holdout-2 (0,809 e 0,700 contra 0,759 e 0,600 do lexical).

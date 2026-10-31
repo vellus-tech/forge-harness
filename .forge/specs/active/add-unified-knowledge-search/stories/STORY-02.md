@@ -3,7 +3,7 @@ story_id: STORY-02
 epic: add-unified-knowledge-search
 title: CLI lexical, avaliador e guardas do caminho lexical
 depends_on: [STORY-01]
-status: in_progress
+status: done
 ---
 
 # STORY-02 — CLI lexical, avaliador e guardas do caminho lexical

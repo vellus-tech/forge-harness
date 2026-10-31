@@ -49,7 +49,7 @@ operations:
         - id: SCN-FHT-072-A
           given: "uma raiz sem node_modules e sem a camada semântica, com um documento A que casa a consulta e cita o documento B, que não casa"
           when: "kb.sh query roda em Node >= 20"
-          then: "o resultado é determinístico, normaliza acento e caixa, funde BM25 e entidades por RRF ponderado e propaga score pelos links, de modo que B aparece com contribuição de links e origem A nomeada"
+          then: "o resultado é determinístico, normaliza acento e caixa, funde BM25 e entidades (só ids reais, nunca siglas genéricas) por RRF ponderado e propaga score pelos links, de modo que B aparece com contribuição de links e origem A nomeada"
       contracts: []
       tests:
         - tests/w285-kb-lexical-gate.sh
@@ -117,7 +117,7 @@ operations:
         - id: SCN-FHT-076-A
           given: "um ranking propagado [A, B, C, D] e scores de cross-encoder concordantes ou que põem D em primeiro e A em último"
           when: "o re-rank combina as posições"
-          then: "a ordem concordante se mantém; na discordante D sobe acima da 4ª e A desce abaixo da 1ª, exatamente pela fórmula documentada com desempate pela posição do cross-encoder; --no-rerank desliga só o re-rank"
+          then: "a ordem concordante se mantém; na discordante D sobe acima da 4ª e A desce abaixo da 1ª, exatamente pela fórmula documentada com desempate pela posição do cross-encoder; os 3 primeiros do BM25 entram no pool do cross-encoder mesmo abaixo do 10º lugar, com a sua posição real na fórmula; --no-rerank desliga só o re-rank"
       contracts: []
       tests:
         - tests/w286-kb-fuse-gate.sh

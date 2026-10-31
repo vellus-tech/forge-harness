@@ -1,0 +1,62 @@
+=== calibration
+consultas: 35
+bm25             hit@1=0.429 hit@5=0.743 hit@10=0.771 MRR=0.556
+lexical          hit@1=0.457 hit@5=0.743 hit@10=0.771 MRR=0.571
+semantic         hit@1=0.486 hit@5=0.829 hit@10=0.857 MRR=0.628
+semantic+rerank  hit@1=0.600 hit@5=0.857 hit@10=0.886 MRR=0.710
+=== holdout-2
+consultas: 30
+bm25             hit@1=0.567 hit@5=1.000 hit@10=1.000 MRR=0.751
+lexical          hit@1=0.600 hit@5=0.967 hit@10=1.000 MRR=0.759
+semantic         hit@1=0.633 hit@5=0.900 hit@10=0.933 MRR=0.756
+semantic+rerank  hit@1=0.700 hit@5=1.000 hit@10=1.000 MRR=0.821
+=== holdout
+consultas: 18
+bm25             hit@1=0.611 hit@5=0.889 hit@10=0.944 MRR=0.730
+lexical          hit@1=0.667 hit@5=0.889 hit@10=0.944 MRR=0.779
+semantic         hit@1=0.722 hit@5=0.944 hit@10=0.944 MRR=0.790
+semantic+rerank  hit@1=0.611 hit@5=0.889 hit@10=0.944 MRR=0.750
+=== holdout-2 por consulta
+lex=1 sem=2 rr=1 semantic/semantic :: promover o check de superfície a bloqueante está travado por chamadas MapGroup sem âncora
+lex=1 sem=1 rr=2 semantic/semantic :: composição de rotas por caminho fica exponencial em grafo denso de produtores
+lex=1 sem=4 rr=2 semantic/semantic :: gate nasceu com verde falso lendo um campo de uma função que devolve array
+lex=2 sem=1 rr=1 semantic/semantic :: mensagem do update diz que o .forge não existe quando falta o forge.yaml
+lex=3 sem=2 rr=1 semantic/semantic :: bugfix de escala 2 sem design fica travado na transição
+lex=1 sem=24 rr=4 semantic/semantic :: nenhum gate confronta a máquina de estados canônica do archive com o script de transição
+lex=2 sem=1 rr=1 semantic/semantic :: ledger-ops gravava no checkout principal e sujava a branch que estava lá
+lex=3 sem=3 rr=2 semantic/semantic :: lint de pipeline shell e de hash de heredoc existiam mas nenhum hook chamava
+lex=4 sem=3 rr=1 semantic/semantic :: três leitores diferentes do frontmatter do FORGE.md
+lex=5 sem=1 rr=1 semantic/semantic :: exigir testes antes do archive impedia projeto greenfield de arquivar
+lex=6 sem=2 rr=1 semantic/semantic :: o FORGE.md do template existe em duas cópias que divergem
+lex=1 sem=6 rr=2 semantic/semantic :: o grafo de código commitado está defasado e nada reprova
+lex=1 sem=20 rr=5 semantic/semantic :: guarda anti-recursão do gate da suíte estava morta por causa de pipelines com exclamação
+lex=2 sem=2 rr=1 semantic/semantic :: reparo do log próprio publica sem passar pela união
+lex=2 sem=1 rr=2 semantic/semantic :: hook de fim de sessão joga fora o aviso do gerador de handoff
+lex=2 sem=1 rr=1 semantic/semantic :: two downstream repos wrote incompatible hook manifest formats before the producer had one
+lex=2 sem=2 rr=3 semantic/semantic :: which plan covered the brownfield code graph milestone
+lex=1 sem=1 rr=3 semantic/semantic :: the dev loop and quality milestone plan
+lex=2 sem=1 rr=1 semantic/semantic :: ledger add accepts an origin value outside the schema enum and exits zero
+=== calibração por consulta
+lex=3 sem=2 rr=2 semantic/semantic :: como provar que o teste reprovava antes de o defeito ser corrigido
+lex=5 sem=4 rr=2 semantic/semantic :: passar o contexto do trabalho para outra sessão ou outro agente de código
+lex=3 sem=3 rr=4 semantic/semantic :: padrões novos não entram no bloco gerenciado do arquivo de ignore do git
+lex=4 sem=2 rr=1 semantic/semantic :: endpoints sem ponto de aplicação de autorização
+lex=43 sem=12 rr=12 semantic/semantic :: testes de intrusão em aplicativo móvel com contêiner
+lex=1 sem=13 rr=10 semantic/semantic :: agente com acesso a banco de dados e classificação de dado sensível
+lex=2 sem=1 rr=1 semantic/semantic :: duas suítes pesadas rodando ao mesmo tempo na mesma máquina
+lex=6 sem=2 rr=1 semantic/semantic :: o hook antes de enviar ao remoto está lento e caro
+lex=2 sem=1 rr=1 semantic/semantic :: lista de tarefas sem declarar de quem cada uma depende
+lex=14 sem=4 rr=4 semantic/semantic :: rastreabilidade de origem das especificações profundas
+lex=1 sem=2 rr=2 semantic/semantic :: rota declarada com string literal não aparecia na superfície da API
+lex=12 sem=4 rr=5 semantic/semantic :: rodapé de coautoria de modelo de IA nas mensagens de commit
+lex=14 sem=13 rr=13 semantic/semantic :: scaffold de projeto novo já com o harness instalado
+lex=12 sem=17 rr=17 semantic/semantic :: o que aprendemos rodando o harness em projetos reais
+lex=36 sem=9 rr=3 semantic/semantic :: scanner de segredos não enxerga um arquivo de código
+lex=11 sem=3 rr=2 semantic/semantic :: two parallel branches got the same gate number
+lex=5 sem=2 rr=2 semantic/semantic :: mensagens próprias do canal passaram a se declarar de terceiro após restaurar o log
+lex=5 sem=3 rr=1 semantic/semantic :: cobertura de dialetos de framework no scanner de rotas
+lex=3 sem=1 rr=1 semantic/semantic :: secret detection gate for hardcoded credentials
+lex=2 sem=3 rr=1 semantic/semantic :: ledger entries marked resolved but left without a resolution timestamp
+CASO: CHANGELOG.md | docs/plans/2026-09-15-plano-issues-abertas.md | docs/plans/spikes/backlog-onda-d-falso-verde.md
+CASO: docs/plans/2026-09-07-backlog-zero.md | docs/plans/spikes/backlog-onda-k-cicd-portatil.md | docs/plans/2026-09-15-plano-issues-abertas.md
+latência semântica com re-rank: 4.42 s

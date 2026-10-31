@@ -42,6 +42,10 @@ bash .forge/scripts/kb.sh semantic remove    # volta ao modo lexical
 
 Instala, sob `.forge/kb/semantic/` do checkout principal (rode o `install` de lá: a instalação é única por máquina e compartilhada pelas worktrees; uma worktree cujos pins divergem dos do checkout principal cai para o modo lexical com "pins mudaram" e não deve reinstalar), o runtime `onnxruntime-web` (WASM, sem binário nativo, sem `node-gyp`) e `@huggingface/tokenizers` (JS puro), em versões e integridade fixadas pelo lockfile de `scripts/lib/kb-pins/` (`npm ci --ignore-scripts`, fora do `package.json` do projeto), e dois modelos multilíngues fixados por revisão e sha256 (~270 MB): embedding `multilingual-e5-small` (int8) e cross-encoder `mmarco-mMiniLMv2-L12-H384-v1` (int8). Toda inferência roda nesta máquina. Qualquer problema na camada (não instalada, arquivo faltando, hash divergente, binário nativo, pins atualizados, runtime que falha) faz a busca cair para o modo lexical com o motivo na primeira linha, nunca erro. `--lexical` força o modo lexical; `--no-rerank` desliga só o re-rank.
 
+## Limite conhecido do canal vetorial
+
+O score de um documento no canal vetorial é o do seu melhor trecho, e documentos longos (o `CHANGELOG.md`, planos de backlog com centenas de trechos) têm mais chances de ter um trecho próximo da consulta: o canal tende a favorecê-los contra respostas curtas, como uma entrada de ledger. Para compensar, os 3 primeiros do BM25 sempre passam pelo cross-encoder, mesmo quando a fusão os deixa abaixo do 10º lugar. Se a resposta esperada é uma entrada curta e não aparece no topo, compare com `--lexical`.
+
 ## Pins e alertas de dependência
 
 Os pins ficam em `.forge/scripts/lib/kb-pins/` (`package.json`, `package-lock.json`, `models.json`). Ferramentas de SCA (Dependabot, Renovate, scanners de lockfile) do projeto vão enxergar esse `package-lock.json` e podem abrir alertas ou PRs automáticos: ele não é dependência do projeto e só é instalado por `semantic install`; atualizações vêm com o `forge update` do harness, nunca por PR automático no projeto.

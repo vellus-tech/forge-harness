@@ -146,3 +146,35 @@ No holdout-2, entre semantic e semantic+rerank, o re-rank melhora 8 consultas (2
 A falha não é do re-rank: é do canal vetorial em duas consultas do holdout-2 cujo documento certo está em 1º no lexical e cai para 24º e 20º no semântico ("máquina de estados canônica do archive" e "guarda anti-recursão do gate da suíte"); o re-rank recupera uma parte do resto, mas não essas duas, porque elas saem do top 10. Em MRR e hit@1 o semantic+rerank é o melhor modo do holdout-2 (0,809 e 0,700 contra 0,759 e 0,600 do lexical).
 
 Nota (gate de re-verificação): o holdout-2 foi rotulado a partir de títulos do ledger, o que favorece o lexical (o BM25 isolado faz hit@5 = 1,000). No holdout original (só histórico), depois da TASK-10, o REQ-06 passa (hit@5 de semantic+rerank 0,889 contra 0,889 do lexical) e o re-rank piora o MRR de 0,790 para 0,750.
+
+## 9. Diagnóstico do REQ-06 e correção (2026-10-31, decisão do dono: investigar antes de arquivar)
+
+Saída bruta: `evidence/diagnostico-req06-2026-10-31.txt` (`prototype/diag.mjs`, canal a canal, código de produção antes da correção).
+
+| Consulta | BM25 | vetor (rank / cosseno; topo do vetor) | fundido | no pool do re-rank? | final antes |
+|---|---|---|---|---|---|
+| "máquina de estados canônica do archive" (LDG-0035) | 1º (24,5) | 109º / 0,878 (topo 0,904) | 24º | não | 24º |
+| "guarda anti-recursão do gate da suíte" (LDG-0182) | 2º (16,3) | 107º / 0,856 (topo 0,891) | 20º | não | 20º |
+
+1. **Descarte antes do re-rank, não afundamento pelo re-rank.** Nos dois casos o documento certo nem entrava nos 10 candidatos do cross-encoder; o re-rank nunca o via.
+2. **Por que o vetor o põe tão mal:** não é id nem sigla (as consultas são frases), nem consulta curta. É viés estrutural: o score do documento no canal vetorial é o do melhor trecho, e os cossenos do e5 ficam espremidos numa faixa estreita (0,85–0,90). Documentos longos — `CHANGELOG.md` com 384 trechos, planos de backlog com 98 a 191 — têm centenas de chances de ter um trecho perto da consulta e dominam o topo do vetor; a entrada do ledger tem mediana de 2 trechos. Com peso igual no RRF, BM25 1º + vetor 109º (0,0223) perde para documentos-hub em 2º/2º (0,0328).
+3. **Geral, não específico das duas consultas:** atinge qualquer consulta cuja resposta é um documento curto (entrada de ledger, ADR, spec arquivada) concorrendo com documentos longos — o caso central do "já decidimos isso antes?".
+
+**Correção (TASK-11, vermelho provado):** os 3 primeiros do BM25 sempre entram no pool do cross-encoder, mesmo abaixo de K = 10, com a sua posição real no ranking propagado na fórmula de combinação. Alternativas descartadas: aumentar K para 30 (triplica o custo de re-rank sem focar no sinal que se perdia); normalizar o score vetorial por número de trechos (mexe na calibração do canal inteiro e exigiria recalibrar). No experimento de escolha (`prototype/pool.mjs`) as variantes "+ topo do BM25 (1 ou 3)" e "+ topo do BM25 e do vetor" empatam na calibração em MRR; 3 do BM25 foi escolhido por cobrir o caso de o 1º lexical estar em 2º–3º (LDG-0182 estava em 2º no BM25) — escolha confirmada no holdout-2, que o dono autorizou usar para confirmar o conserto, não para recalibrar.
+
+**Remedição com o código de produção** (`evidence/remeasure-2026-10-31-pool.txt`):
+
+| Partição | lexical (MRR / hit@5) | semantic (MRR / hit@5) | semantic+rerank (MRR / hit@1 / hit@5) |
+|---|---|---|---|
+| Calibração | 0,571 / 0,743 | 0,628 / 0,829 | 0,710 / 0,600 / 0,857 |
+| Holdout-2 | 0,759 / 0,967 | 0,756 / 0,900 | 0,821 / 0,700 / 1,000 |
+
+As duas consultas: 24º → 4º e 20º → 5º. Re-rank no holdout-2: melhora 10 consultas e piora 4; na calibração, 8 e 2 — **continua padrão**. Latência da consulta semântica com re-rank (até 13 pares no cross-encoder em vez de 10): 4,4 s, dentro do NFR-02 (< 10 s).
+
+| Critério | Calibração | Holdout-2 | Veredito |
+|---|---|---|---|
+| REQ-03 | 0,571 ≥ 0,556; hit@5 igual | 0,759 ≥ 0,751; hit@5 uma consulta abaixo | passa |
+| REQ-06 | 0,857 ≥ 0,743 | 1,000 ≥ 0,967 | passa |
+| REQ-07 | 0,710 ≥ 0,628 | 0,821 ≥ 0,756 | passa |
+
+Limite que permanece (documentado no `/forge:kb`): o viés do canal vetorial a favor de documentos longos continua existindo; a correção garante que o topo lexical sempre chegue ao cross-encoder, não remove o viés da etapa de fusão. No holdout original (só histórico, visto), o re-rank segue abaixo do semântico sem re-rank em MRR (0,750 contra 0,790).

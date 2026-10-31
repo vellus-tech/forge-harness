@@ -3,7 +3,7 @@ story_id: STORY-01
 epic: add-unified-knowledge-search
 title: Fundação lexical zero-dep — corpus, índice e fusão
 depends_on: []
-status: todo
+status: in_progress
 ---
 
 # STORY-01 — Fundação lexical zero-dep — corpus, índice e fusão
@@ -33,7 +33,7 @@ Entregar os três módulos puros do caminho lexical: coleta do corpus com as exc
 
 ## Tasks
 
-- [ ] TASK-01 — Corpus (paths: `template/.forge/scripts/lib/kb-corpus.mjs`, `tests/w284-kb-corpus-gate.sh`)
+- [X] TASK-01 — Corpus (paths: `template/.forge/scripts/lib/kb-corpus.mjs`, `tests/w284-kb-corpus-gate.sh`)
 - [ ] TASK-02 — Índice lexical (paths: `template/.forge/scripts/lib/kb-lexical.mjs`, `tests/w285-kb-lexical-gate.sh`; depende: TASK-01)
 - [ ] TASK-03 — Fusão; o vermelho traz as cópias do conjunto de avaliação (paths: `template/.forge/scripts/lib/kb-fuse.mjs`, `tests/w286-kb-fuse-gate.sh`, `tests/fixtures/kb/eval/{calibration,holdout}.json`)
 

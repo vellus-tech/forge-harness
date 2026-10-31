@@ -11,7 +11,7 @@
 
 ## Wave 1 — Fundação lexical (zero-dep)
 
-- [ ] TASK-01 — Corpus: fontes, exclusões (inclusive `expectedTrust` de `lib/liaison-trust.mjs`), corte em trechos, impressões digitais de conteúdo e rápida (rastreia: REQ-01, REQ-02, design §2.3, §2.4; paths: `template/.forge/scripts/lib/kb-corpus.mjs`, `tests/w284-kb-corpus-gate.sh`, `README.md`; depende: —)
+- [X] TASK-01 — Corpus: fontes, exclusões (inclusive `expectedTrust` de `lib/liaison-trust.mjs`), corte em trechos, impressões digitais de conteúdo e rápida (rastreia: REQ-01, REQ-02, design §2.3, §2.4; paths: `template/.forge/scripts/lib/kb-corpus.mjs`, `tests/w284-kb-corpus-gate.sh`, `README.md`; depende: —)
   - Teste (comando): `bash tests/w284-kb-corpus-gate.sh`
   - Padrão de falha: `FAIL \[[^]]+\]`
 - [ ] TASK-02 — Índice lexical: normalização, BM25, entidades, grafo de links, texto em `texts.bin`, serialização determinística (rastreia: REQ-02, REQ-03, design §2.4; paths: `template/.forge/scripts/lib/kb-lexical.mjs`, `tests/w285-kb-lexical-gate.sh`, `README.md`; depende: TASK-01)

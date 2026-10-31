@@ -144,3 +144,5 @@ No holdout-2, entre semantic e semantic+rerank, o re-rank melhora 8 consultas (2
 ### O que falha e por quê (REQ-06)
 
 A falha não é do re-rank: é do canal vetorial em duas consultas do holdout-2 cujo documento certo está em 1º no lexical e cai para 24º e 20º no semântico ("máquina de estados canônica do archive" e "guarda anti-recursão do gate da suíte"); o re-rank recupera uma parte do resto, mas não essas duas, porque elas saem do top 10. Em MRR e hit@1 o semantic+rerank é o melhor modo do holdout-2 (0,809 e 0,700 contra 0,759 e 0,600 do lexical).
+
+Nota (gate de re-verificação): o holdout-2 foi rotulado a partir de títulos do ledger, o que favorece o lexical (o BM25 isolado faz hit@5 = 1,000). No holdout original (só histórico), depois da TASK-10, o REQ-06 passa (hit@5 de semantic+rerank 0,889 contra 0,889 do lexical) e o re-rank piora o MRR de 0,790 para 0,750.

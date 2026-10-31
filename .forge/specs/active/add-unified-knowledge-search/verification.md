@@ -55,7 +55,7 @@ Decisão do dono (relayed pelo orquestrador em 2026-10-31): ajustar o canal de e
 
 - **REQ-03:** passa nas duas partições (holdout-2: MRR lexical 0,759 ≥ 0,751; hit@5 uma consulta abaixo, dentro do limite).
 - **REQ-07 e decisão do re-rank:** passa nas duas partições (holdout-2: 0,809 contra 0,756). O re-rank melhora 8 consultas e piora 4 no holdout-2 (6 e 2 na calibração): **continua padrão**.
-- **REQ-06:** passa na calibração e **não passa no holdout-2 por uma consulta** (hit@5 de semantic+rerank 0,933 contra 0,967 do lexical), embora semantic+rerank seja o melhor modo do holdout-2 em MRR (0,809 contra 0,759) e hit@1 (0,700 contra 0,600). Causa medida: duas consultas cujo documento certo está em 1º no lexical caem para 24º e 20º pelo canal vetorial, fora do alcance do re-rank. Este critério não estava no escopo da decisão do dono, e pelo texto aprovado do REQ-06 a falha devolve a decisão do archive ao dono; ver o resultado do gate de re-verificação em `approvals.yaml`.
+- **REQ-06:** passa na calibração e **não passa no holdout-2 por uma consulta** (hit@5 de semantic+rerank 0,933 contra 0,967 do lexical), embora semantic+rerank seja o melhor modo do holdout-2 em MRR (0,809 contra 0,759) e hit@1 (0,700 contra 0,600). Causa medida: duas consultas cujo documento certo está em 1º no lexical caem para 24º e 20º no modo semântico fundido (atribuído ao canal vetorial por inferência, não medido canal a canal), fora do alcance do re-rank. Este critério não estava no escopo da decisão do dono, e pelo texto aprovado do REQ-06 a falha devolve a decisão do archive ao dono; ver o resultado do gate de re-verificação em `approvals.yaml`.
 
 ## Licença dos dados de treino dos modelos — risco aceito pelo dono
 

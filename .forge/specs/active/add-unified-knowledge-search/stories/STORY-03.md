@@ -33,7 +33,7 @@ Entregar a camada semântica de verdade: pins (lockfile com integrity, modelos p
 
 - [X] TASK-06 — Pins, devDependencies e ADR 0004 (paths: `template/.forge/scripts/lib/kb-pins/`, `package.json`, `package-lock.json`, `.forge/product/current/adr/0004-opt-in-runtime-layer.md`, `.forge/product/current/adr/README.md`, `tests/w290-kb-pins-gate.sh`; depende: TASK-05)
 - [X] TASK-07 — Instalação: integridade, instalador, `semantic install|status` (paths: `template/.forge/scripts/lib/kb-integrity.mjs`, `template/.forge/scripts/lib/kb-install.mjs`, `template/.forge/scripts/lib/kb-cli.mjs`, `tests/fixtures/kb/{make-semantic-fixture.mjs,fake-npm.sh,semantic-env.sh}`, `tests/w291-kb-install-gate.sh`; depende: TASK-05, TASK-06)
-- [ ] TASK-08 — Carga e inferência: `kb-semantic.mjs`, canal vetorial, re-rank, eval semântico, degradação, bloqueio de rede no modo semântico (paths: `template/.forge/scripts/lib/kb-semantic.mjs`, `template/.forge/scripts/lib/kb-cli.mjs`, `tests/w292-kb-semantic-gate.sh`, `tests/w293-kb-offline-semantic-gate.sh`; depende: TASK-07)
+- [X] TASK-08 — Carga e inferência: `kb-semantic.mjs`, canal vetorial, re-rank, eval semântico, degradação, bloqueio de rede no modo semântico (paths: `template/.forge/scripts/lib/kb-semantic.mjs`, `template/.forge/scripts/lib/kb-cli.mjs`, `tests/w292-kb-semantic-gate.sh`, `tests/w293-kb-offline-semantic-gate.sh`; depende: TASK-07)
 
 ## Acceptance criteria
 

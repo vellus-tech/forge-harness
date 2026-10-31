@@ -132,9 +132,32 @@ async function search(a, idx, q, semState) {
   const note = (name, m) => { ch[name] = new Map([...m].map(([d, v]) => [d, v.rank])); for (const [d, v] of m) if (!best.has(d) || name === 'bm25') best.set(d, v.chunk); };
   note('bm25', toDocRanks(idx, bm25(idx, q)));
   note('entities', toDocRanks(idx, entityMatch(idx, q)));
-  const mode = 'lexical'; const reason = semState.reason || null;
-  const fused = propagateLinks(rrf(ch), idx.links);
-  const rerank = null;
+  let mode = 'lexical'; let reason = semState.reason || null; let sem = semState.sem || null;
+  let qvec = null;
+  if (sem) {
+    try {
+      const v = await sem.vectorSearch(idx, q);
+      qvec = v.queryVector;
+      if (v.missing > 0) warn(`${v.missing} trecho(s) sem vetor — rode kb.sh build para completar`);
+      ch.vector = new Map([...v.ranks].map(([d, r]) => [d, r.rank]));
+      for (const [d, r] of v.ranks) if (!best.has(d)) best.set(d, r.chunk);
+      mode = 'semantic';
+    } catch (e) { sem = null; reason = `falha ao carregar: ${firstLine(e)}`; delete ch.vector; }
+  }
+  let fused = propagateLinks(rrf(ch), idx.links);
+  let rerank = null;
+  if (sem && mode === 'semantic' && !a.noRerank) {
+    try {
+      const top = fused.slice(0, RERANK_K).map((r) => r.doc);
+      const scores = new Map();
+      for (const d of top) scores.set(d, await sem.crossScore(q, idx.chunkText(sem.representative(idx, d, q, qvec, best.get(d)))));
+      rerank = combineRerank(docOrder(fused), scores);
+    } catch (e) {
+      // re-rank falhou: a ordem honesta é a lexical, sem o canal vetorial de um runtime que lançou
+      mode = 'lexical'; reason = `falha ao carregar: ${firstLine(e)}`; rerank = null;
+      delete ch.vector; fused = propagateLinks(rrf(ch), idx.links);
+    }
+  }
   const finalFused = fused;
   const byDoc = new Map(finalFused.map((r) => [r.doc, r]));
   const order = rerank ? rerank : finalFused.map((r, i) => ({ doc: r.doc, score: null, fusion_rank: i + 1, ce_rank: null, ce_score: null }));
@@ -194,7 +217,13 @@ async function cmdBuild(a) {
   const sk = Object.entries(skipped).map(([k, v]) => `${k}=${v}`).join(' ');
   process.stdout.write(`OK índice lexical: ${idx.docs.length} documentos, ${idx.chunks.length} trechos (${((Date.now() - t) / 1000).toFixed(1)}s)${sk ? ` — pulados: ${sk}` : ''}\n`);
   const semState = await loadSemantic(a);
-  process.stdout.write(`vetores não calculados: ${semState.reason || 'camada semântica sem cálculo de vetores'}\n`);
+  if (!semState.sem) { process.stdout.write(`vetores não calculados: ${semState.reason}\n`); return; }
+  try {
+    const r = await semState.sem.buildVectors(idx, (n, total) => warn(`embeddings: ${n}/${total}`));
+    process.stdout.write(`OK vetores: ${r.computed} calculados, ${r.reused} reaproveitados, ${r.removed} removidos (${(r.ms / 1000).toFixed(1)}s)\n`);
+  } catch (e) {
+    process.stdout.write(`vetores não calculados: falha ao carregar: ${firstLine(e)}\n`);
+  }
 }
 
 function cmdStatus(a) {
@@ -235,7 +264,17 @@ async function cmdEval(a) {
   runs.bm25 = queries.map((x) => [...toDocRanks(idx, bm25(idx, x.q)).keys()]);
   const lex = []; for (const x of queries) lex.push((await search({ ...top, noRerank: true }, idx, x.q, { reason: 'eval' })).results.map((r) => r.doc));
   runs.lexical = lex;
-  const semReason = (await loadSemantic(a)).reason || 'camada semântica sem avaliação';
+  const semState = await loadSemantic(a);
+  let semReason = semState.reason || null;
+  if (semState.sem) {
+    const nr = []; const wr = [];
+    for (const x of queries) {
+      const o1 = await search({ ...top, noRerank: true }, idx, x.q, semState); nr.push(o1.results.map((r) => r.doc));
+      const o2 = await search({ ...top, noRerank: false }, idx, x.q, semState); wr.push(o2.results.map((r) => r.doc));
+      if (o2.mode !== 'semantic') { semReason = o2.mode_reason; break; }
+    }
+    if (!semReason) { runs.semantic = nr; runs['semantic+rerank'] = wr; }
+  }
   const out = Object.fromEntries(Object.entries(runs).map(([k, v]) => [k, metrics(queries, v)]));
   if (a.json) { process.stdout.write(JSON.stringify({ format: 1, queries: queries.length, semantic: semReason ? `indisponível: ${semReason}` : 'avaliada', gold_matches: fragCounts, modes: out }) + '\n'); return; }
   process.stdout.write(`consultas: ${queries.length}${semReason ? ` — camada semântica: ${semReason}` : ''}\n`);

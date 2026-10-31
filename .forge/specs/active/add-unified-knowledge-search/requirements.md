@@ -85,7 +85,7 @@
 
 ## REQ-07 — Re-rank que combina os sinais
 
-- **Quando** a camada semântica está ativa e o operador consulta, **o sistema deve** reordenar os K primeiros candidatos do resultado já propagado (etapa 3 da ordem do pipeline do REQ-03; K = 10) com um cross-encoder local que pontua o par (consulta, trecho), e produzir a ordem final combinando a posição do cross-encoder com a posição no ranking propagado (etapa 2), de modo que nenhum dos dois sinais sozinho determine a ordem.
+- **Quando** a camada semântica está ativa e o operador consulta, **o sistema deve** reordenar os K primeiros candidatos do resultado já propagado (etapa 3 da ordem do pipeline do REQ-03; K = 10), mais os 3 primeiros do BM25 quando estiverem abaixo de K (emenda de 2026-10-31, após diagnóstico: sem isso o 1º lexical podia ser descartado antes do cross-encoder) com um cross-encoder local que pontua o par (consulta, trecho), e produzir a ordem final combinando a posição do cross-encoder com a posição no ranking propagado (etapa 2), de modo que nenhum dos dois sinais sozinho determine a ordem.
 - **Critérios de aceite:**
   - [ ] A ordem final é função documentada das duas posições (a fórmula está no código e na saída `--json`), não apenas a ordem do cross-encoder.
   - [ ] Teste com scores de cross-encoder controlados sobre um ranking propagado `[A, B, C, D]`: (i) cross-encoder concordante (scores decrescentes A > B > C > D) mantém `[A, B, C, D]`; (ii) cross-encoder que põe D em primeiro e A em último move D para uma posição acima da 4ª e A para uma posição abaixo da 1ª; (iii) o resultado final é exatamente o previsto pela fórmula documentada nos dois casos.

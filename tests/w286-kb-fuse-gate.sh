@@ -104,7 +104,7 @@ const pool = fused.slice(0, 10).concat(['L']);
 const ce = new Map([...pool].sort((a, b) => s.get(b) - s.get(a)).map((d, i) => [d, i + 1]));
 const k = F.RERANK_RRF_K;
 const exp = pool.map((d) => [d, 1 / (k + ce.get(d)) + 1 / (k + fused.indexOf(d) + 1)]).sort((x, y) => y[1] - x[1] || ce.get(x[0]) - ce.get(y[0])).map((x) => x[0]);
-if (r.slice(0, 11).join() !== exp.join() || r[11] !== undefined) { console.log(r, exp); process.exit(1); }
+if (r.slice(0, 11).join() !== exp.join() || r[11] !== 'K') { console.log(r, exp); process.exit(1); }
 if (F.RERANK_LEXICAL_EXTRA !== 3) process.exit(1);
 " || fail 8 "pool do re-rank sem os extras do topo lexical"
 ok 8

@@ -18,7 +18,7 @@ import { collect, fingerprint, quickFingerprint } from './kb-corpus.mjs';
 import { createHash } from 'node:crypto';
 import { buildIndex, serializeIndex, attachTexts, bm25, entityMatch, toDocRanks, INDEX_FORMAT } from './kb-lexical.mjs';
 import { neutralize } from './untrusted-render.mjs';
-import { rrf, propagateLinks, combineRerank, WEIGHTS, RRF_K, LINK_ALPHA, LINK_TOP, RERANK_K, RERANK_FORMULA } from './kb-fuse.mjs';
+import { rrf, propagateLinks, combineRerank, WEIGHTS, RRF_K, LINK_ALPHA, LINK_TOP, RERANK_K, RERANK_LEXICAL_EXTRA, RERANK_FORMULA } from './kb-fuse.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SNIPPET_MAX = 240;
@@ -148,10 +148,11 @@ async function search(a, idx, q, semState) {
   let rerank = null;
   if (sem && mode === 'semantic' && !a.noRerank) {
     try {
-      const top = fused.slice(0, RERANK_K).map((r) => r.doc);
+      const lexTop = [...ch.bm25.entries()].sort((x, y) => x[1] - y[1]).slice(0, RERANK_LEXICAL_EXTRA).map(([d]) => d);
+      const pool = new Set([...fused.slice(0, RERANK_K).map((r) => r.doc), ...lexTop]);
       const scores = new Map();
-      for (const d of top) scores.set(d, await sem.crossScore(q, idx.chunkText(sem.representative(idx, d, q, qvec, best.get(d)))));
-      rerank = combineRerank(docOrder(fused), scores);
+      for (const d of pool) scores.set(d, await sem.crossScore(q, idx.chunkText(sem.representative(idx, d, q, qvec, best.get(d)))));
+      rerank = combineRerank(docOrder(fused), scores, RERANK_K, lexTop);
     } catch (e) {
       // re-rank falhou: a ordem honesta é a lexical, sem o canal vetorial de um runtime que lançou
       mode = 'lexical'; reason = `falha ao carregar: ${firstLine(e)}`; rerank = null;
@@ -207,7 +208,7 @@ async function cmdQuery(a) {
   const { idx, rebuilt } = loadIndex(a);
   const semState = await loadSemantic(a);
   const out = await search(a, idx, q, semState);
-  if (a.json) process.stdout.write(JSON.stringify({ format: 1, query: q, mode: out.mode, mode_reason: out.mode_reason, rebuilt, weights: WEIGHTS, rrf_k: RRF_K, links: { alpha: LINK_ALPHA, top: LINK_TOP }, rerank: { applied: out.rerank_applied, k: RERANK_K, formula: RERANK_FORMULA }, results: out.results }) + '\n');
+  if (a.json) process.stdout.write(JSON.stringify({ format: 1, query: q, mode: out.mode, mode_reason: out.mode_reason, rebuilt, weights: WEIGHTS, rrf_k: RRF_K, links: { alpha: LINK_ALPHA, top: LINK_TOP }, rerank: { applied: out.rerank_applied, k: RERANK_K, lexical_extra: RERANK_LEXICAL_EXTRA, formula: RERANK_FORMULA }, results: out.results }) + '\n');
   else printText(out);
 }
 

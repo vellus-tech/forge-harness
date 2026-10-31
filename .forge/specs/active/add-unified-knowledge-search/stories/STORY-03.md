@@ -35,6 +35,8 @@ Entregar a camada semântica de verdade: pins (lockfile com integrity, modelos p
 - [X] TASK-07 — Instalação: integridade, instalador, `semantic install|status` (paths: `template/.forge/scripts/lib/kb-integrity.mjs`, `template/.forge/scripts/lib/kb-install.mjs`, `template/.forge/scripts/lib/kb-cli.mjs`, `tests/fixtures/kb/{make-semantic-fixture.mjs,fake-npm.sh,semantic-env.sh}`, `tests/w291-kb-install-gate.sh`; depende: TASK-05, TASK-06)
 - [X] TASK-08 — Carga e inferência: `kb-semantic.mjs`, canal vetorial, re-rank, eval semântico, degradação, bloqueio de rede no modo semântico (paths: `template/.forge/scripts/lib/kb-semantic.mjs`, `template/.forge/scripts/lib/kb-cli.mjs`, `tests/w292-kb-semantic-gate.sh`, `tests/w293-kb-offline-semantic-gate.sh`; depende: TASK-07)
 
+- [X] TASK-11 — Pool do re-rank com o topo do BM25, emenda pós-verify (paths: `template/.forge/scripts/lib/kb-fuse.mjs`, `template/.forge/scripts/lib/kb-cli.mjs`, `tests/w286-kb-fuse-gate.sh`; depende: TASK-10)
+
 ## Acceptance criteria
 
 - [ ] `w290`, `w291`, `w292` e `w293` passam em Node 20 e 26; vermelho de cada task provado (TASK-07 e TASK-08 com `Setup do teste: npm ci ...`).

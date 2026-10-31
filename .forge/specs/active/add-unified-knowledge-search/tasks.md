@@ -58,6 +58,11 @@
   - Padrão de falha: `FAIL \[[^\]]+\]`
   - Nota: a partição `tests/fixtures/kb/eval/holdout-2.json` foi versionada cega (sem rodar busca) em commit anterior ao vermelho desta task.
 
+- [X] TASK-11 — Pool do re-rank inclui os 3 primeiros do BM25 mesmo abaixo de K (rastreia: REQ-06, REQ-07 emendado, design §2.5, §2.6; paths: `template/.forge/scripts/lib/kb-fuse.mjs`, `template/.forge/scripts/lib/kb-cli.mjs`, `tests/w286-kb-fuse-gate.sh`; depende: TASK-10)
+  - Teste (comando): `bash tests/w286-kb-fuse-gate.sh`
+  - Padrão de falha: `FAIL \[[^\]]+\]`
+  - Nota: corrige a causa diagnosticada da falha do REQ-06 no holdout-2 (o 1º lexical era descartado antes do cross-encoder).
+
 ## Medições e provas do verify (fora das tasks, com comando e critério de parada)
 
 Feitas pela sessão no `/forge:verify`, sobre o código das tasks, com a camada instalada de verdade (`kb.sh semantic install` a partir dos pins) e registradas em `evidence/`:
@@ -78,8 +83,8 @@ Feitas pela sessão no `/forge:verify`, sobre o código das tasks, com a camada 
 | REQ-03 | TASK-02, TASK-03, TASK-04, TASK-10; medição 1 |
 | REQ-04 | TASK-04, TASK-05 |
 | REQ-05 | TASK-04, TASK-06, TASK-07, TASK-09 |
-| REQ-06 | TASK-08; medição 2 |
-| REQ-07 | TASK-03, TASK-08; medição 3 |
+| REQ-06 | TASK-08, TASK-11; medição 2 |
+| REQ-07 | TASK-03, TASK-08, TASK-11; medição 3 |
 | REQ-08 | TASK-04, TASK-08 |
 | REQ-09 | TASK-05, TASK-08, TASK-09 |
 | REQ-10 | TASK-04, TASK-09 |

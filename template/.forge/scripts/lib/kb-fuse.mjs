@@ -14,6 +14,8 @@ export const WEIGHTS = Object.freeze({ bm25: 1.0, entities: 0.2, vector: 1.0 });
 export const LINK_ALPHA = 0.1;
 export const LINK_TOP = 10;
 export const RERANK_K = 10;
+// Os N primeiros do BM25 sempre entram no pool do re-rank, mesmo abaixo de RERANK_K.
+export const RERANK_LEXICAL_EXTRA = 3;
 export const RERANK_RRF_K = 5;
 export const RERANK_WEIGHTS = Object.freeze({ cross_encoder: 1.0, fusion: 1.0 });
 
@@ -61,17 +63,24 @@ export function propagateLinks(fused, links, alpha = LINK_ALPHA, top = LINK_TOP)
 // documentos além de K mantêm a ordem da fusão. Empate no score combinado é desempatado pela posição
 // do cross-encoder (emenda do REQ-07: pela posição propagada, uma inversão simétrica dos extremos
 // mantinha o primeiro no lugar).
-export function combineRerank(fused, ceScores, k = RERANK_K) {
-  const top = fused.slice(0, k);
-  const ceOrder = [...top].sort((a, b) => (ceScores.get(b) ?? -Infinity) - (ceScores.get(a) ?? -Infinity) || top.indexOf(a) - top.indexOf(b));
+export function combineRerank(fused, ceScores, k = RERANK_K, extra = []) {
+  // Pool do re-rank: os k primeiros do ranking propagado mais os `extra` (o topo do BM25), em ordem de
+  // posição no ranking propagado. Sem os extras, um documento que o lexical acha em 1º mas que a fusão
+  // com o canal vetorial empurra para baixo de k nunca chegava ao cross-encoder (diagnóstico de
+  // 2026-10-31: documentos longos, com centenas de trechos, ganham o máximo de similaridade por
+  // documento e dominam o canal vetorial; a entrada curta do ledger caía para 20º–24º).
+  const pos = new Map(fused.map((d, i) => [d, i + 1]));
+  const pool = [...new Set([...fused.slice(0, k), ...extra.filter((d) => pos.has(d))])].sort((a, b) => pos.get(a) - pos.get(b));
+  const inPool = new Set(pool);
+  const ceOrder = [...pool].sort((a, b) => (ceScores.get(b) ?? -Infinity) - (ceScores.get(a) ?? -Infinity) || pos.get(a) - pos.get(b));
   const ceRank = new Map(ceOrder.map((d, i) => [d, i + 1]));
-  const rows = top.map((d, i) => {
-    const fr = i + 1; const cr = ceRank.get(d);
+  const rows = pool.map((d) => {
+    const fr = pos.get(d); const cr = ceRank.get(d);
     const score = RERANK_WEIGHTS.cross_encoder / (RERANK_RRF_K + cr) + RERANK_WEIGHTS.fusion / (RERANK_RRF_K + fr);
     return { doc: d, score, fusion_rank: fr, ce_rank: cr, ce_score: ceScores.get(d) ?? null };
   });
   rows.sort((a, b) => b.score - a.score || a.ce_rank - b.ce_rank);
-  return [...rows, ...fused.slice(k).map((d, i) => ({ doc: d, score: null, fusion_rank: k + i + 1, ce_rank: null, ce_score: null }))];
+  return [...rows, ...fused.filter((d) => !inPool.has(d)).map((d) => ({ doc: d, score: null, fusion_rank: pos.get(d), ce_rank: null, ce_score: null }))];
 }
 
-export const RERANK_FORMULA = `score = ${RERANK_WEIGHTS.cross_encoder}/(${RERANK_RRF_K} + rank_cross_encoder) + ${RERANK_WEIGHTS.fusion}/(${RERANK_RRF_K} + rank_propagado), sobre os ${RERANK_K} primeiros do ranking propagado; empate desempatado pela posição do cross-encoder`;
+export const RERANK_FORMULA = `score = ${RERANK_WEIGHTS.cross_encoder}/(${RERANK_RRF_K} + rank_cross_encoder) + ${RERANK_WEIGHTS.fusion}/(${RERANK_RRF_K} + rank_propagado), sobre os ${RERANK_K} primeiros do ranking propagado mais os ${RERANK_LEXICAL_EXTRA} primeiros do BM25; empate desempatado pela posição do cross-encoder`;

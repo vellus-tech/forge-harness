@@ -3,7 +3,7 @@ story_id: STORY-13
 epic: add-liaison-native-bridge
 title: "Documentação operacional"
 depends_on: [STORY-11]
-status: todo
+status: done
 ---
 
 # STORY-13 — Documentação operacional
@@ -32,8 +32,8 @@ Entregar, em TDD vermelho → verde, documentação operacional, conforme as tas
 
 ## Tasks
 
-- [ ] TASK-24 — Gate vermelho de documentação: `argument-hint` com os subcomandos novos; flags do bloco de protocolo = flags aceitas do script por subcomando novo ou alterado; `send` cross-session sem flags de origem; `slash-commands.md`; `CHANGELOG.md` com o passo de armar; `upgrade.md` template e plugin; ponteiro na primeira linha documentado (paths: `tests/native-docs-gate.sh`; depende: TASK-21)
-- [ ] TASK-25 — Documentação: `/forge:liaison` (template e plugin), `upgrade.md` (template e plugin), `docs/refer/slash-commands.md`, inventário de gates e scripts, `CHANGELOG.md` `[Unreleased]`, badge do `README.md` (paths: `template/.forge/commands/harness/liaison.md`, `template/.forge/commands/harness/upgrade.md`, `plugin/forge/commands/liaison.md`, `plugin/forge/commands/upgrade.md`, `docs/`, `CHANGELOG.md`, `README.md`; depende: TASK-24)
+- [X] TASK-24 — Gate vermelho de documentação: `argument-hint` com os subcomandos novos; flags do bloco de protocolo = flags aceitas do script por subcomando novo ou alterado; `send` cross-session sem flags de origem; `slash-commands.md`; `CHANGELOG.md` com o passo de armar; `upgrade.md` template e plugin; ponteiro na primeira linha documentado (paths: `tests/native-docs-gate.sh`; depende: TASK-21)
+- [X] TASK-25 — Documentação: `/forge:liaison` (template e plugin), `upgrade.md` (template e plugin), `docs/refer/slash-commands.md`, inventário de gates e scripts, `CHANGELOG.md` `[Unreleased]`, badge do `README.md` (paths: `template/.forge/commands/harness/liaison.md`, `template/.forge/commands/harness/upgrade.md`, `plugin/forge/commands/liaison.md`, `plugin/forge/commands/upgrade.md`, `docs/`, `CHANGELOG.md`, `README.md`; depende: TASK-24)
 
 ## Acceptance criteria
 

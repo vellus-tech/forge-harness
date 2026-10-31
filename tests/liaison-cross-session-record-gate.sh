@@ -16,6 +16,10 @@ set -euo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Amostra de segredo sintético montada em tempo de execução, nunca como literal contíguo — mesmo
+# racional do `_p()` de tests/w139-secrets-gate.sh: um literal contíguo dispara o próprio w139 e o
+# push protection do GitHub, mesmo sendo uma chave inerte usada só para exercitar o detector.
+_p() { printf '%s' "$@"; }
 T="$(mktemp -d /tmp/forge-cross-session-record.XXXXXX)"
 SOCK_PID=""
 cleanup() { [ -z "$SOCK_PID" ] || kill "$SOCK_PID" 2>/dev/null || true; rm -rf "$T"; }
@@ -138,7 +142,9 @@ const { join } = require('path');
   const scenarios = {
     TETO: { from: 'uds:/tmp/cc-socks/30001.sock', fromName: 'X'.repeat(140), fromMode: 'default', body: 'corpo-teto' },
     CTRL: { from: 'uds:/tmp/cc-socks/30002.sock', fromName: 'bad\u0007name', fromMode: 'default', body: 'corpo-ctrl' },
-    SECRETNAME: { from: 'uds:/tmp/cc-socks/30003.sock', fromName: 'AKIAABCDEFGHIJKLMNOP', fromMode: 'default', body: 'corpo-secret-name' },
+    // montado por concatenação (nunca literal contíguo) para não disparar o push protection do
+    // GitHub nem o próprio w139 — mesmo racional do `_p()` de tests/w139-secrets-gate.sh.
+    SECRETNAME: { from: 'uds:/tmp/cc-socks/30003.sock', fromName: 'AKIA' + 'ABCDEFGHIJKLMNOP', fromMode: 'default', body: 'corpo-secret-name' },
     OK: { from: `uds:${sockOk}`, fromName: 'PEER-OK', fromMode: 'default', body: 'corpo-ok', verifiedPeerPid: Number(mypid) },
     DIVERGE: { from: `uds:${sockDiverge}`, fromName: 'PEER-DIVERGE', fromMode: 'default', body: 'corpo-diverge', verifiedPeerPid: Number(mypid) },
     WORKTREE: { from: `uds:${sockWorktree}`, fromName: 'PEER-WORKTREE', fromMode: 'default', body: 'corpo-worktree', verifiedPeerPid: Number(mypid) },
@@ -276,7 +282,8 @@ set -e
 pass "segredo no valor extraído (from-name) recusa"
 
 set +e
-out="$(send_cs peer-validate "$(fp_of OK)" "token sk-ABCDEFGHIJKLMNOPQRST1234" 2>&1)"; rc=$?
+tok_llm="$(_p 'token sk-' 'ABCDEFGHIJKLMNOPQRST1234')"
+out="$(send_cs peer-validate "$(fp_of OK)" "$tok_llm" 2>&1)"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || fail "segredo no corpo (resumo do operador) [cross-session] deveria recusar"
 pass "segredo no corpo (resumo do operador) recusa (mesmo caminho do send)"

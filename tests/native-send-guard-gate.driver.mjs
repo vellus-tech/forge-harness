@@ -290,11 +290,14 @@ async function main() {
     // -------------------------------------------------------------------------------------
     // REQ-04 — varredura de segredo (step 4, independente das etapas 5/6: roda antes delas)
     // -------------------------------------------------------------------------------------
+    // Amostras montadas por concatenação (nunca literal contíguo) — mesmo racional do `_p()` de
+    // tests/w139-secrets-gate.sh: um literal contíguo dispara o próprio w139 e o push protection
+    // do GitHub, mesmo sendo uma chave inerte usada só para exercitar o detector.
     const SECRET_SAMPLES = [
-      ['AWS Access Key ID', 'AKIAABCDEFGHIJKLMNOP'],
+      ['AWS Access Key ID', 'AKIA' + 'ABCDEFGHIJKLMNOP'],
       ['AWS Secret Access Key', `aws_key = "${'A'.repeat(40)}"`],
-      ['JWT', 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dGVzdHNpZ25hdHVyZQ'],
-      ['chave privada PEM', '-----BEGIN PRIVATE KEY-----'],
+      ['JWT', ['eyJhbGciOiJIUzI1NiJ9', 'eyJzdWIiOiIxMjM0NTY3ODkwIn0', 'dGVzdHNpZ25hdHVyZQ'].join('.')],
+      ['chave privada PEM', '-----BEGIN ' + 'PRIVATE KEY-----'],
       ['API key de LLM', `sk-${'A'.repeat(25)}`],
       ['token do GitHub', `ghp_${'A'.repeat(36)}`],
       ['token do npm', `npm_${'A'.repeat(36)}`],
@@ -317,7 +320,7 @@ async function main() {
           recipient_kind: 'name',
           message: 'corpo limpo',
           content: 'corpo limpo',
-          extra: { note: 'AKIAABCDEFGHIJKLMNOP' },
+          extra: { note: 'AKIA' + 'ABCDEFGHIJKLMNOP' },
         },
       });
       assertEqual(G.evaluateSendGuard(payload, opts).exitCode, 2, 'exit code deveria ser 2');

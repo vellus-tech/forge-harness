@@ -89,3 +89,12 @@ approvals:
     commit: "af2883cf"
     scope: "verification.md"
     notes: "Aceite formal delegado pelo dono em 2026-10-30. REQ-03/REQ-07 falham no holdout; archive condicionado à decisão do dono."
+  - gate: implementation_verified
+    decision: approve
+    reason: "Revisor delegado (opus), rodada 2: APPROVE. Correções da rodada 1 conferidas e números reproduzidos ao milésimo (ablação e diagnóstico por consulta); refactor sem regressão (w285, w287, w292). MINOR e NOTAs de redação aplicados (resumo do REQ-07 na evidência, custo das opções, frase sem prova removida). Este APPROVE não decide o archive."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T22:46:33-03:00"
+    iteration: 2
+    commit: "a6a60e66"
+    scope: "verification.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30. REQ-03/REQ-07 falham no holdout; archive condicionado à decisão do dono (verification.md, Decisão pendente do dono)."

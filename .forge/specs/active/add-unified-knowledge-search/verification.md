@@ -44,6 +44,7 @@ Ver `evidence/verify-measurements.md` (qualidade nas duas partições, com e sem
 
 - **Desvio de código entre tasks, registrado:** o `kb-cli.mjs` foi recortado por task (lexical na TASK-04, eval na TASK-05, instalação e status na TASK-07, canal vetorial, re-rank e eval semântico na TASK-08), como pediu o revisor do gate de tasks; o vermelho de cada task foi provado por execução.
 - **Gate fortalecido no verify:** a prova de mutação mostrou que a conferência de caminho real do runtime não era exercitada sozinha; acrescentado ao `w292` [7] o caso de symlink para fora do confinamento (só teste; o código já fazia a conferência).
+- **Refactor no verify:** removidos `linkNeighbors`/`LINK_SEEDS` de `kb-lexical.mjs` (resto do desenho de links como canal, sem chamador) e corrigido o comentário do cache de vetores em `kb-cli.mjs`; `w285`, `w287`, `w288` e `w292` passam depois.
 - **`lib/untrusted-render.mjs`:** passou a exportar `neutralize()`, usado por `renderUntrusted` e pelo `/forge:kb`; a saída de `renderUntrusted` não muda (`w112` e `w121` passam).
 - **Instalação compartilhada por máquina:** a camada semântica fica no checkout principal; worktree com pins divergentes cai para lexical com "pins mudaram" (design §6, `kb.md`).
 - **Fora do escopo, para o ledger:** fallback `npm ci || npm install` do CI contorna o lockfile (analysis A-10); baseline `forge-harness-template` traz um cenário de REQ-FHT-004 com barras invertidas multiplicadas (dado pré-existente, não tocado por este change).
@@ -65,4 +66,4 @@ Pelos requisitos aprovados, o archive não acontece sem decisão do dono. O bloq
 4. **Não mudar código e medir num holdout novo e maior** (por exemplo 50 consultas, escritas antes de medir), para testar se as duas perdas são ruído. Vale para REQ-03 e REQ-07.
 5. **REQ-07 — tirar o re-rank do default** (`--rerank` opcional), mantendo-o implementado e testado. Contraria o espírito da decisão "memória semântica com re-rank"; só com o dono.
 
-As opções 2 a 5 exigem emendar o REQ-FHT-072 e/ou o REQ-FHT-076 do `spec-delta.yaml` antes do archive.
+Custo em emendas: as opções 2, 3 e 4 exigem emendar o REQ-11 do change (holdout novo; o critério atual proíbe mudar o `holdout.json` depois das constantes); as opções 2, 3 e 5 exigem emendar o REQ-FHT-072 ou o REQ-FHT-076 do `spec-delta.yaml` antes do archive; a opção 4 só exige emendar esses REQs se o holdout novo também falhar.

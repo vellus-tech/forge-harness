@@ -36,7 +36,7 @@ Medido em 2026-10-30 sobre o código de produção do HEAD da branch (TASK-01..0
 |---|---|---|---|
 | REQ-03 — lexical: MRR ≥ bm25 e hit@5 no máximo uma consulta abaixo | MRR 0,571 ≥ 0,556; hit@5 igual | **MRR 0,714 < 0,730**; hit@5 igual | **não passa no holdout** (−0,016 de MRR, menos que o valor de uma consulta, 0,028) |
 | REQ-06 — semantic+rerank hit@5 ≥ lexical | 0,857 ≥ 0,743 | 0,889 ≥ 0,889 | passa |
-| REQ-07 — re-rank não piora o MRR | 0,709 ≥ 0,643 (+0,066) | **0,750 < 0,753** (−0,003) | **não passa no holdout** (um empate desfeito ao contrário) |
+| REQ-07 — re-rank não piora o MRR | 0,709 ≥ 0,643 (+0,066) | **0,750 < 0,753** (−0,003) | **não passa no holdout** (6 consultas movidas, saldo −1 em hit@1 e em hit@5) |
 
 Pelos requisitos aprovados (REQ-03, último critério; REQ-07, critério de evidence), as duas falhas no holdout fazem o change parar antes do archive e devolvem a decisão ao dono. Nenhuma constante foi ajustada depois de o holdout ser visto; os números coincidem com os da projeção de design (semantic-feasibility.md §5), o que confirma a medição.
 
@@ -66,7 +66,7 @@ Na calibração o canal de entidades contribui exatamente zero (nenhuma consulta
 | doctor flags placeholders | 2 | 1 | 1 |
 | commits direto em develop | 22 | 43 | 43 |
 
-O re-rank move 6 das 18 consultas: 3 sobem (3→1, 4→2, 4→2) e 3 descem (1→2, 1→3, 5→7); perde uma consulta em hit@1 (0,667→0,611) e uma em hit@5 (0,944→0,889). O −0,003 de MRR é o saldo de movimentos que quase se cancelam, não um empate isolado. Só a queda 1→2 é desempate pela fórmula.
+O re-rank move 6 das 18 consultas: 3 sobem (3→1, 4→2, 4→2) e 3 descem (1→2, 1→3, 5→7); perde uma consulta em hit@1 (0,667→0,611) e uma em hit@5 (0,944→0,889). O −0,003 de MRR é o saldo de movimentos que quase se cancelam, não um empate isolado.
 
 ## 2. Latência (NFR-01, NFR-02; processo inteiro, melhor de 5, cache quente)
 

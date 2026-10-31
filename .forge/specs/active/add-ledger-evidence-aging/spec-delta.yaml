@@ -1,21 +1,73 @@
-# Spec delta — operations this change applies to the baseline at archive time
-# (schema: .forge/schemas/spec-delta.schema.json; doc §10.4).
-# modify_requirement is FULL REPLACEMENT — never a partial patch.
-# For deterministic apply, carry the structured `requirement:` payload
-# (baseline-capability shape) alongside the documentary content_ref.
+# Spec delta — add-ledger-evidence-aging. Numeração continua de REQ-FHT-053.
 operations:
   - op: add_requirement
-    capability: <capability-kebab>
-    requirement_id: REQ-XXX-001
-    content_ref: requirements.md#req-xxx-001
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-054
+    content_ref: requirements.md#req-01
     requirement:
-      id: REQ-XXX-001
-      title: <title>
+      id: REQ-FHT-054
+      title: "Reverificação de item do ledger com evidência de conteúdo mínimo"
       normative: SHALL
       scenarios:
-        - id: SCN-XXX-001-A
-          given: "<precondition>"
-          when: "<action>"
-          then: "<observable outcome>"
-      contracts: []
-      tests: []
+        - id: SCN-FHT-054-A
+          given: "um ledger.json existente sem nenhum dos campos last_verified, evidence, supersedes ou links.superseded_by"
+          when: "o schema do ledger é aplicado e as portas add, update, note, resolve e promote são usadas"
+          then: "todas as entradas continuam válidas sem migração, os quatro campos são opcionais, required da entrada não muda, e nenhuma porta existente passa a gravá-los"
+        - id: SCN-FHT-054-B
+          given: "uma entrada ativa e uma evidência válida de kind file (caminho relativo existente dentro da raiz e linha dentro do arquivo), commit (resolvível), test (arquivo existente com o nome citado) ou command"
+          when: "o operador roda ledger-ops.sh verify com --kind, --ref, --observed (20+ caracteres, diferente do ref e do título) e --verdict"
+          then: "um registro {at, kind, ref, observed, verdict} é acrescentado a evidence com a data do commit HEAD, last_verified e updated_at recebem a mesma data, o commit é gravado como SHA completo, o ref de command nunca é executado, e o veredito changed acrescenta CORREÇÃO DE REGISTRO ao detail preservando o texto anterior"
+        - id: SCN-FHT-054-C
+          given: "uma evidência que não pode ser conferida (formato inválido, arquivo inexistente ou fora da raiz inclusive por link simbólico, linha zero ou além do fim, intervalo invertido, commit inexistente, nome de teste ausente, observed curto ou repetido) ou uma entrada em status encerrado"
+          when: "o operador roda ledger-ops.sh verify"
+          then: "o comando reprova nomeando o kind e a regra violada e o ledger.json fica byte-a-byte intacto; note --kind measurement continua gravando, mas avisa que não conta como reverificação e aponta o verify"
+      contracts:
+        - template/.forge/schemas/ledger.schema.json
+      tests:
+        - tests/ledger-evidence-aging-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-055
+    content_ref: requirements.md#req-05
+    requirement:
+      id: REQ-FHT-055
+      title: "Sinal determinístico de idade de item do ledger, advisory e fiado no ciclo de vida"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-055-A
+          given: "entradas ativas com referência last_verified (ou created_at, se nunca reverificadas) e um limiar vindo de --days, de forge.yaml ledger.stale_days ou do default 30"
+          when: "o operador roda ledger-ops.sh stale"
+          then: "a primeira linha declara K de A ativos envelhecidos, a data de referência (commit HEAD ou --as-of) e a origem do limiar, cada item envelhecido sai ordenado por idade e id, inconsistências saem numa seção própria, a saída é byte-idêntica para a mesma entrada, o rc é 0 sem --strict e 1 com --strict quando há item envelhecido ou inconsistência, e limiar inválido, --as-of ilegível ou falta de HEAD sem --as-of saem com rc 2"
+        - id: SCN-FHT-055-B
+          given: "o mesmo ledger com itens envelhecidos"
+          when: "o operador consulta ledger-ops.sh status, ledger-ops.sh list (lido pelo /forge:resume e pelo SessionStart) e /forge:doctor"
+          then: "o status ganha o sufixo com a contagem, o list marca cada item ativo envelhecido com a idade, o doctor imprime uma linha informativa delegando ao stale sem alterar o próprio código de saída e sem criar ledger.json onde não há, e sem HEAD ou com limiar inválido as três superfícies degradam com aviso em vez de falhar"
+      contracts:
+        - template/.forge/schemas/forge.schema.json
+      tests:
+        - tests/ledger-evidence-aging-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-056
+    content_ref: requirements.md#req-04
+    requirement:
+      id: REQ-FHT-056
+      title: "Supersessão de item do ledger com elo bidirecional e cadeia consultável"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-056-A
+          given: "uma entrada ativa LDG-B"
+          when: "o operador roda ledger-ops.sh add com --supersedes LDG-B"
+          then: "a entrada nova nasce com supersedes LDG-B e, na mesma escrita, LDG-B vai a superseded com resolved_at, links.superseded_by e um bloco SUBSTITUÍDO no detail; alvo inexistente, não ativo ou com id inválido reprova sem gravar"
+        - id: SCN-FHT-056-B
+          given: "uma entrada em superseded"
+          when: "alguém tenta add ou update --status superseded, update --status em qualquer valor, promote, resolve ou spec new --from-ledger sobre ela"
+          then: "as portas de status recusam nomeando o sucessor, a correção de título continua permitida sem reabrir, e spec new cria o change sem ledger_origin e aponta o sucessor"
+        - id: SCN-FHT-056-C
+          given: "uma cadeia A substitui B substitui C, e um ledger corrompido à mão com ciclo ou elo quebrado"
+          when: "o operador roda ledger-ops.sh show sobre qualquer elo"
+          then: "a cadeia completa aparece nas duas direções com a entrada consultada marcada, o comando termina nomeando ciclo ou elo quebrado, e superseded conta como encerrado no LEDGER.md, no status, no note e no placar de tools/plan-progress.mjs"
+      contracts:
+        - template/.forge/schemas/ledger.schema.json
+      tests:
+        - tests/ledger-evidence-aging-gate.sh

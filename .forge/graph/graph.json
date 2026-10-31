@@ -1,10 +1,10 @@
 {
   "schema": "graph/v0",
-  "generated_at": "2026-10-30T23:00:49.938Z",
+  "generated_at": "2026-10-31T00:24:34.664Z",
   "engine": "native",
   "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/ledger-evidence-aging",
   "stats": {
-    "nodes": 476,
+    "nodes": 478,
     "edges": 64,
     "languages": [
       "csharp",
@@ -16,23 +16,23 @@
       "shell",
       "ts"
     ],
-    "summaries_stale": 476,
+    "summaries_stale": 478,
     "census": {
       "csharp": 10,
       "go": 15,
       "java": 14,
-      "js": 98,
+      "js": 99,
       "kotlin": 6,
       "python": 20,
-      "shell": 284,
+      "shell": 285,
       "ts": 29
     },
     "layer_coverage": {
-      "classified": 296,
-      "unclassified": 180,
+      "classified": 297,
+      "unclassified": 181,
       "out_of_taxonomy": 0,
-      "denominator": 476,
-      "ratio": 0.6218
+      "denominator": 478,
+      "ratio": 0.6213
     }
   },
   "nodes": [
@@ -383,8 +383,8 @@
     {
       "id": "template/.forge/scripts/doctor.sh",
       "lang": "shell",
-      "loc": 1145,
-      "fingerprint": "3cb083a28d22427b20047c801fb189a0cdc30827954e865cc78a5bb4d9bab598",
+      "loc": 1159,
+      "fingerprint": "062519a0a318fc2139191deabc35161833c65cf4698b1b6991af29e616d97d1b",
       "layer": "unknown",
       "summary": null
     },
@@ -479,8 +479,8 @@
     {
       "id": "template/.forge/scripts/ledger-ops.sh",
       "lang": "shell",
-      "loc": 644,
-      "fingerprint": "5c076dfbf9da1d75ce67ac87cb0757922dcc66bc2707f0d856e92f702def249a",
+      "loc": 971,
+      "fingerprint": "2080248140fd21fcf112310a04ced7188ac669cb40ee68560a03b04e290e570f",
       "layer": "unknown",
       "summary": null
     },
@@ -781,10 +781,18 @@
       "summary": null
     },
     {
+      "id": "template/.forge/scripts/lib/ledger-aging.mjs",
+      "lang": "js",
+      "loc": 99,
+      "fingerprint": "dc9d62f9ae2a15a0b3de59ff546aa4fc1eddf15c2f3ba2c290505b7310b5b55c",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
       "id": "template/.forge/scripts/lib/ledger-render.mjs",
       "lang": "js",
-      "loc": 158,
-      "fingerprint": "1329e8af80bf5b87af8e3ac62225a0e0dd081e9a7fb64dc45931bbf33592fbfc",
+      "loc": 163,
+      "fingerprint": "d91ec6f4cc48614f8f19e9d05b4ec6b68f9df3fcdcbbf6a56c3c662da04ab404",
       "layer": "unknown",
       "summary": null
     },
@@ -1247,8 +1255,8 @@
     {
       "id": "template/.forge/scripts/spec-new.sh",
       "lang": "shell",
-      "loc": 152,
-      "fingerprint": "10a28fd123376b568c73d84693fb3620f1e3545d6074941e2f721396b71da1e7",
+      "loc": 171,
+      "fingerprint": "e542448804f951e1b8c1efea2264eeebb7b88463c65784d7e29e1fecd21b59f3",
       "layer": "unknown",
       "summary": null
     },
@@ -2429,6 +2437,14 @@
       "summary": null
     },
     {
+      "id": "tests/ledger-evidence-aging-gate.sh",
+      "lang": "shell",
+      "loc": 681,
+      "fingerprint": "786f5aff0ac34bc2a7488566fef85d63d6fd5fafd64ed0d84a2cd90acf945cab",
+      "layer": "test",
+      "summary": null
+    },
+    {
       "id": "tests/mdl-gen-gate.sh",
       "lang": "shell",
       "loc": 64,
@@ -3055,8 +3071,8 @@
     {
       "id": "tests/w193-tree-derived-state-gate.sh",
       "lang": "shell",
-      "loc": 237,
-      "fingerprint": "274f2f1273130194029efc91097be58c6aa6fbd14623d22dfe831e03e6682251",
+      "loc": 238,
+      "fingerprint": "1d1062ded9b6d39aed205f5da2593f527590489131dd96af128b11353f9cedba",
       "layer": "test",
       "summary": null
     },
@@ -3207,8 +3223,8 @@
     {
       "id": "tests/w211-ledger-detail-acumulativo-gate.sh",
       "lang": "shell",
-      "loc": 751,
-      "fingerprint": "e0d1464b4c0d33195c5b0cde10da8928895cecb919fb0cb0f630b311cd13cbfb",
+      "loc": 754,
+      "fingerprint": "b955cc6c6992011c647adaa349d94760e25aa3d5b2f9b3dad2cd27657a133e1a",
       "layer": "test",
       "summary": null
     },
@@ -3456,7 +3472,7 @@
       "id": "tests/w257-arg-surface-gate.sh",
       "lang": "shell",
       "loc": 366,
-      "fingerprint": "3870a7683635dfdbb10e7c7fa545736086ace0ea56386f3e30c2638bd243a3a5",
+      "fingerprint": "6825f0c6b17459fdce4cddd8da3be5c3d7331a22cbe1a02cda1fdb564e7803d5",
       "layer": "test",
       "summary": null
     },
@@ -3815,8 +3831,8 @@
     {
       "id": "tools/plan-progress.mjs",
       "lang": "js",
-      "loc": 265,
-      "fingerprint": "a34b8334e155cad50ae5875773d83732b58de2b89d02f8545cf21ea5f8ed38c1",
+      "loc": 266,
+      "fingerprint": "c681805f7bb8432d94ef2720c4db164d9d07dc4fe4e2b41e106c09108d32e960",
       "layer": "unknown",
       "summary": null
     },

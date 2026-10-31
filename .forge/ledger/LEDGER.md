@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**38 itens ativos** · roadmap 8 · tech-debt 21 · known-bug 9 · (95 encerrados)
+**41 itens ativos** · roadmap 8 · tech-debt 21 · known-bug 9 · follow-up 3 · (95 encerrados)
 
 ## Roadmap
 
@@ -110,7 +110,9 @@ _Encerrados: 37 (resolved 36 · wont-fix 1)_
 
 ## Follow-ups
 
-_(nenhum ativo)_
+- **LDG-0203** [open] — O `red-evidence.sh task` roda o teste num worktree efêmero sem `node_modules`; gate que depende de `ajv` (dependência de desenvolvimento) só prova o vermelho com `--setup-command` ligando o `node_modu · via `add-ledger-evidence-aging`#verify-1
+- **LDG-0204** [open] — Renomear `tests/ledger-evidence-aging-gate.sh` para o ordinal `wNNN` na hora do merge (critério de nome do REQ-09; convenção do projeto de decidir o ordinal só no merge), atualizando junto o teste cit · via `add-ledger-evidence-aging`#verify-2
+- **LDG-0205** [open] — Reverificar os 38 itens ativos do ledger deste repositório com `ledger-ops.sh verify` (todos aparecem envelhecidos; a reverificação é trabalho de curadoria fora do escopo do change, e o ledger do tron · via `add-ledger-evidence-aging`#verify-3
 
 _Encerrados: 11 (resolved 9 · wont-fix 2)_
 

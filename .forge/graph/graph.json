@@ -1,6 +1,6 @@
 {
   "schema": "graph/v0",
-  "generated_at": "2026-10-31T00:24:34.664Z",
+  "generated_at": "2026-10-31T00:52:32.229Z",
   "engine": "native",
   "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/ledger-evidence-aging",
   "stats": {
@@ -383,8 +383,8 @@
     {
       "id": "template/.forge/scripts/doctor.sh",
       "lang": "shell",
-      "loc": 1159,
-      "fingerprint": "062519a0a318fc2139191deabc35161833c65cf4698b1b6991af29e616d97d1b",
+      "loc": 1163,
+      "fingerprint": "8b685d5f1bcbeefb720884d80d6fecdee34fc64501fce98c425d805b4c8c5c7a",
       "layer": "unknown",
       "summary": null
     },
@@ -479,8 +479,8 @@
     {
       "id": "template/.forge/scripts/ledger-ops.sh",
       "lang": "shell",
-      "loc": 971,
-      "fingerprint": "2080248140fd21fcf112310a04ced7188ac669cb40ee68560a03b04e290e570f",
+      "loc": 1004,
+      "fingerprint": "1b9155e80d5a7627a1244621a2529cdc815555f8cb80ba22dafe15dd5239038f",
       "layer": "unknown",
       "summary": null
     },
@@ -783,8 +783,8 @@
     {
       "id": "template/.forge/scripts/lib/ledger-aging.mjs",
       "lang": "js",
-      "loc": 99,
-      "fingerprint": "dc9d62f9ae2a15a0b3de59ff546aa4fc1eddf15c2f3ba2c290505b7310b5b55c",
+      "loc": 106,
+      "fingerprint": "9a3496204761c9a536c4ca8884dc70ade5b8c6488ccaa1189debea63cc5d586b",
       "layer": "unknown",
       "summary": null
     },
@@ -2439,8 +2439,8 @@
     {
       "id": "tests/ledger-evidence-aging-gate.sh",
       "lang": "shell",
-      "loc": 681,
-      "fingerprint": "786f5aff0ac34bc2a7488566fef85d63d6fd5fafd64ed0d84a2cd90acf945cab",
+      "loc": 741,
+      "fingerprint": "da34cca49f27da4a6f75853298b0e665b94792617e9d9b974d582b8e13cfdba4",
       "layer": "test",
       "summary": null
     },

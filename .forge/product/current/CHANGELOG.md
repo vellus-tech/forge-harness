@@ -2,6 +2,12 @@
 
 > One entry per archived change (newest first). Maintained by `/forge:archive` — do not edit by hand.
 
+## 2026-10-30 — add-ledger-evidence-aging
+
+- **Capabilities:** forge-harness-template
+- **Operações:** 3
+- **Pasta:** `.forge/specs/archived/2026-10-30-add-ledger-evidence-aging/`
+
 ## 2026-08-04 — surface-literal-endpoint
 
 - **Capabilities:** forge-harness-template

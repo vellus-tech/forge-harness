@@ -1,7 +1,7 @@
 {
   "schema": "impact/v0",
-  "generated_at": "2026-10-30T23:00:50.166Z",
-  "graph_fingerprint": "6a9b8ce08e3b6bed7efb0aea5facc84a1f47113eb8cb80dfa909013bfce95033",
+  "generated_at": "2026-10-31T00:52:32.310Z",
+  "graph_fingerprint": "5ae8b394f5d26c56058418d072854e6cf62a4dbd4e9ea56b4262b72764d3fbeb",
   "seeds": [
     "template/.forge/scripts/doctor.sh",
     "template/.forge/scripts/ledger-ops.sh",
@@ -131,6 +131,7 @@
     "tests/gw2-rules-anchor-gate.sh",
     "tests/gw3-data-governance-gate.sh",
     "tests/infra-scan-gate.sh",
+    "tests/ledger-evidence-aging-gate.sh",
     "tests/mdl-gen-gate.sh",
     "tests/mermaid-drawio-gate.sh",
     "tests/npx-pack-gate.sh",
@@ -433,6 +434,7 @@
     "tests/gw2-rules-anchor-gate.sh",
     "tests/gw3-data-governance-gate.sh",
     "tests/infra-scan-gate.sh",
+    "tests/ledger-evidence-aging-gate.sh",
     "tests/mdl-gen-gate.sh",
     "tests/mermaid-drawio-gate.sh",
     "tests/npx-pack-gate.sh",

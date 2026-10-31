@@ -1,0 +1,112 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20261031005233-e2930030",
+  "stage": "archive",
+  "status": "passed",
+  "started_at": "2026-10-31T00:52:31Z",
+  "finished_at": "2026-10-31T00:52:33.368Z",
+  "duration_ms": 2368,
+  "git": {
+    "repo": true,
+    "branch": "feat/harness/ledger-evidence-aging",
+    "head_sha": "dcc547a1eb2c8dcf825bcfa75084ec2aeefc5b71",
+    "dirty": true,
+    "changed_files": [
+      ".forge/graph/cache/fingerprints.json",
+      ".forge/graph/graph.json",
+      ".forge/ledger/LEDGER.md",
+      ".forge/ledger/ledger.json",
+      ".forge/product/current/CHANGELOG.md",
+      ".forge/product/current/capabilities/forge-harness-template/spec.yaml",
+      ".forge/specs/active/add-ledger-evidence-aging/approvals.yaml",
+      ".forge/specs/active/add-ledger-evidence-aging/design.md",
+      ".forge/specs/active/add-ledger-evidence-aging/evidence/runs/20261031002435-6bbd63fe/run-manifest.json",
+      ".forge/specs/active/add-ledger-evidence-aging/evidence/runs/20261031004429-87ed66c7/run-manifest.json",
+      ".forge/specs/active/add-ledger-evidence-aging/evidence/runs/20261031004448-a4874dae/run-manifest.json",
+      ".forge/specs/active/add-ledger-evidence-aging/impact.json",
+      ".forge/specs/active/add-ledger-evidence-aging/manifest.yaml",
+      ".forge/specs/active/add-ledger-evidence-aging/proposal.md",
+      ".forge/specs/active/add-ledger-evidence-aging/requirements.md",
+      ".forge/specs/active/add-ledger-evidence-aging/spec-delta.yaml",
+      ".forge/specs/active/add-ledger-evidence-aging/tasks.md",
+      ".forge/specs/active/add-ledger-evidence-aging/verification.md",
+      ".forge/specs/active/add-ledger-evidence-aging/verification.yaml",
+      ".forge/specs/archived/2026-10-30-add-ledger-evidence-aging/",
+      ".forge/specs/archived/index.yaml"
+    ],
+    "diff_stat": ".forge/graph/cache/fingerprints.json               |   8 +-\n .forge/graph/graph.json                            |  18 +-\n .forge/ledger/LEDGER.md                            |   6 +-\n .forge/ledger/ledger.json                          |  78 +++\n .forge/product/current/CHANGELOG.md                |   6 +\n .../capabilities/forge-harness-template/spec.yaml  |  94 +++-\n .../add-ledger-evidence-aging/approvals.yaml       |  64 ---\n .../active/add-ledger-evidence-aging/design.md     | 172 ------\n .../runs/20261031002435-6bbd63fe/run-manifest.json |  75 ---\n .../runs/20261031004429-87ed66c7/run-manifest.json |  70 ---\n .../runs/20261031004448-a4874dae/run-manifest.json |  71 ---\n .../active/add-ledger-evidence-aging/impact.json   | 609 ---------------------\n .../active/add-ledger-evidence-aging/manifest.yaml |  50 --\n .../active/add-ledger-evidence-aging/proposal.md   |  40 --\n .../add-ledger-evidence-aging/requirements.md      | 141 -----\n .../add-ledger-evidence-aging/spec-delta.yaml      |  79 ---\n .../active/add-ledger-evidence-aging/tasks.md      |  85 ---\n .../add-ledger-evidence-aging/verification.md      |  49 --\n .../add-ledger-evidence-aging/verification.yaml    |   9 -\n .forge/specs/archived/index.yaml                   |   4 +\n 20 files changed, 181 insertions(+), 1547 deletions(-)",
+    "diff_sha256": "4745cd23f2edfca3e60ed6fb9412b838ed2097af1a31d876268dc82c942b4c78"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "05d20f48fbb99318dc311a1df3bd053d947aa794d12a723219f15d3e04db9f3e",
+      "bytes": 1311,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "6822639004e58e084de741880476e3b4a677fe3858004d37b258bc81429118b0",
+      "bytes": 13767,
+      "kind": "file"
+    },
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "d21f86c6d14bbbaf187d635b13beab30a36caec0f93ed7e71ee395b4fb7e5122",
+      "bytes": 219,
+      "kind": "file"
+    },
+    {
+      "path": "spec-delta.yaml",
+      "exists": true,
+      "sha256": "0f7f964b50d4cd9e608bf208e2eae26aa3387a51eac124201264daa32725dd95",
+      "bytes": 6299,
+      "kind": "file"
+    },
+    {
+      "path": "impact.json",
+      "exists": true,
+      "sha256": "53dbda55ce917b2a1fbddb62e0b150366f8b493d28c73d54a92a9511018962ad",
+      "bytes": 31648,
+      "kind": "file"
+    }
+  ],
+  "commands": [
+    {
+      "name": "archive-spec",
+      "command": "archive-spec.sh add-ledger-evidence-aging",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "05d20f48fbb99318dc311a1df3bd053d947aa794d12a723219f15d3e04db9f3e",
+      "bytes": 1311,
+      "kind": "file"
+    },
+    {
+      "path": "evidence/runs",
+      "exists": true,
+      "sha256": "ad9d8035a12e25f14d14ddc9507f020240dd67577277fabb3556a906ce78d771",
+      "bytes": null,
+      "kind": "directory"
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

@@ -1,4 +1,10 @@
 # Spec delta — add-ledger-evidence-aging. Numeração continua de REQ-FHT-053.
+# Cobertura dos 9 REQs do change em 3 requirements de baseline (consolidação deliberada: o
+# baseline descreve comportamento, não a lista de tarefas do change):
+#   requirements.md#req-01, #req-02, #req-03 -> REQ-FHT-054 (schema, verify, conteúdo mínimo)
+#   requirements.md#req-05, #req-06 -> REQ-FHT-055 (stale e fiação no ciclo de vida)
+#   requirements.md#req-04, #req-07 -> REQ-FHT-056 (supersessão e conjunto encerrado)
+#   requirements.md#req-08, #req-09 -> sem op própria: documentação e gate de teste, citados em tests/contracts das três ops
 operations:
   - op: add_requirement
     capability: forge-harness-template

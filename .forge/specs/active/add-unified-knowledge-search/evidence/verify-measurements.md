@@ -1,0 +1,86 @@
+# Medições do verify — add-unified-knowledge-search
+
+Medido em 2026-10-30 sobre o código de produção do HEAD da branch (TASK-01..09 concluídas), Apple M5, Node 26.0.0, com a camada semântica instalada de verdade por `kb.sh semantic install` a partir dos pins (`onnxruntime-web` 1.31.1 e `@huggingface/tokenizers` 0.2.0 via `npm ci --ignore-scripts`; modelos `multilingual-e5-small` int8 e `mmarco-mMiniLMv2-L12-H384-v1` qint8 conferidos por sha256; `kb.sh semantic status` → "integridade confere"). Corpus: 335 documentos, 5.134 trechos. Máquina sem suíte concorrente durante as medições de tempo.
+
+## 1. Qualidade (`kb.sh eval` e `evidence/prototype/eval-noprop.mjs`)
+
+### Calibração (35 consultas)
+
+| Modo | hit@1 | hit@5 | hit@10 | MRR |
+|---|---|---|---|---|
+| bm25 | 0,429 | 0,743 | 0,771 | 0,556 |
+| lexical sem links (informativo) | 0,429 | 0,743 | 0,771 | 0,556 |
+| lexical (default) | 0,457 | 0,743 | 0,771 | 0,571 |
+| semantic sem links (informativo) | 0,429 | 0,829 | 0,857 | 0,596 |
+| semantic (default, sem re-rank) | 0,514 | 0,829 | 0,857 | 0,643 |
+| semantic+rerank sem links (informativo) | 0,543 | 0,829 | 0,857 | 0,671 |
+| semantic+rerank (default) | 0,600 | 0,857 | 0,857 | 0,709 |
+
+### Holdout (18 consultas)
+
+| Modo | hit@1 | hit@5 | hit@10 | MRR |
+|---|---|---|---|---|
+| bm25 | 0,611 | 0,889 | 0,944 | 0,730 |
+| lexical sem links (informativo) | 0,500 | 0,889 | 0,944 | 0,674 |
+| lexical (default) | 0,556 | 0,889 | 0,944 | 0,714 |
+| semantic sem links (informativo) | 0,611 | 0,833 | 0,944 | 0,707 |
+| semantic (default, sem re-rank) | 0,667 | 0,944 | 0,944 | 0,753 |
+| semantic+rerank sem links (informativo) | 0,500 | 0,889 | 0,944 | 0,685 |
+| semantic+rerank (default) | 0,611 | 0,889 | 0,944 | 0,750 |
+
+(O `eval-noprop.mjs` dá 0,710 para semantic+rerank na calibração; o `kb.sh eval` dá 0,709 — diferença de empate de ponto flutuante na ordem de um par de documentos, sem efeito em hit@k.)
+
+### Critérios aprovados
+
+| Critério | Calibração | Holdout | Veredito |
+|---|---|---|---|
+| REQ-03 — lexical: MRR ≥ bm25 e hit@5 no máximo uma consulta abaixo | MRR 0,571 ≥ 0,556; hit@5 igual | **MRR 0,714 < 0,730**; hit@5 igual | **não passa no holdout** (−0,016 de MRR, menos que o valor de uma consulta, 0,028) |
+| REQ-06 — semantic+rerank hit@5 ≥ lexical | 0,857 ≥ 0,743 | 0,889 ≥ 0,889 | passa |
+| REQ-07 — re-rank não piora o MRR | 0,709 ≥ 0,643 (+0,066) | **0,750 < 0,753** (−0,003) | **não passa no holdout** (um empate desfeito ao contrário) |
+
+Pelos requisitos aprovados (REQ-03, último critério; REQ-07, critério de evidence), as duas falhas no holdout fazem o change parar antes do archive e devolvem a decisão ao dono. Nenhuma constante foi ajustada depois de o holdout ser visto; os números coincidem com os da projeção de design (semantic-feasibility.md §5), o que confirma a medição.
+
+Diagnóstico (do revisor do gate de design, reconfirmado aqui): no holdout, a perda do lexical vem do canal de entidades casando siglas genéricas (`README`, `TDD`, `MVP`, `GIT_DIR`) — "lexical sem links" cai para 0,674 —, e a propagação de links recupera parte (0,714). O re-rank perde por uma consulta que estava em 1º no semântico e cai uma posição.
+
+## 2. Latência (NFR-01, NFR-02; processo inteiro, melhor de 5, cache quente)
+
+| Operação | arm64 (Node 26) | x86_64 (Node 20.20.2 x64 sob Rosetta — emulação) |
+|---|---|---|
+| `kb.sh query --lexical` | 0,127 s (alvo < 0,200 s: passa) | 0,215 s (emulado) |
+| `kb.sh query --no-rerank` (semântico) | 1,39 s | — |
+| `kb.sh query` (semântico com re-rank) | 2,22 s (alvo < 10 s: passa) | 4,98 s |
+| `kb.sh build --lexical` (do zero) | 0,53 s (alvo < 5 s: passa) | — |
+| `kb.sh build` com vetores (do zero, 5.014 vetores) | 374,5 s (~6 min) | — |
+| `kb.sh build` incremental depois de uma edição no `CHANGELOG.md` | 3,0 s (26 vetores recalculados, 25 removidos) | — |
+
+Paridade numérica arm64 × x86_64: para a mesma consulta, os cinco primeiros resultados e os scores do cross-encoder são idênticos até a 4ª casa decimal (`-2,1152`, `-3,2788`, `-5,0940`, `-4,9346`, `-6,8480`). O arquivo `model_qint8_arm64.onnx` roda no WASM em qualquer arquitetura.
+
+## 3. Prova de mutação das guardas (`evidence/prototype/mutation.sh`)
+
+Cada linha: cópia limpa do HEAD com uma mutação; o gate tem de reprovar (controle) e passar na cópia sem mutação (recontrole).
+
+```
+fetch( num módulo da busca        w288-kb-offline-lexical-gate.sh controle: FAIL [1] kb-lexical.mjs toca rede/processo: 165:export const x = () => | recontrole: PASS w288-kb-offline-lexical (7 casos; b => OK
+host de LLM no CLI                 w288-kb-offline-lexical-gate.sh controle: FAIL [2] referência a provedor de LLM: /tmp/kb-mut.Wzrn5q/ws/template | recontrole: PASS w288-kb-offline-lexical (7 casos; b => OK
+curl no kb.sh                      w288-kb-offline-lexical-gate.sh controle: FAIL [3] programa de rede no kb.sh ou incluídos: /tmp/kb-mut.Wzrn5q/w | recontrole: PASS w288-kb-offline-lexical (7 casos; b => OK
+interceptador inerte (canário)    w288-kb-offline-lexical-gate.sh controle: FAIL [7] [interceptador] o bloqueio deixou passar: main:fetch:ok       | recontrole: PASS w288-kb-offline-lexical (7 casos; b => OK
+corpus aceita untrusted-peer       w284-kb-corpus-gate.sh         controle: FAIL [1] esperados 9 documentos, obtidos 13: baseline .forge/product/c | recontrole: PASS w284-kb-corpus (9 casos)            => OK
+varredura nativa desligada         w291-kb-install-gate.sh        controle: FAIL [4] binário nativo não desfez a instalação: kb semantic insta | recontrole: PASS w291-kb-install (7 casos)           => OK
+sha256 de modelo não conferido    w292-kb-semantic-gate.sh       controle: FAIL [6] sha: primeira linha 'modo: semantic'                          | recontrole: PASS w292-kb-semantic (8 casos)          => OK
+re-rank ignora o cross-encoder     w286-kb-fuse-gate.sh           controle: FAIL [5] re-rank discordante fora da fórmula                          | recontrole: PASS w286-kb-fuse (7 casos)              => OK
+carga fora do confinamento         w292-kb-semantic-gate.sh       controle: FAIL [7] symlink-fora: módulo envenenado foi importado                | recontrole: PASS w292-kb-semantic (8 casos)          => OK
+```
+
+A mutação "carga fora do confinamento" passou no controle na primeira rodada: a conferência de versões do runtime pegava os casos testados antes de a conferência de caminho real ser alcançada, então nenhum caso exercitava o confinamento sozinho. Acrescentado ao `w292` [7] o caso de pacote do runtime trocado por symlink para fora do diretório instalado, com a versão certa e conteúdo envenenado (commit `test(kb): fuga do confinamento por symlink no gate semântico`); na segunda rodada a mutação reprova o gate (linha acima).
+
+## 4. Vermelho por task (`red-evidence.sh task`, worktree efêmera)
+
+Ver `evidence/task-red-proofs.txt`: TASK-01..09 com `OK task — teste do verde falha por asserção sobre o vermelho … (classificação: behavioral) e passa no verde …`. TASK-07 e TASK-08 com `--setup-command "npm ci --ignore-scripts --no-audit --no-fund --loglevel=error"`.
+
+## 5. Ordem holdout → constantes (REQ-11)
+
+`tests/fixtures/kb/eval/holdout.json` entrou em `b3bf0049` (vermelho da TASK-03), antes do verde `0b26397a` que cria `template/.forge/scripts/lib/kb-fuse.mjs`, e não mudou depois (`git log --follow`). A cópia de evidência entrou em `5a2675bc` e ganhou as três consultas em inglês em `7dd0a8bc`, antes de qualquer constante de fusão.
+
+## 6. Suíte completa
+
+`npm test` (`tests/run-all.sh`) no HEAD da TASK-09: `PASS=194 FAIL=0 SKIP=0 UNVERIFIED=0 (2839s)` — 181 gates pré-existentes + 11 novos (`w284`…`w294`) + 2 suítes bats. Execução dos 11 gates novos em Node 20.20.2 (o piso do harness): todos PASS (w288 e w293 com o interceptador, único mecanismo de bloqueio disponível em Node < 25).

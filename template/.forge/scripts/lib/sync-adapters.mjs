@@ -414,6 +414,13 @@ function derivePreToolUseHooks(root) {
   const consumerText = readManifestFile(join(hooksDir, 'hooks.manifest'));
   let consumerDecls = null;
   let unresolved = false;
+  // Nomes citados pelo manifesto do consumidor quando ele existe mas não resolve e não há
+  // `.claude/settings.json` (caminho de instalação nova abaixo). Sem esta restrição, o 1º sync
+  // armava pelo default um gancho que o consumidor nunca declarou e o 2º sync, já com fiação
+  // observada, o desarmava: o conjunto oscilava entre o 1º e o 2º sync (medido quando
+  // o gancho de saída de mensagens entre sessões entrou armado no default, change
+  // add-liaison-native-bridge).
+  let consumerNamedOnly = null;
   if (consumerText != null) {
     const lido = lerHooksManifest(consumerText, {
       fiacao: existingGroups,
@@ -435,6 +442,13 @@ function derivePreToolUseHooks(root) {
         // vez de gravar uma vacuidade fabricada pelo próprio gerador.
         avisos.push(
           `LDG-0178: .forge/hooks/pre-tool-use/hooks.manifest não foi resolvido pelo leitor canônico (${lido.mensagem}) — sem .claude/settings.json anterior para preservar, a fiação parte de hooks.manifest.default (instalação nova)`,
+        );
+        consumerNamedOnly = new Set(
+          consumerText.split('\n')
+            .map((l) => l.trim())
+            .filter((l) => l && !l.startsWith('#'))
+            .map((l) => l.split(/\s+/)[0])
+            .filter((h) => h.endsWith('.sh')),
         );
       } else {
         unresolved = true;
@@ -530,6 +544,10 @@ function derivePreToolUseHooks(root) {
       continue;
     }
     if (existingGroups == null) {
+      if (consumerNamedOnly && !consumerNamedOnly.has(hook)) {
+        avisos.push(`'${hook}' não está declarado em .forge/hooks/pre-tool-use/hooks.manifest — ignorado (o manifesto do consumidor decide os ganchos do diretório)`);
+        continue;
+      }
       if (fromDefault.armado) emit(hook, fromDefault.matcher, fromDefault.contrato);
       continue;
     }

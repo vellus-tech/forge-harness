@@ -9,7 +9,12 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 
 # stdin é lido UMA VEZ (SessionEnd entrega transcript_path/session_id no payload) — handoff.auto
 # e liaison.auto não podem cada um tentar a própria leitura do mesmo pipe.
-PAYLOAD="$(cat 2>/dev/null || true)"
+# Leitura limitada no tempo: um chamador que não fecha o stdin (ou um terminal) nunca pode
+# bloquear o fim de sessão; o Claude Code entrega o payload e fecha o pipe na hora.
+PAYLOAD=""
+if [ ! -t 0 ]; then
+  IFS= read -r -d '' -t 5 PAYLOAD || true
+fi
 
 # Read a top-level "<key>:\n ... auto: true|false" flag from forge.yaml (same idiom as
 # on-session-start.sh / handoff-gen.sh; avoids grep -P/-z which BSD grep lacks).

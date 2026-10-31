@@ -44,3 +44,21 @@ approvals:
     commit: "85e481ca"
     scope: "design.md"
     notes: "Aceite formal delegado pelo dono em 2026-10-30; correcao textual proposta aplicada no design para decisao do dono, sem nova rodada adversarial"
+  - gate: design_reviewed
+    decision: review
+    reason: "Serie nova; causa raiz escolhida pelo dono em 2026-10-30: opcao C, abandonar a trava de push. Revisor delegado (opus) rodada 1: REVIEW sem BLOCKER, mecanismo da opcao C confirmado; MAJOR 1 escritor de versao antiga (worktree de branch anterior) grava no log do tronco sem trava, sem limite declarado nem deteccao; MAJOR 2 corridas de publicacao sem verificacao deterministica (falta barreira de teste e contador de reparo); 6 MINOR"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T23:14:30-03:00"
+    iteration: 1
+    commit: "7f829893"
+    scope: "design.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: design_reviewed
+    decision: approve
+    reason: "Serie nova; causa raiz escolhida pelo dono em 2026-10-30: opcao C, abandonar a trava de push. Revisor delegado (opus) rodada 2: APPROVE sem BLOCKER nem MAJOR; MAJOR 1 (diario do appendOwn, doctor nomeando worktree com maquinaria antiga, rollout, rule, gate) e MAJOR 2 (barreira FORGE_LIAISON_TEST_BARRIER, contadores de reparo, cenarios forcados com controle) fechados; MINORs de redacao aplicados (diario apos o rename sob a trava do log, sentinela literal do doctor, status gravando a marca, FAIL prefixado com cenario)"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T23:16:27-03:00"
+    iteration: 2
+    commit: "7f829893"
+    scope: "design.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"

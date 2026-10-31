@@ -12,6 +12,8 @@
 #       com desempate pela posição do cross-encoder
 #   [6] documentos além de K mantêm a ordem do ranking propagado
 #   [7] o módulo não importa nada (função pura)
+#   [8] pool do re-rank = K primeiros do ranking propagado + os 3 primeiros do BM25 (RERANK_LEXICAL_EXTRA),
+#       mesmo abaixo de K; sem extras, comportamento anterior
 set -euo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
@@ -85,7 +87,29 @@ if (r.slice(2).join() !== 'X,Y,Z') { console.log(r); process.exit(1); }
 " || fail 6 "cauda além de K reordenada"
 ok 6
 
+js "
+// pool do re-rank: os K primeiros do ranking propagado mais os extras (topo do BM25), mesmo que o
+// extra esteja abaixo de K — é o que impede a recuperação híbrida de descartar o 1º lexical antes de o
+// cross-encoder vê-lo (diagnóstico de 2026-10-31)
+const fused = 'ABCDEFGHIJKL'.split('');
+const s = new Map(fused.map((d, i) => [d, d === 'L' ? 100 : 50 - i]));
+const sem = F.combineRerank(fused, s, 10).map((x) => x.doc);
+if (sem.indexOf('L') !== 11) { console.log('sem extra, L deveria ficar na cauda', sem); process.exit(1); }
+const rows = F.combineRerank(fused, s, 10, ['L']);
+const r = rows.map((x) => x.doc);
+const L = rows.find((x) => x.doc === 'L');
+if (L.fusion_rank !== 12 || L.ce_rank !== 1) { console.log(JSON.stringify(L)); process.exit(1); }
+// previsto pela fórmula sobre o pool (11 documentos), desempate pelo cross-encoder
+const pool = fused.slice(0, 10).concat(['L']);
+const ce = new Map([...pool].sort((a, b) => s.get(b) - s.get(a)).map((d, i) => [d, i + 1]));
+const k = F.RERANK_RRF_K;
+const exp = pool.map((d) => [d, 1 / (k + ce.get(d)) + 1 / (k + fused.indexOf(d) + 1)]).sort((x, y) => y[1] - x[1] || ce.get(x[0]) - ce.get(y[0])).map((x) => x[0]);
+if (r.slice(0, 11).join() !== exp.join() || r[11] !== undefined) { console.log(r, exp); process.exit(1); }
+if (F.RERANK_LEXICAL_EXTRA !== 3) process.exit(1);
+" || fail 8 "pool do re-rank sem os extras do topo lexical"
+ok 8
+
 grep -qE '^[[:space:]]*import ' "$LIB/kb-fuse.mjs" && fail 7 "kb-fuse.mjs importa módulo (deveria ser puro)"
 ok 7
 
-echo "PASS w286-kb-fuse (7 casos)"
+echo "PASS w286-kb-fuse (8 casos)"

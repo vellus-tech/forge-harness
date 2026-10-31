@@ -30,6 +30,8 @@ Ver `verification.yaml` (gravado por `spec-verify.sh`) e o log da suíte complet
 
 ## Desvios e observações
 
+- O `w96` reprova em checkout local sem `@babel/parser` instalado (ambiente, não código); conferência única no CI do PR, não item de ledger.
+
 - **Rodada 1 do gate `implementation_verified` (REVIEW):** dois MAJOR — inconsistência de `last_verified` invisível no `list`/`status`/`doctor` e `--as-of` com hora sem fuso dependente do `TZ` da máquina — e cinco MINOR (data rolada, `stale_days` vazio virando default, prefixo `..` e evidência em `.git/`/ledger, elo não recíproco no `show`, rc 5 sem contrato). Corrigidos na TASK-12 com cenários novos (`stale-9`, `stale-10`, `verify-8`, `show-3`, `wiring-6` e a asserção de rc no `supersede-2`); gate do change e gates do ledger/mutação (`w98`, `w145`, `w157`, `w193`, `w194`, `w200`, `w202`, `w207`, `w211`, `w257`, `plugin-sync`) reexecutados isolados, todos rc 0.
 
 - O design §2.4 descrevia a comparação de `last_verified` com `evidence[].at` como lexical; a implementação compara por `Date.parse`, conforme o §8 incorporado no gate `design_reviewed`.
@@ -40,7 +42,6 @@ Ver `verification.yaml` (gravado por `spec-verify.sh`) e o log da suíte complet
 ## Follow-ups abertos
 
 - O `red-evidence.sh task` roda o teste num worktree efêmero sem `node_modules`; gate que depende de `ajv` (dependência de desenvolvimento) só prova o vermelho com `--setup-command` ligando o `node_modules` do checkout principal. Vale um idioma oficial (setup padrão ou documentação no `implement.md`) para não depender de quem executa lembrar.
-- O `w96` reprova em checkout local sem `@babel/parser` instalado (ambiente, não código); conferir no CI do PR.
 
-- Renomear `tests/ledger-evidence-aging-gate.sh` para o ordinal `wNNN` na hora do merge (critério de nome do REQ-09; convenção do projeto de decidir o ordinal só no merge).
+- Renomear `tests/ledger-evidence-aging-gate.sh` para o ordinal `wNNN` na hora do merge (critério de nome do REQ-09; convenção do projeto de decidir o ordinal só no merge), atualizando junto o teste citado em REQ-FHT-054, REQ-FHT-055 e REQ-FHT-056 no baseline `.forge/product/current/capabilities/forge-harness-template/spec.yaml`.
 - Reverificar os 38 itens ativos do ledger deste repositório com `ledger-ops.sh verify` (todos aparecem envelhecidos; a reverificação é trabalho de curadoria fora do escopo do change, e o ledger do tronco não é escrito por branch de feature).

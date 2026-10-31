@@ -71,3 +71,12 @@ approvals:
     commit: "deb83fb2"
     scope: "tasks.md"
     notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: tasks_reviewed
+    decision: approve
+    reason: "Revisor delegado (opus), rodada 3: APPROVE. MAJOR da rodada 2 resolvido (kb_env_setup sem devDependencies, pins nem fixtures de modelo); simulação reproduzida pelo revisor com vermelho FAIL [n] e verde em TASK-01..08 sem regressão. NOTAs para a implementação: testar semantic status/remove no w287; recortar o kb-cli.mjs por task (lexical na TASK-04, eval na 05, install/status na 07, canal vetorial/re-rank/eval semântico na 08); semantic-env.sh da TASK-05 só com kb_env_setup."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T21:02:56-03:00"
+    iteration: 3
+    commit: "38098e02"
+    scope: "tasks.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"

@@ -142,7 +142,7 @@
 
 ## Requisitos não funcionais do change
 
-- **NFR-01 —** Construção do índice lexical do corpus deste repositório em menos de 5 s e consulta lexical em menos de 200 ms (cache quente, máquina de desenvolvimento; medido por `kb.sh build`/`query` com `time`, registrado em evidence).
+- **NFR-01 —** Construção do índice lexical do corpus deste repositório em menos de 5 s e consulta lexical em menos de 200 ms (cache quente, máquina de desenvolvimento; medido sobre o processo inteiro, `time kb.sh build` e `time kb.sh query --lexical`, registrado em evidence; se a consulta passar de 200 ms, o plano B — postings em formato binário — vai ao ledger com o número medido).
 - **NFR-02 —** Consulta no modo semântico com re-rank em menos de 10 s no corpus deste repositório (mesma medição), e build semântico inicial reportando o tempo total.
 - **NFR-03 —** Zero dependência no default: o modo lexical importa apenas módulos `node:*` e arquivos do próprio harness, verificado por teste estático e por execução numa raiz sem `node_modules`.
 
@@ -152,11 +152,14 @@
 |---|---|---|---|
 | REQ-02 | subcomando `build` | CLI `kb.sh build` | TASK-04 |
 | REQ-02 | subcomando `status` | CLI `kb.sh status` | TASK-04 |
+| REQ-11 | flags do `eval`: `--json`, `--lexical` | CLI `kb.sh eval <arquivo> [--json] [--lexical]` | TASK-05, TASK-08 |
+| REQ-10 | estado da busca no doctor | linha `info` de `doctor.sh` | TASK-09 |
 | REQ-03, REQ-04 | consulta, `--top N`, `--json` | CLI `kb.sh query "<texto>" [--top N] [--json]` | TASK-04 |
 | REQ-07 | `--no-rerank` | CLI `kb.sh query ... --no-rerank` | TASK-08 |
 | REQ-04, REQ-08 | `--lexical` (força modo lexical) | CLI `kb.sh query ... --lexical` | TASK-04 |
 | REQ-11 | arquivo de avaliação | CLI `kb.sh eval <arquivo>` | TASK-05, TASK-08 |
-| REQ-05 | `semantic install|remove|status` | CLI `kb.sh semantic <sub>` | TASK-07 |
+| REQ-05 | `semantic remove` e `status` sem camada | CLI `kb.sh semantic remove|status` | TASK-04 |
+| REQ-05 | `semantic install` e `status` com integridade | CLI `kb.sh semantic install|status` | TASK-07 |
 | REQ-01 | fontes indexadas | sem parâmetro exposto (lista fixa) | TASK-01 |
 | REQ-10 | comando do agente | `/forge:kb` (commands/graph/kb.md) | TASK-09 |
 

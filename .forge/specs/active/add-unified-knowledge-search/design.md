@@ -38,13 +38,13 @@ O default (camada lexical) usa apenas `node:*` e módulos do próprio harness. A
 | Arquivo | Papel | Imports permitidos |
 |---|---|---|
 | `template/.forge/scripts/kb.sh` | dispatcher: `build`, `query`, `status`, `eval`, `semantic install|remove|status`; resolve as raízes | bash + `node` + `git rev-parse` (via `lib/forge-root.sh`) |
-| `lib/kb-corpus.mjs` | coleta das fontes do REQ-01, corte em trechos, impressão digital | `node:*` |
+| `lib/kb-corpus.mjs` | coleta das fontes do REQ-01, corte em trechos, impressões digitais | `node:*`, `./yaml-lite.mjs`, `./liaison-trust.mjs` |
 | `lib/kb-lexical.mjs` | normalização, BM25, entidades, grafo de links, serialização do índice | `node:*` |
 | `lib/kb-fuse.mjs` | RRF ponderado, propagação de links e combinação do re-rank (funções puras) | nenhum |
 | `lib/kb-semantic.mjs` | verificação de integridade (pins, varredura nativa, versões, sha256), carga do runtime confinada a `.forge/kb/semantic/runtime/node_modules/`, embeddings, cross-encoder, cache de vetores | `node:*` + runtime instalado (caminho resolvido conferido) |
 | `lib/kb-integrity.mjs` | varredura de binário nativo, hash dos pins, conferência completa de uma instalação e `semantic status` (compartilhado por instalador e carga) | `node:*` |
 | `lib/kb-install.mjs` | único módulo com rede e processo filho: `npm ci` do runtime e download dos modelos com sha256 | `node:*` (inclusive `child_process` e `fetch`) |
-| `lib/kb-cli.mjs` | orquestra build, query, status, eval; formata saída texto e `--json`; neutraliza trechos | módulos acima |
+| `lib/kb-cli.mjs` | orquestra build, query, status, eval; formata saída texto e `--json`; neutraliza trechos com `neutralize()` de `lib/untrusted-render.mjs` (a mesma regra do render do liaison, uma implementação só) | módulos acima e `./untrusted-render.mjs` |
 | `template/.forge/scripts/lib/kb-pins/package.json` + `package-lock.json` | runtime fixado: `onnxruntime-web` e `@huggingface/tokenizers`, versões exatas, `integrity` sha512 por pacote | dado |
 | `template/.forge/scripts/lib/kb-pins/models.json` | modelos fixados: repositório, revisão (commit), arquivo, sha256, tamanho, papel, prefixos e limites de tokens | dado |
 | `template/.forge/commands/graph/kb.md` | comando `/forge:kb` | — |
@@ -156,6 +156,8 @@ Aditivo. Consumidores recebem `kb.sh` e `/forge:kb` no próximo `forge update`; 
 | Consulta lexical acima do NFR-01 | média | latência | texto dos trechos fora do `index.json` e impressão rápida por stat (§2.4); medido no verify com `time`; plano B se não bastar: postings em formato binário |
 | Falso positivo da varredura nativa em arquivo de dado | baixa | camada desativada sem motivo real | a varredura só percorre `.forge/kb/semantic/` (runtime e modelos); o cache de vetores fica fora dela; os modelos são conferidos por sha256 fixado e começam por bytes de protobuf/JSON, não por assinatura de executável |
 | Índice copiar segredo presente em documento | baixa | segredo em arquivo derivado local | índice é derivado de arquivos já versionados e fica ignorado pelo git; não amplia exposição |
+| Pins divergentes entre worktrees com instalação compartilhada | média | uma worktree com pins diferentes do checkout principal vê "pins mudaram"; se rodar `semantic install`, troca a instalação de todas | a instalação é única por máquina e o `/forge:kb` manda fazê-la a partir do checkout principal; a worktree divergente cai para lexical com motivo, nunca erro |
+| `postinstall` de dependência transitiva no workspace do harness | baixa | no CI e no `npm ci` do workspace, o `postinstall` de `protobufjs` roda (no consumidor nunca: `--ignore-scripts`) | é uma checagem de versão; o fallback `npm ci \|\| npm install` do CI fica como pendência no ledger, fora deste change |
 | Licença dos dados de treino dos modelos | média | uso comercial (Vellus/Axis) de pesos treinados com dados derivados do MS MARCO, cujos termos são de uso não comercial (não verificado juridicamente) | as licenças declaradas dos pesos são MIT (e5) e Apache-2.0 (mmarco); a dúvida sobre os dados de treino fica registrada aqui e na ADR 0004 como decisão jurídica do dono; trocar de modelo é mudança de pins, sem mudança de código |
 | Paridade numérica e latência fora de Apple Silicon | média | o arquivo `qint8_arm64` ou a latência podem diferir em x86_64 | o verify mede também em x86_64 (Node x64 sob Rosetta nesta máquina; declarado como emulação) |
 

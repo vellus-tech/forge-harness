@@ -15,7 +15,8 @@
 #   [5]  cache incremental: documento alterado recalcula só o trecho novo e remove o antigo; build
 #        interrompido depois de 200 vetores preserva o que calculou
 #   [6]  oito casos degradados caem para lexical com exit 0 e motivo nomeado
-#   [7]  módulos envenenados no node_modules do projeto nunca são importados (4 situações)
+#   [7]  módulos envenenados nunca são importados: no node_modules do projeto (4 situações) e por
+#        symlink de pacote do runtime para fora do confinamento, com a versão certa
 #   [8]  `kb.sh eval` avalia os modos semantic e semantic+rerank; `semantic status` confere integridade; `semantic remove` volta ao lexical e reinstala depois
 set -euo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
@@ -131,6 +132,12 @@ mv "$R/.forge/kb/semantic/installed.json" "$T/inst.json"; check_poison nao-insta
 check_poison completa semantic -
 rm -rf "$R/.forge/kb/semantic/runtime/node_modules/onnxruntime-web"; check_poison sem-topo lexical 'pacote do runtime faltando'; restore
 rm -rf "$R/.forge/kb/semantic/runtime/node_modules/long"; check_poison sem-transitiva lexical 'pacote do runtime faltando'; restore
+# pacote de topo trocado por symlink para FORA do confinamento, com a versão certa e conteúdo
+# envenenado: a conferência de versões passa (o package.json é lido pelo symlink), e só a conferência
+# do caminho real resolvido impede a importação
+mkdir -p "$T/fora"; cp -R "$R/node_modules/onnxruntime-web" "$T/fora/onnxruntime-web"
+rm -rf "$R/.forge/kb/semantic/runtime/node_modules/onnxruntime-web"; ln -s "$T/fora/onnxruntime-web" "$R/.forge/kb/semantic/runtime/node_modules/onnxruntime-web"
+check_poison symlink-fora lexical 'resolvido fora de runtime/node_modules'; restore
 rm -rf "$R/node_modules"
 ok 7
 

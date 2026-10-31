@@ -30,6 +30,8 @@ Ver `verification.yaml` (gravado por `spec-verify.sh`) e o log da suíte complet
 
 ## Desvios e observações
 
+- O `verification.yaml` registra o commit `826c35d9` (último `spec-verify.sh`, que só roda em `implemented`). Depois dele mudaram dois trechos de código, ambos conferidos: as correções da TASK-12 (`3108ab9e`, reproduzidas pelo revisor da rodada 2) e a marca de inconsistência do `list` sem motivo fixo (`b7b57f10`; o `list` remete ao `stale`; cenário `wiring-6` verde). O registro de aprovação do archive diz "verification.yaml refeito": não foi possível refazê-lo em `verified`, e esta nota corrige aquela frase.
+
 - O `w96` reprova em checkout local sem `@babel/parser` instalado (ambiente, não código); conferência única no CI do PR, não item de ledger.
 
 - **Rodada 1 do gate `implementation_verified` (REVIEW):** dois MAJOR — inconsistência de `last_verified` invisível no `list`/`status`/`doctor` e `--as-of` com hora sem fuso dependente do `TZ` da máquina — e cinco MINOR (data rolada, `stale_days` vazio virando default, prefixo `..` e evidência em `.git/`/ledger, elo não recíproco no `show`, rc 5 sem contrato). Corrigidos na TASK-12 com cenários novos (`stale-9`, `stale-10`, `verify-8`, `show-3`, `wiring-6` e a asserção de rc no `supersede-2`); gate do change e gates do ledger/mutação (`w98`, `w145`, `w157`, `w193`, `w194`, `w200`, `w202`, `w207`, `w211`, `w257`, `plugin-sync`) reexecutados isolados, todos rc 0.

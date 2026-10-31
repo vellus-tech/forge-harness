@@ -42,7 +42,7 @@ _run_to() { # _run_to <segundos> -- <cmd...> — teto de tempo (macOS não tem `
 }
 
 # Contador de cenários por grupo: declarados × executados DOS GRUPOS SELECIONADOS.
-declare_scn() { case "$1" in schema) echo 4;; stale) echo 8;; verify) echo 7;; supersede) echo 3;; show) echo 2;; specnew) echo 1;; closed) echo 3;; wiring) echo 5;; docs) echo 3;; mutation) echo 3;; esac; }
+declare_scn() { case "$1" in schema) echo 4;; stale) echo 10;; verify) echo 8;; supersede) echo 3;; show) echo 3;; specnew) echo 1;; closed) echo 3;; wiring) echo 6;; docs) echo 3;; mutation) echo 3;; esac; }
 ALL_GROUPS="schema stale verify supersede show specnew closed wiring docs mutation"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
@@ -246,6 +246,30 @@ if _want stale; then
   o="$(_lg "$N" stale --as-of "$ASOF" 2>&1)" || _fail stale-8 "sem HEAD mas com --as-of deveria rodar: $o"
   grep -q "^LEDGER stale: 0 de 0 ativo(s)" <<<"$(head -1 <<<"$o")" || _fail stale-8 "ledger vazio sem '0 de 0': $o"
   echo "OK [stale-8] — HEAD como relógio; sem HEAD exige --as-of; vazio = 0 de 0"
+
+  _scn "[stale-9] --as-of com hora e sem fuso, ou data inexistente no calendário, reprova rc 2 (resultado não pode depender do TZ da máquina)"
+  for bad in "2019-04-11T10:00:00" "2019-02-30" "2019-02-30T10:00:00Z"; do
+    set +e; o="$(_lg "$F" stale --as-of "$bad" 2>&1)"; rc=$?; set -e
+    [ "$rc" -eq 2 ] || _fail stale-9 "--as-of '$bad' deveria sair 2 — rc=$rc: $o"
+  done
+  a="$(TZ=UTC _lg "$F" stale --as-of "2019-04-11T10:00:00+00:00" 2>&1 || true)"
+  b="$(TZ=Pacific/Pago_Pago _lg "$F" stale --as-of "2019-04-11T10:00:00+00:00" 2>&1 || true)"
+  [ "$a" = "$b" ] || _fail stale-9 "mesma entrada com TZ diferente deu saída diferente"
+  echo "OK [stale-9] — hora sem fuso e data rolada recusadas; saída independe do TZ"
+
+  _scn "[stale-10] ledger.stale_days presente e vazio, ou na forma em linha, reprova rc 2 (nunca vira o default)"
+  for forma in "  stale_days:" '  stale_days: ""'; do
+    perl -ni -e 'print unless /^\s*stale_days:/' "$F/.forge/forge.yaml"
+    awk -v v="$forma" '{print} /^ledger:[[:space:]]*$/{print v}' "$F/.forge/forge.yaml" > "$F/.forge/forge.yaml.tmp" && mv "$F/.forge/forge.yaml.tmp" "$F/.forge/forge.yaml"
+    set +e; o="$(_lg "$F" stale --as-of "$ASOF" 2>&1)"; rc=$?; set -e
+    [ "$rc" -eq 2 ] && grep -q "stale_days" <<<"$o" || _fail stale-10 "forma '$forma' deveria sair 2 nomeando a chave — rc=$rc: $o"
+  done
+  cp "$F/.forge/forge.yaml" "$T/fy.bak"
+  perl -pi -e 's/^ledger:\s*$/ledger: {stale_days: 0}/' "$F/.forge/forge.yaml"
+  set +e; o="$(_lg "$F" stale --as-of "$ASOF" 2>&1)"; rc=$?; set -e
+  [ "$rc" -eq 2 ] && grep -q "stale_days" <<<"$o" || _fail stale-10 "forma em linha deveria sair 2 — rc=$rc: $o"
+  cp "$T/fy.bak" "$F/.forge/forge.yaml"; _set_stale_days "$F" 30
+  echo "OK [stale-10] — vazio, aspas vazias e forma em linha recusados"
 fi
 
 # ───────────────────────────── verify (REQ-02, REQ-03) ─────────────────────────────
@@ -360,6 +384,13 @@ if _want verify; then
   o="$(_lg "$F" stale --as-of "2019-04-15T10:00:00+00:00" --days 20 2>&1 || true)"
   grep -q "^LDG-0001 — 26d — reverificado em 2019-03-20" <<<"$o" || _fail verify-7 "idade não partiu do last_verified (esperado 26d): $o"
   echo "OK [verify-7]"
+
+  _scn "[verify-8] arquivo cujo nome começa por '..' é legítimo; .git/ e o próprio ledger não servem de evidência"
+  printf 'um\n' > "$F/src/..pontos.txt"
+  _lg "$F" verify LDG-0001 --kind file --ref "src/..pontos.txt:1" --observed "$OBS" --verdict confirmed >/dev/null || _fail verify-8 "'src/..pontos.txt' é arquivo legítimo dentro da raiz e foi recusado"
+  _refuse ".git como evidência"   ".git" verify LDG-0001 --kind file --ref ".git/HEAD:1" --observed "$OBS" --verdict confirmed
+  _refuse "ledger como evidência" "ledger" verify LDG-0001 --kind file --ref ".forge/ledger/ledger.json:1" --observed "$OBS" --verdict confirmed
+  echo "OK [verify-8]"
 fi
 
 # ───────────────────────────── supersede (REQ-04) ─────────────────────────────
@@ -399,6 +430,8 @@ if _want supersede; then
   _sref "add --status superseded" "--supersedes" add --type tech-debt --title "n" --status superseded
   _sref "update --status superseded" "--supersedes" update LDG-0001 --status superseded
   _sref "update --status em superseded" "LDG-0005" update LDG-0002 --status open
+  set +e; _lg "$F" update LDG-0002 --status open >/dev/null 2>&1; rc=$?; set -e
+  [ "$rc" -eq 1 ] || _fail supersede-2 "recusa de update em superseded deveria sair 1 (contrato das recusas), saiu $rc"
   _sref "promote em superseded" "LDG-0005" promote LDG-0002 --to outro-change
   _sref "resolve em superseded" "superseded" resolve LDG-0002 --note "x"
   _lg "$F" update LDG-0002 --title "B (histórico)" >/dev/null || _fail supersede-2 "update de título em superseded deveria ser permitido"
@@ -453,6 +486,19 @@ if _want show; then
   o="$(_run_to 10 -- env FORGE_ROOT="$C" bash "$C/.forge/scripts/ledger-ops.sh" show LDG-0003 2>&1)" || _fail show-2 "show com elo quebrado reprovou: $o"
   grep -q "elo quebrado" <<<"$o" || _fail show-2 "elo quebrado não nomeado: $o"
   echo "OK [show-2]"
+
+  _scn "[show-3] elo não recíproco é nomeado; ciclo é nomeado uma vez só"
+  node -e '
+    const mk=(id,extra)=>Object.assign({id,type:"tech-debt",title:"c "+id,detail:"",severity:null,priority:null,status:"open",source:{change_id:null,origin:"manual",ref:null},links:{adr:[],capability:[],change:[],promoted_to:null},created_at:"2019-03-04T10:00:00+00:00",updated_at:null,resolved_at:null,dedup_key:"manual:"+id},extra);
+    const entries=[mk("LDG-0001",{status:"superseded",links:{adr:[],capability:[],change:[],promoted_to:null,superseded_by:"LDG-0003"}}),mk("LDG-0002",{supersedes:"LDG-0001"}),mk("LDG-0003",{}),
+      mk("LDG-0004",{supersedes:"LDG-0005",links:{adr:[],capability:[],change:[],promoted_to:null,superseded_by:"LDG-0005"}}),mk("LDG-0005",{supersedes:"LDG-0004",links:{adr:[],capability:[],change:[],promoted_to:null,superseded_by:"LDG-0004"}})];
+    require("fs").writeFileSync(process.argv[1],JSON.stringify({entries}));' "$C/.forge/ledger/ledger.json"
+  o="$(_run_to 10 -- env FORGE_ROOT="$C" bash "$C/.forge/scripts/ledger-ops.sh" show LDG-0002 2>&1)" || _fail show-3 "show reprovou: $o"
+  grep -q "não recíproco" <<<"$o" || _fail show-3 "elo não recíproco (LDG-0002 substitui LDG-0001, que aponta LDG-0003) não nomeado: $o"
+  o="$(_run_to 10 -- env FORGE_ROOT="$C" bash "$C/.forge/scripts/ledger-ops.sh" show LDG-0004 2>&1)" || _fail show-3 "show com ciclo reprovou: $o"
+  n="$(grep -o "ciclo em" <<<"$o" | wc -l | tr -d ' ')"
+  [ "$n" = "1" ] || _fail show-3 "ciclo nomeado $n vezes: $o"
+  echo "OK [show-3]"
 
 fi
 
@@ -579,6 +625,20 @@ if _want wiring; then
   set +e; _run_to 120 -- env FORGE_ROOT="$D" bash "$D/.forge/scripts/doctor.sh" --report >/dev/null 2>&1; set -e
   [ ! -e "$D/.forge/ledger/ledger.json" ] || _fail wiring-5 "o doctor criou ledger.json num projeto sem ledger"
   echo "OK [wiring-5]"
+
+  _scn "[wiring-6] last_verified forjado (sem evidence) aparece como inconsistente no list, no status e no doctor — nunca como recente"
+  G="$T/wiring-forjado"; _fixture "$G"; _set_stale_days "$G" 30
+  _lg "$G" add --type tech-debt --title "forjado" --detail "x" >/dev/null
+  _commit_at "$G" "2019-06-01T10:00:00+00:00" depois
+  node -e 'const f=process.argv[1];const d=JSON.parse(require("fs").readFileSync(f,"utf8"));d.entries[0].last_verified="2019-12-31T00:00:00+00:00";require("fs").writeFileSync(f,JSON.stringify(d,null,2))' "$G/.forge/ledger/ledger.json"
+  o="$(_lg "$G" list 2>&1)"
+  grep -q " · inconsistente" <<<"$(grep "^LDG-0001 " <<<"$o")" || _fail wiring-6 "list não marcou o item inconsistente: $o"
+  o="$(_lg "$G" status 2>&1)"
+  grep -q "1 inconsistente" <<<"$o" || _fail wiring-6 "status não contou a inconsistência: $o"
+  set +e; o="$(_run_to 120 -- env FORGE_ROOT="$G" bash "$G/.forge/scripts/doctor.sh" --report 2>&1)"; set -e
+  grep -q "inconsistente" <<<"$o" || _fail wiring-6 "doctor não mencionou a inconsistência: $(grep -i ledger <<<"$o")"
+  if grep -q "ledger sem itens ativos envelhecidos" <<<"$o"; then _fail wiring-6 "doctor disse 'ok' com item inconsistente"; fi
+  echo "OK [wiring-6]"
 fi
 
 # ───────────────────────────── docs (REQ-08) ─────────────────────────────

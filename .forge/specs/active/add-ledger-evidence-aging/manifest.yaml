@@ -36,7 +36,7 @@ gates:
   design_reviewed: true
   tasks_reviewed: true
   implementation_verified: true
-  human_archive_approval: false
+  human_archive_approval: true
 dev_loop:
   sharded: false
   stories_path: stories/

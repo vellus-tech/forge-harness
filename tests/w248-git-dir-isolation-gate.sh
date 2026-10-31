@@ -42,9 +42,9 @@
 # linhas é igual ao número de arquivos contado por outro meio, para que uma foto vazia não seja
 # lida como "vítima intacta".
 #
-#   [1] `tests/changelog-merge-gate.sh` REAL com GIT_DIR exportado para uma vítima: a vítima sai
+#   [1] `tests/w294-changelog-gates-regressao-gate.sh` REAL com GIT_DIR exportado para uma vítima: a vítima sai
 #       byte-idêntica antes e depois (fotografia da `.git`), e o gate continua passando (rc 0)
-#   [2] MUTAÇÃO de [1] — cópia de `changelog-merge-gate.sh` sem a linha do preâmbulo contamina a
+#   [2] MUTAÇÃO de [1] — cópia de `w294-changelog-gates-regressao-gate.sh` sem a linha do preâmbulo contamina a
 #       vítima. RECONTROLE: cópia íntegra roda com rc 0 exigido e deixa a vítima intacta
 #   [3] `tests/run-all.sh` REAL despachando um gate SINTÉTICO vulnerável, com GIT_DIR exportado:
 #       a vítima sai intacta — prova de que o preâmbulo do RUNNER INTERNO protege até um
@@ -74,14 +74,14 @@
 #   [11] SENTINELA — POSIÇÃO: uma cópia sintética com a linha do preâmbulo presente mas DESLOCADA
 #       para depois de um `git init` é reprovada citando a linha do preâmbulo e a linha do
 #       primeiro uso
-#   [12] GIT_CONFIG ISOLADO (sem os outros cinco) — `changelog-merge-gate.sh` REAL: vítima intacta
+#   [12] GIT_CONFIG ISOLADO (sem os outros cinco) — `w294-changelog-gates-regressao-gate.sh` REAL: vítima intacta
 #   [13] MUTAÇÃO de [12] — cópia com só "GIT_CONFIG" removido da linha do preâmbulo (as outras cinco
 #       variáveis continuam unsetadas) contamina a vítima quando só GIT_CONFIG está exportado.
 #       RECONTROLE: cópia íntegra protege
-#   [14] GIT_INDEX_FILE ISOLADO — `changelog-merge-gate.sh` REAL: vítima intacta
+#   [14] GIT_INDEX_FILE ISOLADO — `w294-changelog-gates-regressao-gate.sh` REAL: vítima intacta
 #   [15] MUTAÇÃO de [14] — cópia com só "GIT_INDEX_FILE" removido contamina a vítima (o índice).
 #       RECONTROLE: cópia íntegra protege
-#   [16] GIT_COMMON_DIR ISOLADO — `changelog-merge-gate.sh` REAL: vítima intacta
+#   [16] GIT_COMMON_DIR ISOLADO — `w294-changelog-gates-regressao-gate.sh` REAL: vítima intacta
 #   [17] MUTAÇÃO de [16] — cópia com só "GIT_COMMON_DIR" removido contamina a vítima. RECONTROLE:
 #       cópia íntegra protege
 #   [18] `tests/validators.bats` REAL — `bats -f "19.1"` com GIT_DIR exportado para uma vítima:
@@ -239,39 +239,41 @@ duble_arvore() {
     > "$1"
 }
 
-echo "[1] changelog-merge-gate.sh REAL com GIT_DIR herdado deixa a vítima intacta"
+echo "[1] w294-changelog-gates-regressao-gate.sh REAL com GIT_DIR herdado deixa a vítima intacta"
 cen
 V1="$(vitima v1)"
 foto_antes "$V1"
-( export GIT_DIR="$V1/.git"; bash "$WS/tests/changelog-merge-gate.sh" ) >"$T/out1.log" 2>&1
+( export GIT_DIR="$V1/.git"; bash "$WS/tests/w294-changelog-gates-regressao-gate.sh" ) >"$T/out1.log" 2>&1
 RC1=$?
 vitima_intacta "$V1" || {
-  echo "FAIL [1]: vítima contaminada — a .git mudou depois de rodar changelog-merge-gate.sh com GIT_DIR herdado"
+  echo "FAIL [1]: vítima contaminada — a .git mudou depois de rodar w294-changelog-gates-regressao-gate.sh com GIT_DIR herdado"
   difere "$V1"
   exit 1
 }
-[ "$RC1" -eq 0 ] || { echo "FAIL [1]: changelog-merge-gate.sh saiu rc=$RC1 com GIT_DIR herdado (deveria continuar passando)"; tail -10 "$T/out1.log"; exit 1; }
+[ "$RC1" -eq 0 ] || { echo "FAIL [1]: w294-changelog-gates-regressao-gate.sh saiu rc=$RC1 com GIT_DIR herdado (deveria continuar passando)"; tail -10 "$T/out1.log"; exit 1; }
 echo "OK [1]"
 
-echo "[2] mutação — cópia de changelog-merge-gate.sh sem o preâmbulo contamina; cópia íntegra não contamina (recontrole)"
+echo "[2] mutação — cópia de w294-changelog-gates-regressao-gate.sh sem o preâmbulo contamina; cópia íntegra não contamina (recontrole)"
 cen
-ORIG="$WS/tests/changelog-merge-gate.sh"
+ORIG="$WS/tests/w294-changelog-gates-regressao-gate.sh"
 SHA_ORIG="$(sha_de "$ORIG")"
-LIBORIG="$WS/template/.forge/scripts/lib/changelog-from-merge.mjs"
-[ -f "$LIBORIG" ] || { echo "FAIL [2]: $LIBORIG não existe — não há como montar a bancada"; exit 1; }
+RELEASED_ORIG="$WS/template/.forge/skills/readme-generator/scripts/gates/released.mjs"
+PRESERVE_ORIG="$WS/template/.forge/skills/readme-generator/scripts/gates/preserve.mjs"
+[ -f "$RELEASED_ORIG" ] && [ -f "$PRESERVE_ORIG" ] || { echo "FAIL [2]: gates released.mjs/preserve.mjs não existem — não há como montar a bancada"; exit 1; }
 
 # a cópia precisa preservar a MESMA estrutura relativa (tests/ ao lado de template/.forge/…),
-# porque o gate resolve WS por BASH_SOURCE e lê a lib nesse caminho relativo.
-mkbancada() { # mkbancada <nome> -> ecoa o caminho da cópia de changelog-merge-gate.sh na bancada
+# porque o gate resolve WS por BASH_SOURCE e lê os gates nesse caminho relativo.
+mkbancada() { # mkbancada <nome> -> ecoa o caminho da cópia de w294-changelog-gates-regressao-gate.sh na bancada
   local b="$T/$1"
-  mkdir -p "$b/tests" "$b/template/.forge/scripts/lib"
-  cp "$ORIG" "$b/tests/changelog-merge-gate.sh"
-  cp "$LIBORIG" "$b/template/.forge/scripts/lib/changelog-from-merge.mjs"
-  echo "$b/tests/changelog-merge-gate.sh"
+  mkdir -p "$b/tests" "$b/template/.forge/skills/readme-generator/scripts/gates"
+  cp "$ORIG" "$b/tests/w294-changelog-gates-regressao-gate.sh"
+  cp "$RELEASED_ORIG" "$b/template/.forge/skills/readme-generator/scripts/gates/released.mjs"
+  cp "$PRESERVE_ORIG" "$b/template/.forge/skills/readme-generator/scripts/gates/preserve.mjs"
+  echo "$b/tests/w294-changelog-gates-regressao-gate.sh"
 }
 
 COPIA="$(mkbancada bancada2-pristina)"
-[ "$(sha_de "$COPIA")" = "$SHA_ORIG" ] || { echo "FAIL [2]: a cópia de changelog-merge-gate.sh não é idêntica ao original"; exit 1; }
+[ "$(sha_de "$COPIA")" = "$SHA_ORIG" ] || { echo "FAIL [2]: a cópia de w294-changelog-gates-regressao-gate.sh não é idêntica ao original"; exit 1; }
 MUTADA="$(mkbancada bancada2-mutada)"
 mutar_removendo_linha "$MUTADA"
 
@@ -482,16 +484,16 @@ case "$FALTANTES11" in
 esac
 echo "OK [11]"
 
-echo "[12] GIT_CONFIG isolado (sem os outros cinco) — changelog-merge-gate.sh REAL deixa a vítima intacta"
+echo "[12] GIT_CONFIG isolado (sem os outros cinco) — w294-changelog-gates-regressao-gate.sh REAL deixa a vítima intacta"
 cen
 V12="$(vitima v12)"
 foto_antes "$V12"
 ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
   export GIT_CONFIG="$V12/.git/config"
-  bash "$WS/tests/changelog-merge-gate.sh" ) >"$T/out12.log" 2>&1
+  bash "$WS/tests/w294-changelog-gates-regressao-gate.sh" ) >"$T/out12.log" 2>&1
 RC12=$?
 vitima_intacta "$V12" || { echo "FAIL [12]: vítima contaminada com GIT_CONFIG isolado exportado"; difere "$V12"; exit 1; }
-[ "$RC12" -eq 0 ] || { echo "FAIL [12]: changelog-merge-gate.sh saiu rc=$RC12 com GIT_CONFIG isolado"; tail -10 "$T/out12.log"; exit 1; }
+[ "$RC12" -eq 0 ] || { echo "FAIL [12]: w294-changelog-gates-regressao-gate.sh saiu rc=$RC12 com GIT_CONFIG isolado"; tail -10 "$T/out12.log"; exit 1; }
 echo "OK [12]"
 
 echo "[13] mutação — cópia com só GIT_CONFIG removido do preâmbulo contamina a vítima quando só GIT_CONFIG está exportado; cópia íntegra protege (recontrole)"
@@ -528,16 +530,16 @@ vitima_com_commit() {
   echo "$v"
 }
 
-echo "[14] GIT_INDEX_FILE isolado — changelog-merge-gate.sh REAL deixa a vítima (índice incluído) intacta"
+echo "[14] GIT_INDEX_FILE isolado — w294-changelog-gates-regressao-gate.sh REAL deixa a vítima (índice incluído) intacta"
 cen
 V14="$(vitima_com_commit v14)"
 foto_antes "$V14"
 ( unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
   export GIT_INDEX_FILE="$V14/.git/index"
-  bash "$WS/tests/changelog-merge-gate.sh" ) >"$T/out14.log" 2>&1
+  bash "$WS/tests/w294-changelog-gates-regressao-gate.sh" ) >"$T/out14.log" 2>&1
 RC14=$?
 vitima_intacta "$V14" || { echo "FAIL [14]: vítima contaminada com GIT_INDEX_FILE isolado exportado"; difere "$V14"; exit 1; }
-[ "$RC14" -eq 0 ] || { echo "FAIL [14]: changelog-merge-gate.sh saiu rc=$RC14 com GIT_INDEX_FILE isolado"; tail -10 "$T/out14.log"; exit 1; }
+[ "$RC14" -eq 0 ] || { echo "FAIL [14]: w294-changelog-gates-regressao-gate.sh saiu rc=$RC14 com GIT_INDEX_FILE isolado"; tail -10 "$T/out14.log"; exit 1; }
 echo "OK [14]"
 
 echo "[15] mutação — cópia com só GIT_INDEX_FILE removido do preâmbulo contamina a vítima; cópia íntegra protege (recontrole)"
@@ -565,16 +567,16 @@ RC15B=$?
 vitima_intacta "$V15B" || { echo "FAIL [15]: RECONTROLE — a cópia íntegra contaminou a vítima com GIT_INDEX_FILE isolado"; difere "$V15B"; exit 1; }
 echo "OK [15]"
 
-echo "[16] GIT_COMMON_DIR isolado — changelog-merge-gate.sh REAL deixa a vítima intacta"
+echo "[16] GIT_COMMON_DIR isolado — w294-changelog-gates-regressao-gate.sh REAL deixa a vítima intacta"
 cen
 V16="$(vitima v16)"
 foto_antes "$V16"
 ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_CONFIG
   export GIT_COMMON_DIR="$V16/.git"
-  bash "$WS/tests/changelog-merge-gate.sh" ) >"$T/out16.log" 2>&1
+  bash "$WS/tests/w294-changelog-gates-regressao-gate.sh" ) >"$T/out16.log" 2>&1
 RC16=$?
 vitima_intacta "$V16" || { echo "FAIL [16]: vítima contaminada com GIT_COMMON_DIR isolado exportado"; difere "$V16"; exit 1; }
-[ "$RC16" -eq 0 ] || { echo "FAIL [16]: changelog-merge-gate.sh saiu rc=$RC16 com GIT_COMMON_DIR isolado"; tail -10 "$T/out16.log"; exit 1; }
+[ "$RC16" -eq 0 ] || { echo "FAIL [16]: w294-changelog-gates-regressao-gate.sh saiu rc=$RC16 com GIT_COMMON_DIR isolado"; tail -10 "$T/out16.log"; exit 1; }
 echo "OK [16]"
 
 echo "[17] mutação — cópia com só GIT_COMMON_DIR removido do preâmbulo contamina a vítima; cópia íntegra protege (recontrole)"

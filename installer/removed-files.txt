@@ -14,3 +14,8 @@
 
 # rc13: /forge:build renomeado para /forge:codegraph (commands/graph/build.md -> codegraph.md)
 commands/graph/build.md
+
+# add-unify-changelog-skill: motor de changelog unificado em skills/readme-generator/scripts/
+# changelog-engine.mjs; o post-merge delega para ele (resolve_delegated), changelog-from-merge.mjs
+# some.
+scripts/lib/changelog-from-merge.mjs

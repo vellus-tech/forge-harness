@@ -14,7 +14,7 @@
 #       [1c] com nas duas (conteúdos diferentes) → usa o da PRÓPRIA árvore, nunca o do tronco
 #       [1d] com só na worktree              → usa o próprio
 #   [2] commit-msg — sem na worktree, com no tronco → passa e nomeia o tronco
-#   [3] post-merge — os dois alvos (changelog-from-merge.mjs, check-liaison-log-integrity.sh)
+#   [3] post-merge — os dois alvos (changelog-engine.mjs, check-liaison-log-integrity.sh)
 #       ausentes na worktree e presentes no tronco → não FALHA, nomeia o tronco nos dois
 #   [4] pre-push — DOCS_LIB, RED_LIB (require_hook_lib), AI_CHECK e ACKS ausentes na worktree e
 #       presentes no tronco (stubs) → "pre-push OK", quatro linhas nomeando o tronco
@@ -79,7 +79,7 @@
 #       com `.forge/` presente e só o alvo ausente, a delegação ao tronco continua rodando de
 #       verdade
 #   [14b] post-merge — a mesma árvore sem `.forge/` nenhum, com um CHANGELOG.md versionado: o
-#       merge não delega changelog-from-merge.mjs ao tronco, e `git status` fica LIMPO depois —
+#       merge não delega changelog-engine.mjs ao tronco, e `git status` fica LIMPO depois —
 #       nenhuma escrita no CHANGELOG.md de uma árvore que nunca adotou o harness (MEDIUM); o
 #       contrafactual é o próprio [3]: com `.forge/` presente, o tronco escreve de verdade
 #   [14c] pre-commit — a mesma árvore sem `.forge/` nenhum: nenhum check do tronco roda (nem
@@ -225,19 +225,20 @@ esac
 echo "OK [2]"
 
 # ── [3] post-merge — os dois alvos ───────────────────────────────────────────────────────────
-echo "[3] post-merge — changelog-from-merge.mjs e check-liaison-log-integrity.sh via tronco"
+echo "[3] post-merge — changelog-engine.mjs e check-liaison-log-integrity.sh via tronco"
 R3="$T/r3"; TR3="$T/tr3"
 mktrunk "$TR3"
 cp "$HOOKS/post-merge" "$TR3/.forge/hooks/git/post-merge"; chmod +x "$TR3/.forge/hooks/git/post-merge"
-printf 'process.exit(0);\n' > "$TR3/.forge/scripts/lib/changelog-from-merge.mjs"
+mkdir -p "$TR3/.forge/skills/readme-generator/scripts"
+printf 'process.exit(0);\n' > "$TR3/.forge/skills/readme-generator/scripts/changelog-engine.mjs"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TR3/.forge/scripts/check-liaison-log-integrity.sh"; chmod +x "$TR3/.forge/scripts/check-liaison-log-integrity.sh"
 mkrepo "$R3" "$TR3/.forge/hooks/git"
-mkdir -p "$R3/.forge/scripts/lib"
+mkdir -p "$R3/.forge/skills/readme-generator/scripts"
 out="$(cd "$R3" && bash "$TR3/.forge/hooks/git/post-merge" 2>&1)"; rc=$?
 [ "$rc" -eq 0 ] || { echo "FAIL [3]: post-merge falhou com os alvos presentes no tronco (saída: '$out')"; exit 1; }
 case "$out" in
-  *"usando o do tronco"*"changelog-from-merge.mjs"*) : ;;
-  *) echo "FAIL [3]: não nomeou o tronco para changelog-from-merge.mjs (saída: '$out')"; exit 1 ;;
+  *"usando o do tronco"*"changelog-engine.mjs"*) : ;;
+  *) echo "FAIL [3]: não nomeou o tronco para changelog-engine.mjs (saída: '$out')"; exit 1 ;;
 esac
 case "$out" in
   *"usando o do tronco"*"check-liaison-log-integrity.sh"*) : ;;
@@ -908,8 +909,9 @@ mktrunk "$TR14B"
 cp "$HOOKS/post-merge" "$TR14B/.forge/hooks/git/post-merge"; chmod +x "$TR14B/.forge/hooks/git/post-merge"
 MARK_CL14B="$T/marker-changelog-14b"
 rm -f "$MARK_CL14B"
-printf 'import { writeFileSync } from "fs";\nwriteFileSync(process.argv[2] + "/CHANGELOG.md", "mutated-by-trunk\\n", {flag:"a"});\n' \
-  > "$TR14B/.forge/scripts/lib/changelog-from-merge.mjs"
+mkdir -p "$TR14B/.forge/skills/readme-generator/scripts"
+printf 'import { writeFileSync } from "fs";\nconst root = process.argv[process.argv.indexOf("--root") + 1];\nwriteFileSync(root + "/CHANGELOG.md", "mutated-by-trunk\\n", {flag:"a"});\n' \
+  > "$TR14B/.forge/skills/readme-generator/scripts/changelog-engine.mjs"
 printf '#!/usr/bin/env bash\ntouch "%s"\nexit 0\n' "$MARK_CL14B" > "$TR14B/.forge/scripts/check-liaison-log-integrity.sh"
 chmod +x "$TR14B/.forge/scripts/check-liaison-log-integrity.sh"
 mkrepo "$R14B" "$TR14B/.forge/hooks/git"
@@ -930,15 +932,15 @@ status="$(git -C "$R14B" status --porcelain)"
 [ ! -d "$R14B/.forge" ] || { echo "FAIL [14b]/setup: a worktree não deveria ter .forge/ neste cenário"; exit 1; }
 echo "OK [14b]"
 
-# [14b-cf] contrafactual do [14b]: MESMA árvore, mas com .forge/scripts/lib/ presente (só o
-# diretório, sem changelog-from-merge.mjs próprio) → volta a delegar ao tronco de verdade, e o
-# CHANGELOG.md RECEBE a escrita (prova que [14b] não é "o merge nunca escreve", é "árvore sem
-# .forge/ nenhum nunca delega").
-echo "[14b-cf] post-merge — contrafactual do [14b]: .forge/scripts/lib/ presente (só o diretório)"
+# [14b-cf] contrafactual do [14b]: MESMA árvore, mas com .forge/skills/readme-generator/scripts/
+# presente (só o diretório, sem changelog-engine.mjs próprio) → volta a delegar ao tronco de
+# verdade, e o CHANGELOG.md RECEBE a escrita (prova que [14b] não é "o merge nunca escreve", é
+# "árvore sem .forge/ nenhum nunca delega").
+echo "[14b-cf] post-merge — contrafactual do [14b]: .forge/skills/readme-generator/scripts/ presente (só o diretório)"
 echo "         → delega ao tronco de verdade, CHANGELOG.md recebe a escrita"
 R14BCF="$T/r14bcf"
 mkrepo "$R14BCF" "$TR14B/.forge/hooks/git"
-mkdir -p "$R14BCF/.forge/scripts/lib"
+mkdir -p "$R14BCF/.forge/skills/readme-generator/scripts"
 printf '# Changelog\n\n## [Unreleased]\n' > "$R14BCF/CHANGELOG.md"
 git -C "$R14BCF" add CHANGELOG.md >/dev/null 2>&1
 git -C "$R14BCF" commit -qm "chore: changelog" >/dev/null 2>&1

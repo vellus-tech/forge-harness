@@ -49,7 +49,11 @@ Ver `evidence/verify-measurements.md` (qualidade nas duas partições, com e sem
 - **Instalação compartilhada por máquina:** a camada semântica fica no checkout principal; worktree com pins divergentes cai para lexical com "pins mudaram" (design §6, `kb.md`).
 - **Fora do escopo, para o ledger:** fallback `npm ci || npm install` do CI contorna o lockfile (analysis A-10); baseline `forge-harness-template` traz um cenário de REQ-FHT-004 com barras invertidas multiplicadas (dado pré-existente, não tocado por este change).
 
-## Decisão pendente do dono
+## Licença dos dados de treino dos modelos — risco aceito pelo dono
+
+Os dois modelos fixados (`multilingual-e5-small`, MIT; `mmarco-mMiniLMv2-L12-H384-v1`, Apache-2.0) foram treinados com dados derivados do MS MARCO, cujos termos são de uso não comercial. Depois de pesquisa de licenciamento feita pelo orquestrador, **Milton (dono do projeto) aceitou explicitamente o risco em 2026-10-31** e decidiu seguir sem trocar de modelo e sem segurar o change por revisão jurídica. Justificativa registrada: risco conhecido e documentado (design §6, ADR 0004), uso local sem redistribuição dos pesos pelo harness (o consumidor baixa da origem por comando explícito), e troca de modelo possível a qualquer momento por mudança de pins, sem mudança de código. Não é pendência aberta.
+
+## Decisão pendente do dono (histórico — resolvida em 2026-10-31, ver "Remedição")
 
 O que foi medido (detalhe em `evidence/verify-measurements.md` §1): na partição de **calibração** os três critérios de qualidade passam com folga; na de **holdout** (18 consultas), dois não passam:
 

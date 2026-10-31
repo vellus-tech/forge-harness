@@ -110,3 +110,7 @@ Ver `evidence/task-red-proofs.txt`: TASK-01..09 com `OK task — teste do verde 
 ## 6. Suíte completa
 
 `npm test` (`tests/run-all.sh`) no HEAD da TASK-09: `PASS=194 FAIL=0 SKIP=0 UNVERIFIED=0 (2839s)` — 181 gates pré-existentes + 11 novos (`w284`…`w294`) + 2 suítes bats. Execução dos 11 gates novos em Node 20.20.2 (o piso do harness): todos PASS (w288 e w293 com o interceptador, único mecanismo de bloqueio disponível em Node < 25).
+
+## 7. Licença dos dados de treino
+
+Risco (dados de treino derivados do MS MARCO, termos não comerciais) aceito explicitamente por Milton, dono do projeto, em 2026-10-31, após pesquisa de licenciamento do orquestrador; sem troca de modelo nem revisão jurídica pendente.

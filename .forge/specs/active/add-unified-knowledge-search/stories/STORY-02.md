@@ -3,7 +3,7 @@ story_id: STORY-02
 epic: add-unified-knowledge-search
 title: CLI lexical, avaliador e guardas do caminho lexical
 depends_on: [STORY-01]
-status: todo
+status: in_progress
 ---
 
 # STORY-02 — CLI lexical, avaliador e guardas do caminho lexical
@@ -30,7 +30,7 @@ Entregar `kb.sh` e `kb-cli.mjs` no modo lexical (build, query, status, saída ex
 
 ## Tasks
 
-- [ ] TASK-04 — `kb.sh` e `kb-cli.mjs` (paths: `template/.forge/scripts/kb.sh`, `template/.forge/scripts/lib/kb-cli.mjs`, `template/.forge/scripts/lib/untrusted-render.mjs`, `tests/w287-kb-cli-gate.sh`; depende: TASK-02, TASK-03)
+- [X] TASK-04 — `kb.sh` e `kb-cli.mjs` (paths: `template/.forge/scripts/kb.sh`, `template/.forge/scripts/lib/kb-cli.mjs`, `template/.forge/scripts/lib/untrusted-render.mjs`, `tests/w287-kb-cli-gate.sh`; depende: TASK-02, TASK-03)
 - [ ] TASK-05 — `kb.sh eval`, conjunto de avaliação e guardas lexicais (paths: `template/.forge/scripts/lib/kb-cli.mjs`, `tests/fixtures/kb/{semantic-env.sh,serve.mjs,no-network.cjs,net-canary.mjs,fake-git.sh}`, `tests/w289-kb-eval-gate.sh`, `tests/w288-kb-offline-lexical-gate.sh`; depende: TASK-04)
 
 ## Acceptance criteria

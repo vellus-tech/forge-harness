@@ -16,7 +16,8 @@
 //       entrada correspondente no artefato `data-classification` (JSON, schema
 //       data-classification.schema.json) encontrado dentro dos mesmos `inputs`.
 // A varredura de código usa o coletor genérico `source-scan.collect` com `exts`
-// ampliado (`.go/.kt/.ts/.rego/.py`) — o coletor .md original fica com `exts`
+// ampliado (`.go/.kt/.ts/.rego/.py/.sql` — `.sql` adicionado pelo change
+// add-migration-review-rule, REQ-06) — o coletor .md original fica com `exts`
 // default (`.md`), preservando 100% o comportamento de `gw3-data-governance-gate.sh`
 // [1]-[8] (NFR-04).
 //
@@ -78,7 +79,7 @@ const LOG_TAINT = [
 // O gate procura um artefato `data-classification.json` (schema data-classification.
 // schema.json) dentro dos mesmos `inputs`; campo marcado sem entrada correspondente no
 // mapa (ou artefato ausente) é finding.
-const SENSITIVE_MARKER_RE = /(?:\/\/|#)\s*forge:sensitive-field\s*[:=]\s*"?([A-Za-z0-9_.]+)"?/i;
+const SENSITIVE_MARKER_RE = /(?:\/\/|#|--)\s*forge:sensitive-field\s*[:=]\s*"?([A-Za-z0-9_.]+)"?/i;
 
 function loadClassification(paths) {
   const jsonFiles = collect(paths, { exts: new Set(['.json']) });
@@ -108,7 +109,7 @@ function scanSensitiveFields(files, classification) {
   return findings;
 }
 
-const CODE_EXTS = new Set(['.go', '.kt', '.ts', '.rego', '.py']);
+const CODE_EXTS = new Set(['.go', '.kt', '.ts', '.rego', '.py', '.sql']);
 
 const mdFindings = scan(collect(inputs), ANTI); // default exts {'.md'} — retrocompat NFR-04
 const codeFiles = collect(inputs, { exts: CODE_EXTS });

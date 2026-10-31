@@ -8,7 +8,9 @@
 import { createHash } from 'node:crypto';
 import { chunk, fingerprint, CHUNK_MAX } from './kb-corpus.mjs';
 
-export const INDEX_FORMAT = 1;
+// Formato 2: siglas genéricas deixaram de ser entidade (emenda do REQ-03, 2026-10-31); índices de
+// formato 1 são reconstruídos sozinhos na próxima consulta.
+export const INDEX_FORMAT = 2;
 export const BM25_K1 = 1.2;
 export const BM25_B = 0.75;
 
@@ -30,8 +32,10 @@ export function tokenize(s) {
   return normalize(s).split(/[^a-z0-9]+/).filter((w) => w.length > 1 && !STOP.has(w)).map(stem);
 }
 
-// Entidades: identificadores que o harness usa como chave. Correspondência exata (sem stem).
-const ENTITY_RE = /(?<![A-Za-z0-9_./:-])(LDG-\d{4}|ADR[ -]?\d{4}|REQ-[A-Z0-9][A-Z0-9-]*|TASK-\d+|STORY-\d+|w\d{2,3}(?:-[a-z0-9]+)*|[A-Za-z0-9_.-]+\.(?:sh|mjs|cjs|js|md|ya?ml|json)|\/forge:[a-z-]+|[A-Z][A-Z0-9_]{2,})(?![A-Za-z0-9_])/g;
+// Entidades: identificadores que o harness usa como chave. Correspondência exata (sem stem). Siglas
+// genéricas em caixa alta (README, TDD, API…) NÃO são entidade: medido no verify, casavam documentos
+// errados e eram a causa da perda do lexical contra o BM25 isolado.
+const ENTITY_RE = /(?<![A-Za-z0-9_./:-])(LDG-\d{4}|ADR[ -]?\d{4}|REQ-[A-Z0-9][A-Z0-9-]*|TASK-\d+|STORY-\d+|w\d{2,3}(?:-[a-z0-9]+)*|[A-Za-z0-9_.-]+\.(?:sh|mjs|cjs|js|md|ya?ml|json)|\/forge:[a-z-]+)(?![A-Za-z0-9_])/g;
 export function entities(s) {
   const out = new Set();
   for (const m of String(s).matchAll(ENTITY_RE)) out.add(m[1].toLowerCase().replace(/^adr[ -]?/, 'adr-'));

@@ -51,6 +51,13 @@
   - Teste (comando): `bash tests/w294-kb-surface-gate.sh`
   - Padrão de falha: `FAIL \[[^\]]+\]`
 
+## Wave 5 — Emenda pós-verify (decisão do dono, 2026-10-31)
+
+- [X] TASK-10 — Entidades só com ids reais: siglas genéricas fora do canal de entidades, `INDEX_FORMAT` 2 (rastreia: REQ-03 emendado, design §2.4; paths: `template/.forge/scripts/lib/kb-lexical.mjs`, `tests/w285-kb-lexical-gate.sh`; depende: TASK-09)
+  - Teste (comando): `bash tests/w285-kb-lexical-gate.sh`
+  - Padrão de falha: `FAIL \[[^\]]+\]`
+  - Nota: a partição `tests/fixtures/kb/eval/holdout-2.json` foi versionada cega (sem rodar busca) em commit anterior ao vermelho desta task.
+
 ## Medições e provas do verify (fora das tasks, com comando e critério de parada)
 
 Feitas pela sessão no `/forge:verify`, sobre o código das tasks, com a camada instalada de verdade (`kb.sh semantic install` a partir dos pins) e registradas em `evidence/`:
@@ -68,7 +75,7 @@ Feitas pela sessão no `/forge:verify`, sobre o código das tasks, com a camada 
 |---|---|
 | REQ-01 | TASK-01 |
 | REQ-02 | TASK-01, TASK-02, TASK-04, TASK-05 |
-| REQ-03 | TASK-02, TASK-03, TASK-04; medição 1 |
+| REQ-03 | TASK-02, TASK-03, TASK-04, TASK-10; medição 1 |
 | REQ-04 | TASK-04, TASK-05 |
 | REQ-05 | TASK-04, TASK-06, TASK-07, TASK-09 |
 | REQ-06 | TASK-08; medição 2 |

@@ -240,22 +240,22 @@ Termos usados abaixo.
 
 | REQ | Parâmetro/config exposto | Superfície (tela/endpoint/CLI) | Coberto por task |
 |---|---|---|---|
-| REQ-01 | campo `baton` (`op`, `session`, `stamped_at`, `eligible`, `max_lease_seconds`, `skew_tolerance_seconds`, `lease_seconds`, `lease_until`) | `liaison-message.schema.json`; envelope gravado pelo CLI `liaison-ops.sh baton` | a definir em `/forge:tasks` |
-| REQ-02 | `baton offer <channel> --thread --subject [--body/--body-file/--from-handoff] [--for] [--max-lease] [--session]` | CLI `liaison-ops.sh baton offer` | a definir em `/forge:tasks` |
-| REQ-03 | `baton claim <channel> <baton_id> [--lease] [--session]` | CLI `liaison-ops.sh baton claim` | a definir em `/forge:tasks` |
-| REQ-04 | sem parâmetro exposto (função pura; desempate por code point no `threadOrder`) | consumida por `baton status`, `status`, `render`, `on-session-start.sh` | a definir em `/forge:tasks` |
-| REQ-05 | sem parâmetro exposto (marca `provisional`/`stable`) | CLI `liaison-ops.sh baton status`; início de sessão | a definir em `/forge:tasks` |
-| REQ-06 | `liaison.baton.default_lease_seconds`, `max_lease_seconds`, `skew_tolerance_seconds`; `--lease`, `--max-lease` | `forge.yaml`; CLI `liaison-ops.sh baton claim/renew/offer` | a definir em `/forge:tasks` |
-| REQ-07 | `baton renew <channel> <baton_id> [--lease] [--session]`; `baton release/complete/withdraw <channel> <baton_id> [--session] [--body/--body-file]` | CLI `liaison-ops.sh baton` | a definir em `/forge:tasks` |
-| REQ-08 | `baton status <channel> [<baton_id>] [--json]`, `baton list <channel> [--json]` | CLI `liaison-ops.sh baton`; `liaison-ops.sh status`; `CHANNEL.md` | a definir em `/forge:tasks` |
-| REQ-09 | sem parâmetro exposto (trava interna, timeout fixo de 10 s e recuperação de 120 s) | todos os escritores do `liaison-ops.sh`, inclusive o push do `sync` | a definir em `/forge:tasks` |
-| REQ-10 | `--session <id>`; variável `CLAUDE_CODE_SESSION_ID` | CLI `liaison-ops.sh baton` | a definir em `/forge:tasks` |
-| REQ-11 | sem parâmetro exposto (invariantes) | import, `check-liaison-acks.sh` | a definir em `/forge:tasks` |
-| REQ-12 | `liaison.baton.auto_renew` | `forge.yaml`; gancho de ciclo de vida do Claude Code gerado por `sync-adapters.mjs` | a definir em `/forge:tasks` |
-| REQ-13 | sem parâmetro próprio (usa `liaison.auto`) | `on-session-start.sh` | a definir em `/forge:tasks` |
-| REQ-14 | `--from-handoff` | CLI `liaison-ops.sh baton offer`; `/forge:handoff` (documentação) | a definir em `/forge:tasks` |
-| REQ-15 | sem parâmetro próprio (usa `notify` de `add-liaison-native-bridge`) | CLI `liaison-ops.sh notify`; `SendMessage` do agente | a definir em `/forge:tasks` |
-| REQ-16 | sem parâmetro exposto (documentação) | `/forge:liaison`, `/forge:handoff`, rule `liaison-protocol`, `docs/refer/slash-commands.md` | a definir em `/forge:tasks` |
+| REQ-01 | campo `baton` (`op`, `session`, `stamped_at`, `eligible`, `max_lease_seconds`, `skew_tolerance_seconds`, `lease_seconds`, `lease_until`) | `liaison-message.schema.json`; envelope gravado pelo CLI `liaison-ops.sh baton` | TASK-13, TASK-14 |
+| REQ-02 | `baton offer <channel> --thread --subject [--body/--body-file/--from-handoff] [--for] [--max-lease] [--session]` | CLI `liaison-ops.sh baton offer` | TASK-19, TASK-20 |
+| REQ-03 | `baton claim <channel> <baton_id> [--lease] [--session]` | CLI `liaison-ops.sh baton claim` | TASK-19, TASK-20 |
+| REQ-04 | sem parâmetro exposto (função pura; desempate por code point no `threadOrder`) | consumida por `baton status`, `status`, `render`, `on-session-start.sh` | TASK-02, TASK-03, TASK-15, TASK-16 |
+| REQ-05 | sem parâmetro exposto (marca `provisional`/`stable`) | CLI `liaison-ops.sh baton status`; início de sessão | TASK-15, TASK-16, TASK-23, TASK-24 |
+| REQ-06 | `liaison.baton.default_lease_seconds`, `max_lease_seconds`, `skew_tolerance_seconds`; `--lease`, `--max-lease` | `forge.yaml`; CLI `liaison-ops.sh baton claim/renew/offer` | TASK-17, TASK-18, TASK-21, TASK-22 |
+| REQ-07 | `baton renew <channel> <baton_id> [--lease] [--session]`; `baton release/complete/withdraw <channel> <baton_id> [--session] [--body/--body-file]` | CLI `liaison-ops.sh baton` | TASK-21, TASK-22 |
+| REQ-08 | `baton status <channel> [<baton_id>] [--json]`, `baton list <channel> [--json]` | CLI `liaison-ops.sh baton`; `liaison-ops.sh status`; `CHANNEL.md` | TASK-23, TASK-24 |
+| REQ-09 | sem parâmetro exposto (trava interna, timeout fixo de 10 s e recuperação de 120 s) | todos os escritores do `liaison-ops.sh`, inclusive o push do `sync` | TASK-04, TASK-05, TASK-06, TASK-07, TASK-08, TASK-09 |
+| REQ-10 | `--session <id>`; variável `CLAUDE_CODE_SESSION_ID` | CLI `liaison-ops.sh baton` | TASK-17, TASK-18 |
+| REQ-11 | sem parâmetro exposto (invariantes) | import, `check-liaison-acks.sh` | TASK-12, TASK-13, TASK-19 |
+| REQ-12 | `liaison.baton.auto_renew` | `forge.yaml`; gancho de ciclo de vida do Claude Code gerado por `sync-adapters.mjs` | TASK-26, TASK-27 |
+| REQ-13 | sem parâmetro próprio (usa `liaison.auto`) | `on-session-start.sh` | TASK-28, TASK-29 |
+| REQ-14 | `--from-handoff` | CLI `liaison-ops.sh baton offer`; `/forge:handoff` (documentação) | TASK-30, TASK-31 |
+| REQ-15 | sem parâmetro próprio (usa `notify` de `add-liaison-native-bridge`) | CLI `liaison-ops.sh notify`; `SendMessage` do agente | TASK-20, TASK-25 |
+| REQ-16 | sem parâmetro exposto (documentação) | `/forge:liaison`, `/forge:handoff`, rule `liaison-protocol`, `docs/refer/slash-commands.md` | TASK-32, TASK-33 |
 
 ## Fora de escopo (reafirmação)
 

@@ -62,3 +62,21 @@ approvals:
     commit: "7f829893"
     scope: "design.md"
     notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: tasks_reviewed
+    decision: review
+    reason: "Revisor adversarial delegado pelo dono (opus), rodada 1: REVIEW; BLOCKER formato FAIL: nao reconhecido pelo red-classify (exige FAIL [cenario]); MAJOR gate monolitico da trava impede o verde da TASK-05 e TASK-06 nao atomica; MAJOR criterios sem task (inbox condensado, detectClockSkew, 10 eventos concorrentes, aviso de pulled_at, nota de outra sessao); 7 MINOR"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T23:19:15-03:00"
+    iteration: 1
+    commit: "9c59b51f"
+    scope: "tasks.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: tasks_reviewed
+    decision: approve
+    reason: "Revisor adversarial delegado pelo dono (opus), rodada 2: APPROVE sem BLOCKER nem MAJOR; formato FAIL [cenario], pares de gates por task, cobertura e isencoes corrigidos; nota de convergencia aplicada antes do registro (sem stubs em template/.forge/scripts nos commits de vermelho, driver do gate imprimindo FAIL [..] na falha de import); MINORs aplicados (cabecalho, sync concorrente com send, janela residual na rule, prova da TASK-25, historico distinguivel)"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T23:23:25-03:00"
+    iteration: 2
+    commit: "9c59b51f"
+    scope: "tasks.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"

@@ -197,10 +197,10 @@ if _want stale; then
   _scn "[stale-4] precedência do limiar: --days > forge.yaml > 30"
   _set_stale_days "$F" 50
   out="$(_lg "$F" stale --as-of "$ASOF" 2>&1 || true)"
-  head -1 <<<"$out" | grep -q "limiar 50 de forge.yaml" || _fail stale-4 "forge.yaml não lido: $(head -1 <<<"$out")"
+  grep -q "limiar 50 de forge.yaml" <<<"$(head -1 <<<"$out")" || _fail stale-4 "forge.yaml não lido: $(head -1 <<<"$out")"
   grep -q "^LDG-0002 —" <<<"$out" && _fail stale-4 "41d com limiar 50 não deveria envelhecer"
   out="$(_lg "$F" stale --as-of "$ASOF" --days 20 2>&1 || true)"
-  head -1 <<<"$out" | grep -q "limiar 20 de --days" || _fail stale-4 "--days não venceu: $(head -1 <<<"$out")"
+  grep -q "limiar 20 de --days" <<<"$(head -1 <<<"$out")" || _fail stale-4 "--days não venceu: $(head -1 <<<"$out")"
   echo "OK [stale-4] — --days vence forge.yaml, que vence o default"
 
   _scn "[stale-5] limiar/as-of inválidos reprovam com rc 2 nomeando a fonte"
@@ -238,13 +238,13 @@ if _want stale; then
   _scn "[stale-8] as_of padrão é o commit HEAD; sem HEAD e sem --as-of reprova rc 2; ledger vazio declara 0 de 0"
   _commit_at "$F" "2019-04-11T10:00:00+00:00" segundo
   out="$(_lg "$F" stale 2>&1 || true)"
-  head -1 <<<"$out" | grep -q "(referência 2019-04-11," || _fail stale-8 "as_of não veio do HEAD: $(head -1 <<<"$out")"
+  grep -q "(referência 2019-04-11," <<<"$(head -1 <<<"$out")" || _fail stale-8 "as_of não veio do HEAD: $(head -1 <<<"$out")"
   N="$T/stale-nohead"; mkdir -p "$N"; cp -R "$WS/template/.forge" "$N/.forge"; git -C "$N" init -q
   printf '{"entries":[]}\n' > "$N/.forge/ledger/ledger.json"
   set +e; o="$(_lg "$N" stale 2>&1)"; rc=$?; set -e
   [ "$rc" -eq 2 ] && grep -q -- "--as-of" <<<"$o" || _fail stale-8 "sem HEAD deveria sair 2 apontando --as-of — rc=$rc: $o"
   o="$(_lg "$N" stale --as-of "$ASOF" 2>&1)" || _fail stale-8 "sem HEAD mas com --as-of deveria rodar: $o"
-  head -1 <<<"$o" | grep -q "^LEDGER stale: 0 de 0 ativo(s)" || _fail stale-8 "ledger vazio sem '0 de 0': $o"
+  grep -q "^LEDGER stale: 0 de 0 ativo(s)" <<<"$(head -1 <<<"$o")" || _fail stale-8 "ledger vazio sem '0 de 0': $o"
   echo "OK [stale-8] — HEAD como relógio; sem HEAD exige --as-of; vazio = 0 de 0"
 fi
 
@@ -409,8 +409,8 @@ if _want supersede; then
   mkdir -p "$F/src"; printf 'um\ndois\n' > "$F/src/a.txt"
   _lg "$F" verify LDG-0001 --kind file --ref "src/a.txt:1" --observed "o defeito segue presente na linha um" --verdict confirmed >/dev/null
   o="$(_lg "$F" list --status open 2>&1)"
-  grep "^LDG-0005 " <<<"$o" | grep -q "(substitui LDG-0002)" || _fail supersede-3 "list sem '(substitui LDG-0002)': $o"
-  grep "^LDG-0001 " <<<"$o" | grep -q "· reverificado em ${HS:0:10}" || _fail supersede-3 "list sem '· reverificado em': $o"
+  grep -q "(substitui LDG-0002)" <<<"$(grep "^LDG-0005 " <<<"$o")" || _fail supersede-3 "list sem '(substitui LDG-0002)': $o"
+  grep -q "· reverificado em ${HS:0:10}" <<<"$(grep "^LDG-0001 " <<<"$o")" || _fail supersede-3 "list sem '· reverificado em': $o"
   echo "OK [supersede-3]"
 
 fi
@@ -478,12 +478,12 @@ if _want closed; then
   OPS_SRC="$WS/template/.forge/scripts/ledger-ops.sh"
   n_r="$(grep -c "^const CLOSED = new Set(\[" "$RENDER_SRC" || true)"
   [ "$n_r" = "1" ] || _fail closed-1 "padrão CLOSED do renderizador não encontrado ($n_r) — o sítio mudou de forma"
-  grep "^const CLOSED = new Set(\[" "$RENDER_SRC" | grep -q "'superseded'" || _fail closed-1 "renderizador sem 'superseded' no CLOSED"
+  grep -q "'superseded'" <<<"$(grep "^const CLOSED = new Set(\[" "$RENDER_SRC")" || _fail closed-1 "renderizador sem 'superseded' no CLOSED"
   n_o="$(grep -cE "^const CLOSED = (new Set\()?\[" "$OPS_SRC" || true)"
   [ "$n_o" = "2" ] || _fail closed-1 "esperados 2 conjuntos CLOSED em ledger-ops.sh (note, status), achados $n_o"
   n_os="$(grep -E "^const CLOSED = (new Set\()?\[" "$OPS_SRC" | grep -c "'superseded'" || true)"
   [ "$n_os" = "2" ] || _fail closed-1 "só $n_os de 2 conjuntos de ledger-ops.sh têm 'superseded'"
-  grep "^const RECLASSIFIED = new Set(\[" "$WS/tools/plan-progress.mjs" | grep -q "'superseded'" || _fail closed-1 "tools/plan-progress.mjs sem 'superseded' no balde RECLASSIFIED"
+  grep -q "'superseded'" <<<"$(grep "^const RECLASSIFIED = new Set(\[" "$WS/tools/plan-progress.mjs")" || _fail closed-1 "tools/plan-progress.mjs sem 'superseded' no balde RECLASSIFIED"
   echo "OK [closed-1] — renderizador 1/1, ledger-ops 2/2, plan-progress 1/1"
 
   _scn "[closed-2] contagem ativa do LEDGER.md e do status excluem superseded; note avisa item encerrado"
@@ -493,7 +493,7 @@ if _want closed; then
   _lg "$F" add --type tech-debt --title "B2" --detail "b2" --supersedes LDG-0002 >/dev/null
   grep -q "^\*\*2 itens ativos\*\*" "$F/.forge/ledger/LEDGER.md" || _fail closed-2 "LEDGER.md não conta 2 ativos: $(grep 'ativo' "$F/.forge/ledger/LEDGER.md" | head -1)"
   grep -q "superseded 1" "$F/.forge/ledger/LEDGER.md" || _fail closed-2 "LEDGER.md não lista superseded entre encerrados"
-  _lg "$F" status | grep -q "^LEDGER: 2 ativo(s)" || _fail closed-2 "status não conta 2 ativos: $(_lg "$F" status)"
+  grep -q "^LEDGER: 2 ativo(s)" <<<"$(_lg "$F" status)" || _fail closed-2 "status não conta 2 ativos: $(_lg "$F" status)"
   o="$(_lg "$F" note LDG-0002 --kind correction --text "nota tardia" 2>&1)"
   grep -q "está em 'superseded'" <<<"$o" || _fail closed-2 "note não avisou item superseded: $o"
   echo "OK [closed-2]"
@@ -502,8 +502,8 @@ if _want closed; then
   mkdir -p "$F/src"; printf 'um\n' > "$F/src/a.txt"
   _lg "$F" verify LDG-0001 --kind file --ref "src/a.txt:1" --observed "o defeito segue presente na linha um" --verdict confirmed >/dev/null
   MDC="$F/.forge/ledger/LEDGER.md"
-  grep "^- \*\*LDG-0001\*\*" "$MDC" | grep -q "· reverificado em " || _fail closed-3 "entrada verificada sem 'reverificado em'"
-  grep -A3 "^- \*\*LDG-0003\*\*" "$MDC" | grep -qF '↳ substitui `LDG-0002`' || _fail closed-3 "entrada sucessora sem '↳ substitui'"
+  grep -q "· reverificado em " <<<"$(grep "^- \*\*LDG-0001\*\*" "$MDC")" || _fail closed-3 "entrada verificada sem 'reverificado em'"
+  grep -qF '↳ substitui `LDG-0002`' <<<"$(grep -A3 "^- \*\*LDG-0003\*\*" "$MDC")" || _fail closed-3 "entrada sucessora sem '↳ substitui'"
   # Entradas legadas renderizam sem nenhum dos marcadores novos: o ledger real não tem campo novo.
   R="$T/closed-real"; mkdir -p "$R"
   LEDGER_ROOT="$R" LEDGER_JSON="$REAL_LEDGER" LEDGER_TPL="$WS/template/.forge/templates/ledger/LEDGER.md" LEDGER_OUT="$R/LEDGER.md" \
@@ -539,10 +539,10 @@ if _want wiring; then
 
   _scn "[wiring-2] list marca o item ativo envelhecido (o que /forge:resume e SessionStart leem)"
   o="$(_lg "$F" list --status open --by-priority --top 5 2>&1)"
-  grep "^LDG-0001 " <<<"$o" | grep -q " · sem reverificação há 89d" || _fail wiring-2 "LDG-0001 sem marca: $o"
-  grep "^LDG-0002 " <<<"$o" | grep -q "sem reverificação" && _fail wiring-2 "LDG-0002 reverificado no HEAD não deveria ser marcado: $o"
+  grep -q " · sem reverificação há 89d" <<<"$(grep "^LDG-0001 " <<<"$o")" || _fail wiring-2 "LDG-0001 sem marca: $o"
+  grep -q "sem reverificação" <<<"$(grep "^LDG-0002 " <<<"$o")" && _fail wiring-2 "LDG-0002 reverificado no HEAD não deveria ser marcado: $o"
   o="$(_lg "$F" list 2>&1)"
-  grep "^LDG-0003 " <<<"$o" | grep -q "sem reverificação há 89d" || _fail wiring-2 "item planned envelhecido sem marca no list sem filtro: $o"
+  grep -q "sem reverificação há 89d" <<<"$(grep "^LDG-0003 " <<<"$o")" || _fail wiring-2 "item planned envelhecido sem marca no list sem filtro: $o"
   _set_stale_days "$F" 0
   set +e; o="$(_lg "$F" list --status open 2>&1)"; rc=$?; set -e
   [ "$rc" -eq 0 ] || _fail wiring-2 "list com limiar inválido mudou o rc: $rc"
@@ -591,7 +591,7 @@ if _want docs; then
   grep -qF "sem reverificação" "$WS/template/.forge/commands/harness/resume.md" || _fail docs-1 "resume.md sem a instrução sobre item marcado"
   RULE="$WS/template/.forge/rules/conventions/ledger-consultation.md"
   grep -qF "verify" "$RULE" && grep -qF -- "--supersedes" "$RULE" || _fail docs-1 "rule sem verify/--supersedes"
-  awk '/^ledger:/{f=1;next} f&&/^[a-z]/{f=0} f&&/^[[:space:]]*stale_days:[[:space:]]*30/{print "y"}' "$WS/template/.forge/forge.yaml" | grep -q y || _fail docs-1 "forge.yaml sem ledger.stale_days: 30"
+  grep -q y <<<"$(awk '/^ledger:/{f=1;next} f&&/^[a-z]/{f=0} f&&/^[[:space:]]*stale_days:[[:space:]]*30/{print "y"}' "$WS/template/.forge/forge.yaml")" || _fail docs-1 "forge.yaml sem ledger.stale_days: 30"
   node -e '
     const s=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
     let ok=false; const walk=(o)=>{ if(!o||typeof o!=="object") return; if(o.ledger&&o.ledger.properties&&o.ledger.properties.stale_days){const d=o.ledger.properties.stale_days; if(d.type==="integer"&&d.minimum===1) ok=true;} for(const k of Object.keys(o)) walk(o[k]); };
@@ -651,10 +651,10 @@ if _want mutation; then
   perl -pi -e 's/^\s*e\.last_verified = now;\s*$/\n/' "$OPSF"
   cmp -s "$OPSF" "$T/ops.orig" && _fail mutation-2 "a mutação não alterou o script"
   _lg "$F" "${GOOD[@]}" >/dev/null
-  _lg "$F" stale 2>&1 | grep -q "^LDG-0002 —" || _fail mutation-2 "mutação: sem carimbo o item deveria seguir envelhecido"
+  grep -q "^LDG-0002 —" <<<"$(_lg "$F" stale 2>&1)" || _fail mutation-2 "mutação: sem carimbo o item deveria seguir envelhecido"
   cp "$T/ops.orig" "$OPSF"; cmp -s "$OPSF" "$T/ops.orig" || _fail mutation-2 "restauração não bateu (cmp)"
   _lg "$F" "${GOOD[@]}" >/dev/null
-  _lg "$F" stale 2>&1 | grep -q "^LDG-0002 —" && _fail mutation-2 "recontrole: reverificado no HEAD não deveria envelhecer"
+  grep -q "^LDG-0002 —" <<<"$(_lg "$F" stale 2>&1)" && _fail mutation-2 "recontrole: reverificado no HEAD não deveria envelhecer"
   echo "OK [mutation-2]"
 
   _scn "[mutation-3] 'superseded' no CLOSED do renderizador, contra oráculo fixo da fixture (3 ativos)"

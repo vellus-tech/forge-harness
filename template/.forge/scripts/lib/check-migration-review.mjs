@@ -69,9 +69,13 @@ function parseArgs(argv) {
 }
 
 // Casa cada linha de evidência: "- [x] <path>" (revisada) ou
-// "- [exception] <path> item=<N> backlog=<ref> [adr=<ref>]" (exceção).
+// "- [exception] <path> item=<N> backlog=<ref> [adr=<ref>]" (exceção). item= é restrito a
+// 1-13 (os itens do checklist da rule) — fora disso a linha simplesmente não casa esta regex
+// e a migration fica sem evidência válida (achado de round de verify: (\d{1,2}) aceitava
+// item=0/item=99). Ordem exigida na linha é item= antes de backlog= antes de adr=, documentada
+// na rule (seção "Exceção") — uma ordem diferente não casa e é tratada como evidência ausente.
 const LINE_REVIEWED_RE = /^\s*-\s*\[x\]\s+(\S+)/;
-const LINE_EXCEPTION_RE = /^\s*-\s*\[exception\]\s+(\S+)\s+item=(\d{1,2})\s+backlog=(\S+)(?:\s+adr=(\S+))?/;
+const LINE_EXCEPTION_RE = /^\s*-\s*\[exception\]\s+(\S+)\s+item=(1[0-3]|[1-9])\s+backlog=(\S+)(?:\s+adr=(\S+))?/;
 
 function parseEvidence(text) {
   // path -> { kind: 'reviewed' } | { kind: 'exception', item, backlog, adr }
@@ -112,14 +116,19 @@ function walkDir(dir, acc = []) {
 }
 
 function resolveRangeFiles(rangeArg) {
-  // base..head form
-  if (rangeArg.includes('..')) {
+  // base..head (diff de duas pontas) ou base...head (diff simétrico de três pontos) — o
+  // pre-push nunca gera a forma de três pontos (só base..head ou sha único), mas o script
+  // aceita como modo manual/ad-hoc. Extrai o head com split em 2-3 pontos (/\.{2,3}/), não em
+  // '..' literal: "a...b".split('..') fragmentava errado (['a', '.b']), extraindo ".b" como
+  // head em vez de "b" (achado de round de verify — bug latente, nunca acionado pelo pre-push).
+  if (/\.{2,3}/.test(rangeArg)) {
     const res = run('git', ['diff', '--name-only', rangeArg]);
     if (res.status !== 0) {
       return { error: true, stderr: res.stderr || '' };
     }
     const files = res.stdout.split('\n').filter(Boolean);
-    const head = rangeArg.split('..').pop();
+    const parts = rangeArg.split(/\.{2,3}/).filter(Boolean);
+    const head = parts[parts.length - 1];
     return { error: false, files, head };
   }
   // sha/ref único, sem pai conhecido — git diff-tree --root -r --name-only <sha>
@@ -149,12 +158,18 @@ function formatResult(migrations, evidenceText) {
   for (const m of migrations) {
     const r = evaluate(m, evidenceMap);
     if (!r.ok) fails.push(`${m}: ${r.reason}`);
-    else if (r.msg) passMsgs.push(`${m}: ${r.msg}`);
+    else if (r.msg) passMsgs.push(r.msg);
   }
   if (fails.length) {
     return { ok: false, text: `FAIL (${fails.join('; ')})` };
   }
   if (passMsgs.length) {
+    // Texto exato do critério de aceite para o caso comum (uma exceção): "PASS (exceção item
+    // N, backlog X)", sem prefixo de path (achado de round de verify — a versão anterior
+    // sempre prefixava "<path>: "). Com mais de uma exceção no mesmo range, a mensagem junta
+    // as duas sem path — ambiguidade aceita nesse caso raro; o script não analisa o SQL, só a
+    // forma da evidência, e qual migration está em exceção já está registrado no próprio
+    // migration-review.md para quem precisar auditar.
     return { ok: true, text: `PASS (${passMsgs.join('; ')})` };
   }
   return { ok: true, text: 'PASS' };

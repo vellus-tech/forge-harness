@@ -245,7 +245,7 @@ mk_real_repo() {  # mk_real_repo <box> -> ecoa <repo-dir>
   mkdir -p "$R/.forge/scripts/lib" "$R/.forge/hooks/git"
   cp "$LIB" "$R/.forge/scripts/lib/"
   cp "$HOOK" "$R/.forge/hooks/git/pre-push"
-  for _stub in check-ai-attribution.sh check-liaison-acks.sh check-shell-pipeline.sh check-heredoc-hash.sh; do
+  for _stub in check-ai-attribution.sh check-liaison-acks.sh check-shell-pipeline.sh check-heredoc-hash.sh check-migration-review.sh; do
     printf '#!/usr/bin/env bash\nexit 0\n' > "$R/.forge/scripts/$_stub"
     chmod +x "$R/.forge/scripts/$_stub"
   done

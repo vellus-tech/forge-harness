@@ -17,7 +17,7 @@
 - [X] TASK-02 — Índice lexical: normalização, BM25, entidades, grafo de links, texto em `texts.bin`, serialização determinística (rastreia: REQ-02, REQ-03, design §2.4; paths: `template/.forge/scripts/lib/kb-lexical.mjs`, `tests/w285-kb-lexical-gate.sh`, `README.md`; depende: TASK-01)
   - Teste (comando): `bash tests/w285-kb-lexical-gate.sh`
   - Padrão de falha: `FAIL \[[^\]]+\]`
-- [ ] TASK-03 — Fusão: RRF ponderado, propagação de links e combinação do re-rank (desempate pelo cross-encoder) como funções puras, com as constantes calibradas; o commit vermelho traz também as cópias do conjunto de avaliação, para que o holdout entre no git antes das constantes (rastreia: REQ-03, REQ-07, REQ-11, design §2.5, §2.6, §2.11; paths: `template/.forge/scripts/lib/kb-fuse.mjs`, `tests/w286-kb-fuse-gate.sh`, `tests/fixtures/kb/eval/calibration.json`, `tests/fixtures/kb/eval/holdout.json`, `README.md`; depende: —)
+- [X] TASK-03 — Fusão: RRF ponderado, propagação de links e combinação do re-rank (desempate pelo cross-encoder) como funções puras, com as constantes calibradas; o commit vermelho traz também as cópias do conjunto de avaliação, para que o holdout entre no git antes das constantes (rastreia: REQ-03, REQ-07, REQ-11, design §2.5, §2.6, §2.11; paths: `template/.forge/scripts/lib/kb-fuse.mjs`, `tests/w286-kb-fuse-gate.sh`, `tests/fixtures/kb/eval/calibration.json`, `tests/fixtures/kb/eval/holdout.json`, `README.md`; depende: —)
   - Teste (comando): `bash tests/w286-kb-fuse-gate.sh`
   - Padrão de falha: `FAIL \[[^\]]+\]`
 

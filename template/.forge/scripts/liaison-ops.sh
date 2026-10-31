@@ -468,6 +468,18 @@ const { pathToFileURL } = require('url');
 NODEEOF
 }
 
+# _native_state_dir — <git-common-dir>/forge-native/, o estado local NÃO VERSIONADO da
+# mensageria nativa (REQ-08, design §2.6): dispositions.jsonl e reports/<session-id>.json. Fora
+# da árvore de trabalho (nunca sob um .gitignore de branch) e compartilhado por todas as
+# worktrees do repositório, porque é o MESMO <git-common-dir> que o visitante de qualquer uma
+# delas resolve.
+_native_state_dir() {
+  local common
+  common="$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" \
+    || { echo "FAIL: não foi possível resolver o git-common-dir de '$ROOT'" >&2; return 1; }
+  printf '%s/forge-native\n' "$common"
+}
+
 case "$cmd" in
 
 # ---------------------------------------------------------------------------------------------
@@ -1616,6 +1628,224 @@ NODEEOF
 )" || exit 1
   echo "$pointer_out"
   echo "to: $to"
+  ;;
+
+# ---------------------------------------------------------------------------------------------
+# native — diagnóstico de cobertura (REQ-08, design §2.6) e declaração de descarte. Estado local
+# NÃO VERSIONADO em <git-common-dir>/forge-native/ (dispositions.jsonl + reports/<session-id>.json)
+# — fora da árvore de trabalho, compartilhado por todas as worktrees do repositório.
+native)
+  native_sub="${1:-}"; shift || true
+  case "$native_sub" in
+
+  check)
+    native_session=""; native_transcript=""; native_report="false"; native_pending="false"
+    NATIVE_CHECK_FLAGS="--session, --transcript, --report, --pending"
+    while [ $# -gt 0 ]; do case "$1" in
+      --session) forge_reject_flag_as_value "native check" --session "${2-}" "$NATIVE_CHECK_FLAGS"; native_session="$2"; shift 2 ;;
+      --transcript) forge_reject_flag_as_value "native check" --transcript "${2-}" "$NATIVE_CHECK_FLAGS"; native_transcript="$2"; shift 2 ;;
+      --report) native_report="true"; shift ;;
+      --pending) native_pending="true"; shift ;;
+      *) _reject_unknown "native check" "$NATIVE_CHECK_FLAGS" "$1" ;;
+    esac; done
+
+    native_state_dir="$(_native_state_dir)" || exit 1
+    mkdir -p "$native_state_dir/reports"
+
+    if [ "$native_pending" = "true" ]; then
+      node - "$LIBDIR" "$native_state_dir" <<'NODEEOF'
+const { readFileSync, readdirSync, existsSync, writeFileSync } = require('fs');
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, stateDir] = process.argv;
+  const R = await import(pathToFileURL(join(lib, 'untrusted-render.mjs')).href);
+  const reportsDir = join(stateDir, 'reports');
+  const files = existsSync(reportsDir) ? readdirSync(reportsDir).filter((f) => f.endsWith('.json')) : [];
+  const reports = [];
+  for (const f of files) {
+    const full = join(reportsDir, f);
+    let r;
+    try { r = JSON.parse(readFileSync(full, 'utf8')); } catch { continue; }
+    if (r.delivered === true) continue;
+    reports.push({ file: full, data: r });
+  }
+  if (!reports.length) { console.log('native check --pending: nenhum relatório pendente'); return; }
+  reports.sort((a, b) => String(b.data.generatedAt || '').localeCompare(String(a.data.generatedAt || '')));
+  const shown = reports.slice(0, 5);
+  const rest = reports.length - shown.length;
+  for (const r of shown) {
+    const d = r.data;
+    const shortId = String(d.sessionId || '?').slice(0, 8);
+    const date = String(d.generatedAt || '?').slice(0, 10);
+    if (d.brokenInstrument) {
+      console.log(`${date} · sessão ${shortId} · instrumento quebrado — native check --session ${d.sessionId}`);
+    } else {
+      const c = d.counts || {};
+      console.log(`${date} · sessão ${shortId} · ${c.pending || 0} pendente(s), ${c.otherWorkspace || 0} de outro workspace, ${c.unknownWorkspace || 0} de workspace desconhecido — native check --session ${d.sessionId}`);
+    }
+  }
+  if (rest > 0) console.log(`+${rest} relatório(s)`);
+  // Entrega única (REQ-08): todo relatório visto aqui (os exibidos individualmente e os só
+  // contados em "+N") é marcado entregue — a próxima chamada de --pending não o repete.
+  for (const r of reports) {
+    r.data.delivered = true;
+    writeFileSync(r.file, JSON.stringify(r.data));
+  }
+})();
+NODEEOF
+      exit 0
+    fi
+
+    node - "$LIBDIR" "$ROOT" "$native_state_dir" "${native_session:-}" "${native_transcript:-}" "$native_report" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" <<'NODEEOF'
+const { readFileSync, readdirSync, existsSync, writeFileSync } = require('fs');
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, stateDir, sessionArg, transcriptArg, reportMode, nowWall] = process.argv;
+  const Transcript = await import(pathToFileURL(join(lib, 'native-transcript.mjs')).href);
+  const Registry = await import(pathToFileURL(join(lib, 'native-registry.mjs')).href);
+  const Workspace = await import(pathToFileURL(join(lib, 'native-workspace.mjs')).href);
+  const R = await import(pathToFileURL(join(lib, 'untrusted-render.mjs')).href);
+
+  const sessionId = sessionArg || process.env.CLAUDE_CODE_SESSION_ID || '';
+  // Único caso de rc != 0 (REQ-08): sessão não identificável — nem --transcript, nem --session,
+  // nem CLAUDE_CODE_SESSION_ID.
+  if (!transcriptArg && !sessionId) {
+    console.error('FAIL: sessão não identificável — informe --session <id>, --transcript <path> ou exporte CLAUDE_CODE_SESSION_ID');
+    process.exit(1);
+  }
+
+  function persist(data) {
+    if (reportMode !== 'true') return;
+    const reportsDir = join(stateDir, 'reports');
+    const name = (sessionId || 'unknown').replace(/[^A-Za-z0-9._-]/g, '_');
+    writeFileSync(join(reportsDir, `${name}.json`), JSON.stringify({
+      sessionId: sessionId || null, generatedAt: nowWall, delivered: false, ...data,
+    }));
+  }
+
+  const read = Transcript.readTranscript({ sessionId: sessionId || undefined, transcriptPath: transcriptArg || undefined });
+  if (!read.ok) {
+    // Diagnóstico é AVISO (REQ-08): nunca bloqueia o fim nem o início de sessão — "instrumento
+    // quebrado" ou leitura impossível sai com rc 0, nunca "nada pendente".
+    console.log(`native check: ${read.reason}`);
+    persist({ brokenInstrument: true, reason: read.reason, counts: { total: 0, pending: 0, otherWorkspace: 0, unknownWorkspace: 0 } });
+    return;
+  }
+
+  // Destinação (design §2.6): registro no liaison com cross_session.native_ref igual ao
+  // fingerprint EM QUALQUER CANAL DO TRONCO, ou declaração via `native dispose`.
+  const liaisonDir = join(root, '.forge', 'liaison');
+  const registeredRefs = new Set();
+  if (existsSync(liaisonDir)) {
+    for (const ch of readdirSync(liaisonDir, { withFileTypes: true })) {
+      if (!ch.isDirectory()) continue;
+      const logDir = join(liaisonDir, ch.name, 'log');
+      if (!existsSync(logDir)) continue;
+      for (const f of readdirSync(logDir).filter((x) => x.endsWith('.jsonl'))) {
+        const text = readFileSync(join(logDir, f), 'utf8');
+        for (const line of text.split('\n')) {
+          const t = line.trim();
+          if (!t) continue;
+          let m;
+          try { m = JSON.parse(t); } catch { continue; }
+          if (m && m.cross_session && m.cross_session.native_ref) registeredRefs.add(m.cross_session.native_ref);
+        }
+      }
+    }
+  }
+  const dispositionsFile = join(stateDir, 'dispositions.jsonl');
+  const disposedRefs = new Set();
+  if (existsSync(dispositionsFile)) {
+    for (const line of readFileSync(dispositionsFile, 'utf8').split('\n')) {
+      const t = line.trim();
+      if (!t) continue;
+      let d;
+      try { d = JSON.parse(t); } catch { continue; }
+      if (d && d.fingerprint) disposedRefs.add(d.fingerprint);
+    }
+  }
+
+  // Workspace do remetente (design §2.6): resolvido pelo socket de `from` e por verifiedPeerPid
+  // no registro — NUNCA "mesmo workspace" por omissão (registro ausente -> desconhecido).
+  const selfRoot = Workspace.mainRepoRoot(root) || root;
+  const selfWorkspace = Workspace.workspaceIdentity(selfRoot);
+  const items = [];
+  let otherWorkspace = 0;
+  let unknownWorkspace = 0;
+  let pendingCount = 0;
+  for (const rec of read.receptions) {
+    const destined = registeredRefs.has(rec.fingerprint) || disposedRefs.has(rec.fingerprint);
+    const socketPath = rec.from.startsWith('uds:') ? rec.from.slice(4) : rec.from;
+    const bySocket = Registry.resolveBySocket({ socketPath });
+    let entry = bySocket.ok ? bySocket.entry : null;
+    if (entry && typeof rec.verifiedPeerPid === 'number' && entry.pid !== rec.verifiedPeerPid) entry = null;
+    let workspace = 'unknown';
+    if (entry) {
+      const senderRoot = Workspace.mainRepoRoot(entry.cwd);
+      const senderWorkspace = senderRoot ? Workspace.workspaceIdentity(senderRoot) : null;
+      workspace = senderWorkspace && senderWorkspace === selfWorkspace ? 'same' : 'other';
+    }
+    if (workspace === 'other') otherWorkspace += 1;
+    if (workspace === 'unknown') unknownWorkspace += 1;
+    if (!destined) {
+      pendingCount += 1;
+      items.push({ fingerprint: rec.fingerprint, fromName: rec.fromName, workspace });
+    }
+  }
+
+  const wsLabel = (w) => (w === 'other' ? 'outro workspace' : w === 'unknown' ? 'workspace desconhecido' : 'mesmo workspace');
+  console.log(`native check — ${read.receptions.length} recepção(ões), ${pendingCount} pendente(s), ${otherWorkspace} de outro workspace, ${unknownWorkspace} de workspace desconhecido`);
+  const body = items.length
+    ? items.map((it) => `${it.fingerprint} — ${it.fromName} (${wsLabel(it.workspace)})`).join('\n')
+    : '(nenhuma recepção pendente)';
+  // from-name é autodeclarado e texto de peer — passa por untrusted-render (moldura e
+  // neutralização), nunca cru (REQ-08, rule conventions/liaison-untrusted-input.md).
+  for (const line of R.renderUntrusted(body, 'peer').split('\n')) console.log(line);
+
+  persist({
+    brokenInstrument: false,
+    counts: { total: read.receptions.length, pending: pendingCount, otherWorkspace, unknownWorkspace },
+    pending: items,
+  });
+})();
+NODEEOF
+    ;;
+
+  dispose)
+    native_fp="${1:-}"; shift || true
+    native_ephemeral=""
+    NATIVE_DISPOSE_FLAGS="--ephemeral"
+    while [ $# -gt 0 ]; do case "$1" in
+      --ephemeral) forge_reject_flag_as_value "native dispose" --ephemeral "${2-}" "$NATIVE_DISPOSE_FLAGS"; native_ephemeral="$2"; shift 2 ;;
+      *) _reject_unknown "native dispose" "$NATIVE_DISPOSE_FLAGS" "$1" ;;
+    esac; done
+    [ -n "$native_fp" ] || { echo "FAIL: uso: native dispose <fingerprint> --ephemeral <class>" >&2; exit 1; }
+    printf '%s' "$native_fp" | grep -Eq '^[0-9a-f]{64}$' || { echo "FAIL: fingerprint fora do padrão sha256 hex: '$native_fp'" >&2; exit 1; }
+    [ -n "$native_ephemeral" ] || { echo "FAIL: --ephemeral <class> obrigatório" >&2; exit 1; }
+
+    native_state_dir="$(_native_state_dir)" || exit 1
+    mkdir -p "$native_state_dir"
+    node - "$LIBDIR" "$native_state_dir" "$native_fp" "$native_ephemeral" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" <<'NODEEOF'
+const { appendFileSync } = require('fs');
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, stateDir, fingerprint, ephemeralClass, nowWall] = process.argv;
+  const Classes = await import(pathToFileURL(join(lib, 'native-classes.mjs')).href);
+  if (!Classes.EPHEMERAL_CLASSES.includes(ephemeralClass)) {
+    console.error(`FAIL: classe efêmera inválida '${ephemeralClass}' (use: ${Classes.EPHEMERAL_CLASSES.join('|')})`);
+    process.exit(1);
+  }
+  appendFileSync(join(stateDir, 'dispositions.jsonl'), JSON.stringify({ fingerprint, class: ephemeralClass, at: nowWall }) + '\n');
+})();
+NODEEOF
+    echo "OK native dispose — $native_fp declarado $native_ephemeral"
+    ;;
+
+  *) echo "FAIL: subcomando desconhecido 'native $native_sub' (use: check, dispose)" >&2; exit 1 ;;
+  esac
   ;;
 
 *)

@@ -572,8 +572,10 @@ export function preToolUseWiring(root) {
   if (handoffAuto || ledgerAuto || liaisonAuto) {
     hooks.SessionStart = [{ hooks: [{ type: 'command', command: CMD_SESSION_START }] }];
   }
-  // SessionEnd só regenera o scaffold do handoff (o ledger é regenerado a cada mutação).
-  if (handoffAuto) {
+  // SessionEnd regenera o scaffold do handoff (handoff.auto) e/ou roda o diagnóstico de
+  // cobertura `native check --report` do liaison (liaison.auto, REQ-08, design §2.6) — basta um
+  // dos dois flags para materializar o hook; o `.sh` decide internamente o que de fato roda.
+  if (handoffAuto || liaisonAuto) {
     hooks.SessionEnd = [{ hooks: [{ type: 'command', command: CMD_SESSION_END }] }];
   }
   return hooks;

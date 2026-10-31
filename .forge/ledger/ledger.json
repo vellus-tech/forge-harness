@@ -3259,6 +3259,110 @@
       "updated_at": "2026-09-28T09:26:22-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0202"
+    },
+    {
+      "id": "LDG-0203",
+      "type": "tech-debt",
+      "title": "Avaliar configuração gerenciada do Claude Code para negar/isolar mensageria nativa entre sessões em repositórios PCI",
+      "detail": "A contenção por allowed_workspaces e o gancho de saída não são fronteira contra um agente determinado rodando como o usuário do sistema (socket+token de mensageria estão no ambiente dele). A única contenção que o usuário não altera é a configuração gerenciada do Claude Code. Avaliar, para repositórios em escopo PCI, negar ou isolar a mensageria nativa entre sessões por essa política — fecha quando a avaliação (viável/inviável) estiver registrada e, se viável, a política documentada.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T17:08:13-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0203"
+    },
+    {
+      "id": "LDG-0204",
+      "type": "follow-up",
+      "title": "Medir o formato de agente nomeado (Agent com input.name, agent teams) quando o recurso estiver disponível",
+      "detail": "O gancho de saída (native-send-guard.mjs) trata nome de sessão igual a Agent nomeado como destino de sessão quando o registro local tem entrada viva única com esse nome (REQ-05, design item 2 do gate design_reviewed). O formato de chamada Agent com input.name em agent teams não foi medido em produção — a medição atual é sobre fixture sintética. Fecha quando o recurso estiver disponível e a medição real confirmar ou corrigir o payload assumido.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T17:08:13-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0204"
+    },
+    {
+      "id": "LDG-0205",
+      "type": "follow-up",
+      "title": "Auditar outros ganchos/scripts que leem stdin sem limite de tempo",
+      "detail": "Medido neste change: on-session-end.sh travava com stdin nunca fechado (corrigido aqui). Auditar os demais ganchos e scripts do harness que leem stdin para confirmar se algum outro tem o mesmo defeito — fecha com a lista de pontos auditados e, se achar outro caso, com o fix correspondente ou um item novo de ledger apontando para ele.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T17:08:13-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0205"
+    },
+    {
+      "id": "LDG-0206",
+      "type": "roadmap",
+      "title": "ADR: Mensageria nativa entre sessões é sinalização; o registro durável é o liaison",
+      "detail": "Decisão transversal sugerida no design §10 deste change: corpo canônico sempre no liaison, ponteiro liaison:<channel>/<msg_id>, declaração efêmera com classes fechadas, contenção por workspace com cadastro humano e detecção, configuração gerenciada como única fronteira real. Fecha quando o ADR for criado no baseline (/forge:adr) com status accepted.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T17:08:13-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0206"
     }
   ]
 }

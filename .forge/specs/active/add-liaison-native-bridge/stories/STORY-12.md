@@ -3,7 +3,7 @@ story_id: STORY-12
 epic: add-liaison-native-bridge
 title: "Normas das rules, itens de ledger e ADR"
 depends_on: [STORY-03]
-status: todo
+status: in_progress
 ---
 
 # STORY-12 — Normas das rules, itens de ledger e ADR
@@ -31,8 +31,8 @@ Entregar, em TDD vermelho → verde, normas das rules e itens de ledger, conform
 
 ## Tasks
 
-- [ ] TASK-22 — Gate vermelho das normas: classes da rule = `EPHEMERAL_CLASSES` com mutação dos dois lados; frases normativas obrigatórias do design §2.8; `validate-rules.sh` com `FORGE_ROOT` no template; `last_reviewed` atualizado; itens de ledger com origem no change (configuração gerenciada PCI; medição do formato de agente nomeado; ADR "mensageria nativa é sinalização" sugerida no design §10) (paths: `tests/native-rules-parity-gate.sh`; depende: TASK-05)
-- [ ] TASK-23 — `liaison-protocol.md` e `liaison-untrusted-input.md` atualizadas e os três itens de ledger abertos (paths: `template/.forge/rules/conventions/liaison-protocol.md`, `template/.forge/rules/conventions/liaison-untrusted-input.md`, `.forge/ledger/`; depende: TASK-22)
+- [X] TASK-22 — Gate vermelho das normas: classes da rule = `EPHEMERAL_CLASSES` com mutação dos dois lados; frases normativas obrigatórias do design §2.8; `validate-rules.sh` com `FORGE_ROOT` no template; `last_reviewed` atualizado; itens de ledger com origem no change (configuração gerenciada PCI; medição do formato de agente nomeado; ADR "mensageria nativa é sinalização" sugerida no design §10) (paths: `tests/native-rules-parity-gate.sh`; depende: TASK-05)
+- [X] TASK-23 — `liaison-protocol.md` e `liaison-untrusted-input.md` atualizadas e os três itens de ledger abertos (paths: `template/.forge/rules/conventions/liaison-protocol.md`, `template/.forge/rules/conventions/liaison-untrusted-input.md`, `.forge/ledger/`; depende: TASK-22)
 - [ ] TASK-27 — ADR "Mensageria nativa entre sessões é sinalização; o registro durável é o liaison" no baseline, com índice atualizado e item de ledger resolvido (paths: `.forge/product/current/adr/`, `.forge/ledger/`; depende: TASK-23)
 
 ## Acceptance criteria

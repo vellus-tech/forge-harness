@@ -41,8 +41,9 @@ grep -q 'casa mais de 10 documentos' "$T/ev3.err" || fail 1 "fragmento largo sem
 ok 1
 
 # [2]
-EV="$WS/.forge/specs/active/add-unified-knowledge-search/evidence/prototype"
-if [ -d "$EV" ]; then
+# a evidência do change vive em specs/active durante o change e em specs/archived/<data>-<id> depois do archive
+EV="$(ls -d "$WS"/.forge/specs/active/add-unified-knowledge-search/evidence/prototype "$WS"/.forge/specs/archived/*-add-unified-knowledge-search/evidence/prototype 2>/dev/null | head -1 || true)"
+if [ -n "$EV" ] && [ -d "$EV" ]; then
   cmp -s "$EV/queries.json" "$WS/tests/fixtures/kb/eval/calibration.json" || fail 2 "calibration.json difere da evidência"
   cmp -s "$EV/holdout.json" "$WS/tests/fixtures/kb/eval/holdout.json" || fail 2 "holdout.json difere da evidência"
 fi

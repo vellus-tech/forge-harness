@@ -3,7 +3,7 @@ story_id: STORY-01
 epic: add-unified-knowledge-search
 title: Fundação lexical zero-dep — corpus, índice e fusão
 depends_on: []
-status: in_progress
+status: done
 ---
 
 # STORY-01 — Fundação lexical zero-dep — corpus, índice e fusão

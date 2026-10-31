@@ -394,7 +394,7 @@ async function main() {
 
     check('registry: resolução por socket — /tmp e /private/tmp convergem (realpath do diretório pai)', () => {
       const viaRealTmp = uniqueSocketPath.replace(/^\/tmp\//, '/private/tmp/');
-      const res = R.resolveBySocket({ sessionsDir: uniqueDir, socketPath: viaRealTmp });
+      const res = R.resolveBySocket({ sessionsDir: uniqueDir, sockFile: viaRealTmp });
       assertTrue(res.ok, `deveria resolver via /private/tmp: ${res.reason || ''}`);
       assertEqual(res.entry.sessionId, 'session-unique', 'sessionId resolvido pelo socket normalizado');
     });

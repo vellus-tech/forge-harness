@@ -39,6 +39,8 @@
 #   liaison-ops.sh sync     <channel> [--push-only | --pull-only] [--repair-own-log]
 #   liaison-ops.sh render   <channel>
 #   liaison-ops.sh notify   <channel> <msg_id> --to <destino>
+#   liaison-ops.sh native check [--session <id>] [--transcript <path>] [--report] [--pending]
+#   liaison-ops.sh native dispose <fingerprint> --ephemeral <class>
 #
 
 # TRANSPORTE (Onda 2): plugável, em lib/transports/<kind>.sh, com o contrato t_probe/t_push/t_pull.
@@ -441,8 +443,8 @@ const { pathToFileURL } = require('url');
   // `rec.from` traz o prefixo `uds:` (forma da tag — evidência b); o registro de sessões guarda
   // `messagingSocketPath` SEM prefixo (evidência c). Despir o prefixo antes de consultar o
   // registro por socket é o que torna a resolução possível.
-  const socketPath = rec.from.startsWith('uds:') ? rec.from.slice(4) : rec.from;
-  const bySocket = Registry.resolveBySocket({ socketPath });
+  const sockFile = rec.from.startsWith('uds:') ? rec.from.slice(4) : rec.from;
+  const bySocket = Registry.resolveBySocket({ sockFile });
   let entry = bySocket.ok ? bySocket.entry : null;
   if (entry && typeof rec.verifiedPeerPid === 'number' && entry.pid !== rec.verifiedPeerPid) {
     entry = null; // socket reutilizado por outra sessão — descartado, cai no caso "registro ausente"
@@ -1777,8 +1779,8 @@ const { pathToFileURL } = require('url');
   let pendingCount = 0;
   for (const rec of read.receptions) {
     const destined = registeredRefs.has(rec.fingerprint) || disposedRefs.has(rec.fingerprint);
-    const socketPath = rec.from.startsWith('uds:') ? rec.from.slice(4) : rec.from;
-    const bySocket = Registry.resolveBySocket({ socketPath });
+    const sockFile = rec.from.startsWith('uds:') ? rec.from.slice(4) : rec.from;
+    const bySocket = Registry.resolveBySocket({ sockFile });
     let entry = bySocket.ok ? bySocket.entry : null;
     if (entry && typeof rec.verifiedPeerPid === 'number' && entry.pid !== rec.verifiedPeerPid) entry = null;
     let workspace = 'unknown';

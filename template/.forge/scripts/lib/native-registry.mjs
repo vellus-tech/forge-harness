@@ -123,18 +123,18 @@ export function resolveByName({ sessionsDir, name } = {}) {
   return { ok: true, entry: alive[0] };
 }
 
-// resolveBySocket({ sessionsDir, socketPath }) -> { ok, entry } | { ok: false, reason }.
+// resolveBySocket({ sessionsDir, sockFile }) -> { ok, entry } | { ok: false, reason }.
 // Fail-closed só se nenhum registro válido deu match E existe arquivo ilegível no diretório
 // (a resolução pode ter perdido o match verdadeiro nesse arquivo).
-export function resolveBySocket({ sessionsDir, socketPath } = {}) {
+export function resolveBySocket({ sessionsDir, sockFile } = {}) {
   const { entries, errors, dirError } = readRegistryFiles({ sessionsDir });
   if (dirError) return { ok: false, reason: dirError };
-  const target = normalizeSocketPath(socketPath);
+  const target = normalizeSocketPath(sockFile);
   const alive = entries.filter((e) => isAlive(e) && normalizeSocketPath(e.messagingSocketPath) === target);
   if (alive.length === 0) {
     const fc = failClosedReason(errors);
     if (fc) return { ok: false, reason: fc };
-    return { ok: false, reason: `registro: nenhuma sessão viva com socket '${socketPath}'` };
+    return { ok: false, reason: `registro: nenhuma sessão viva com socket '${sockFile}'` };
   }
   return { ok: true, entry: alive[0] };
 }

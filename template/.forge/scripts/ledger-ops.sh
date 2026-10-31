@@ -196,18 +196,37 @@ _resolve_stale_days() {
     STALE_ERR="FAIL: ledger-ops: --days '$flag' inválido — o limiar é um inteiro >= 1 (dias)."
     return 2
   fi
-  cfg="$(awk '/^ledger:/{f=1;next} f&&/^[^[:space:]#]/{f=0} f&&/^[[:space:]]*stale_days:/{sub(/^[[:space:]]*stale_days:[[:space:]]*/,"");sub(/[[:space:]]*#.*$/,"");gsub(/["'"'"']/,"");print;exit}' "$ROOT/.forge/forge.yaml" 2>/dev/null || true)"
+  # A forma em linha (`ledger: {stale_days: N}`) não é lida por este idioma de bloco; declarada,
+  # ela é recusada nomeando a chave — ignorá-la seria aplicar o default a um limiar declarado.
+  if grep -qE '^ledger:[[:space:]]*\{.*stale_days' "$ROOT/.forge/forge.yaml" 2>/dev/null; then
+    STALE_ERR="FAIL: ledger-ops: forge.yaml declara ledger.stale_days na forma em linha ({...}) — use a forma em bloco (ledger:\n  stale_days: N) em $ROOT/.forge/forge.yaml."
+    return 2
+  fi
+  # `PRESENTE:` distingue chave ausente (default) de chave presente e vazia (erro).
+  cfg="$(awk '/^ledger:/{f=1;next} f&&/^[^[:space:]#]/{f=0} f&&/^[[:space:]]*stale_days:/{sub(/^[[:space:]]*stale_days:[[:space:]]*/,"");sub(/[[:space:]]*#.*$/,"");gsub(/["'"'"']/,"");print "PRESENTE:" $0;exit}' "$ROOT/.forge/forge.yaml" 2>/dev/null || true)"
   if [ -n "$cfg" ]; then
+    cfg="${cfg#PRESENTE:}"
+    cfg="${cfg%"${cfg##*[![:space:]]}"}"
     if [[ "$cfg" =~ ^[1-9][0-9]*$ ]]; then STALE_DAYS="$cfg"; STALE_ORIGIN="forge.yaml"; return 0; fi
     STALE_ERR="FAIL: ledger-ops: forge.yaml ledger.stale_days '$cfg' inválido — o limiar é um inteiro >= 1 (dias). Corrija em $ROOT/.forge/forge.yaml."
     return 2
   fi
   STALE_DAYS=30; STALE_ORIGIN="default"; return 0
 }
-# _asof_valid <texto> — data ISO-8601 que o Date.parse do node interpreta.
+# _asof_valid <texto> — data ISO-8601 sem ambiguidade de fuso: `AAAA-MM-DD` (lida como UTC) ou
+# data e hora COM `Z`/`±hh:mm`. Hora sem fuso é recusada: o Date.parse a leria no fuso local do
+# processo, e a mesma entrada daria idades diferentes em máquinas diferentes — relógio de ambiente
+# entrando por outra porta. Data inexistente no calendário (2026-02-30) também é recusada, em vez
+# de rolar em silêncio para o mês seguinte.
 _asof_valid() {
-  [[ "$1" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2} ]] || return 1
-  node -e 'process.exit(Number.isNaN(Date.parse(process.argv[1])) ? 1 : 0)' "$1"
+  [[ "$1" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ || "$1" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]+)?)?(Z|[+-][0-9]{2}:[0-9]{2})$ ]] || return 1
+  node -e '
+    const s = process.argv[1];
+    if (Number.isNaN(Date.parse(s))) process.exit(1);
+    const [y, m, d] = s.slice(0, 10).split("-").map(Number);
+    const c = new Date(Date.UTC(y, m - 1, d));
+    process.exit(c.getUTCFullYear() === y && c.getUTCMonth() === m - 1 && c.getUTCDate() === d ? 0 : 1);
+  ' "$1"
 }
 
 # LDG-0068: as portas que ESCREVEM anunciam quando o ROOT resolvido difere do repositório de
@@ -373,7 +392,7 @@ if (!e) { console.error('entrada ' + id + ' não encontrada'); process.exit(1); 
 // 'superseded' não sai do status por porta nenhuma: o trabalho continua no sucessor.
 if (e.status === 'superseded' && st) {
   console.error("FAIL: ledger-ops: 'update " + id + " --status " + st + "' — a entrada está em 'superseded' e não sai desse status; o trabalho continua em " + ((e.links && e.links.superseded_by) || '(sucessor ausente)') + '. Correção de título/prioridade/detail continua permitida.');
-  process.exit(5);
+  process.exit(1);
 }
 // Assinatura de CONTEÚDO antes e depois: `updated_at` deliberadamente fora dela. Um update cujo
 // único efeito é mexer no carimbo faz a entrada parecer recente sem carregar informação nova, e
@@ -544,7 +563,12 @@ function checkEvidence() {
     let real;
     try { real = fs.realpathSync(path.join(root, p)); } catch { return { err: "'" + p + "' não existe sob " + root }; }
     const rel = path.relative(rootReal, real);
-    if (rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) return { err: "'" + p + "' resolve para fora da raiz do projeto" };
+    if (rel === '' || rel === '..' || rel.startsWith('..' + path.sep) || path.isAbsolute(rel)) return { err: "'" + p + "' resolve para fora da raiz do projeto" };
+    // O repositório git e o próprio ledger não são evidência do estado do código: citar
+    // .git/HEAD ou ledger.json reverificaria o item contra ele mesmo.
+    const relPosix = rel.split(path.sep).join('/');
+    if (relPosix === '.git' || relPosix.startsWith('.git/')) return { err: "'" + p + "' está dentro de .git/ — evidência é o código ou o estado do projeto, não os metadados do git" };
+    if (relPosix.startsWith('.forge/ledger/')) return { err: "'" + p + "' é o próprio ledger — um item não se reverifica contra ele mesmo" };
     if (!fs.statSync(real).isFile()) return { err: "'" + p + "' não é arquivo regular" };
     return { real };
   };
@@ -854,13 +878,17 @@ if (ev.length) {
   ev.forEach((x, i) => out.push(`    ${i + 1}. ${day(x.at)} ${x.verdict} ${x.kind} ${x.ref} — ${x.observed}`));
 }
 // Cadeia: para trás até a raiz, para frente até a ponta.
-const back = []; const seen = new Set([id]); let defect = '';
+const back = []; const seen = new Set([id]); let defect = ''; const naoReciproco = [];
 for (let cur = e; cur && cur.supersedes; ) {
   const prev = cur.supersedes;
   if (seen.has(prev)) { defect = `(ciclo em ${prev})`; break; }
   seen.add(prev);
   const p = byId.get(prev);
   if (!p) { defect = `(elo quebrado: ${prev} não existe)`; back.unshift(prev); break; }
+  // Elo recíproco: quem é substituído aponta de volta para quem o substitui.
+  const volta = p.links && p.links.superseded_by;
+  // Não interrompe a caminhada: um ciclo adiante continua sendo nomeado.
+  if (volta !== cur.id) naoReciproco.push(`(elo não recíproco: ${cur.id} substitui ${prev}, que aponta ${volta || 'nenhum sucessor'})`);
   back.unshift(prev); cur = p;
 }
 const fwd = []; let fdefect = '';
@@ -873,7 +901,9 @@ for (let cur = e; cur && cur.links && cur.links.superseded_by; ) {
   fwd.push(next); cur = n;
 }
 const chain = [...back, `[${id}]`, ...fwd];
-const defects = [defect, fdefect].filter(Boolean).join(' ');
+// Um mesmo ciclo é visto pelas duas direções; nomeá-lo duas vezes seria ruído.
+const doisCiclos = defect.startsWith('(ciclo') && fdefect.startsWith('(ciclo');
+const defects = [...naoReciproco, doisCiclos ? defect : [defect, fdefect].filter(Boolean).join(' ')].filter(Boolean).join(' ');
 out.push('  cadeia de supersessão: ' + (chain.length > 1 || defects ? chain.join(' → ') + (defects ? ' ' + defects : '') : '—'));
 out.push('  detail:');
 for (const l of String(e.detail || '').split('\n')) out.push('    ' + l);
@@ -897,8 +927,10 @@ status)
   elif ! _resolve_stale_days ""; then
     st_suffix=" · limiar ledger.stale_days inválido"
   else
-    st_k="$(node "$AGING_LIB" summary "$LF" "$st_head" "$STALE_DAYS" | awk '{print $1}')"
+    st_sum="$(node "$AGING_LIB" summary "$LF" "$st_head" "$STALE_DAYS")"
+    st_k="$(awk '{print $1}' <<<"$st_sum")"; st_j="$(awk '{print $3}' <<<"$st_sum")"
     if [ -n "$st_k" ] && [ "$st_k" -gt 0 ]; then st_suffix=" · $st_k sem reverificação há mais de ${STALE_DAYS}d"; fi
+    if [ -n "$st_j" ] && [ "$st_j" -gt 0 ]; then st_suffix="$st_suffix · $st_j inconsistente(s) (ledger-ops.sh stale)"; fi
   fi
   node - "$LF" "$st_suffix" <<'NODEEOF'
 const { readFileSync } = require('fs');
@@ -958,7 +990,8 @@ for (const e of items) {
   // Ordem canônica dos sufixos (design §8): substitui, reverificado, sem reverificação.
   const sup = e.supersedes ? ` (substitui ${e.supersedes})` : '';
   const ver = e.last_verified ? ` · reverificado em ${String(e.last_verified).slice(0, 10)}` : '';
-  const old = ages.has(e.id) ? ` · sem reverificação há ${ages.get(e.id)}d` : '';
+  const ag = ages.get(e.id);
+  const old = ag === '!' ? ' · inconsistente (last_verified sem evidência que o sustente — ledger-ops.sh stale)' : (ag ? ` · sem reverificação há ${ag}d` : '');
   console.log(`${e.id} [${e.type}/${e.status}]${tag ? ' (' + tag + ')' : ''} — ${e.title}${sup}${ver}${old}`);
 }
 NODEEOF

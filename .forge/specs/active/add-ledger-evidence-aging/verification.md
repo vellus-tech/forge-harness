@@ -4,7 +4,7 @@
 
 - **Verificado em:** 2026-10-30, branch `feat/harness/ledger-evidence-aging`.
 - **Suíte completa:** `bash tests/run-all.sh` (3481 s, máquina com load ~50 de outras sessões) — `PASS=181 FAIL=3`. As três falhas foram investigadas: `w145` acusou 17 pipelines `cmd | grep -q` sob `pipefail` no gate novo — defeito real do gate, corrigido no commit da TASK-11 e reverificado isolado (rc 0); `w151` passou em todas as asserções (`PASS w151-heavy-mutex (56 cenário(s))`) e reprovou só porque a árvore rastreada mudou durante a execução — a mudança foi a própria correção do `w145` aplicada pelo orquestrador enquanto a suíte rodava; reexecutado isolado com a árvore parada, rc 0; `w96` reprova por ambiente (`@babel/parser indisponível`: a dependência de desenvolvimento declarada no `package.json` não está no `node_modules` local do checkout principal) e não toca nenhum arquivo deste change. Depois do commit final: `tests/ledger-evidence-aging-gate.sh`, `w145` e `w151` reexecutados isolados, todos rc 0.
-- **Gate do change:** `bash tests/ledger-evidence-aging-gate.sh` — `PASS ledger-evidence-aging (all: 39 cenário(s))`, 10 grupos, contador declarados × executados por grupo.
+- **Gate do change:** `bash tests/ledger-evidence-aging-gate.sh` — `PASS ledger-evidence-aging (all: 44 cenário(s))`, 10 grupos, contador declarados × executados por grupo.
 - **Prova de vermelho por task:** `red-evidence.sh task --red <vermelho> --green <verde>` devolveu `OK task` (classificação `behavioral`) para TASK-01 a TASK-09; TASK-10 (só teste) e TASK-11 (documentação e suíte) são declaradas sem par no `tasks.md`. Setup usado na prova: `ln -sfn <checkout principal>/node_modules node_modules` (o worktree efêmero do replay não tem `ajv`, dependência de desenvolvimento que o CI instala).
 
 ## Evidências por requisito
@@ -29,6 +29,8 @@
 Ver `verification.yaml` (gravado por `spec-verify.sh`) e o log da suíte completa.
 
 ## Desvios e observações
+
+- **Rodada 1 do gate `implementation_verified` (REVIEW):** dois MAJOR — inconsistência de `last_verified` invisível no `list`/`status`/`doctor` e `--as-of` com hora sem fuso dependente do `TZ` da máquina — e cinco MINOR (data rolada, `stale_days` vazio virando default, prefixo `..` e evidência em `.git/`/ledger, elo não recíproco no `show`, rc 5 sem contrato). Corrigidos na TASK-12 com cenários novos (`stale-9`, `stale-10`, `verify-8`, `show-3`, `wiring-6` e a asserção de rc no `supersede-2`); gate do change e gates do ledger/mutação (`w98`, `w145`, `w157`, `w193`, `w194`, `w200`, `w202`, `w207`, `w211`, `w257`, `plugin-sync`) reexecutados isolados, todos rc 0.
 
 - O design §2.4 descrevia a comparação de `last_verified` com `evidence[].at` como lexical; a implementação compara por `Date.parse`, conforme o §8 incorporado no gate `design_reviewed`.
 - O universo do envelhecimento é "status fora do conjunto encerrado" (design §8), igual ao `status` e ao renderizador; para ledgers conformes ao enum coincide com `open`/`planned`/`in-progress` do REQ-05.

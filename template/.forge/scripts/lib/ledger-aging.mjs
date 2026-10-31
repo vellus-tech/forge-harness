@@ -21,8 +21,11 @@
 //
 // CLI (chamado por ledger-ops.sh):
 //   node ledger-aging.mjs report  <ledger.json> <asOf> <dias> <origem-do-limiar>
-//   node ledger-aging.mjs summary <ledger.json> <asOf> <dias>        -> "K A"
-//   node ledger-aging.mjs ages    <ledger.json> <asOf> <dias>        -> "id idade" por envelhecida
+//   node ledger-aging.mjs summary <ledger.json> <asOf> <dias>        -> "K A J" (J = inconsistentes)
+//   node ledger-aging.mjs ages    <ledger.json> <asOf> <dias>        -> "id idade" por envelhecida e
+//                                                                        "id !" por inconsistente
+// Inconsistência nunca some na fiação: um last_verified editado à mão sem evidência apareceria como
+// "reverificado" no list e contaria como em dia no status/doctor se só o `stale` o listasse.
 import { readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -85,8 +88,12 @@ function main(argv) {
     process.exit(2);
   }
   const r = ageReport(Array.isArray(data.entries) ? data.entries : [], { asOf, days });
-  if (mode === 'summary') { process.stdout.write(`${r.stale.length} ${r.universe.length}\n`); return 0; }
-  if (mode === 'ages') { for (const s of r.stale) process.stdout.write(`${s.id} ${s.age}\n`); return 0; }
+  if (mode === 'summary') { process.stdout.write(`${r.stale.length} ${r.universe.length} ${r.inconsistent.length}\n`); return 0; }
+  if (mode === 'ages') {
+    for (const s of r.stale) process.stdout.write(`${s.id} ${s.age}\n`);
+    for (const i of r.inconsistent) process.stdout.write(`${i.id} !\n`);
+    return 0;
+  }
   process.stdout.write(formatReport(r, { asOf, days, origin }) + '\n');
   return r.stale.length + r.inconsistent.length > 0 ? 10 : 0;
 }

@@ -60,6 +60,12 @@ Para manter `npm test` verde entre tasks (o design §1 conta com a suíte para d
   - Padrão de falha: `FAIL`
   - Sem par vermelho/verde: task de documentação e verificação, sem código de produção; a prova é a suíte completa verde depois do commit.
 
+## Wave 5 — Achados do gate `implementation_verified` (rodada 1)
+
+- [X] TASK-12 — Correções do Review do verify: inconsistência de `last_verified` visível no `list` (`· inconsistente`), no `status` (`· J inconsistente(s)`) e no `doctor` (linha `info`, nunca `ok`); `--as-of` com hora exige `Z`/`±hh:mm` e data inexistente no calendário é recusada (rc 2, saída independente do `TZ`); `ledger.stale_days` presente e vazio ou na forma em linha é erro; arquivo `..nome` legítimo aceito e evidência em `.git/` ou no próprio ledger recusada; `show` nomeia elo não recíproco e ciclo uma vez só; recusa de `update` em `superseded` sai com rc 1 (rastreia: REQ-03, REQ-04, REQ-05, REQ-06, NFR-02; paths: `template/.forge/scripts/ledger-ops.sh`, `template/.forge/scripts/lib/ledger-aging.mjs`, `template/.forge/scripts/doctor.sh`, `template/.forge/commands/harness/ledger.md`, `plugin/forge/commands/ledger.md`, `tests/ledger-evidence-aging-gate.sh`; depende: TASK-11)
+  - Teste (comando): `bash tests/ledger-evidence-aging-gate.sh`
+  - Padrão de falha: `FAIL \[(stale|verify|supersede|show|wiring)`
+
 ## Rastreabilidade
 
 | REQ / Design § | Tasks |

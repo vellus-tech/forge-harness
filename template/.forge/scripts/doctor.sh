@@ -426,10 +426,14 @@ EOF_CHG
       stale_rc=0
       stale_out="$(FORGE_ROOT="$ROOT" bash "$ROOT/.forge/scripts/ledger-ops.sh" stale 2>&1)" || stale_rc=$?
       stale_head="$(printf '%s\n' "$stale_out" | head -1)"
+      st_j=0
+      [[ "$stale_out" =~ inconsistente\(s\):\ ([0-9]+) ]] && st_j="${BASH_REMATCH[1]}"
       if [ "$stale_rc" -eq 0 ] && [[ "$stale_head" =~ ^LEDGER\ stale:\ ([0-9]+)\ de\ [0-9]+\ .*mais\ de\ ([0-9]+)\ dia ]]; then
         st_k="${BASH_REMATCH[1]}"; st_n="${BASH_REMATCH[2]}"
         if [ "$st_k" -gt 0 ]; then info "harness: ledger — $st_k item(ns) ativo(s) sem reverificação há mais de $st_n dia(s) (rode ledger-ops.sh stale)"
-        else ok "harness: ledger sem itens ativos envelhecidos (limiar $st_n dia(s))"; fi
+        elif [ "$st_j" -eq 0 ]; then ok "harness: ledger sem itens ativos envelhecidos (limiar $st_n dia(s))"; fi
+        # Inconsistência (last_verified sem evidência, data ilegível ou futura) nunca passa por "em dia".
+        if [ "$st_j" -gt 0 ]; then info "harness: ledger — $st_j item(ns) com registro de reverificação inconsistente (rode ledger-ops.sh stale)"; fi
       elif [ "$stale_rc" -eq 2 ]; then info "harness: ledger — idade não medida: $stale_head"
       else info "harness: ledger — idade não medida (stale rc=$stale_rc)"; fi
     fi

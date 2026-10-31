@@ -9,7 +9,7 @@
 [![CI](https://github.com/vellus-tech/forge-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/vellus-tech/forge-harness/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![npm](https://img.shields.io/npm/v/forge-harness?color=blue&label=npm)](https://www.npmjs.com/package/forge-harness)
-[![Gates](https://img.shields.io/badge/gates-191%20passing-brightgreen.svg)](./tests)
+[![Gates](https://img.shields.io/badge/gates-192%20passing-brightgreen.svg)](./tests)
 [![Runtime](https://img.shields.io/badge/runtime-zero--dependency-success.svg)](#)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)](#)
 [![Adapters](https://img.shields.io/badge/adapters-claude%20%C2%B7%20codex%20%C2%B7%20cursor%20%C2%B7%20%2B5-8A2BE2.svg)](#adapters-multi-agente)
@@ -108,7 +108,7 @@ O `.forge/` por projeto traz o **engine**; os **slash commands** `/forge:*` são
 **plugin** do Claude Code — porque o Claude Code (≥ 2.x) reserva o namespace `:` para plugins
 (comandos soltos em `.claude/commands/` viram só `/<nome>`, sem o prefixo `forge:`). **O `init` já
 auto-instala o plugin** (global, vale para todos os seus projetos) quando o adapter claude está ativo;
-depois é só `/reload-plugins` (ou nova sessão) e os 56 comandos `/forge:*` aparecem.
+depois é só `/reload-plugins` (ou nova sessão) e os 57 comandos `/forge:*` aparecem.
 
 Para (re)instalar/atualizar o plugin manualmente, há duas vias:
 
@@ -214,6 +214,17 @@ Engine nativo (sem tree-sitter, sem deps): nós = arquivos (com camada inferida)
 referências resolvidas. Para módulos grandes, os diagramas **agregam por submódulo** (renderável e
 completo, sem virar *hairball*).
 
+## 🔎 Busca unificada sobre o conhecimento (`/forge:kb`)
+
+"Já decidimos isso antes?" sem abrir arquivo por arquivo: o `/forge:kb` busca no baseline e nos ADRs, nas specs arquivadas, no ledger, em `docs/plans/`, no `CHANGELOG.md` e nas mensagens **próprias** do liaison (conteúdo de peer e blobs nunca entram).
+
+```bash
+bash .forge/scripts/kb.sh query "por que o grafo não usa Python?"   # 8 resultados explicados, --json
+bash .forge/scripts/kb.sh semantic install                          # opcional: embeddings + re-rank locais
+```
+
+O default é lexical e zero-dep (BM25 + entidades por RRF, propagação por links entre documentos), sem LLM e sem rede. A camada semântica — embeddings `multilingual-e5-small` e re-rank por cross-encoder `mmarco-mMiniLMv2`, via `onnxruntime-web` (WASM, sem binário nativo) — só existe depois de `semantic install`, o único comando que acessa a rede, com versões e sha256 fixados no harness (ADR 0004). Nenhum provedor cloud: texto do projeto não sai da máquina.
+
 ## 🔌 Adapters multi-agente
 
 `claude` · `codex` · `gemini` · `qwen` · `cursor` · `kiro` · `forge-cli` · `agents-skills`
@@ -227,7 +238,7 @@ Trocar/adicionar um agente reconcilia o workspace (gera os ausentes, poda os rem
 template/.forge/        # o harness instalável (fonte única)
 ├── FORGE.md            # governança + frontmatter de runtime
 ├── agents/  (54)       # subagentes por categoria (specifications, architecture, review, data, …)
-├── commands/ (56)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
+├── commands/ (57)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
 ├── contracts/ (5)      # contratos de I/O por estágio (verify, archive, eval, …)
 ├── capabilities/       # packs opt-in por stack (C#/.NET, Node, Java, Python)
 ├── skills/   (46)      # skills especialistas (gate-runner, capability-dispatcher, dotnet-quality-scan, data-*-practices, …)

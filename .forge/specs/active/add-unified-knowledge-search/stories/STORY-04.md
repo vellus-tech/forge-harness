@@ -3,7 +3,7 @@ story_id: STORY-04
 epic: add-unified-knowledge-search
 title: Superfície e ADR
 depends_on: [STORY-03]
-status: todo
+status: in_progress
 ---
 
 # STORY-04 — Superfície e ADR
@@ -32,7 +32,7 @@ Expor a busca ao agente e ao operador e registrar a decisão durável: comando `
 
 ## Tasks
 
-- [ ] TASK-09 — Superfície e ADR (paths: `template/.forge/commands/graph/kb.md`, `template/.forge/commands/graph/query.md`, `installer/gitignore.patch`, `.gitignore`, `template/.forge/scripts/doctor.sh`, `plugin/forge/`, `README.md`, `docs/refer/slash-commands.md`, `tests/w294-kb-surface-gate.sh`; depende: TASK-08)
+- [X] TASK-09 — Superfície e ADR (paths: `template/.forge/commands/graph/kb.md`, `template/.forge/commands/graph/query.md`, `installer/gitignore.patch`, `.gitignore`, `template/.forge/scripts/doctor.sh`, `plugin/forge/`, `README.md`, `docs/refer/slash-commands.md`, `tests/w294-kb-surface-gate.sh`; depende: TASK-08)
 
 ## Acceptance criteria
 

@@ -47,7 +47,7 @@
 
 ## Wave 4 — Superfície e ADR
 
-- [ ] TASK-09 — Superfície e ADR: `/forge:kb` (subcomandos, leitura do resultado, política de cloud, nota sobre alertas de SCA/Dependabot nos pins), remissão em `/forge:query`, `.gitignore` e `gitignore.patch`, linha `info` do `doctor.sh` pela raiz de estado (sem node, sem criar `.forge/kb/semantic`), plugin regenerado, README (seção), catálogo de slash commands e as asserções de conteúdo da ADR 0004 criada na TASK-06 (rastreia: REQ-05, REQ-09, REQ-10, design §2.9, §2.12; paths: `template/.forge/commands/graph/kb.md`, `template/.forge/commands/graph/query.md`, `installer/gitignore.patch`, `.gitignore`, `template/.forge/scripts/doctor.sh`, `plugin/forge/`, `README.md`, `docs/refer/slash-commands.md`, `tests/w294-kb-surface-gate.sh`; depende: TASK-08)
+- [X] TASK-09 — Superfície e ADR: `/forge:kb` (subcomandos, leitura do resultado, política de cloud, nota sobre alertas de SCA/Dependabot nos pins), remissão em `/forge:query`, `.gitignore` e `gitignore.patch`, linha `info` do `doctor.sh` pela raiz de estado (sem node, sem criar `.forge/kb/semantic`), plugin regenerado, README (seção), catálogo de slash commands e as asserções de conteúdo da ADR 0004 criada na TASK-06 (rastreia: REQ-05, REQ-09, REQ-10, design §2.9, §2.12; paths: `template/.forge/commands/graph/kb.md`, `template/.forge/commands/graph/query.md`, `installer/gitignore.patch`, `.gitignore`, `template/.forge/scripts/doctor.sh`, `plugin/forge/`, `README.md`, `docs/refer/slash-commands.md`, `tests/w294-kb-surface-gate.sh`; depende: TASK-08)
   - Teste (comando): `bash tests/w294-kb-surface-gate.sh`
   - Padrão de falha: `FAIL \[[^\]]+\]`
 

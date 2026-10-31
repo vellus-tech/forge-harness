@@ -404,6 +404,23 @@ EOF_CHG
     fi
   fi
 
+  # busca unificada (/forge:kb): informativo, NUNCA load-bearing. A camada semântica é opcional e a
+  # ausência dela é o default — por isso esta linha é sempre `info`. Só testa presença de arquivo:
+  # não executa node, não importa módulo da busca, não pode disparar instalação nem rede. O índice é
+  # por branch (ROOT); a instalação semântica mora na raiz de estado (FORGE_ROOT, ou o checkout
+  # principal pelo mesmo critério de lib/forge-root.sh).
+  if [ -f "$ROOT/.forge/scripts/kb.sh" ]; then
+    kb_state="$ROOT"
+    if [ -z "${FORGE_ROOT:-}" ]; then
+      kb_common="$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+      case "$kb_common" in /*) kb_state="$(dirname "$kb_common")" ;; esac
+    fi
+    if [ -f "$ROOT/.forge/kb/index.json" ]; then kb_idx="índice construído"; else kb_idx="índice ainda não construído (kb.sh build)"; fi
+    if [ -f "$kb_state/.forge/kb/semantic/installed.json" ]; then kb_sem="camada semântica instalada (integridade: kb.sh semantic status)"
+    else kb_sem="camada semântica não instalada (opcional: kb.sh semantic install)"; fi
+    info "harness: busca unificada /forge:kb — $kb_idx; $kb_sem"
+  fi
+
   # ledger advisory (§ ledger-consultation): informativo, NUNCA load-bearing. Resume o estado e
   # sinaliza itens 'promoted' cujo change de destino sumiu sem baixa (promovido-e-abandonado antes
   # do fechamento automático existir, ou elo quebrado) — candidatos a reabrir/resolver à mão.

@@ -15,6 +15,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync, chmodSync } 
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
+import { clearWorkspaceCaches } from '../template/.forge/scripts/lib/native-workspace.mjs';
 
 const WS = dirname(dirname(fileURLToPath(import.meta.url)));
 const LIB = join(WS, 'template', '.forge', 'scripts', 'lib');
@@ -187,6 +188,7 @@ async function main() {
 
     check('pin: sobrescreve self_identity com a identidade ATUAL (fecha o contorno de troca de remote)', () => {
       git(root, ['remote', 'set-url', 'origin', 'https://github.com/acme/widget-renamed.git']);
+      clearWorkspaceCaches(); // a troca de remote invalida o cache por raiz de workspaceIdentity
       const r = A.pin({ root });
       assertTrue(r.ok, `pin deveria passar: ${r.error}`);
       assertEqual(r.doc.self_identity, 'github.com/acme/widget-renamed', 'self_identity deveria refletir a identidade atual');
@@ -302,6 +304,7 @@ async function main() {
       const rSame = C.detectContainment({ root });
       assertFalse(rSame.findings.some((f) => f.type === 'remote-identity-mismatch'), 'identidade igual não deveria ser achado');
       git(root, ['remote', 'set-url', 'origin', 'https://github.com/acme/outro.git']);
+      clearWorkspaceCaches(); // idem — a leitura anterior cacheou a identidade antes da troca
       const rDiff = C.detectContainment({ root });
       assertTrue(rDiff.findings.some((f) => f.type === 'remote-identity-mismatch'), 'identidade divergente deveria ser achado');
     });

@@ -41,6 +41,10 @@
 #   liaison-ops.sh notify   <channel> <msg_id> --to <destino>
 #   liaison-ops.sh native check [--session <id>] [--transcript <path>] [--report] [--pending]
 #   liaison-ops.sh native dispose <fingerprint> --ephemeral <class>
+#   liaison-ops.sh native allow <identidade> --reason "<motivo>"
+#   liaison-ops.sh native revoke <identidade> --reason "<motivo>"
+#   liaison-ops.sh native pin
+#   liaison-ops.sh native containment [--range <a>..<b>] [--format text|markdown]
 #
 
 # TRANSPORTE (Onda 2): plugável, em lib/transports/<kind>.sh, com o contrato t_probe/t_push/t_pull.
@@ -480,6 +484,46 @@ _native_state_dir() {
   common="$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" \
     || { echo "FAIL: não foi possível resolver o git-common-dir de '$ROOT'" >&2; return 1; }
   printf '%s/forge-native\n' "$common"
+}
+
+# _native_ancestor_is_claude — percorre a cadeia de PPID a partir do pai deste processo, até o
+# pid 1, com `ps` resolvido pelo PATH (nunca por caminho absoluto — design §2.7: o produtor não
+# precisa de variável de escape própria, que o agente também usaria). Teto de 64 saltos, mesmo
+# idioma de lib/heavy-mutex.sh::_fhm_is_ancestor, contra uma cadeia de PPID corrompida.
+_native_ancestor_is_claude() {
+  local cur="$PPID" hops=0 comm
+  while [ -n "$cur" ] && [ "$hops" -lt 64 ]; do
+    comm="$(ps -o comm= -p "$cur" 2>/dev/null | tr -d '[:space:]')"
+    case "$comm" in
+      claude|*/claude) return 0 ;;
+    esac
+    [ "$cur" = "1" ] && break
+    cur="$(ps -o ppid= -p "$cur" 2>/dev/null | tr -d '[:space:]')"
+    hops=$((hops + 1))
+  done
+  return 1
+}
+
+# _native_operator_guard — recusa com rc 1 (achado A-01 do /forge:analyze, design §2.7) quando:
+# (a) o ambiente tem qualquer marcador de sessão do Claude Code; ou (b) algum ancestral do
+# processo é o executável do Claude Code. Nenhuma das duas é fronteira — o agente remove
+# variáveis com `env -u` e o `ps` é resolvido pelo PATH —, e a doc registra isso (REQ-12,
+# rules/conventions/liaison-untrusted-input.md). Chamada sempre DEPOIS do parsing de flags (a
+# flag desconhecida reprova por conta própria, independente de sessão) e ANTES de qualquer
+# escrita em disco.
+_native_operator_guard() {
+  local marker
+  for marker in CLAUDECODE CLAUDE_CODE_SESSION_ID CLAUDE_PID CLAUDE_CODE_ENTRYPOINT; do
+    if eval "[ -n \"\${$marker-}\" ]"; then
+      echo "FAIL: variável de ambiente '$marker' detectada — o cadastro de workspaces é ato do operador humano, num terminal fora de qualquer sessão do Claude Code" >&2
+      return 1
+    fi
+  done
+  if _native_ancestor_is_claude; then
+    echo "FAIL: processo ancestral do Claude Code detectado — o cadastro de workspaces é ato do operador humano, num terminal fora de qualquer sessão do Claude Code" >&2
+    return 1
+  fi
+  return 0
 }
 
 case "$cmd" in
@@ -1846,7 +1890,115 @@ NODEEOF
     echo "OK native dispose — $native_fp declarado $native_ephemeral"
     ;;
 
-  *) echo "FAIL: subcomando desconhecido 'native $native_sub' (use: check, dispose)" >&2; exit 1 ;;
+  # ---------------------------------------------------------------------------------------------
+  # native allow|revoke|pin — cadastro de workspaces permitidos (REQ-12, design §2.7). Recusam
+  # com rc 1, SEM tocar o arquivo, quando a flag é desconhecida (checagem independente de sessão,
+  # dentro do parsing) ou quando `_native_operator_guard` detecta sessão de agente — SEMPRE depois
+  # do parsing e ANTES de qualquer leitura/escrita do cadastro. A lógica de escrita mora em
+  # lib/native-allowlist.mjs; este bloco só valida flags, resolve `granted_by`/`revoked_by` (git
+  # config user.email) e repassa.
+  allow)
+    native_id="${1:-}"; shift || true
+    native_reason=""
+    NATIVE_ALLOW_FLAGS="--reason"
+    while [ $# -gt 0 ]; do case "$1" in
+      --reason) forge_reject_flag_as_value "native allow" --reason "${2-}" "$NATIVE_ALLOW_FLAGS"; native_reason="$2"; shift 2 ;;
+      *) _reject_unknown "native allow" "$NATIVE_ALLOW_FLAGS" "$1" ;;
+    esac; done
+    _native_operator_guard || exit 1
+    [ -n "$native_id" ] || { echo "FAIL: uso: native allow <identidade> --reason \"<motivo>\"" >&2; exit 1; }
+    [ -n "$native_reason" ] || { echo "FAIL: '--reason' obrigatório no subcomando 'native allow'" >&2; exit 1; }
+    native_granted_by="$(git -C "$ROOT" config user.email 2>/dev/null || true)"
+    [ -n "$native_granted_by" ] || { echo "FAIL: git config user.email não configurado em '$ROOT' — obrigatório para granted_by" >&2; exit 1; }
+    node - "$LIBDIR" "$ROOT" "$native_id" "$native_reason" "$native_granted_by" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, id, reason, grantedBy, now] = process.argv;
+  const A = await import(pathToFileURL(join(lib, 'native-allowlist.mjs')).href);
+  const r = A.allow({ root, id, reason, grantedBy, now });
+  if (!r.ok) { console.error(`FAIL: ${r.error}`); process.exit(1); }
+  console.log(`OK native allow — ${id} cadastrado (${r.reminder})`);
+})();
+NODEEOF
+    ;;
+
+  revoke)
+    native_id="${1:-}"; shift || true
+    native_reason=""
+    NATIVE_REVOKE_FLAGS="--reason"
+    while [ $# -gt 0 ]; do case "$1" in
+      --reason) forge_reject_flag_as_value "native revoke" --reason "${2-}" "$NATIVE_REVOKE_FLAGS"; native_reason="$2"; shift 2 ;;
+      *) _reject_unknown "native revoke" "$NATIVE_REVOKE_FLAGS" "$1" ;;
+    esac; done
+    _native_operator_guard || exit 1
+    [ -n "$native_id" ] || { echo "FAIL: uso: native revoke <identidade> --reason \"<motivo>\"" >&2; exit 1; }
+    [ -n "$native_reason" ] || { echo "FAIL: '--reason' obrigatório no subcomando 'native revoke'" >&2; exit 1; }
+    native_revoked_by="$(git -C "$ROOT" config user.email 2>/dev/null || true)"
+    [ -n "$native_revoked_by" ] || { echo "FAIL: git config user.email não configurado em '$ROOT' — obrigatório para revoked_by" >&2; exit 1; }
+    node - "$LIBDIR" "$ROOT" "$native_id" "$native_reason" "$native_revoked_by" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, id, reason, revokedBy, now] = process.argv;
+  const A = await import(pathToFileURL(join(lib, 'native-allowlist.mjs')).href);
+  const r = A.revoke({ root, id, reason, revokedBy, now });
+  if (!r.ok) { console.error(`FAIL: ${r.error}`); process.exit(1); }
+  console.log(`OK native revoke — ${id} revogado (${r.reminder})`);
+})();
+NODEEOF
+    ;;
+
+  pin)
+    NATIVE_PIN_FLAGS=""
+    while [ $# -gt 0 ]; do case "$1" in
+      *) _reject_unknown "native pin" "$NATIVE_PIN_FLAGS" "$1" ;;
+    esac; done
+    _native_operator_guard || exit 1
+    node - "$LIBDIR" "$ROOT" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root] = process.argv;
+  const A = await import(pathToFileURL(join(lib, 'native-allowlist.mjs')).href);
+  const r = A.pin({ root });
+  if (!r.ok) { console.error(`FAIL: ${r.error}`); process.exit(1); }
+  console.log(`OK native pin — self_identity fixado em '${r.doc.self_identity}' (${r.reminder})`);
+})();
+NODEEOF
+    ;;
+
+  # ---------------------------------------------------------------------------------------------
+  # native containment — detector único de mudanças de contenção (REQ-12, design §2.7). rc 0
+  # sempre que conseguiu medir (lista vazia = "nada mudou" é resultado, não falha); rc 2 quando
+  # NÃO conseguiu medir (git indisponível, intervalo inválido, hooks.manifest do consumidor
+  # corrompido) — para o chamador (pre-push, doctor, prepare-pr, ship) nunca confundir os dois.
+  containment)
+    native_range=""; native_format="text"
+    NATIVE_CONTAINMENT_FLAGS="--range, --format"
+    while [ $# -gt 0 ]; do case "$1" in
+      --range) forge_reject_flag_as_value "native containment" --range "${2-}" "$NATIVE_CONTAINMENT_FLAGS"; native_range="$2"; shift 2 ;;
+      --format) forge_reject_flag_as_value "native containment" --format "${2-}" "$NATIVE_CONTAINMENT_FLAGS"; native_format="$2"; shift 2 ;;
+      *) _reject_unknown "native containment" "$NATIVE_CONTAINMENT_FLAGS" "$1" ;;
+    esac; done
+    case "$native_format" in
+      text|markdown) ;;
+      *) echo "FAIL: --format inválido '$native_format' no subcomando 'native containment' (use: text, markdown)" >&2; exit 1 ;;
+    esac
+    node - "$LIBDIR" "$ROOT" "$native_range" "$native_format" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, range, format] = process.argv;
+  const C = await import(pathToFileURL(join(lib, 'native-containment.mjs')).href);
+  const r = C.detectContainment({ root, range: range || undefined });
+  if (!r.ok) { console.error(`FAIL: ${r.reason}`); process.exit(2); }
+  console.log(C.renderContainment(r.findings, format));
+})();
+NODEEOF
+    ;;
+
+  *) echo "FAIL: subcomando desconhecido 'native $native_sub' (use: check, dispose, allow, revoke, pin, containment)" >&2; exit 1 ;;
   esac
   ;;
 

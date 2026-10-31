@@ -208,6 +208,40 @@ function cmdStatus(a) {
   process.stdout.write(`camada semântica: ${semantic}${semantic === 'não instalada' ? ' (opcional; ative com kb.sh semantic install)' : ''}\n`);
 }
 
+// eval: métricas em nível de documento, por modo disponível.
+export function metrics(queries, rankedLists) {
+  const rel = (d, gold) => gold.some((g) => d.toLowerCase().includes(String(g).toLowerCase()));
+  const n = queries.length || 1;
+  const hit = (k) => rankedLists.filter((r, i) => r.slice(0, k).some((d) => rel(d, queries[i].gold))).length / n;
+  const mrr = rankedLists.reduce((acc, r, i) => { const p = r.findIndex((d) => rel(d, queries[i].gold)); return acc + (p < 0 ? 0 : 1 / (p + 1)); }, 0) / n;
+  return { hit1: hit(1), hit5: hit(5), hit10: hit(10), mrr };
+}
+
+async function cmdEval(a) {
+  const file = a._[0];
+  if (!file) throw new UsageError('eval exige o arquivo de consultas');
+  let queries;
+  try { queries = JSON.parse(readFileSync(file, 'utf8')); } catch (e) { throw new UsageError(`arquivo de consultas ilegível: ${firstLine(e)}`); }
+  if (!Array.isArray(queries) || !queries.length || queries.some((x) => typeof x?.q !== 'string' || !Array.isArray(x.gold) || !x.gold.length)) throw new UsageError('arquivo de consultas: esperado [{q, gold: [..]}] não vazio');
+  const { idx } = loadIndex(a);
+  const ids = idx.docs.map((d) => d.id.toLowerCase());
+  const orphan = queries.filter((x) => !x.gold.some((g) => ids.some((d) => d.includes(String(g).toLowerCase()))));
+  if (orphan.length) { process.stderr.write(`kb: ERRO consulta sem documento relevante no corpus: ${orphan.map((x) => JSON.stringify(x.q)).join(', ')}\n`); process.exitCode = 1; return; }
+  const BROAD = 10;
+  const fragCounts = queries.map((x) => Object.fromEntries(x.gold.map((g) => [g, ids.filter((d) => d.includes(String(g).toLowerCase())).length])));
+  queries.forEach((x, i) => { for (const [g, n] of Object.entries(fragCounts[i])) if (n > BROAD) warn(`fragmento de gold ${JSON.stringify(g)} da consulta ${JSON.stringify(x.q)} casa mais de ${BROAD} documentos (${n}) — rótulo largo infla hit@k`); });
+  const runs = {};
+  const top = { ...a, top: TOP_MAX };
+  runs.bm25 = queries.map((x) => [...toDocRanks(idx, bm25(idx, x.q)).keys()]);
+  const lex = []; for (const x of queries) lex.push((await search({ ...top, noRerank: true }, idx, x.q, { reason: 'eval' })).results.map((r) => r.doc));
+  runs.lexical = lex;
+  const semReason = (await loadSemantic(a)).reason || 'camada semântica sem avaliação';
+  const out = Object.fromEntries(Object.entries(runs).map(([k, v]) => [k, metrics(queries, v)]));
+  if (a.json) { process.stdout.write(JSON.stringify({ format: 1, queries: queries.length, semantic: semReason ? `indisponível: ${semReason}` : 'avaliada', gold_matches: fragCounts, modes: out }) + '\n'); return; }
+  process.stdout.write(`consultas: ${queries.length}${semReason ? ` — camada semântica: ${semReason}` : ''}\n`);
+  for (const [k, m] of Object.entries(out)) process.stdout.write(`${k.padEnd(16)} hit@1=${m.hit1.toFixed(3)} hit@5=${m.hit5.toFixed(3)} hit@10=${m.hit10.toFixed(3)} MRR=${m.mrr.toFixed(3)}\n`);
+}
+
 async function cmdSemantic(a) {
   const sub = a._[0];
   if (sub === 'remove') {
@@ -230,6 +264,7 @@ async function main() {
     if (cmd === 'build') await cmdBuild(a);
     else if (cmd === 'query') await cmdQuery(a);
     else if (cmd === 'status') cmdStatus(a);
+    else if (cmd === 'eval') await cmdEval(a);
     else if (cmd === 'semantic') await cmdSemantic(a);
     else throw new UsageError(`subcomando desconhecido: ${cmd ?? '(nenhum)'}`);
   } catch (e) {

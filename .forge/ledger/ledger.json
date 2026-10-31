@@ -3342,10 +3342,10 @@
       "id": "LDG-0206",
       "type": "roadmap",
       "title": "ADR: Mensageria nativa entre sessões é sinalização; o registro durável é o liaison",
-      "detail": "Decisão transversal sugerida no design §10 deste change: corpo canônico sempre no liaison, ponteiro liaison:<channel>/<msg_id>, declaração efêmera com classes fechadas, contenção por workspace com cadastro humano e detecção, configuração gerenciada como única fronteira real. Fecha quando o ADR for criado no baseline (/forge:adr) com status accepted.",
+      "detail": "Decisão transversal sugerida no design §10 deste change: corpo canônico sempre no liaison, ponteiro liaison:<channel>/<msg_id>, declaração efêmera com classes fechadas, contenção por workspace com cadastro humano e detecção, configuração gerenciada como única fronteira real. Fecha quando o ADR for criado no baseline (/forge:adr) com status accepted. — Resolvido: ADR 0004 criado no baseline (.forge/product/current/adr/0004-mensageria-nativa-e-sinalizacao.md), status accepted, índice atualizado.",
       "severity": null,
       "priority": "P2",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": "add-liaison-native-bridge",
         "origin": "manual",
@@ -3360,8 +3360,8 @@
         "promoted_to": null
       },
       "created_at": "2026-10-31T17:08:13-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-10-31T17:12:36-03:00",
+      "resolved_at": "2026-10-31T17:12:36-03:00",
       "dedup_key": "manual:LDG-0206"
     }
   ]

@@ -58,9 +58,9 @@ function parseArgs(argv) {
 const kbDir = (a) => join(a.docRoot, '.forge/kb');
 const indexPath = (a) => join(kbDir(a), 'index.json');
 const textsPath = (a) => join(kbDir(a), 'texts.bin');
-// A camada semântica mora na raiz de ESTADO (checkout principal), compartilhada pelas worktrees:
-// runtime e modelos (~420 MB) e o cache de vetores (endereçado pelo conteúdo do trecho) são pagos uma
-// vez por máquina. O índice lexical é por branch e mora na raiz de documentos.
+// A INSTALAÇÃO semântica (runtime e modelos, ~420 MB) mora na raiz de ESTADO (checkout principal),
+// compartilhada pelas worktrees e paga uma vez por máquina. O índice lexical e o cache de vetores
+// (`vectors.bin`) são derivados do corpus da branch e moram na raiz de documentos, um por worktree.
 const semanticDir = (a) => join(a.stateRoot, '.forge/kb/semantic');
 
 function writeAtomic(p, data) {

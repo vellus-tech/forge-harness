@@ -138,23 +138,6 @@ export function entityMatch(idx, query) {
   return [...scores].sort(byScore);
 }
 
-// Canal de links: pontua vizinhos dos documentos semente, amortecido pelo grau dos dois lados, só
-// entre documentos do conjunto candidato (`pool`). Medido: vizinho fora do conjunto candidato
-// derruba o hit@1 (semantic-feasibility.md §3 do change).
-export const LINK_SEEDS = 10;
-export function linkNeighbors(idx, seedDocs, pool) {
-  const s = new Map();
-  seedDocs.slice(0, LINK_SEEDS).forEach((d, r) => {
-    const nb = idx.links[d] || [];
-    for (const n of nb) {
-      if (pool && !pool.has(n)) continue;
-      const w = 1 / ((r + 1) * Math.log(2 + nb.length) * Math.log(2 + (idx.links[n] || []).length));
-      s.set(n, (s.get(n) || 0) + w);
-    }
-  });
-  return [...s].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-}
-
 // toDocRanks([[chunkIdx, score]]) → Map(docId → {rank, chunk, score}) pela melhor ocorrência.
 export function toDocRanks(idx, chunkScores) {
   const m = new Map();

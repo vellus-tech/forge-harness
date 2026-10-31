@@ -244,6 +244,7 @@ async function cmdEval(a) {
 
 async function cmdSemantic(a) {
   const sub = a._[0];
+  if (sub === 'install') { const m = await import(pathToFileURL(join(HERE, 'kb-install.mjs')).href); process.exitCode = await m.install(semanticDir(a), join(HERE, 'kb-pins')); return; }
   if (sub === 'remove') {
     const { rmSync } = await import('node:fs');
     rmSync(semanticDir(a), { recursive: true, force: true });
@@ -251,7 +252,11 @@ async function cmdSemantic(a) {
     return;
   }
   if (sub === 'status') {
-    process.stdout.write(existsSync(join(semanticDir(a), 'installed.json')) ? 'camada semântica: instalada\n' : 'camada semântica: não instalada\n');
+    if (!existsSync(join(semanticDir(a), 'installed.json'))) { process.stdout.write('camada semântica: não instalada\n'); return; }
+    const mod = await import(pathToFileURL(join(HERE, 'kb-integrity.mjs')).href);
+    const r = mod.status(semanticDir(a), join(HERE, 'kb-pins'));
+    process.stdout.write(r.lines.join('\n') + '\n');
+    if (!r.ok) process.exitCode = 1;
     return;
   }
   throw new UsageError(`subcomando semantic desconhecido: ${sub ?? '(nenhum)'}`);

@@ -3,7 +3,7 @@ story_id: STORY-04
 epic: add-unified-knowledge-search
 title: Superfície e ADR
 depends_on: [STORY-03]
-status: in_progress
+status: done
 ---
 
 # STORY-04 — Superfície e ADR

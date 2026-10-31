@@ -50,8 +50,19 @@ Ver `evidence/verify-measurements.md` (qualidade nas duas partições, com e sem
 
 ## Decisão pendente do dono
 
-Os critérios do REQ-03 e do REQ-07 falham só no holdout, por menos que o valor de uma consulta (0,028 de MRR numa partição de 18), e nenhuma constante foi ajustada depois de o holdout ser visto. Pelos requisitos aprovados, o archive não acontece sem decisão do dono. Opções:
+O que foi medido (detalhe em `evidence/verify-measurements.md` §1): na partição de **calibração** os três critérios de qualidade passam com folga; na de **holdout** (18 consultas), dois não passam:
 
-1. **Aceitar as duas perdas como ruído** (decisão explícita do dono registrada no `approvals.yaml`) e seguir para o archive. Fundamento: na calibração os dois critérios passam com folga; no holdout, a busca semântica com re-rank (0,750) ainda supera o lexical (0,714) e o BM25 (0,730), e o re-rank perde por um único empate.
-2. **Corrigir a causa medida e medir de novo com um holdout novo:** emendar o REQ-03 para tirar do canal de entidades as siglas genéricas (só ids reais: `LDG-NNNN`, `ADR NNNN`, `REQ-*`, `wNNN`, arquivos, `/forge:*`), recalibrar só na calibração, escrever um holdout novo antes de medir (o atual está visto) e repetir o verify. Custo: uma rodada de requirements/design/tasks curta e uma task.
-3. **Tirar o re-rank do default** (`--rerank` opcional em vez de `--no-rerank`), mantendo-o implementado — contraria o espírito da decisão "memória semântica com re-rank", por isso só com o dono.
+- **REQ-03** — MRR do lexical 0,714 contra 0,730 do BM25 isolado (hit@5 igual). Causa medida por ablação: o canal de entidades vale zero na calibração e só tira no holdout (bm25 + entidades = 0,674), por casar siglas genéricas; a propagação de links ajuda no saldo (bm25 + links = 0,779).
+- **REQ-07** — re-rank 0,750 contra 0,753 sem re-rank. Não é um empate isolado: o re-rank move 6 consultas, 3 para cima e 3 para baixo, e perde uma consulta em hit@1 e uma em hit@5.
+
+Fatos que o dono precisa ter à vista: (a) as constantes de fusão e de re-rank não foram ajustadas ao holdout; (b) **a regra de desempate do re-rank foi trocada depois de o holdout ter sido visto** (da posição propagada para a posição do cross-encoder), motivada por uma contradição interna do critério (ii) do REQ-07 e ratificada no gate de design — a troca subiu o MRR do holdout de 0,721 para 0,749 e, mesmo assim, o critério não passa; o holdout do REQ-07 não está, portanto, intacto; (c) com 18 consultas, uma consulta vale 0,028 de MRR, e as duas diferenças (−0,016 e −0,003) estão abaixo disso; (d) leitura literal do REQ-07: a cláusula "se, ainda assim, piorar o MRR no holdout" vem depois de "se o re-rank piorar o MRR na calibração", que não ocorreu — por essa leitura o REQ-07 não bloquearia; este verify adota a leitura conservadora (bloqueia) e deixa a interpretação ao dono.
+
+Pelos requisitos aprovados, o archive não acontece sem decisão do dono. O bloqueio está registrado no `approvals.yaml` (gate `implementation_verified`, `notes`) e é efetivo no gate `human_archive_approval`, que é do dono. Opções:
+
+1. **Aceitar as duas perdas como ruído** e seguir para o archive (decisão explícita registrada). Fundamento: calibração passa com folga; no holdout o semântico com re-rank (0,750) supera o lexical (0,714) e o BM25 (0,730).
+2. **REQ-03 — tirar as siglas genéricas do canal de entidades** (manter só ids reais: `LDG-NNNN`, `ADR NNNN`, `REQ-*`, `wNNN`, arquivos, `/forge:*`), por emenda do REQ-03; recalibrar só na calibração; escrever um holdout **novo** antes de medir (o atual está visto). Corrige só o REQ-03; o REQ-07 continua dependendo da opção 1, 4 ou 5.
+3. **REQ-03 — canal de entidades com peso 0 (ou removido)**, justificável só pela calibração (onde ele contribui zero); exige emenda do REQ-03 (que exige o canal) e holdout novo, porque o atual já mostra bm25 + links em 0,779. Também só corrige o REQ-03.
+4. **Não mudar código e medir num holdout novo e maior** (por exemplo 50 consultas, escritas antes de medir), para testar se as duas perdas são ruído. Vale para REQ-03 e REQ-07.
+5. **REQ-07 — tirar o re-rank do default** (`--rerank` opcional), mantendo-o implementado e testado. Contraria o espírito da decisão "memória semântica com re-rank"; só com o dono.
+
+As opções 2 a 5 exigem emendar o REQ-FHT-072 e/ou o REQ-FHT-076 do `spec-delta.yaml` antes do archive.

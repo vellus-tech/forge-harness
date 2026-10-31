@@ -40,7 +40,33 @@ Medido em 2026-10-30 sobre o código de produção do HEAD da branch (TASK-01..0
 
 Pelos requisitos aprovados (REQ-03, último critério; REQ-07, critério de evidence), as duas falhas no holdout fazem o change parar antes do archive e devolvem a decisão ao dono. Nenhuma constante foi ajustada depois de o holdout ser visto; os números coincidem com os da projeção de design (semantic-feasibility.md §5), o que confirma a medição.
 
-Diagnóstico (do revisor do gate de design, reconfirmado aqui): no holdout, a perda do lexical vem do canal de entidades casando siglas genéricas (`README`, `TDD`, `MVP`, `GIT_DIR`) — "lexical sem links" cai para 0,674 —, e a propagação de links recupera parte (0,714). O re-rank perde por uma consulta que estava em 1º no semântico e cai uma posição.
+### Diagnóstico por consulta e por canal (corrigido após o gate `implementation_verified`, rodada 1)
+
+**Ablação dos canais lexicais** (MRR; `abl.mjs` do revisor, reproduzido):
+
+| Partição | bm25 | bm25 + entidades | bm25 + links | default (bm25 + entidades + links) |
+|---|---|---|---|---|
+| Calibração | 0,556 | 0,556 | 0,571 | 0,571 |
+| Holdout | 0,730 | 0,674 | 0,779 | 0,714 |
+
+Na calibração o canal de entidades contribui exatamente zero (nenhuma consulta cita id real; as que o acionam casam siglas); no holdout ele só tira (siglas genéricas `README`, `TDD`, `MVP`, `GIT_DIR` puxam documentos errados). A propagação de links ajuda no saldo nas duas partições, embora derrube uma consulta do holdout ("second MVP", 1→3). Ou seja: a falha do REQ-03 no holdout é do canal de entidades, não da fusão como um todo.
+
+**Re-rank, por consulta, no holdout** (posição do primeiro relevante; só as que mudam entre modos; `perq.mjs`):
+
+| Consulta (resumo) | lexical | semantic | semantic+rerank |
+|---|---|---|---|
+| update desarmava o consumidor | 7 | 5 | 7 |
+| contagens do inventário do README | 2 | 1 | 1 |
+| divergência silenciava o remetente | 1 | 2 | 2 |
+| interruptores de qualidade sem leitor | 1 | 3 | **1** |
+| enforcement só para .NET | 2 | 4 | **2** |
+| cartões e dado de portador | 2 | 1 | **2** |
+| plan for the second MVP | 3 | 1 | **3** |
+| harvest do ledger | 3 | 4 | **2** |
+| doctor flags placeholders | 2 | 1 | 1 |
+| commits direto em develop | 22 | 43 | 43 |
+
+O re-rank move 6 das 18 consultas: 3 sobem (3→1, 4→2, 4→2) e 3 descem (1→2, 1→3, 5→7); perde uma consulta em hit@1 (0,667→0,611) e uma em hit@5 (0,944→0,889). O −0,003 de MRR é o saldo de movimentos que quase se cancelam, não um empate isolado. Só a queda 1→2 é desempate pela fórmula.
 
 ## 2. Latência (NFR-01, NFR-02; processo inteiro, melhor de 5, cache quente)
 

@@ -80,3 +80,12 @@ approvals:
     commit: "38098e02"
     scope: "tasks.md"
     notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: implementation_verified
+    decision: review
+    reason: "Revisor delegado (opus): REVIEW. Conferências (i)-(vi) confirmadas com execução (zero-dep em /tmp sem node_modules, inferência real, nada sai sob --permission e interceptador, números reproduzidos ao milésimo, spec-delta fiel). MAJORs só de texto na decisão do dono: diagnóstico do re-rank errado (3 sobem, 3 descem; perde 1 em hit@1 e 1 em hit@5), troca do desempate após ver o holdout não declarada na seção de decisão, ablação por canal ausente (entidades valem zero na calibração e tiram no holdout). MINORs: bloqueio do archive só em prosa, comentário de cache, código morto."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T22:40:01-03:00"
+    iteration: 1
+    commit: "af2883cf"
+    scope: "verification.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30. REQ-03/REQ-07 falham no holdout; archive condicionado à decisão do dono."

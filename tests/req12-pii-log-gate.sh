@@ -10,6 +10,7 @@
 #   [7] REQ-06: mesmo campo em .sql, COM entrada correspondente → PASS
 #   [8] REQ-06: PAN em chamada de log embutida em comentário .sql → CONFLICT
 #   [9] REQ-06: .sql limpo (DDL comum, sem marcador nem log) → PASS, sem falso positivo
+#   [10] REQ-06: `--forge:sensitive-field=` fora de .sql (docstring .py) não é marcador → PASS
 #   [5] retrocompat: gw3-data-governance-gate.sh continua verde (NFR-04)
 set -euo pipefail
 
@@ -77,6 +78,13 @@ echo "[9] REQ-06: .sql limpo (DDL comum) → PASS, sem falso positivo"
 out="$(node "$CHK" "$FIX/sql-clean-pass")"
 grep -q '^OK ' <<<"$out" || { echo "FAIL [9]: esperava OK, obteve: $out"; exit 1; }
 echo "OK [9] — $out"
+
+echo "[10] REQ-06: '--' só é comentário em .sql — '--forge:sensitive-field=' numa docstring .py → PASS"
+set +e
+out="$(node "$CHK" "$FIX/py-double-dash-pass")"; rc=$?
+set -e
+[ "$rc" -eq 0 ] && grep -q '^OK ' <<<"$out" || { echo "FAIL [10]: '--' fora de .sql virou marcador (rc=$rc): $out"; exit 1; }
+echo "OK [10] — $out"
 
 echo "[5] retrocompat: gw3-data-governance-gate.sh continua verde (NFR-04)"
 bash "$WS/tests/gw3-data-governance-gate.sh" >/dev/null

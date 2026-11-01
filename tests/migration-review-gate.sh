@@ -16,6 +16,13 @@
 #   [12] wiring no pre-push — push com migration nova sem migration-review.md commitado → recusado
 #   [13] wiring no pre-push — push com migration e migration-review.md completo → aceito
 #   [14] wiring no pre-push — .forge/scripts/ inteiro ausente → push não é afetado por este bloco
+#   [15] wiring no pre-push — ref nova sem remotes, migration num commit anterior ao tip → recusado
+#   [16] wiring no pre-push — ref nova sem commit novo (já no remoto) → aceito, nada a varrer
+#   [17] evidência antiga (de push anterior) não cobre edição nova da migration
+#   [18] migration com nome acentuado (core.quotePath) é detectada e casa com a evidência
+#   [19] migration movida para fora do diretório de migrations exige evidência (--no-renames)
+#   [20] exceção inválida não fica mascarada por outra linha do mesmo path
+#   [21] range começando com '-' → FAIL, nunca vira opção do git
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -119,7 +126,7 @@ echo "OK [6]"
 
 echo "[7] exceção do item 2 sem adr= → FAIL (evidência inválida)"
 echo "CREATE TABLE baz (id int);" > "$R/db/migrate/003_create_baz.sql"
-# remove a linha anterior que ja cobria 002 (continua ok) e adiciona 003 com excecao de item 2 sem adr
+# mantém a linha que já cobria 002 (continua ok) e adiciona 003 com exceção de item 2 sem adr
 printf -- '- [exception] db/migrate/003_create_baz.sql item=2 backlog=PROJ-2\n' >> "$R/migration-review.md"
 git -C "$R" add db/migrate/003_create_baz.sql migration-review.md
 git -C "$R" commit -qm "feat: migration com excecao invalida item 2 sem adr"
@@ -217,7 +224,7 @@ ZERO2=0000000000000000000000000000000000000000
 # lib/check-migration-review.mjs reais — nunca .forge/scripts/ inteiro (isso incluiria
 # scripts/tests/ e ativaria HARNESS_SUITE, além dos demais blocos delegados). Os blocos irmãos
 # (DOCS_LIB, RED_LIB, AI_CHECK, ACKS) recebem stub de uma linha, mesmo padrão de
-# tests/w223-delegacao-arvore-do-hook-gate.sh, para que [12]/[13] fiquem deterministicos.
+# tests/w223-delegacao-arvore-do-hook-gate.sh, para que [12]/[13] fiquem determinísticos.
 mkminrepo() {
   local d="$1"
   mkdir -p "$d/.forge/hooks/git/lib" "$d/.forge/scripts/lib"
@@ -301,5 +308,133 @@ case "$out" in
   *) : ;;
 esac
 echo "OK [14] (rc=$rc)"
+
+echo "[15] wiring no pre-push — ref nova sem remotes, migration num commit ANTERIOR ao tip → recusado"
+# Regressão do code-evaluator (PR #246): o fallback `range="$lsha"` copiado do AI_CHECK fazia o
+# `diff-tree` olhar só o commit tip; a migration do commit do meio passava sem evidência.
+R15="$T2/r15"
+mkminrepo "$R15"
+echo "base" > "$R15/README.md"
+git -C "$R15" add -A >/dev/null 2>&1
+git -C "$R15" commit -qm "chore: init"
+mkdir -p "$R15/db/migrate"
+echo "CREATE TABLE foo (id int);" > "$R15/db/migrate/001_foo.sql"
+git -C "$R15" add -A >/dev/null 2>&1
+git -C "$R15" commit -qm "feat: migration sem evidência"
+echo "mais" >> "$R15/README.md"
+git -C "$R15" add -A >/dev/null 2>&1
+git -C "$R15" commit -qm "chore: tip só toca readme"
+SHA15="$(git -C "$R15" rev-parse HEAD)"
+set +e
+out="$(cd "$R15" && printf 'refs/heads/main %s refs/heads/main %s\n' "$SHA15" "$ZERO2" | bash "$R15/.forge/hooks/git/pre-push" origin "file://$R15" 2>&1)"; rc=$?
+set -e
+[ "$rc" -ne 0 ] || { echo "FAIL [15]: migration fora do tip passou sem evidência (saída: '$out')"; exit 1; }
+case "$out" in
+  *"db/migrate/001_foo.sql"*) : ;;
+  *) echo "FAIL [15]: saída não nomeia a migration do commit do meio (saída: '$out')"; exit 1 ;;
+esac
+echo "OK [15]"
+
+echo "[16] wiring no pre-push — ref nova SEM commit novo (tudo já no remoto), tip tocou migration antiga → aceito"
+# Regressão do code-evaluator (PR #246): sem commit novo, o fallback cobrava o diff do tip — push
+# de um nome de branch novo sobre commit já publicado era bloqueado sem tocar migration alguma.
+R16="$T2/r16"
+mkminrepo "$R16"
+echo "base" > "$R16/README.md"
+git -C "$R16" add -A >/dev/null 2>&1
+git -C "$R16" commit -qm "chore: init"
+mkdir -p "$R16/db/migrate"
+echo "CREATE TABLE foo (id int);" > "$R16/db/migrate/001_foo.sql"
+git -C "$R16" add -A >/dev/null 2>&1
+git -C "$R16" commit -qm "feat: migration antiga, anterior ao harness"
+git -C "$R16" update-ref refs/remotes/origin/main HEAD   # já publicado
+SHA16="$(git -C "$R16" rev-parse HEAD)"
+set +e
+out="$(cd "$R16" && printf 'refs/heads/release %s refs/heads/release %s\n' "$SHA16" "$ZERO2" | bash "$R16/.forge/hooks/git/pre-push" origin "file://$R16" 2>&1)"; rc=$?
+set -e
+[ "$rc" -eq 0 ] || { echo "FAIL [16]: ref nova sem commit novo foi recusada (saída: '$out')"; exit 1; }
+case "$out" in
+  *"migration sem parecer"*) echo "FAIL [16]: bloqueio indevido (saída: '$out')"; exit 1 ;;
+  *) : ;;
+esac
+echo "OK [16]"
+
+# [17]-[21] — modo range, repositório sintético próprio (regressões do code-evaluator, PR #246).
+R17="$T/repo17"
+mkdir -p "$R17/db/migrate"
+git -C "$R17" init -q
+git -C "$R17" config user.email dev@test
+git -C "$R17" config user.name dev
+git -C "$R17" config commit.gpgsign false
+echo "CREATE TABLE t (id int);" > "$R17/db/migrate/001_t.sql"
+printf -- '- [x] db/migrate/001_t.sql sha=a\n' > "$R17/migration-review.md"
+git -C "$R17" add -A
+git -C "$R17" commit -qm "feat: migration revisada"
+
+echo "[17] migration já revisada e editada depois, sem atualizar a linha de evidência → FAIL; com a linha atualizada → PASS"
+b17="$(git -C "$R17" rev-parse HEAD)"
+echo "DROP TABLE t;" >> "$R17/db/migrate/001_t.sql"
+git -C "$R17" add -A
+git -C "$R17" commit -qm "feat: edita migration já revisada"
+set +e
+out="$(cd "$R17" && node "$MJS" range "$b17..HEAD")"; rc=$?
+set -e
+[ "$rc" -ne 0 ] || { echo "FAIL [17]: evidência antiga cobriu edição nova da migration: $out"; exit 1; }
+echo "$out" | grep -q "não foi adicionada nem atualizada" || { echo "FAIL [17]: diagnóstico não diz que a evidência é antiga: $out"; exit 1; }
+printf -- '- [x] db/migrate/001_t.sql sha=b\n' > "$R17/migration-review.md"
+git -C "$R17" add -A
+git -C "$R17" commit -qm "docs: parecer novo da migration editada"
+out="$(cd "$R17" && node "$MJS" range "$b17..HEAD")"
+echo "$out" | grep -q "^PASS" || { echo "FAIL [17]: linha atualizada deveria passar: $out"; exit 1; }
+echo "OK [17]"
+
+echo "[18] migration com nome acentuado em db/migrate/ (core.quotePath) → FAIL nomeando o path real; com evidência acentuada → PASS"
+b18="$(git -C "$R17" rev-parse HEAD)"
+echo "CREATE TABLE s (id int);" > "$R17/db/migrate/002_situação.sql"
+git -C "$R17" add -A
+git -C "$R17" commit -qm "feat: migration com nome acentuado"
+set +e
+out="$(cd "$R17" && node "$MJS" range "$b18..HEAD")"; rc=$?
+set -e
+[ "$rc" -ne 0 ] || { echo "FAIL [18]: migration acentuada escapou do gate: $out"; exit 1; }
+echo "$out" | grep -q "db/migrate/002_situação.sql" || { echo "FAIL [18]: saída não nomeia o path sem escape: $out"; exit 1; }
+printf -- '- [x] db/migrate/002_situação.sql\n' >> "$R17/migration-review.md"
+git -C "$R17" add -A
+git -C "$R17" commit -qm "docs: parecer da migration acentuada"
+out="$(cd "$R17" && node "$MJS" range "$b18..HEAD")"
+echo "$out" | grep -q "^PASS" || { echo "FAIL [18]: evidência acentuada deveria casar: $out"; exit 1; }
+echo "OK [18]"
+
+echo "[19] migration movida para fora do diretório de migrations, sem evidência → FAIL nomeando a origem"
+b19="$(git -C "$R17" rev-parse HEAD)"
+mkdir -p "$R17/old"
+git -C "$R17" mv db/migrate/001_t.sql old/001_t.sql
+git -C "$R17" commit -qm "chore: move migration"
+set +e
+out="$(cd "$R17" && node "$MJS" range "$b19..HEAD")"; rc=$?
+set -e
+[ "$rc" -ne 0 ] || { echo "FAIL [19]: rename para fora do padrão passou sem evidência: $out"; exit 1; }
+echo "$out" | grep -q "db/migrate/001_t.sql" || { echo "FAIL [19]: saída não nomeia a origem do rename: $out"; exit 1; }
+echo "OK [19]"
+
+echo "[20] exceção item=2 sem adr= seguida de outra linha válida do mesmo path → FAIL (a inválida não fica mascarada)"
+b20="$(git -C "$R17" rev-parse HEAD)"
+echo "CREATE TABLE u (id int);" > "$R17/db/migrate/003_u.sql"
+printf -- '- [exception] db/migrate/003_u.sql item=2 backlog=P-1\n- [exception] db/migrate/003_u.sql item=5 backlog=P-2\n' >> "$R17/migration-review.md"
+git -C "$R17" add -A
+git -C "$R17" commit -qm "feat: migration com exceção inválida mascarada"
+set +e
+out="$(cd "$R17" && node "$MJS" range "$b20..HEAD")"; rc=$?
+set -e
+[ "$rc" -ne 0 ] || { echo "FAIL [20]: exceção inválida mascarada por outra linha: $out"; exit 1; }
+echo "$out" | grep -q "item 2 sem adr" || { echo "FAIL [20]: saída não cita item 2 sem adr: $out"; exit 1; }
+echo "OK [20]"
+
+echo "[21] range começando com '-' (viraria opção do git) → FAIL, nunca PASS"
+set +e
+out="$(cd "$R17" && node "$MJS" range "--stdin" </dev/null)"; rc=$?
+set -e
+[ "$rc" -ne 0 ] || { echo "FAIL [21]: range '--stdin' passou: $out"; exit 1; }
+echo "OK [21]"
 
 echo "PASS migration-review-gate"

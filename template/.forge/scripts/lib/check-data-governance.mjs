@@ -78,8 +78,11 @@ const LOG_TAINT = [
 // Python/Rego com `#`): `// forge:sensitive-field="cpf"` ou `# forge:sensitive-field="cpf"`.
 // O gate procura um artefato `data-classification.json` (schema data-classification.
 // schema.json) dentro dos mesmos `inputs`; campo marcado sem entrada correspondente no
-// mapa (ou artefato ausente) é finding.
-const SENSITIVE_MARKER_RE = /(?:\/\/|#|--)\s*forge:sensitive-field\s*[:=]\s*"?([A-Za-z0-9_.]+)"?/i;
+// mapa (ou artefato ausente) é finding. Em `.sql` o comentário de linha é `--`, aceito SÓ
+// nessa extensão: nas demais, `--` não é comentário e um texto como `--forge:sensitive-field=x`
+// numa docstring ou help de CLI viraria finding não rebaixável.
+const SENSITIVE_MARKER_RE = /(?:\/\/|#)\s*forge:sensitive-field\s*[:=]\s*"?([A-Za-z0-9_.]+)"?/i;
+const SENSITIVE_MARKER_SQL_RE = /(?:\/\/|#|--)\s*forge:sensitive-field\s*[:=]\s*"?([A-Za-z0-9_.]+)"?/i;
 
 function loadClassification(paths) {
   const jsonFiles = collect(paths, { exts: new Set(['.json']) });
@@ -97,8 +100,9 @@ function scanSensitiveFields(files, classification) {
   for (const f of files) {
     const r = relLike(f);
     const lines = readFileSync(f, 'utf8').split('\n');
+    const markerRe = f.toLowerCase().endsWith('.sql') ? SENSITIVE_MARKER_SQL_RE : SENSITIVE_MARKER_RE;
     lines.forEach((line, i) => {
-      const m = line.match(SENSITIVE_MARKER_RE);
+      const m = line.match(markerRe);
       if (!m) return;
       const field = m[1];
       if (!classification || !Object.prototype.hasOwnProperty.call(classification, field)) {

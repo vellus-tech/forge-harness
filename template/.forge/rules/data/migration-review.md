@@ -18,7 +18,7 @@ Todo PR que tocar arquivo de migration, identificado por convenção de path: `d
 
 ## Quem revisa
 
-A revisão especializada é feita pelo agente `data-engineer` ou pelo especialista `data-relational`, executada sobre um **clone da head do PR** — nunca sobre a branch local do autor. **Quem clona a head do PR e entrega o path ao especialista é o orquestrador/pipeline que conduz o PR**, nunca o próprio agente especialista: `data-relational` só tem `Bash` liberado para `scan.sh` e `check-data-governance.sh --path` (`data-agent-bash-guard.sh`), não para `git clone`/`gh pr checkout`. O especialista revisa por `Read`/`Grep`/`Glob` sobre o path já materializado; rodar `check-migration-review.sh` não é responsabilidade dele — é um gate separado, rodado pelo orquestrador/CI.
+A revisão especializada é feita pelo agente `data-engineer` ou pelo especialista `data-relational`, executada sobre um **clone da head do PR** — nunca sobre a branch local do autor. Como o gate do `pre-push` exige a evidência no mesmo push que publica a migration, antes do primeiro push a "head do PR" é o commit head da branch, materializado num clone limpo (ex.: `git clone --no-local <repo> <dir> && git -C <dir> checkout <sha>`), nunca a árvore de trabalho do autor; a linha de evidência entra num commit da própria branch e sobe junto com a migration. **Quem clona a head do PR e entrega o path ao especialista é o orquestrador/pipeline que conduz o PR**, nunca o próprio agente especialista: `data-relational` só tem `Bash` liberado para `scan.sh` e `check-data-governance.sh --path` (`data-agent-bash-guard.sh`), não para `git clone`/`gh pr checkout`. O especialista revisa por `Read`/`Grep`/`Glob` sobre o path já materializado; rodar `check-migration-review.sh` não é responsabilidade dele — é um gate separado, rodado pelo orquestrador/CI.
 
 A revisão de código geral (code review padrão do PR) **não substitui** esta revisão especializada.
 
@@ -37,6 +37,10 @@ A revisão de código geral (code review padrão do PR) **não substitui** esta 
 11. Contract só depois do expand promovido (todos os produtores/consumidores migrados); `down` que destruiria dado recusa execução, exigindo exceção explícita.
 12. Tabela append-only revoga `UPDATE`, `DELETE` e `TRUNCATE` da role de aplicação e usa trigger de proteção com `ENABLE ALWAYS` (não desativável por `SET session_replication_role`).
 13. Suíte de integração com RLS ligado provando três casos: (a) positivo — tenant correto lê suas linhas; (b) outro tenant — zero linhas; (c) GUC de tenant vazio/ausente — zero linhas e escrita recusada.
+
+## Evidência
+
+O parecer é registrado em `migration-review.md` na raiz do repositório (ou `--evidence <path>` quando ad-hoc), uma linha por migration: `- [x] <path-da-migration>` (revisada, com texto livre opcional depois do path, ex.: o sha revisado) ou a linha de exceção descrita abaixo. A evidência vale para o conteúdo revisado, não para o path para sempre: o gate só aceita a linha que foi **adicionada ou alterada no próprio push** que toca a migration. Uma linha deixada por um PR anterior não cobre uma edição nova da mesma migration — migration alterada exige parecer novo, registrado atualizando a linha (por exemplo, trocando o sha revisado).
 
 ## Exceção
 

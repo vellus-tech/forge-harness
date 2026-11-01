@@ -9,10 +9,18 @@
 //
 // `range` é o modo de push/CI: resolve os arquivos tocados via `git diff --name-only
 // base..head` (forma base..head) ou `git diff-tree --root -r --name-only <sha>` (forma de
-// sha/ref único, sem pai conhecido — nunca `git diff --name-only <sha>`, que compara contra a
-// árvore de trabalho). A evidência é lida do BLOB no commit de destino (`git show
-// <head>:migration-review.md`), nunca do disco — um `migration-review.md` editado e não
-// commitado, ou pertencente a outra branch checked-out, não deve fazer o gate passar.
+// sha/ref único — nunca `git diff --name-only <sha>`, que compara contra a árvore de trabalho).
+// A evidência vem dos COMMITS do range, nunca do disco: só conta a linha de evidência que foi
+// ADICIONADA ou ALTERADA no próprio range (diff de `migration-review.md` entre as pontas). Uma
+// linha antiga, de um PR anterior, não cobre uma edição nova da mesma migration — migration
+// alterada exige parecer novo (rule §"Exceção"/§"Evidência"). Um `migration-review.md` editado e
+// não commitado, ou de outra branch checked-out, também não faz o gate passar.
+//
+// Listagem de paths sempre com `-c core.quotePath=false -z`: com o default do git, path com byte
+// não-ASCII sai entre aspas e escapado em octal ("db/migrate/001_situa\303\247\303\243o.sql"), não
+// casa nenhum padrão e a migration escapava do gate. E sempre `--no-renames`: com detecção de
+// rename (default de `git diff`), mover uma migration para fora do diretório listava só o destino
+// e passava sem evidência, enquanto a deleção pura era cobrada.
 //
 // `--path <dir>` é o modo ad-hoc/manual (revisão de um diretório específico materializado,
 // ex.: o clone que o especialista está revisando): caminhamento recursivo próprio (não o
@@ -52,7 +60,13 @@ function isMigrationPath(p) {
 }
 
 function run(cmd, args, opts = {}) {
-  return spawnSync(cmd, args, { encoding: 'utf8', ...opts });
+  // maxBuffer explícito: o default de 1 MiB estoura (ENOBUFS) num push com muitos arquivos.
+  return spawnSync(cmd, args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, ...opts });
+}
+
+function gitFailReason(res) {
+  if (res.error) return res.error.code || res.error.message;
+  return (res.stderr || '').trim().split('\n')[0] || `exit ${res.status}`;
 }
 
 function parseArgs(argv) {
@@ -70,37 +84,42 @@ function parseArgs(argv) {
 
 // Casa cada linha de evidência: "- [x] <path>" (revisada) ou
 // "- [exception] <path> item=<N> backlog=<ref> [adr=<ref>]" (exceção). item= é restrito a
-// 1-13 (os itens do checklist da rule) — fora disso a linha simplesmente não casa esta regex
-// e a migration fica sem evidência válida (achado de round de verify: (\d{1,2}) aceitava
-// item=0/item=99). Ordem exigida na linha é item= antes de backlog= antes de adr=, documentada
-// na rule (seção "Exceção") — uma ordem diferente não casa e é tratada como evidência ausente.
+// 1-13 (os itens do checklist da rule). Ordem exigida na linha é item= antes de backlog= antes
+// de adr=, documentada na rule (seção "Exceção") — uma ordem diferente não casa e é tratada como
+// evidência ausente. Texto livre depois do path de uma linha "[x]" é permitido (ex.: o sha
+// revisado) — é o jeito de ATUALIZAR a linha quando a migration muda e recebe parecer novo.
 const LINE_REVIEWED_RE = /^\s*-\s*\[x\]\s+(\S+)/;
 const LINE_EXCEPTION_RE = /^\s*-\s*\[exception\]\s+(\S+)\s+item=(1[0-3]|[1-9])\s+backlog=(\S+)(?:\s+adr=(\S+))?/;
 
 function parseEvidence(text) {
-  // path -> { kind: 'reviewed' } | { kind: 'exception', item, backlog, adr }
+  // path -> lista de entradas { kind: 'reviewed' } | { kind: 'exception', item, backlog, adr }.
+  // Lista, não valor único: com Map.set simples a última linha sobrescrevia as anteriores, e uma
+  // exceção inválida (item=2 sem adr=) ficava mascarada por qualquer outra linha do mesmo path.
   const map = new Map();
+  const add = (p, e) => { if (!map.has(p)) map.set(p, []); map.get(p).push(e); };
   for (const line of text.split('\n')) {
     let m = line.match(LINE_REVIEWED_RE);
-    if (m) { map.set(m[1], { kind: 'reviewed' }); continue; }
+    if (m) { add(m[1], { kind: 'reviewed' }); continue; }
     m = line.match(LINE_EXCEPTION_RE);
-    if (m) {
-      map.set(m[1], { kind: 'exception', item: m[2], backlog: m[3], adr: m[4] || null });
-    }
+    if (m) add(m[1], { kind: 'exception', item: m[2], backlog: m[3], adr: m[4] || null });
   }
   return map;
 }
 
-function evaluate(path, evidenceMap) {
-  const entry = evidenceMap.get(path);
-  if (!entry) return { ok: false, reason: 'sem evidência (nem revisada nem exceção)' };
-  if (entry.kind === 'reviewed') return { ok: true, msg: null };
-  // exceção — válida só com backlog presente, e com adr presente quando item=2
-  if (!entry.backlog) return { ok: false, reason: 'exceção sem backlog= (evidência inválida)' };
-  if (entry.item === '2' && !entry.adr) {
-    return { ok: false, reason: 'exceção do item 2 sem adr= (evidência inválida)' };
+function evaluate(path, evidenceMap, staleMap) {
+  const entries = evidenceMap.get(path);
+  if (!entries || !entries.length) {
+    if (staleMap && staleMap.has(path)) {
+      return { ok: false, reason: 'evidência existe mas não foi adicionada nem atualizada neste range — migration alterada exige parecer novo' };
+    }
+    return { ok: false, reason: 'sem evidência (nem revisada nem exceção)' };
   }
-  return { ok: true, msg: `exceção item ${entry.item}, backlog ${entry.backlog}` };
+  // Qualquer exceção inválida do path reprova, mesmo que outra linha do mesmo path seja válida.
+  const badItem2 = entries.find((e) => e.kind === 'exception' && e.item === '2' && !e.adr);
+  if (badItem2) return { ok: false, reason: 'exceção do item 2 sem adr= (evidência inválida)' };
+  if (entries.some((e) => e.kind === 'reviewed')) return { ok: true, msg: null };
+  const exc = entries.filter((e) => e.kind === 'exception');
+  return { ok: true, msg: exc.map((e) => `exceção item ${e.item}, backlog ${e.backlog}`).join('; ') };
 }
 
 function walkDir(dir, acc = []) {
@@ -115,34 +134,40 @@ function walkDir(dir, acc = []) {
   return acc;
 }
 
-function resolveRangeFiles(rangeArg) {
-  // base..head (diff de duas pontas) ou base...head (diff simétrico de três pontos) — o
-  // pre-push nunca gera a forma de três pontos (só base..head ou sha único), mas o script
-  // aceita como modo manual/ad-hoc. Extrai o head com split em 2-3 pontos (/\.{2,3}/), não em
-  // '..' literal: "a...b".split('..') fragmentava errado (['a', '.b']), extraindo ".b" como
-  // head em vez de "b" (achado de round de verify — bug latente, nunca acionado pelo pre-push).
-  if (/\.{2,3}/.test(rangeArg)) {
-    const res = run('git', ['diff', '--name-only', rangeArg]);
-    if (res.status !== 0) {
-      return { error: true, stderr: res.stderr || '' };
-    }
-    const files = res.stdout.split('\n').filter(Boolean);
-    const parts = rangeArg.split(/\.{2,3}/).filter(Boolean);
-    const head = parts[parts.length - 1];
-    return { error: false, files, head };
-  }
-  // sha/ref único, sem pai conhecido — git diff-tree --root -r --name-only <sha>
-  const res = run('git', ['diff-tree', '--root', '-r', '--name-only', rangeArg]);
-  if (res.status !== 0) {
-    return { error: true, stderr: res.stderr || '' };
-  }
-  const files = res.stdout.split('\n').filter(Boolean).filter((f) => f !== rangeArg);
-  return { error: false, files, head: rangeArg };
+const GIT = ['-c', 'core.quotePath=false'];
+
+// Decompõe o rev-range: { twoPoint: true, base, head } para base..head / base...head (ponta
+// vazia = HEAD, como o próprio git interpreta), ou { twoPoint: false, head } para sha/ref único.
+function splitRange(rangeArg) {
+  const m = rangeArg.match(/^(.*?)(\.{2,3})(.*)$/);
+  if (!m) return { twoPoint: false, head: rangeArg };
+  return { twoPoint: true, base: m[1] || 'HEAD', dots: m[2], head: m[3] || 'HEAD' };
+}
+
+function resolveRangeFiles(r, rangeArg) {
+  const res = r.twoPoint
+    ? run('git', [...GIT, 'diff', '--name-only', '-z', '--no-renames', rangeArg])
+    : run('git', [...GIT, 'diff-tree', '--root', '-r', '--name-only', '-z', '--no-renames', '--no-commit-id', rangeArg]);
+  if (res.error || res.status !== 0) return { error: true, reason: gitFailReason(res) };
+  return { error: false, files: res.stdout.split('\0').filter(Boolean) };
+}
+
+// Linhas do arquivo de evidência ADICIONADAS (ou alteradas) no range — o texto que vale como
+// evidência no modo range. Arquivo ausente no range ⇒ string vazia.
+function readEvidenceAdded(r, rangeArg, evidencePath) {
+  const res = r.twoPoint
+    ? run('git', [...GIT, 'diff', '--no-renames', '-U0', rangeArg, '--', evidencePath])
+    : run('git', [...GIT, 'diff-tree', '-p', '-U0', '--root', '--no-renames', '--no-commit-id', rangeArg, '--', evidencePath]);
+  if (res.error || res.status !== 0) return '';
+  return res.stdout.split('\n')
+    .filter((l) => l.startsWith('+') && !l.startsWith('+++'))
+    .map((l) => l.slice(1))
+    .join('\n');
 }
 
 function readEvidenceFromBlob(head, evidencePath) {
   const res = run('git', ['show', `${head}:${evidencePath}`]);
-  if (res.status !== 0) return null; // blob ausente ⇒ tratado como ausente
+  if (res.error || res.status !== 0) return null; // blob ausente ⇒ tratado como ausente
   return res.stdout;
 }
 
@@ -151,12 +176,13 @@ function readEvidenceFromDisk(path) {
   return readFileSync(path, 'utf8');
 }
 
-function formatResult(migrations, evidenceText) {
+function formatResult(migrations, evidenceText, staleText) {
   const evidenceMap = parseEvidence(evidenceText || '');
+  const staleMap = staleText == null ? null : parseEvidence(staleText);
   const fails = [];
   const passMsgs = [];
   for (const m of migrations) {
-    const r = evaluate(m, evidenceMap);
+    const r = evaluate(m, evidenceMap, staleMap);
     if (!r.ok) fails.push(`${m}: ${r.reason}`);
     else if (r.msg) passMsgs.push(r.msg);
   }
@@ -165,11 +191,8 @@ function formatResult(migrations, evidenceText) {
   }
   if (passMsgs.length) {
     // Texto exato do critério de aceite para o caso comum (uma exceção): "PASS (exceção item
-    // N, backlog X)", sem prefixo de path (achado de round de verify — a versão anterior
-    // sempre prefixava "<path>: "). Com mais de uma exceção no mesmo range, a mensagem junta
-    // as duas sem path — ambiguidade aceita nesse caso raro; o script não analisa o SQL, só a
-    // forma da evidência, e qual migration está em exceção já está registrado no próprio
-    // migration-review.md para quem precisar auditar.
+    // N, backlog X)", sem prefixo de path. Qual migration está em exceção fica registrado no
+    // próprio migration-review.md para quem precisar auditar.
     return { ok: true, text: `PASS (${passMsgs.join('; ')})` };
   }
   return { ok: true, text: 'PASS' };
@@ -184,9 +207,16 @@ function main() {
       console.log('FAIL (usage: check-migration-review.mjs range <rev-range> [--evidence <path>])');
       process.exit(1);
     }
-    const resolved = resolveRangeFiles(arg);
+    // Um range começando com '-' viraria opção do git (ex.: --stdin, --output=...) e o gate
+    // responderia PASS sem ter olhado commit nenhum.
+    if (arg.startsWith('-')) {
+      console.log(`FAIL (range inválido: ${arg} — não pode começar com '-')`);
+      process.exit(1);
+    }
+    const r = splitRange(arg);
+    const resolved = resolveRangeFiles(r, arg);
     if (resolved.error) {
-      console.log(`FAIL (range inválido: ${arg})`);
+      console.log(`FAIL (range inválido: ${arg} — ${resolved.reason})`);
       process.exit(1);
     }
     const migrations = resolved.files.filter(isMigrationPath);
@@ -195,8 +225,10 @@ function main() {
       process.exit(0);
     }
     const evidencePath = evidence || 'migration-review.md';
-    const evidenceText = readEvidenceFromBlob(resolved.head, evidencePath);
-    const result = formatResult(migrations, evidenceText);
+    const added = readEvidenceAdded(r, arg, evidencePath);
+    // O blob inteiro só serve ao diagnóstico ("existe, mas não foi atualizada neste range").
+    const blob = readEvidenceFromBlob(r.head, evidencePath);
+    const result = formatResult(migrations, added, blob || '');
     console.log(result.text);
     process.exit(result.ok ? 0 : 1);
   }
@@ -220,7 +252,7 @@ function main() {
     }
     const evidencePath = evidence ? evidence : join(arg, 'migration-review.md');
     const evidenceText = readEvidenceFromDisk(evidencePath);
-    const result = formatResult(migrations, evidenceText);
+    const result = formatResult(migrations, evidenceText, null);
     console.log(result.text);
     process.exit(result.ok ? 0 : 1);
   }

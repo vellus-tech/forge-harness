@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gate W292 — verificacao estatica de template/.forge/commands/docs/update-changelog.md (TASK-09).
+# Gate W304 — verificacao estatica de template/.forge/commands/docs/update-changelog.md (TASK-09).
 #
 # Cenarios:
 #   [1] trava de branch protegida (develop/master/main) documentada nos Passos a Executar
@@ -7,6 +7,8 @@
 #   [3] os 4 gates nomeados explicitamente, incluindo check-ai-attribution.sh text
 #   [4] nenhuma instrucao de "git commit" no corpo (comando nunca commita)
 #   [5] resolve-skill.sh citado (REQ-12)
+#   [6] resolve-skill.sh pelo caminho do consumidor (.forge/scripts/)
+#   [7] versão anterior guardada antes do motor, usada pelos gates e restaurada em falha
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -53,4 +55,23 @@ echo "[5] resolve-skill.sh citado"
 echo "$body" | grep -q 'resolve-skill.sh' || { echo "FAIL: comando nao chama resolve-skill.sh"; exit 1; }
 echo "OK [5]"
 
-echo "PASS w292-update-changelog-comando"
+# ── [6] ──────────────────────────────────────────────────────────────────────────────────────
+echo "[6] resolve-skill.sh pelo caminho do consumidor (.forge/scripts/), nunca template/"
+echo "$body" | grep -q 'bash \.forge/scripts/resolve-skill\.sh' || { echo "FAIL [6]: comando não chama .forge/scripts/resolve-skill.sh"; exit 1; }
+if echo "$body" | grep -q 'template/\.forge/scripts/resolve-skill\.sh'; then echo "FAIL [6]: comando cita template/.forge/scripts/resolve-skill.sh, inexistente no consumidor"; exit 1; fi
+echo "OK [6]"
+
+# ── [7] ──────────────────────────────────────────────────────────────────────────────────────
+echo "[7] versão anterior guardada antes do motor, usada pelos gates e restaurada em falha"
+echo "$body" | grep -q 'cp "\$CL" "\$ANTERIOR"' || { echo "FAIL [7]: comando não guarda a versão anterior"; exit 1; }
+echo "$body" | grep -q 'released.mjs" "\$ANTERIOR" "\$CL"' || { echo "FAIL [7]: released não compara com a versão anterior"; exit 1; }
+echo "$body" | grep -q 'lint.mjs" "\$CL" --since "\$ANTERIOR"' || { echo "FAIL [7]: lint não restrito às entradas novas"; exit 1; }
+echo "$body" | grep -q 'cp "\$ANTERIOR" "\$CL"' || { echo "FAIL [7]: comando não restaura o arquivo quando um gate falha"; exit 1; }
+echo "$body" | grep -qF "!(\$0 in velha)' \"\$ANTERIOR\" \"\$CL\" > \"\$NOVAS\"" || { echo "FAIL [7]: check-ai-attribution não restrito às linhas novas"; exit 1; }
+echo "$body" | grep -q 'check-ai-attribution.sh text "\$NOVAS"' || { echo "FAIL [7]: check-ai-attribution não roda sobre as linhas novas"; exit 1; }
+snap=$(echo "$body" | grep -n 'cp "\$CL" "\$ANTERIOR"' | head -1 | cut -d: -f1)
+eng=$(echo "$body" | grep -n 'changelog-engine.mjs" --root' | head -1 | cut -d: -f1)
+[ -n "$snap" ] && [ -n "$eng" ] && [ "$snap" -lt "$eng" ] || { echo "FAIL [7]: a cópia da versão anterior não vem antes da chamada ao motor"; exit 1; }
+echo "OK [7]"
+
+echo "PASS w304-update-changelog-comando"

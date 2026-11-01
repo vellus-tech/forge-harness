@@ -15,8 +15,10 @@ Um motor único (`scripts/changelog-engine.mjs`) que escreve entradas em `CHANGE
 
 - `--type <t> --description <d>` — explícito: grava uma entrada literal na seção mapeada de `<t>`. Cria `CHANGELOG.md` se não existir, com o cabeçalho padrão Keep a Changelog.
 - `--subject "<msg>"` — derivado de um único subject de Conventional Commits (ex.: squash de PR).
-- `--path <componente>` — derivado: varre o intervalo de commits do componente e deriva uma ou mais entradas. Sai com `rc=2` se o componente não existir.
+- `--path <componente> [--base <ref>]` — derivado: varre os commits do componente que a branch atual trouxe desde a base (`merge-base` com `--base`, ou com a primeira referência existente entre `origin/develop`, `develop`, `origin/main`, `main`, `origin/master`, `master`) e deriva uma ou mais entradas. Sai com `rc=2` se o componente não existir, se a raiz não for um repositório git ou se nenhuma base resolver — nunca "nada a registrar" por vacuidade.
 - `--merge-range <A..B>` — derivado do merge (usado só pelo hook `post-merge`); NUNCA cria `CHANGELOG.md` ausente — é no-op silencioso nesse caso, e também quando `HEAD` não é merge.
+
+Em todos os modos, o motor deduplica contra o bloco `[Unreleased]`: uma entrada cujo texto já está lá não é gravada de novo, ignorando o sufixo `(<hash>)` que o `--merge-range` acrescenta — assim o comando (na branch) e o hook (no merge) nunca registram a mesma mudança duas vezes. O texto das entradas é tratado como dado (sem interpretação de `$&`, `$'` etc.), e um CHANGELOG em CRLF é regravado em CRLF.
 
 Mapeamento tipo → seção (alinhado a `rules/conventions/conventional-commits.md`): `feat` → Adicionado; `fix`/`perf` → Corrigido. Demais tipos (`refactor`, `revert`, `chore`, `docs`, `style`, `test`, `build`, `ci`) não geram entrada.
 
@@ -26,13 +28,15 @@ Em qualquer modo, se `release-please-config.json` existir no diretório relevant
 
 Chamados só pelo comando `/forge:update-changelog`, nunca pelo hook (que é informacional e não bloqueia merge):
 
-- `released.mjs <antigo> <novo>` — cada seção `## [X.Y.Z]` do arquivo anterior tem que sair byte a byte idêntica no novo. Uma versão já publicada não pode ser alterada ou removida.
-- `preserve.mjs <antigo> <novo>` — nenhum bloco (entrada de lista sob um `### <Seção>`) do arquivo anterior pode desaparecer no novo sem substituto.
-- `lint.mjs` — travessão, quebra de linha dentro de parágrafo, acentuação ASCII (`nao` em vez de `não`), placeholder e link quebrado.
+- `released.mjs <antigo> <novo>` — cada seção `## [X.Y.Z]` do arquivo anterior tem que sair byte a byte idêntica no novo (terminadores de linha normalizados). Uma versão já publicada não pode ser alterada, removida ou duplicada.
+- `preserve.mjs <antigo> <novo>` — nenhum item de lista do arquivo anterior pode desaparecer no novo sem substituto, dentro do mesmo par versão/seção.
+- `lint.mjs <novo> [--since <antigo>]` — travessão, quebra de linha dentro de parágrafo, acentuação ausente (`nao` em vez de `não`), placeholder e link quebrado; com `--since`, só nas entradas novas (o histórico publicado, que `released` proíbe corrigir, não trava o comando).
+
+Os três gates reprovam com `rc=2` quando o arquivo anterior não existe: para um CHANGELOG criado agora, o chamador passa um arquivo anterior vazio. Um gate nunca aprova por não ter tido o que comparar.
 
 ## Resolução
 
-Resolvida por `template/.forge/scripts/resolve-skill.sh readme-generator <arquivo...>` — ordem: `FORGE_SKILL_DIR_README_GENERATOR` → `.forge/skills/readme-generator/` do projeto → skill de usuário do adapter ativo. O hook `post-merge` NUNCA usa esse resolvedor — ele resolve só dentro de `.forge/skills/readme-generator/` do próprio projeto (ou do tronco, via `resolve_delegated`), igual a qualquer outro alvo delegado do harness.
+Resolvida por `bash .forge/scripts/resolve-skill.sh readme-generator <arquivo...>` — ordem: `FORGE_SKILL_DIR_README_GENERATOR` → `.forge/skills/readme-generator/` do projeto → skill de usuário do adapter ativo. O override, quando definido, é a única fonte consultada: override inválido é erro, não queda silenciosa para a cópia do projeto. O hook `post-merge` NUNCA usa esse resolvedor — ele resolve só dentro de `.forge/skills/readme-generator/` do próprio projeto (ou do tronco, via `resolve_delegated`), igual a qualquer outro alvo delegado do harness.
 
 ## references/
 

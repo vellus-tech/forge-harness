@@ -1,49 +1,84 @@
 #!/usr/bin/env node
-// lint.mjs — gate de higiene de prosa nas entradas (linhas "- ...") de um CHANGELOG.md.
-// Checagens: travessão, quebra de linha dentro de parágrafo, acentuação ASCII (palavra comum
+// lint.mjs — gate de higiene de prosa nas entradas (itens de lista "- "/"* ") de um CHANGELOG.md.
+// Checagens: travessão, quebra de linha dentro de parágrafo, acentuação ausente (palavra comum
 // grafada sem o acento devido), placeholder, link markdown quebrado.
 //
-// Uso: lint.mjs <changelog>
-// Saída: "OK ..." / "FAIL lint: ...", rc 0/1.
+// Escopo: com --since <changelog-antigo>, só as entradas NOVAS (linhas que não existiam no arquivo
+// anterior) são verificadas — um travessão histórico numa versão já publicada, que o gate released
+// proíbe corrigir, não pode travar o comando para sempre. Sem --since, o arquivo inteiro é
+// verificado. Terminadores de linha são normalizados para LF (CRLF não esconde violação).
+//
+// Uso: lint.mjs <changelog> [--since <changelog-antigo>]
+// Saída: "OK ..." / "FAIL lint: ...", rc 0 (ok) / 1 (violação) / 2 (uso ou entrada inválida).
 import { readFileSync, existsSync } from 'node:fs';
 
-const [, , path] = process.argv;
-if (!path) {
-  console.error('Uso: lint.mjs <changelog>');
+const argv = process.argv.slice(2);
+let path = null;
+let since = null;
+for (let i = 0; i < argv.length; i++) {
+  if (argv[i] === '--since') { since = argv[++i]; continue; }
+  if (!path) path = argv[i];
+}
+if (!path || (argv.includes('--since') && !since)) {
+  console.error('Uso: lint.mjs <changelog> [--since <changelog-antigo>]');
   process.exit(2);
 }
-if (!existsSync(path)) {
-  console.error(`FAIL lint: arquivo nao encontrado: ${path}`);
-  process.exit(2);
+for (const p of [path, since].filter(Boolean)) {
+  if (!existsSync(p)) {
+    console.error(`FAIL lint: arquivo não encontrado: ${p}`);
+    process.exit(2);
+  }
 }
 
-const md = readFileSync(path, 'utf8');
-const lines = md.split('\n');
+const norm = (s) => s.replace(/\r\n?/g, '\n');
+const lines = norm(readFileSync(path, 'utf8')).split('\n');
+
+// Multiconjunto das linhas do arquivo anterior: uma linha só é "antiga" enquanto houver cópia dela
+// no anterior (duas linhas idênticas novas contra uma antiga = uma nova).
+const oldCount = new Map();
+if (since) {
+  for (const l of norm(readFileSync(since, 'utf8')).split('\n')) {
+    oldCount.set(l, (oldCount.get(l) || 0) + 1);
+  }
+}
+function isNewLine(l) {
+  if (!since) return true;
+  const n = oldCount.get(l) || 0;
+  if (n > 0) { oldCount.set(l, n - 1); return false; }
+  return true;
+}
+
 const failures = [];
 
-// Palavras comuns em pt-BR que, grafadas sem acento (forma ASCII), indicam perda de acentuação.
+// Palavras comuns em pt-BR que, grafadas sem acento, são sempre erro. Ficam de fora palavras cuja
+// forma sem acento também é grafia correta ("esta", "exemplo", "pagina", "numero", "ultima"...).
 const ASCII_WORDS = [
-  'nao', 'sao', 'entao', 'estao', 'codigo', 'voce', 'esta', 'ja', 'funcao', 'opcao', 'secao',
+  'nao', 'sao', 'entao', 'estao', 'codigo', 'voce', 'ja', 'funcao', 'opcao', 'secao',
   'informacao', 'configuracao', 'implementacao', 'validacao', 'atraves', 'possivel', 'tambem',
-  'usuario', 'pagina', 'historico', 'exemplo', 'numero', 'ultima', 'ultimo', 'proprio', 'propria',
+  'usuario', 'historico', 'proprio', 'propria',
 ];
-const ASCII_RE = new RegExp(`\\b(${ASCII_WORDS.join('|')})\\b`, 'i');
+// Fronteira Unicode: \b do JS é ASCII e casaria "esta" dentro de "estação".
+const ASCII_RE = new RegExp(`(?<![\\p{L}\\p{N}_])(${ASCII_WORDS.join('|')})(?![\\p{L}\\p{N}_])`, 'iu');
 
-const PLACEHOLDER_RE = /\b(TODO|FIXME|XXX|TBD|<placeholder>)\b/i;
+// Placeholders são marcadores em caixa alta; "todo" em minúscula é palavra do português.
+const PLACEHOLDER_RE = /\b(TODO|FIXME|XXX|TBD)\b|<placeholder>/;
 const BROKEN_LINK_RE = /\[[^\]]*\]\(\s*\)/; // [texto]() — url vazia
 
-let inBullet = false;
+let inNewBullet = false;
 for (let i = 0; i < lines.length; i++) {
   const line = lines[i];
-  const bullet = line.match(/^-\s+(.+)$/);
+  const fresh = isNewLine(line);
+  const bullet = line.match(/^\s*[-*]\s+(.+)$/);
   if (bullet) {
+    inNewBullet = fresh;
+    if (!fresh) continue;
     const text = bullet[1];
     if (/[—–]/.test(text)) {
-      failures.push(`linha ${i + 1}: travessao encontrado — "${text.trim()}"`);
+      failures.push(`linha ${i + 1}: travessão encontrado — "${text.trim()}"`);
     }
-    if (ASCII_RE.test(text)) {
-      const m = text.match(ASCII_RE);
-      failures.push(`linha ${i + 1}: acentuacao ausente ("${m[0]}") — "${text.trim()}"`);
+    const m = text.match(ASCII_RE);
+    if (m) {
+      failures.push(`linha ${i + 1}: acentuação ausente ("${m[0]}") — "${text.trim()}"`);
     }
     if (PLACEHOLDER_RE.test(text)) {
       failures.push(`linha ${i + 1}: placeholder encontrado — "${text.trim()}"`);
@@ -51,22 +86,20 @@ for (let i = 0; i < lines.length; i++) {
     if (BROKEN_LINK_RE.test(text)) {
       failures.push(`linha ${i + 1}: link markdown quebrado (url vazia) — "${text.trim()}"`);
     }
-    inBullet = true;
     continue;
   }
-  // Quebra de linha dentro de parágrafo: uma linha não vazia, que não é bullet/heading/branco,
-  // imediatamente após uma linha de bullet — indica hard-wrap manual no meio da frase.
-  const isBlankOrStructural = /^\s*$/.test(line) || /^#/.test(line) || /^-\s/.test(line);
-  if (inBullet && !isBlankOrStructural) {
-    failures.push(`linha ${i + 1}: quebra de linha dentro de paragrafo — "${line.trim()}"`);
+  // Quebra de linha dentro de parágrafo: uma linha não vazia, que não é item de lista/heading,
+  // imediatamente após um item de lista novo — indica hard-wrap manual no meio da frase.
+  const isBlankOrStructural = /^\s*$/.test(line) || /^#/.test(line);
+  if (inNewBullet && !isBlankOrStructural && fresh) {
+    failures.push(`linha ${i + 1}: quebra de linha dentro de parágrafo — "${line.trim()}"`);
   }
-  if (!isBlankOrStructural) inBullet = false;
-  if (/^\s*$/.test(line)) inBullet = false;
+  inNewBullet = false;
 }
 
 if (failures.length) {
   for (const f of failures) console.error(`FAIL lint: ${f}`);
   process.exit(1);
 }
-console.log('OK lint — sem travessao, quebra de linha indevida, acentuacao ascii, placeholder ou link quebrado');
+console.log(`OK lint — sem travessão, quebra de linha indevida, acentuação ausente, placeholder ou link quebrado${since ? ' nas entradas novas' : ''}`);
 process.exit(0);

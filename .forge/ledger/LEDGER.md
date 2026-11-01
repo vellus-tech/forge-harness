@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**38 itens ativos** · roadmap 8 · tech-debt 21 · known-bug 9 · (95 encerrados)
+**46 itens ativos** · roadmap 8 · tech-debt 22 · known-bug 14 · follow-up 2 · (95 encerrados)
 
 ## Roadmap
 
@@ -82,6 +82,8 @@ _Encerrados: 2 (resolved 2)_
   Achado J-27 da revisão adversarial do plano v2 (scratchpad/judge.json), citado na nota de resolução do LDG-0163 e registrado aqui como item próprio conforme a correção do próprio achado. O caminho --repair-own-log em template/.forge/scripts/lib/transports/_common.sh:206-207 (origin/develop) publica o log próprio direto por cp/mv, sem passar por liaison-push-union.mjs — ou seja, sem a validação de um-escritor-por-arquivo que o LDG-0163 fechou para o caminho normal de push. Só roda com a flag LIAISON_PUSH_REPAIR=1 explícita e emite WARN, então o raio de exposição é menor que o defeito original, mas a mesma classe de dano (sobrescrever o hub com um log próprio corrompido) continua alcançável por esse caminho de reparo. Onda alvo: Onda 7 (Bloco E, dívida interna), junto da fusão LDG-0171/LDG-0183 e dos demais itens de robustez do liaison/ledger.
 - **LDG-0191** [open] (P3) — Lote restante de '! comando' nus sob set -e (12 linhas em 12 gates) e lacunas residuais da anti-recursão do w80 [4]
   Depois do LDG-0182 (PR #161), a varredura grep -nE '^[[:space:]]*! ' tests/*.sh | grep -v '||' ainda acha 12 linhas em 12 gates fora dos 14 revalidados pelo Bloco A: w51, w32, w211, w20, w175, w169, w163, infra-scan, gw3-data-governance, graph-deps, check-authz e changelog-merge. Cada uma precisa ser medida (mutação que deveria reprovar → rc hoje) antes de converter, porque '! ' dentro de if/while ou seguido de || na linha seguinte está vivo. Mesma frente: lacunas LOW da revisão do PR #161 no w80 [4] — zsh/dash/ksh, "$0"/${BASH_SOURCE[0]}, source/., execução direta tests/run-all.sh, e o grep com rc>1 (regex inválida) que abre o guarda em silêncio. Correção: conversão por gate com mutação e recontrole, e no [4] manter também a regex ampla de develop com filtro de comentário.
+- **LDG-0210** [open] (LOW) — run-all.sh classifica morte por sinal (pressão de memória) como FAIL em corrida completa sob carga · via `add-unify-changelog-skill`
+  Duas corridas completas de npm test nesta worktree reportaram ~40 gates FAIL, lista quase idêntica entre as duas, espalhada por áreas não relacionadas entre si (specs, archive, publish, init, adapters, secrets, enforcement). Todos os gates testados isoladamente passam, inclusive um subconjunto de 9 gates + 2 suítes bats rodado em sequência real idêntica à ordem do run-all.sh (PASS=11 FAIL=0 em 131s). Paralelismo interno e vazamento de env var entre gates foram eliminados como causa (run-all.sh roda sequencial, cada gate em processo filho novo, unset explícito das vars GIT_DIR/GIT_WORK_TREE/etc). Máquina com 16 sessões de usuário simultâneas e ~125MB de RAM livre durante a corrida; run-all.sh já documenta nas linhas 140-208 (comentário LDG-0179/LDG-0180) um caso conhecido de gate morto por SIGKILL sob pressão de memória sendo promovido a FAIL por narração ambígua, em vez de UNVERIFIED. Evidência: tests/run-all.sh linhas 140-208; subconjunto w12/w13/w14/w20/w21/w22/w31/w32/w33+bats isolado PASS=11 FAIL=0 em 131s. Recomendação: medir RSS pico por gate numa corrida completa isolada (ex. /usr/bin/time -l) antes de decidir entre ampliar a tolerância do classificador para UNVERIFIED ou reduzir a pegada de memória dos gates mais pesados. Não bloqueante para nenhum change individual; pré-existente no harness de testes, não introduzido por add-unify-changelog-skill.
 
 _Encerrados: 40 (resolved 35 · wont-fix 5)_
 
@@ -105,12 +107,25 @@ _Encerrados: 40 (resolved 35 · wont-fix 5)_
   Achado residual da revisão do PR #167 (#160/LDG-0189). Dois gaps na mesma função, template/.forge/scripts/doctor.sh:154-232 (_settings_hooks_is_derived): (1) validação mais fraca que a real — a linha 227 faz 'const current = JSON.parse(readFileSync(settingsPath, "utf8"))' sem passar por decodeAndValidateSettings (sync-adapters.mjs:660-680), que rejeita como ILEGÍVEL bytes fora de UTF-8, nível de topo não-objeto, hooks não-objeto, categoria de hooks não-array e a chave __proto__. Um settings.json que dispara qualquer uma dessas cinco condições mas ainda é JSON sintaticamente válido passa pelo JSON.parse cru do doctor sem erro; se a projeção calculada bater por coincidência, o doctor imprime a recomendação com a ressalva 'o sync preserva chaves autorais' (doctor.sh linha ~309) como se nada fosse acontecer — mas o sync REAL (sync-adapters.mjs, chamando decodeAndValidateSettings) trataria o mesmo arquivo como ilegível, faria backup e reescreveria do zero, perdendo toda chave autoral que o doctor acabou de dizer que seria preservada. (2) comparação sensível à ORDEM das categorias — doctor.sh:212 monta 'out' com 'for (const cat of Object.keys(hooksObj))', na ordem em que as categorias aparecem no settings.json real, e compara por 'JSON.stringify(projected) === JSON.stringify(derived)' (doctor.sh:229), que serializa por ordem de inserção; se preToolUseWiring(root) (a função canônica) emite as categorias numa ordem fixa e o consumidor declarou, por exemplo, SessionStart antes de PreToolUse no settings.json, os dois JSON.stringify divergem por ordem de chave mesmo com o MESMO conteúdo, e a comparação cai em 'no' — drift só de ordem/autoral (nenhuma chave perdida de fato) classificado como drift real, levando o doctor a recomendar rodar sync-adapters.sh sem necessidade. Correção proposta: (1) fazer _settings_hooks_is_derived chamar a mesma validação de decodeAndValidateSettings (via subprocesso ou exportação) antes de decidir 'yes', nunca JSON.parse cru; (2) comparar 'projected' e 'derived' por igualdade estrutural (chaves ordenadas antes de stringify, ou comparação recursiva) em vez de JSON.stringify direto. Gate candidato: dois cenários novos em tests/w238-settings-json-merge-gate.sh — settings.json com hooks.SomeCategory não-array mas JSON válido (doctor deveria dizer 'no', hoje pode dizer 'yes'), e settings.json com SessionStart antes de PreToolUse e conteúdo idêntico ao derivado (doctor deveria dizer 'yes', hoje diz 'no').
 - **LDG-0157** [open] (P3) — check-ai-attribution.sh reporta 'assinatura de IA detectada' quando o que falta é o node
   Pré-existente (também em origin/develop), achado ao medir w190[6b]. _scan_file invoca 'node -' e o chamador trata QUALQUER rc != 0 como 'houve violação'. Sem node no PATH o rc é 127 e o hook imprime o banner de falso positivo — 'FAIL: assinatura de IA detectada (rule conventions/no-ai-attribution.md)' — sobre um commit limpo, junto de um 'node: command not found' solto em stderr. Consequência de segunda ordem: é esse bloqueio que torna w190[6b] incapaz de isolar a guarda de leitor da issue #82 (medido: o mesmo cenário termina rc != 0 com 'BLOQUEADO' também no pre-push de origin/develop, que não tem guarda nenhuma). Correção candidata: separar rc 127 / erro de execução de rc 1 / violação encontrada, e reportar 'NÃO VERIFICADO — node ausente' como terceira classe, que é a disciplina que o resto do harness já aplica.
+- **LDG-0203** [open] (P3) — item-do-worktree
+  registrado de dentro de um worktree
+- **LDG-0204** [open] (P3) — item-do-worktree
+  registrado de dentro de um worktree
+- **LDG-0207** [open] (P3) — item-do-worktree
+  registrado de dentro de um worktree
+- **LDG-0205** [open] — item-w193
+  conteúdo
+- **LDG-0208** [open] — item-w193
+  conteúdo
 
 _Encerrados: 37 (resolved 36 · wont-fix 1)_
 
 ## Follow-ups
 
-_(nenhum ativo)_
+- **LDG-0206** [open] — controle do 19
+  conteúdo
+- **LDG-0209** [open] — controle do 19
+  conteúdo
 
 _Encerrados: 11 (resolved 9 · wont-fix 2)_
 

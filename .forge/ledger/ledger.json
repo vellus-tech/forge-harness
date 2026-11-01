@@ -4,7 +4,7 @@
       "id": "LDG-0001",
       "type": "follow-up",
       "title": "Runtime cross-repo da capability authz/observability (PEP libs Go/Kotlin/TS, repo de política OPA, wrappers OTel, authz-console UI)",
-      "detail": "Wont-fix: DECISÃO DO DONO DO REPOSITÓRIO (2026-09-05): fora do harness, encerrado sem entrega. Três medições sustentam o desfecho. (1) A entrada nasceu em 2026-07-20 com detail VAZIO e nunca foi atualizada em ~6 semanas — não há conteúdo para atravessar fronteira nenhuma, só um título. (2) O repositório de destino já rastreia esse trabalho por itens próprios e mais informados: o ledger do axis-go-cloud tem 1308 entradas, entre elas LDG-0538 (P1, open — \"ADP não tem gate de exposição de superfície nem OTel\") e LDG-0497 (P1, open — device-management e parameters-service sem OTEL_EXPORTER_OTLP_ENDPOINT, não exportam traces). Manter um stub aqui duplica rastreamento, e o duplicado é o menos informado dos dois. (3) \"promoted\" seria o status ERRADO por definição deste ledger, não por preferência: o schema define links.promoted_to como \"change-id criado a partir desta entrada\" (um change ATIVO deste repositório) e o advisory de ledger do doctor.sh sinaliza todo item promoted cujo change de destino não existe em .forge/specs — codificar promoção cross-repo assim instalaria um falso positivo permanente no doctor deste repositório. O que de fato atravessaria a fronteira, se o assunto voltar, é normativo e já está publicado: as rules architecture/authz-pdp-pep.md (pack authz) e architecture/pii-pci-classification.md; a maquinaria que as torna contrato obrigatório num adotante é LDG-0003 (ativação de rule-pack), que permanece open neste ledger.",
+      "detail": "Wont-fix: DECISÃO DO DONO DO REPOSITÓRIO (2026-09-05): fora do harness, encerrado sem entrega. Três medições sustentam o desfecho. (1) A entrada nasceu em 2026-07-20 com detail VAZIO e nunca foi atualizada em ~6 semanas — não há conteúdo para atravessar fronteira nenhuma, só um título. (2) O repositório de destino já rastreia esse trabalho por itens próprios e mais informados: o ledger do axis-go-cloud tem 1308 entradas, entre elas LDG-0538 (P1, open — \"ADP não tem gate de exposição de superfície nem OTel\") e LDG-0497 (P1, open — device-management e parameters-service sem OTEL_EXPORTER_OTLP_ENDPOINT, não exportam traces). Manter um stub aqui duplica rastreamento, e o duplicado é o menos informado dos dois. (3) \"promoted\" seria o status ERRADO por definição deste ledger, não por preferência: o schema define links.promoted_to como \"change-id criado a partir desta entrada\" (um change ATIVO deste repositório) e o advisory de ledger do doctor.sh sinaliza todo item promoted cujo change de destino não existe em .forge/specs — codificar promoção cross-repo assim instalaria um falso positivo permanente no doctor deste repositório. O que de fato atravessaria a fronteira, se o assunto voltar, é normativo e já está publicado: as rules architecture/authz-pdp-pep.md (pack authz) e architecture/pii-pci-classification.md; a maquinaria que as torna contrato obrigatório num adotante é LDG-0003 (ativação de rule-pack), que permanece open neste ledger.\n\nPROGRESSO (2026-10-31): nota emitida de dentro do worktree\n\nPROGRESSO (2026-10-31): nota emitida de dentro do worktree",
       "severity": null,
       "priority": null,
       "status": "wont-fix",
@@ -20,7 +20,7 @@
         "promoted_to": null
       },
       "created_at": "2026-07-20T11:07:37-03:00",
-      "updated_at": "2026-09-05T09:07:01-03:00",
+      "updated_at": "2026-10-31T20:27:09-03:00",
       "resolved_at": "2026-09-05T09:07:01-03:00",
       "dedup_key": "manual:LDG-0001"
     },
@@ -3259,6 +3259,200 @@
       "updated_at": "2026-09-28T09:26:22-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0202"
+    },
+    {
+      "id": "LDG-0203",
+      "type": "known-bug",
+      "title": "item-do-worktree",
+      "detail": "registrado de dentro de um worktree",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T20:27:09-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0203"
+    },
+    {
+      "id": "LDG-0204",
+      "type": "known-bug",
+      "title": "item-do-worktree",
+      "detail": "registrado de dentro de um worktree",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T20:27:09-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0204"
+    },
+    {
+      "id": "LDG-0205",
+      "type": "known-bug",
+      "title": "item-w193",
+      "detail": "conteúdo",
+      "severity": null,
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T20:27:09-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0205"
+    },
+    {
+      "id": "LDG-0206",
+      "type": "follow-up",
+      "title": "controle do 19",
+      "detail": "conteúdo",
+      "severity": null,
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T20:27:09-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0206"
+    },
+    {
+      "id": "LDG-0207",
+      "type": "known-bug",
+      "title": "item-do-worktree",
+      "detail": "registrado de dentro de um worktree",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T20:27:09-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0207"
+    },
+    {
+      "id": "LDG-0208",
+      "type": "known-bug",
+      "title": "item-w193",
+      "detail": "conteúdo",
+      "severity": null,
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T20:27:09-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0208"
+    },
+    {
+      "id": "LDG-0209",
+      "type": "follow-up",
+      "title": "controle do 19",
+      "detail": "conteúdo",
+      "severity": null,
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T20:27:09-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0209"
+    },
+    {
+      "id": "LDG-0210",
+      "type": "tech-debt",
+      "title": "run-all.sh classifica morte por sinal (pressão de memória) como FAIL em corrida completa sob carga",
+      "detail": "Duas corridas completas de npm test nesta worktree reportaram ~40 gates FAIL, lista quase idêntica entre as duas, espalhada por áreas não relacionadas entre si (specs, archive, publish, init, adapters, secrets, enforcement). Todos os gates testados isoladamente passam, inclusive um subconjunto de 9 gates + 2 suítes bats rodado em sequência real idêntica à ordem do run-all.sh (PASS=11 FAIL=0 em 131s). Paralelismo interno e vazamento de env var entre gates foram eliminados como causa (run-all.sh roda sequencial, cada gate em processo filho novo, unset explícito das vars GIT_DIR/GIT_WORK_TREE/etc). Máquina com 16 sessões de usuário simultâneas e ~125MB de RAM livre durante a corrida; run-all.sh já documenta nas linhas 140-208 (comentário LDG-0179/LDG-0180) um caso conhecido de gate morto por SIGKILL sob pressão de memória sendo promovido a FAIL por narração ambígua, em vez de UNVERIFIED. Evidência: tests/run-all.sh linhas 140-208; subconjunto w12/w13/w14/w20/w21/w22/w31/w32/w33+bats isolado PASS=11 FAIL=0 em 131s. Recomendação: medir RSS pico por gate numa corrida completa isolada (ex. /usr/bin/time -l) antes de decidir entre ampliar a tolerância do classificador para UNVERIFIED ou reduzir a pegada de memória dos gates mais pesados. Não bloqueante para nenhum change individual; pré-existente no harness de testes, não introduzido por add-unify-changelog-skill.",
+      "severity": "LOW",
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "add-unify-changelog-skill",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-unify-changelog-skill"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T20:27:09-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0210"
     }
   ]
 }

@@ -22,7 +22,7 @@ set -euo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-T="$(mktemp -d /tmp/forge-w292.XXXXXX)"
+T="$(mktemp -d /tmp/forge-w317.XXXXXX)"
 # shellcheck source=fixtures/kb/semantic-env.sh
 . "$WS/tests/fixtures/kb/semantic-env.sh"
 trap 'semantic_env_teardown; rm -rf "$T"' EXIT
@@ -153,4 +153,4 @@ o="$(kb query "grafo")"; grep -q 'não instalada' <<<"${o%%$'\n'*}" || fail 8 "a
 kb semantic install > /dev/null 2>&1 && [ -f "$R/.forge/kb/semantic/installed.json" ] || fail 8 "reinstalação após remove falhou"
 ok 8
 
-echo "PASS w292-kb-semantic (8 casos)"
+echo "PASS w317-kb-semantic (8 casos)"

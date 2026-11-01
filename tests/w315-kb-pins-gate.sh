@@ -25,4 +25,4 @@ for (const r of ["embedder","reranker"]) for (const f of m[r].files) { if(!/^htt
 ' "$WS" || fail 1 "pins/devDependencies incoerentes"
 ok 1
 
-echo "PASS w290-kb-pins (1 caso)"
+echo "PASS w315-kb-pins (1 caso)"

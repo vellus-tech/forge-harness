@@ -15,7 +15,7 @@ set -euo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-T="$(mktemp -d /tmp/forge-w291.XXXXXX)"
+T="$(mktemp -d /tmp/forge-w316.XXXXXX)"
 # shellcheck source=fixtures/kb/semantic-env.sh
 . "$WS/tests/fixtures/kb/semantic-env.sh"
 trap 'semantic_env_teardown; rm -rf "$T"' EXIT
@@ -100,4 +100,4 @@ n="$(grep -cE "(import\(|from ['\"]).*kb-install" "$WS/template/.forge/scripts/l
 ctx="$(grep -B3 'kb-install.mjs' "$WS/template/.forge/scripts/lib/kb-cli.mjs")"; grep -q "sub === 'install'" <<<"$ctx" || fail 7 "kb-install carregado fora do ramo semantic install"
 ok 7
 
-echo "PASS w291-kb-install (7 casos)"
+echo "PASS w316-kb-install (7 casos)"

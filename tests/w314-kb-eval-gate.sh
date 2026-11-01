@@ -10,7 +10,7 @@ set -euo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-T="$(mktemp -d /tmp/forge-w289.XXXXXX)"
+T="$(mktemp -d /tmp/forge-w314.XXXXXX)"
 trap 'rm -rf "$T"' EXIT
 KB="$WS/template/.forge/scripts/kb.sh"
 firstline() { local o; o="$("$@")" || return $?; printf '%s\n' "${o%%$'\n'*}"; }
@@ -52,4 +52,4 @@ for (const f of process.argv.slice(1)) { const q=JSON.parse(require("fs").readFi
 ' "$WS/tests/fixtures/kb/eval/calibration.json" "$WS/tests/fixtures/kb/eval/holdout.json" || fail 2 "menos de 4 consultas em inglês numa partição"
 ok 2
 
-echo "PASS w289-kb-eval (2 casos)"
+echo "PASS w314-kb-eval (2 casos)"

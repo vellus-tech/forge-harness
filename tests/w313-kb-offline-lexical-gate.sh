@@ -19,7 +19,7 @@ set -euo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-T="$(mktemp -d /tmp/forge-w288.XXXXXX)"
+T="$(mktemp -d /tmp/forge-w313.XXXXXX)"
 # shellcheck source=fixtures/kb/semantic-env.sh
 . "$WS/tests/fixtures/kb/semantic-env.sh"
 trap 'semantic_env_teardown; rm -rf "$T"' EXIT
@@ -117,4 +117,4 @@ for mech in $MECHS; do
 done
 ok 7
 
-echo "PASS w288-kb-offline-lexical (7 casos; bloqueio: $MECHS)"
+echo "PASS w313-kb-offline-lexical (7 casos; bloqueio: $MECHS)"

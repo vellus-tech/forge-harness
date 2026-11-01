@@ -89,4 +89,4 @@ bad="$(grep -E "^[[:space:]]*import .* from '" "$LIB/kb-lexical.mjs" | grep -vE 
 [ -z "$bad" ] || fail 7 "import fora de node:* e do harness: $bad"
 ok 7
 
-echo "PASS w285-kb-lexical (7 casos)"
+echo "PASS w310-kb-lexical (7 casos)"

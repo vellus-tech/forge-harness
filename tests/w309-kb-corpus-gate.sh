@@ -17,7 +17,7 @@ set -euo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-T="$(mktemp -d /tmp/forge-w284.XXXXXX)"
+T="$(mktemp -d /tmp/forge-w309.XXXXXX)"
 trap 'rm -rf "$T"' EXIT
 LIB="$WS/template/.forge/scripts/lib"
 ok() { echo "OK [$1]"; }
@@ -143,4 +143,4 @@ console.log(fingerprint(collect({ docRoot: process.argv[1] }).docs));
 cmp -s "$T/fp1" "$T/fp2" && fail 9 "impressão digital não mudou com a fonte alterada"
 ok 9
 
-echo "PASS w284-kb-corpus (9 casos)"
+echo "PASS w309-kb-corpus (9 casos)"

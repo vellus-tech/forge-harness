@@ -112,4 +112,4 @@ ok 8
 grep -qE '^[[:space:]]*import ' "$LIB/kb-fuse.mjs" && fail 7 "kb-fuse.mjs importa módulo (deveria ser puro)"
 ok 7
 
-echo "PASS w286-kb-fuse (8 casos)"
+echo "PASS w311-kb-fuse (8 casos)"

@@ -23,7 +23,7 @@ set -euo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-T="$(mktemp -d /tmp/forge-w287.XXXXXX)"
+T="$(mktemp -d /tmp/forge-w312.XXXXXX)"
 trap 'rm -rf "$T"' EXIT
 KB="$WS/template/.forge/scripts/kb.sh"
 firstline() { local o; o="$("$@")" || return $?; printf '%s\n' "${o%%$'\n'*}"; }
@@ -144,4 +144,4 @@ for i in 1 2; do rm_out="$(kb semantic remove)" || fail 11 "semantic remove falh
 [ -f "$R/.forge/kb/index.json" ] || fail 11 "remove apagou o índice lexical"
 ok 11
 
-echo "PASS w287-kb-cli (11 casos)"
+echo "PASS w312-kb-cli (11 casos)"

@@ -12,7 +12,7 @@ set -euo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-T="$(mktemp -d /tmp/forge-w294.XXXXXX)"
+T="$(mktemp -d /tmp/forge-w319.XXXXXX)"
 trap 'rm -rf "$T"' EXIT
 KB="$WS/template/.forge/scripts/kb.sh"
 firstline() { local o; o="$("$@")" || return $?; printf '%s\n' "${o%%$'\n'*}"; }
@@ -56,4 +56,4 @@ grep -q '0001' "$ADR" || fail 3 "ADR 0004 não cita a 0001 que emenda"
 for want in 'opt-in' 'kb-pins' 'nativo' 'MS MARCO' 'Status:\*\* accepted'; do grep -qE "$want" "$ADR" || fail 3 "ADR 0004 sem: $want"; done
 ok 3
 
-echo "PASS w294-kb-surface (3 casos)"
+echo "PASS w319-kb-surface (3 casos)"

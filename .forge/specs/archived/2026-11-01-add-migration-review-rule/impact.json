@@ -1,0 +1,11 @@
+{
+  "schema": "impact/v0",
+  "generated_at": "2026-10-31T17:10:28.484Z",
+  "graph_fingerprint": "53fd6d018f475bb874edc6b61e7ef8aae9eccf81aa5e49ceda8fa09da3b943ea",
+  "seeds": [
+    "template/.forge/scripts/lib/check-data-governance.mjs"
+  ],
+  "impacted": [
+    "template/.forge/scripts/lib/check-data-governance.mjs"
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20261031170649-1bb6cd3d",
+  "stage": "verify",
+  "status": "failed",
+  "started_at": "2026-10-31T17:06:49Z",
+  "finished_at": "2026-10-31T17:06:49.581Z",
+  "duration_ms": 581,
+  "git": {
+    "repo": true,
+    "branch": "feat/harness/migration-review-rule",
+    "head_sha": "7536b1ec80c441705b92a296d2e5631e3164a8fb",
+    "dirty": true,
+    "changed_files": [
+      ".forge/specs/active/add-migration-review-rule/"
+    ],
+    "diff_stat": "",
+    "diff_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "9e9e1ac8115335f74f8042c0f179629b35c5be9ebbaacaf08544575c3357fded",
+      "bytes": 662,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "cc61a12d6e7af56a6f901a2ddaca2cccd3a4a997b46342515c32e3916f51c625",
+      "bytes": 8999,
+      "kind": "file"
+    },
+    {
+      "path": "traceability.yaml",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "commands": [
+    {
+      "name": "spec-verify",
+      "command": "spec-verify.sh add-migration-review-rule",
+      "status": "failed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "8be826b017228bbc4072365c77ed8eb39480db2e45216d294bef21b0d03a11ec",
+      "bytes": 219,
+      "kind": "file"
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

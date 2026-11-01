@@ -1,0 +1,107 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20261101150800-042b97ad",
+  "stage": "archive",
+  "status": "passed",
+  "started_at": "2026-11-01T15:07:59Z",
+  "finished_at": "2026-11-01T15:08:00.806Z",
+  "duration_ms": 1806,
+  "git": {
+    "repo": true,
+    "branch": "feat/harness/migration-review-rule",
+    "head_sha": "349edbefaad0782e7da36d0e0ef2b3079c5d65cb",
+    "dirty": true,
+    "changed_files": [
+      ".forge/product/current/CHANGELOG.md",
+      ".forge/product/current/capabilities/forge-harness-template/spec.yaml",
+      ".forge/specs/active/add-migration-review-rule/approvals.yaml",
+      ".forge/specs/active/add-migration-review-rule/design.md",
+      ".forge/specs/active/add-migration-review-rule/evidence/runs/20261031170649-1bb6cd3d/run-manifest.json",
+      ".forge/specs/active/add-migration-review-rule/evidence/runs/20261031170703-0a681718/run-manifest.json",
+      ".forge/specs/active/add-migration-review-rule/impact.json",
+      ".forge/specs/active/add-migration-review-rule/manifest.yaml",
+      ".forge/specs/active/add-migration-review-rule/proposal.md",
+      ".forge/specs/active/add-migration-review-rule/requirements.md",
+      ".forge/specs/active/add-migration-review-rule/spec-delta.yaml",
+      ".forge/specs/active/add-migration-review-rule/tasks.md",
+      ".forge/specs/active/add-migration-review-rule/verification.md",
+      ".forge/specs/active/add-migration-review-rule/verification.yaml",
+      ".forge/specs/archived/2026-11-01-add-migration-review-rule/",
+      ".forge/specs/archived/index.yaml"
+    ],
+    "diff_stat": ".forge/product/current/CHANGELOG.md                |   6 +\n .../capabilities/forge-harness-template/spec.yaml  | 100 +++++++++++---\n .../add-migration-review-rule/approvals.yaml       |  26 ----\n .../active/add-migration-review-rule/design.md     | 143 ---------------------\n .../runs/20261031170649-1bb6cd3d/run-manifest.json |  70 ----------\n .../runs/20261031170703-0a681718/run-manifest.json |  70 ----------\n .../active/add-migration-review-rule/impact.json   |  11 --\n .../active/add-migration-review-rule/manifest.yaml |  38 ------\n .../active/add-migration-review-rule/proposal.md   |  43 -------\n .../add-migration-review-rule/requirements.md      | 105 ---------------\n .../add-migration-review-rule/spec-delta.yaml      | 103 ---------------\n .../active/add-migration-review-rule/tasks.md      |  50 -------\n .../add-migration-review-rule/verification.md      |  39 ------\n .../add-migration-review-rule/verification.yaml    |   9 --\n .forge/specs/archived/index.yaml                   |   4 +\n 15 files changed, 92 insertions(+), 725 deletions(-)",
+    "diff_sha256": "b36f1c1baa99da9cc05550484aa2aebbffdfaccf30f1980db03be925ea5f06f4"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "5971f5584be2a60c3fad67b1a4e792c926411548a22fa6af8cacde003c5abcda",
+      "bytes": 979,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "9e03f5cc86a40a3fe3c3747334c3286e43294a19c1903cd3c0e8d0f76d466378",
+      "bytes": 8999,
+      "kind": "file"
+    },
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "8b4c62c0d5d386760453c7206cf371cf0e9146412630bfcb52ef1a231265c543",
+      "bytes": 219,
+      "kind": "file"
+    },
+    {
+      "path": "spec-delta.yaml",
+      "exists": true,
+      "sha256": "4952f801406efc266c99b9d836bc070e1e20165d0a3dd11f59f0f6ee2926aa1a",
+      "bytes": 5782,
+      "kind": "file"
+    },
+    {
+      "path": "impact.json",
+      "exists": true,
+      "sha256": "7f53b96acefbe151740a60c37d5bbd7b2d6b4578ca6d2d113aaf902ab9091a80",
+      "bytes": 324,
+      "kind": "file"
+    }
+  ],
+  "commands": [
+    {
+      "name": "archive-spec",
+      "command": "archive-spec.sh add-migration-review-rule",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "5971f5584be2a60c3fad67b1a4e792c926411548a22fa6af8cacde003c5abcda",
+      "bytes": 979,
+      "kind": "file"
+    },
+    {
+      "path": "evidence/runs",
+      "exists": true,
+      "sha256": "349b786b0f3eb27e3bfcf5c029d907b21860448a0bed4bf5864ad78749d174c2",
+      "bytes": null,
+      "kind": "directory"
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

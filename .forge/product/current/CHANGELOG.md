@@ -2,6 +2,12 @@
 
 > One entry per archived change (newest first). Maintained by `/forge:archive` — do not edit by hand.
 
+## 2026-11-01 — add-migration-review-rule
+
+- **Capabilities:** forge-harness-template
+- **Operações:** 6
+- **Pasta:** `.forge/specs/archived/2026-11-01-add-migration-review-rule/`
+
 ## 2026-10-31 — add-liaison-native-bridge
 
 - **Capabilities:** forge-harness-template

@@ -165,6 +165,58 @@ $INPUT
 EOF_AI
 fi
 
+# migration-review (rule data/migration-review.md, REQ-05 §"Integração no ciclo") — varre, por
+# ref deste push, se algum arquivo de migration tocado tem evidência de parecer de revisão
+# especializada (data-engineer/data-relational). Mesmo padrão do bloco AI_CHECK acima: range por
+# ref via `resolve_delegated`, NUNCA via `runtime.gates` (esse mecanismo sempre chama o gate com
+# `--path "$ROOT"`, sem range — ver design §2.4; rodaria toda migration já existente no
+# histórico como pendente em todo push, inviável em repositório brownfield).
+MIGRATION_REVIEW_CHECK="$(resolve_delegated check-migration-review.sh scripts/check-migration-review.sh)"; _rc=$?
+if [ "$_rc" -eq 1 ]; then
+  echo "pre-push BLOQUEADO: .forge/scripts/ existe mas check-migration-review.sh não — delegação em alvo ausente" >&2
+  exit 1
+fi
+if [ -n "$MIGRATION_REVIEW_CHECK" ]; then
+  while read -r _lref lsha _rref rsha; do
+    [ -n "${lsha:-}" ] || continue
+    case "$lsha" in *[!0]*) : ;; *) continue ;; esac   # deleção de ref: nada a varrer
+    if [ -z "${rsha:-}" ] || [ "$rsha" = "0000000000000000000000000000000000000000" ]; then
+      # Ref nova no remoto. O fallback `range="$lsha"` do bloco AI_CHECK acima NÃO serve aqui: lá o
+      # range alimenta `git rev-list` (sha único = todos os commits alcançáveis); aqui alimenta
+      # `git diff-tree` (sha único = só o diff do commit tip). Copiado literalmente, ele deixava
+      # passar migration de qualquer commit anterior ao tip quando o commit novo mais antigo é o
+      # raiz (fail-open), e cobrava o diff do tip quando a ref nova não traz commit novo nenhum
+      # (bloqueio de push que não toca migration). Os dois casos são tratados abaixo.
+      if ! _mr_revs="$(git rev-list "$lsha" --not --remotes 2>/dev/null)"; then
+        range="$lsha"   # rev-list falhou: o .mjs recebe o sha e decide (range inválido ⇒ FAIL)
+      else
+        oldest="$(printf '%s\n' "$_mr_revs" | tail -1)"
+        # Nenhum commit novo: tudo o que esta ref publica já está em algum remoto e já passou (ou
+        # antecede) este gate — nada a varrer.
+        [ -n "$oldest" ] || continue
+        if git rev-parse --verify --quiet "$oldest~1" >/dev/null 2>&1; then
+          range="$oldest~1..$lsha"
+        else
+          # Commit novo mais antigo é o raiz (primeiro push do repositório): o push publica a
+          # história inteira, então o diff é contra a árvore vazia — cobre todos os commits, não
+          # só o tip.
+          range="$(git hash-object -t tree /dev/null)..$lsha"
+        fi
+      fi
+    else
+      range="$rsha..$lsha"
+    fi
+    # Uma execução só: a saída é capturada e reimpressa no bloqueio, em vez de rodar o gate de novo.
+    if ! _mr_out="$(bash "$MIGRATION_REVIEW_CHECK" range "$range")"; then
+      echo "pre-push BLOQUEADO: migration sem parecer de revisão (rule data/migration-review.md)" >&2
+      printf '%s\n' "$_mr_out"
+      exit 1
+    fi
+  done <<EOF_MR
+$INPUT
+EOF_MR
+fi
+
 # liaison acks (rule conventions/liaison-protocol.md) — cobra só os acks que ESTE repositório deve.
 # Roda antes do gate de FORGE.md porque não depende dele: um repositório pode ter canal de liaison
 # sem ter o bloco runtime configurado, e a cobrança de contrato vale igual.

@@ -246,6 +246,8 @@ after="$(hash_state)"
 [ "$rc" -ne 0 ] || fail "C1 [origem/participantes] deveria recusar peer fora do canal: $out"
 grep -qi 'participa' <<<"$out" || fail "recusa C1 [origem] não explica o motivo: $out"
 grep -q 'open .* --participants' <<<"$out" || fail "recusa C1 [cross-session] não imprime o caminho de resolução via 'open': $out"
+grep -q 'transport set' <<<"$out" || fail "recusa C1 [cross-session] não imprime o segundo caminho (canal novo com 'transport set'): $out"
+grep -qi 'peer' <<<"$out" || fail "recusa C1 [cross-session] não lembra que o peer faz o mesmo do lado dele: $out"
 [ "$before" = "$after" ] || fail "recusa C1 [efeito colateral] mudou liaison.yaml/log/blobs/cursor"
 pass "C1 — peer fora do canal recusa sem efeito colateral (hash intacto)"
 

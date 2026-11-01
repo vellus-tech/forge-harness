@@ -266,6 +266,23 @@ async function main() {
       assertTrue(r.findings.some((f) => f.type === 'hook-line-changed'), 'linha removida deveria ser achado');
     });
 
+    // Achado MAJOR do gate implementation_verified (rodada 1): com manifesto de consumidor que
+    // existe e resolve, ele decide sozinho os ganchos do diretório (sync-adapters ignora gancho não
+    // declarado nele); remover só a linha do gancho do manifesto do consumidor desarma o gancho
+    // mesmo que o default o declare armado, e precisa ser achado de contenção.
+    check('hook-line-changed: linha removida SÓ do manifesto do consumidor (default ainda a declara armada) é achado', () => {
+      const root = newFixtureRoot();
+      const dirHooks = join(root, '.forge', 'hooks', 'pre-tool-use');
+      writeFileSync(join(dirHooks, 'hooks.manifest.default'), '# forge-manifest-format: 1\nguard-cross-session-send.sh\t^SendMessage$\tstdin-json\tarmado\nenforce-worktree-location.sh\t^Bash$\tstdin-json\tarmado\n');
+      writeFileSync(join(dirHooks, 'hooks.manifest'), '# forge-manifest-format: 1\nguard-cross-session-send.sh\t^SendMessage$\tstdin-json\tarmado\nenforce-worktree-location.sh\t^Bash$\tstdin-json\tarmado\n');
+      const refA = commitAll(root, 'chore: manifesto do consumidor com o gancho');
+      writeFileSync(join(dirHooks, 'hooks.manifest'), '# forge-manifest-format: 1\nenforce-worktree-location.sh\t^Bash$\tstdin-json\tarmado\n');
+      const refB = commitAll(root, 'chore: linha do gancho removida só do consumidor');
+      const r = C.detectContainment({ root, range: `${refA}..${refB}` });
+      assertTrue(r.ok, `deveria medir: ${r.reason}`);
+      assertTrue(r.findings.some((f) => f.type === 'hook-line-changed'), 'remoção da linha só no manifesto do consumidor deveria ser achado');
+    });
+
     check('hook-unwired sem intervalo: consumidor existente com gancho SEMEADO INATIVO (nenhum hooks.manifest declarando) não é achado (controle negativo)', () => {
       const root = newFixtureRoot();
       writeSettingsWithGuard(root, false);

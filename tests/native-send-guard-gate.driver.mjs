@@ -631,6 +631,25 @@ async function main() {
       assertFalse(/hooks\.manifest|settings\.json/.test(msg), 'mensagem não deveria sugerir mexer em manifest/settings');
     });
 
+    // Fail-closed contra exceção (achado BLOCKER do gate implementation_verified, rodada 1): um
+    // erro não tratado no node sairia com 1, que o Claude Code trata como erro NÃO bloqueante e
+    // deixaria o SendMessage seguir. Pelo processo real, com destino vivo em outro workspace.
+    check('fail-closed — exceção no gancho (cwd com .git quebrado) -> exit 2 pelo processo real, nunca 1', () => {
+      const broken = join(P2, 'cwd-git-quebrado');
+      mkdirSync(broken, { recursive: true });
+      writeFileSync(join(broken, '.git'), 'gitdir: /nonexistent/forge-gate-x\n');
+      const payload = p2Payload({ to: udsPaymentsNoAllow, message: 'sem declaração', cwd: broken });
+      const res = runHookProcess(JSON.stringify(payload), { FORGE_CLAUDE_SESSIONS_DIR: SESS_DIR, FORGE_CLAUDE_PROJECTS_DIR: PROJECTS_DIR });
+      assertEqual(res.status, 2, `exit code deveria ser 2 (obtido ${res.status}; stderr: ${(res.stderr || '').slice(0, 200)})`);
+    });
+
+    check('fail-closed — payload de destino de sessão sem cwd -> exit 2 pelo processo real, nunca 1', () => {
+      const payload = p2Payload({ to: udsPaymentsNoAllow, message: 'sem declaração' });
+      delete payload.cwd;
+      const res = runHookProcess(JSON.stringify(payload), { FORGE_CLAUDE_SESSIONS_DIR: SESS_DIR, FORGE_CLAUDE_PROJECTS_DIR: PROJECTS_DIR });
+      assertEqual(res.status, 2, `exit code deveria ser 2 (obtido ${res.status}; stderr: ${(res.stderr || '').slice(0, 200)})`);
+    });
+
     check("REQ-07 — caso 'forge-harness' -> 'payments' com cadastro COMMITADO -> exit 0", () => {
       const doc = JSON.parse(readFileSync(join(mainRepo, '.forge', 'liaison', 'allowed-workspaces.json'), 'utf8'));
       doc.allowed_workspaces.push(allowEntry('github.com/acme/payments'));

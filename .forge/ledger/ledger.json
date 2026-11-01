@@ -3363,6 +3363,84 @@
       "updated_at": "2026-10-31T17:12:36-03:00",
       "resolved_at": "2026-10-31T17:12:36-03:00",
       "dedup_key": "manual:LDG-0206"
+    },
+    {
+      "id": "LDG-0207",
+      "type": "follow-up",
+      "title": "Teste de injeção da fixture de controle do leitor de transcript (ramo instrumento quebrado por controle)",
+      "detail": "A mutação que remove o ramo 'fixture de controle falhou' de readTranscript (native-transcript.mjs) sobrevive aos gates native-readers e native-coverage; acrescentar ponto de injeção da fixture no teste (gate implementation_verified, rodada 1).",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "verify",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:49:43-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0207"
+    },
+    {
+      "id": "LDG-0208",
+      "type": "tech-debt",
+      "title": "Merge humano com mudança de contenção em ship/yolo é regra de prompt, sem verificação determinística",
+      "detail": "ship.md 10b, yolo-gate.md e autonomy-yolo.md trazem a regra e o gate só confere o texto; avaliar script de merge que consulte native containment antes de mesclar (gate implementation_verified, rodada 1).",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "verify",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:49:43-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0208"
+    },
+    {
+      "id": "LDG-0209",
+      "type": "follow-up",
+      "title": "Fixture de pre-push com o detector de contenção devolvendo rc 2 (não mediu)",
+      "detail": "O pre-push trata rc 2 do native containment, mas nenhum gate tem fixture desse caminho (gate implementation_verified, rodada 1).",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "verify",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:49:43-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0209"
     }
   ]
 }

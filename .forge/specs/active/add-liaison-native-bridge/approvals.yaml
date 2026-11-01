@@ -71,3 +71,12 @@ approvals:
     commit: "a31fcbba"
     scope: "tasks.md"
     notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: implementation_verified
+    decision: review
+    reason: "Revisor adversarial delegado (opus) rodada 1 decidiu BLOCK por achado corrigivel, registrado como review: BLOCKER gancho sai 1 (nao bloqueia) em excecao do node (cwd com .git quebrado, payload sem cwd); MAJOR remover a linha do gancho so do hooks.manifest do consumidor desarma sem achado de contencao; 3 MINOR. Mutacoes M1-M3 mortas"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-31T21:46:15-03:00"
+    iteration: 1
+    commit: "7bc20e93"
+    scope: "verification.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30; BLOCK do revisor nao depende de decisao do dono, e defeito corrigivel"

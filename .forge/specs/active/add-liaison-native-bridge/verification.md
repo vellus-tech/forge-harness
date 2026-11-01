@@ -30,6 +30,17 @@ Os 12 requisitos e os 3 NFR estão cobertos por gates determinísticos em `tests
 
 Suíte completa (`tests/run-all.sh`, 193 gates + 2 bats): nesta máquina, com outras sessões rodando suítes em paralelo, o `run-all` inteiro não termina dentro do limite de tempo (duas rodadas cortadas por timeout, em `w220` e `w258`). A cobertura foi completada em três partes com timeout por gate: rodada 1 (até `w220`), rodada 2 (até `w258`) e os 46 restantes em sequência. Vermelhos encontrados e destino: `w12`, `w13`, `w14`, `w62`, `w139`, `w215`, `w238` (efeito do gancho novo armado por padrão, de fixtures de segredo literais e do doctor) corrigidos e verdes; `w200` verde depois da TASK-25; `w107`, `w151` e `w96` verdes ao reexecutar isolados (falha de tempo/concorrência). Na reexecução final dos gates que tocam o `doctor.sh` (depois do fix `72a20098`), `w239` e `w217` reprovaram no cenário [10] de propriedade com `ENOENT` no diretório temporário de fixture (`pbt-pristine`) enquanto o sistema estava sob pressão de memória, e o lote foi interrompido pelo próprio Claude Code por falta de memória; ambos passaram na rodada 2 da suíte e não tocam código deste change além do `doctor.sh`. Recomendação: rodar `w217`, `w239` e o restante do lote do doctor de novo numa janela sem carga antes do merge.
 
+## Rodada 1 do gate `implementation_verified` e correções
+
+O revisor delegado mutou três gates críticos numa cópia da árvore (cadastro ignorado no gancho, `allowlist-changed` suprimido no detector, recusa C1 removida) e as três mutações foram mortas, com controle e recontrole. Ele também rodou `w217` e `w239` isolados, e os dois passaram. Achados e destino:
+
+- BLOCKER: o gancho saía com 1 (não bloqueante no Claude Code) quando o node lançava exceção, como num `cwd` com `.git` quebrado ou num payload sem `cwd`. Corrigido em `native-send-guard.mjs`: `main()` protegida, mais `uncaughtException`/`unhandledRejection`, sempre exit 2. Dois casos novos no `native-send-guard-gate` exercitam o processo real.
+- MAJOR: remover a linha do gancho só do `hooks.manifest` do consumidor desarmava o gancho sem gerar achado. Corrigido em `native-containment.mjs`: um manifesto do consumidor presente e resolvido decide sozinho, sem cair no default, na mesma regra do `sync-adapters`. Caso novo no `native-containment-gate`.
+- MINOR: a recusa C1 agora confere também o segundo caminho (`transport set`) e o lembrete ao peer.
+- MINOR adiados ao ledger: LDG-0207 (injeção da fixture de controle do leitor de transcript), LDG-0208 (merge humano com mudança de contenção é regra de prompt) e LDG-0209 (fixture de pre-push com o detector em rc 2).
+
+O par de testes vermelhos e a correção tem prova `red-evidence.sh task` com `OK` (behavioral). Depois da correção ficaram verdes `native-send-guard`, `native-containment`, `native-containment-wiring` e `w113`.
+
 ## Desvios e observações
 
 - Emendas datadas do REQ-05 (subagente por nome só passa com prova de nome interno) e do REQ-06 (ponteiro na primeira linha), decorrentes do gate `design_reviewed`.

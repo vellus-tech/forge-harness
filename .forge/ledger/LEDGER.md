@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**41 itens ativos** · roadmap 8 · tech-debt 22 · known-bug 9 · follow-up 2 · (96 encerrados)
+**44 itens ativos** · roadmap 8 · tech-debt 23 · known-bug 9 · follow-up 4 · (96 encerrados)
 
 ## Roadmap
 
@@ -84,6 +84,8 @@ _Encerrados: 2 (resolved 2)_
   Achado J-27 da revisão adversarial do plano v2 (scratchpad/judge.json), citado na nota de resolução do LDG-0163 e registrado aqui como item próprio conforme a correção do próprio achado. O caminho --repair-own-log em template/.forge/scripts/lib/transports/_common.sh:206-207 (origin/develop) publica o log próprio direto por cp/mv, sem passar por liaison-push-union.mjs — ou seja, sem a validação de um-escritor-por-arquivo que o LDG-0163 fechou para o caminho normal de push. Só roda com a flag LIAISON_PUSH_REPAIR=1 explícita e emite WARN, então o raio de exposição é menor que o defeito original, mas a mesma classe de dano (sobrescrever o hub com um log próprio corrompido) continua alcançável por esse caminho de reparo. Onda alvo: Onda 7 (Bloco E, dívida interna), junto da fusão LDG-0171/LDG-0183 e dos demais itens de robustez do liaison/ledger.
 - **LDG-0191** [open] (P3) — Lote restante de '! comando' nus sob set -e (12 linhas em 12 gates) e lacunas residuais da anti-recursão do w80 [4]
   Depois do LDG-0182 (PR #161), a varredura grep -nE '^[[:space:]]*! ' tests/*.sh | grep -v '||' ainda acha 12 linhas em 12 gates fora dos 14 revalidados pelo Bloco A: w51, w32, w211, w20, w175, w169, w163, infra-scan, gw3-data-governance, graph-deps, check-authz e changelog-merge. Cada uma precisa ser medida (mutação que deveria reprovar → rc hoje) antes de converter, porque '! ' dentro de if/while ou seguido de || na linha seguinte está vivo. Mesma frente: lacunas LOW da revisão do PR #161 no w80 [4] — zsh/dash/ksh, "$0"/${BASH_SOURCE[0]}, source/., execução direta tests/run-all.sh, e o grep com rc>1 (regex inválida) que abre o guarda em silêncio. Correção: conversão por gate com mutação e recontrole, e no [4] manter também a regex ampla de develop com filtro de comentário.
+- **LDG-0208** [open] (P3) — Merge humano com mudança de contenção em ship/yolo é regra de prompt, sem verificação determinística · via `add-liaison-native-bridge`
+  ship.md 10b, yolo-gate.md e autonomy-yolo.md trazem a regra e o gate só confere o texto; avaliar script de merge que consulte native containment antes de mesclar (gate implementation_verified, rodada 1).
 
 _Encerrados: 40 (resolved 35 · wont-fix 5)_
 
@@ -116,6 +118,10 @@ _Encerrados: 37 (resolved 36 · wont-fix 1)_
   O gancho de saída (native-send-guard.mjs) trata nome de sessão igual a Agent nomeado como destino de sessão quando o registro local tem entrada viva única com esse nome (REQ-05, design item 2 do gate design_reviewed). O formato de chamada Agent com input.name em agent teams não foi medido em produção — a medição atual é sobre fixture sintética. Fecha quando o recurso estiver disponível e a medição real confirmar ou corrigir o payload assumido.
 - **LDG-0205** [open] (P3) — Auditar outros ganchos/scripts que leem stdin sem limite de tempo · via `add-liaison-native-bridge`
   Medido neste change: on-session-end.sh travava com stdin nunca fechado (corrigido aqui). Auditar os demais ganchos e scripts do harness que leem stdin para confirmar se algum outro tem o mesmo defeito — fecha com a lista de pontos auditados e, se achar outro caso, com o fix correspondente ou um item novo de ledger apontando para ele.
+- **LDG-0207** [open] (P3) — Teste de injeção da fixture de controle do leitor de transcript (ramo instrumento quebrado por controle) · via `add-liaison-native-bridge`
+  A mutação que remove o ramo 'fixture de controle falhou' de readTranscript (native-transcript.mjs) sobrevive aos gates native-readers e native-coverage; acrescentar ponto de injeção da fixture no teste (gate implementation_verified, rodada 1).
+- **LDG-0209** [open] (P3) — Fixture de pre-push com o detector de contenção devolvendo rc 2 (não mediu) · via `add-liaison-native-bridge`
+  O pre-push trata rc 2 do native containment, mas nenhum gate tem fixture desse caminho (gate implementation_verified, rodada 1).
 
 _Encerrados: 11 (resolved 9 · wont-fix 2)_
 

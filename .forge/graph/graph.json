@@ -1,6 +1,6 @@
 {
   "schema": "graph/v0",
-  "generated_at": "2026-11-01T00:24:49.520Z",
+  "generated_at": "2026-11-01T00:57:09.455Z",
   "engine": "native",
   "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/liaison-native-bridge",
   "stats": {
@@ -903,8 +903,8 @@
     {
       "id": "template/.forge/scripts/lib/native-containment.mjs",
       "lang": "js",
-      "loc": 273,
-      "fingerprint": "00fb10cc2fe5b57fc2b593601837f94e608b1bb9b8a9e0bf4573e2c7e8c2dda8",
+      "loc": 277,
+      "fingerprint": "95097f19724bf1dc7854769fdc7d135232f2c9e33fccc77bf0ec831ece070c8b",
       "layer": "unknown",
       "summary": null
     },
@@ -919,8 +919,8 @@
     {
       "id": "template/.forge/scripts/lib/native-send-guard.mjs",
       "lang": "js",
-      "loc": 475,
-      "fingerprint": "3145832f68e421e0e461b781289621dc976dbd1c282ee74253b465e28a1cb013",
+      "loc": 493,
+      "fingerprint": "b887d9740748c4e7cdd367c72bcd36b24f7b18fbec25472fdee2db5f356037f5",
       "layer": "unknown",
       "summary": null
     },
@@ -2503,8 +2503,8 @@
     {
       "id": "tests/liaison-cross-session-record-gate.sh",
       "lang": "shell",
-      "loc": 358,
-      "fingerprint": "352d739c64add780e7d31c98f461a60b4f9f01fd0913f2b40cb21ccafd32d0b8",
+      "loc": 360,
+      "fingerprint": "0db38ff70ed7bf9395584b30cde367e5afde494c983cc5d9fd05962d9c2421da",
       "layer": "test",
       "summary": null
     },
@@ -2543,8 +2543,8 @@
     {
       "id": "tests/native-containment-gate.driver.mjs",
       "lang": "js",
-      "loc": 356,
-      "fingerprint": "e4cbf514115c9fa970f409575446302be55fdc782ed542db7d61b849f39d892f",
+      "loc": 373,
+      "fingerprint": "9a26dcc94637f7703d1c90f8fc4ad26c422a28b29d487c79356e7c8888d48f9b",
       "layer": "test",
       "summary": null
     },
@@ -2615,8 +2615,8 @@
     {
       "id": "tests/native-send-guard-gate.driver.mjs",
       "lang": "js",
-      "loc": 882,
-      "fingerprint": "2a43948108c9a02a596095c4711490b43af79563a50209adb14cd9f61fbce493",
+      "loc": 901,
+      "fingerprint": "9ba66bbed487acf4f68aaaa0c26aacb1868d041a50112bfbd9ae83f751c18074",
       "layer": "test",
       "summary": null
     },

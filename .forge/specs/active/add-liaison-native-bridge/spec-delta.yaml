@@ -22,9 +22,14 @@ operations:
           given: "um msg_id inexistente, de peer, ou de mensagem própria ainda não publicada"
           when: "o operador roda notify sobre essa condição"
           then: "recusa com rc != 0 nomeando a condição que falhou (não existe / não é mensagem própria / não publicada, com o comando sync que falta)"
+        - id: SCN-FHT-054-C
+          given: "os scripts e ganchos do template"
+          when: "a checagem [10] do gate w113 roda"
+          then: "nenhum deles invoca o CLI de sessão do Claude Code nem abre conexão com socket de sessão (o script não envia nada; o envio é ato do agente), e ler messagingSocketPath do registro não conta como conexão"
       contracts: []
       tests:
         - tests/liaison-notify-gate.sh
+        - tests/w113-liaison-enforce-gate.sh
   - op: add_requirement
     capability: forge-harness-template
     requirement_id: REQ-FHT-055
@@ -95,6 +100,10 @@ operations:
           given: "um SendMessage endereçando destino de sessão (nome resolvido com unicidade local, ou endereço uds:)"
           when: "o gancho de saída roda"
           then: "aplica varredura de segredo (REQ-FHT-057), destino declarado (REQ-FHT-059) e contenção por workspace (REQ-FHT-060); destino ambíguo ou não classificável é tratado como destino de sessão (fail-closed) com mensagem explicando o motivo"
+        - id: SCN-FHT-058-C
+          given: "um SendMessage que é só pedido de aviso de ociosidade (notify_when_idle) sem texto, para destino de sessão"
+          when: "o gancho de saída roda"
+          then: "aplica apenas a contenção por workspace (REQ-FHT-060), porque o pedido não carrega conteúdo mas presença também é informação"
       contracts: []
       tests:
         - tests/native-send-guard-gate.sh
@@ -135,6 +144,10 @@ operations:
           given: "o mesmo cenário, mas com a identidade do workspace de destino cadastrada ativa em allowed_workspaces"
           when: "o gancho de saída roda"
           then: "deixa passar com exit 0"
+        - id: SCN-FHT-060-C
+          given: "um destino sem registro local (Remote Control, nuvem ou sessão encerrada), ou um nome que casa com mais de uma sessão viva"
+          when: "o gancho de saída roda"
+          then: "bloqueia com exit 2 mesmo que algum workspace esteja cadastrado, pedindo o endereço uds: no caso de nome ambíguo"
       contracts: []
       tests:
         - tests/native-send-guard-gate.sh
@@ -172,7 +185,7 @@ operations:
         - id: SCN-FHT-062-A
           given: "as rules liaison-protocol.md e liaison-untrusted-input.md do template"
           when: "o change é entregue"
-          then: "trazem o critério de classes obrigatórias e das classes efêmeras (fonte única com EPHEMERAL_CLASSES, conferida por tests/native-rules-parity-gate.sh), a regra internal-coordination, a aplicação integral das regras de dado não confiável à mensagem nativa, a afirmação de from-name autodeclarado, a afirmação de allowed_workspaces como proteção contra liberação induzida (não fronteira), e a recomendação de configuração gerenciada do Claude Code para repositórios PCI; last_reviewed atualizado nas duas e ao menos três itens abertos no ledger do harness com origem neste change"
+          then: "trazem o critério de classes obrigatórias e das classes efêmeras (fonte única com EPHEMERAL_CLASSES, conferida por tests/native-rules-parity-gate.sh), a regra internal-coordination, a aplicação integral das regras de dado não confiável à mensagem nativa, a afirmação de from-name autodeclarado, a afirmação de allowed_workspaces como proteção contra liberação induzida (não fronteira), e a recomendação de configuração gerenciada do Claude Code para repositórios PCI; last_reviewed atualizado nas duas e itens abertos no ledger do harness com origem neste change, entre eles o de avaliar a configuração gerenciada do Claude Code nos repositórios em escopo PCI"
       contracts: []
       tests:
         - tests/native-rules-parity-gate.sh
@@ -192,7 +205,7 @@ operations:
         - id: SCN-FHT-063-B
           given: "uma mudança de contenção (cadastro alterado, linha do gancho de SendMessage removida/trocada em hooks.manifest, gancho ausente da fiação quando o manifesto o declara armado, ou identidade do remote origin diferente de self_identity)"
           when: "ocorre um push, uma rodada de doctor, ou a preparação de PR (/forge:prepare-pr, /forge:ship)"
-          then: "o detector único (native containment) sinaliza a mudança nos três pontos, sem bloquear o push, para decisão humana no merge"
+          then: "o detector único (native containment) sinaliza a mudança no pre-push (sem bloquear o push) e na seção do PR, para decisão humana no merge; o doctor, que mede só o estado atual, sinaliza as três mudanças que não dependem de intervalo (cadastro, fiação ausente e remote divergente)"
       contracts: []
       tests:
         - tests/native-containment-gate.sh
@@ -209,7 +222,7 @@ operations:
         - id: SCN-FHT-064-A
           given: "o harness instalado ou atualizado num consumidor"
           when: "sync-adapters.mjs gera a fiação a partir de hooks.manifest.default (matcher ^SendMessage$, contrato stdin-json)"
-          then: "uma instalação nova recebe o gancho guard-cross-session-send.sh armado; um consumidor de fixture com .claude/settings.json pré-existente recebe o gancho inativo e nomeado, sem desfiar os ganchos que já existia fiados quando o passo de armar documentado é seguido; plugin/forge/commands/liaison.md é igual à versão do template"
+          then: "uma instalação nova recebe o gancho guard-cross-session-send.sh armado; um consumidor de fixture com .claude/settings.json pré-existente recebe o gancho inativo e nomeado, sem desfiar os ganchos que já existiam fiados quando o passo de armar documentado é seguido; plugin/forge/commands/liaison.md é igual à versão do template"
       contracts: []
       tests:
         - tests/native-hook-packaging-gate.sh

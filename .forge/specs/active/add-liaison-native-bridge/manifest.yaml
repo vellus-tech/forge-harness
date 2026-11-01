@@ -53,5 +53,5 @@ quick_plan:
   skipped_phases: []
   justification:
 archive:
-  eligible: false
-  reason: "tasks not implemented"
+  eligible: true
+  reason: "verified; gates approved"

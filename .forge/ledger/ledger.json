@@ -3441,6 +3441,136 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0209"
+    },
+    {
+      "id": "LDG-0210",
+      "type": "tech-debt",
+      "title": "coverage — REQ-11 e checklist de superfície — Resolvido: `pin` e `containment` no REQ-11 e na tabela; linha do REQ-11 acrescentada.",
+      "detail": "Resolvido: Colhido pelo harvest do archive a partir de achado do analyze que já estava resolvido na rodada 2 (coluna Recomendação começa com 'Resolvido'); nada a fazer.",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "resolved",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "archive",
+        "ref": "A-05"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:59:26-03:00",
+      "updated_at": "2026-10-31T21:59:26-03:00",
+      "resolved_at": "2026-10-31T21:59:26-03:00",
+      "dedup_key": "add-liaison-native-bridge:A-05"
+    },
+    {
+      "id": "LDG-0211",
+      "type": "tech-debt",
+      "title": "drift — design §9 × tasks — Resolvido: nomes sem ordinal, linhas do `native-containment-wiring-gate.sh` e do `native-readers-gate.sh`, nota de divisão.",
+      "detail": "Resolvido: Colhido pelo harvest do archive a partir de achado do analyze que já estava resolvido na rodada 2 (coluna Recomendação começa com 'Resolvido'); nada a fazer.",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "resolved",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "archive",
+        "ref": "A-06"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:59:26-03:00",
+      "updated_at": "2026-10-31T21:59:26-03:00",
+      "resolved_at": "2026-10-31T21:59:26-03:00",
+      "dedup_key": "add-liaison-native-bridge:A-06"
+    },
+    {
+      "id": "LDG-0212",
+      "type": "tech-debt",
+      "title": "drift — design §2.7 (`hook-unwired`) — Resolvido: detector usa o wrapper exportado `preToolUseWiring`; derivação `unresolved` (manifesto corrompido) vira rc 2 (TASK-12).",
+      "detail": "Resolvido: Colhido pelo harvest do archive a partir de achado do analyze que já estava resolvido na rodada 2 (coluna Recomendação começa com 'Resolvido'); nada a fazer.",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "resolved",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "archive",
+        "ref": "A-07"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:59:26-03:00",
+      "updated_at": "2026-10-31T21:59:26-03:00",
+      "resolved_at": "2026-10-31T21:59:26-03:00",
+      "dedup_key": "add-liaison-native-bridge:A-07"
+    },
+    {
+      "id": "LDG-0213",
+      "type": "tech-debt",
+      "title": "risk — design §2.4 passo 3 — Resolvido: `FORGE_CLAUDE_PROJECTS_DIR` para fixtures, sem redirecionar `HOME`.",
+      "detail": "Resolvido: Colhido pelo harvest do archive a partir de achado do analyze que já estava resolvido na rodada 2 (coluna Recomendação começa com 'Resolvido'); nada a fazer.",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "resolved",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "archive",
+        "ref": "A-08"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:59:26-03:00",
+      "updated_at": "2026-10-31T21:59:26-03:00",
+      "resolved_at": "2026-10-31T21:59:26-03:00",
+      "dedup_key": "add-liaison-native-bridge:A-08"
+    },
+    {
+      "id": "LDG-0214",
+      "type": "tech-debt",
+      "title": "risk — preâmbulo das tasks — Resolvido: execução estritamente sequencial; vermelho esperado do `w200` até a TASK-25 declarado.",
+      "detail": "Resolvido: Colhido pelo harvest do archive a partir de achado do analyze que já estava resolvido na rodada 2 (coluna Recomendação começa com 'Resolvido'); nada a fazer.",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "resolved",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "archive",
+        "ref": "A-09"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:59:26-03:00",
+      "updated_at": "2026-10-31T21:59:26-03:00",
+      "resolved_at": "2026-10-31T21:59:26-03:00",
+      "dedup_key": "add-liaison-native-bridge:A-09"
     }
   ]
 }

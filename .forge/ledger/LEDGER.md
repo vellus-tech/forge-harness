@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**44 itens ativos** · roadmap 8 · tech-debt 23 · known-bug 9 · follow-up 4 · (96 encerrados)
+**44 itens ativos** · roadmap 8 · tech-debt 23 · known-bug 9 · follow-up 4 · (101 encerrados)
 
 ## Roadmap
 
@@ -87,7 +87,7 @@ _Encerrados: 2 (resolved 2)_
 - **LDG-0208** [open] (P3) — Merge humano com mudança de contenção em ship/yolo é regra de prompt, sem verificação determinística · via `add-liaison-native-bridge`
   ship.md 10b, yolo-gate.md e autonomy-yolo.md trazem a regra e o gate só confere o texto; avaliar script de merge que consulte native containment antes de mesclar (gate implementation_verified, rodada 1).
 
-_Encerrados: 40 (resolved 35 · wont-fix 5)_
+_Encerrados: 45 (resolved 40 · wont-fix 5)_
 
 ## Bugs conhecidos
 

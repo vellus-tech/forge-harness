@@ -89,3 +89,12 @@ approvals:
     commit: "e00cc5ed"
     scope: "verification.md"
     notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "Revisor adversarial delegado (opus): APPROVE. validate-spec OK, dry-run OK (REQ-FHT-054..065, 12 add, sem colisao no baseline), validate-archive falha so no gate HITL; 4 gates em approve; 27 tasks [X], 14 stories done. 7 MINOR de texto do delta; 1 a 6 aplicados antes do archive, 7 (colisao futura de ids com changes paralelos) fica para o rebase"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-31T21:59:26-03:00"
+    iteration: 1
+    commit: "cb937f32"
+    scope: "spec-delta.yaml"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"

@@ -3,7 +3,7 @@ type: feature
 mode: brownfield
 rigor: spec-anchored
 scale: 3
-status: verified
+status: archived
 created_at: "2026-10-30"
 updated_at: "2026-10-31"
 owner: "milton"
@@ -43,7 +43,7 @@ gates:
   design_reviewed: true
   tasks_reviewed: true
   implementation_verified: true
-  human_archive_approval: false
+  human_archive_approval: true
 dev_loop:
   sharded: true
   stories_path: stories/
@@ -53,5 +53,6 @@ quick_plan:
   skipped_phases: []
   justification:
 archive:
+  kind: baseline_update
   eligible: true
-  reason: "verified; gates approved"
+  reason: "deltas applied to baseline on 2026-10-31"

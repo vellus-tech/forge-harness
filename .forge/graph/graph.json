@@ -1,11 +1,11 @@
 {
   "schema": "graph/v0",
-  "generated_at": "2026-10-30T22:29:40.167Z",
+  "generated_at": "2026-11-01T00:24:49.520Z",
   "engine": "native",
   "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/liaison-native-bridge",
   "stats": {
-    "nodes": 476,
-    "edges": 64,
+    "nodes": 501,
+    "edges": 81,
     "languages": [
       "csharp",
       "go",
@@ -16,23 +16,23 @@
       "shell",
       "ts"
     ],
-    "summaries_stale": 476,
+    "summaries_stale": 501,
     "census": {
       "csharp": 10,
       "go": 15,
       "java": 14,
-      "js": 98,
+      "js": 110,
       "kotlin": 6,
       "python": 20,
-      "shell": 284,
+      "shell": 297,
       "ts": 29
     },
     "layer_coverage": {
-      "classified": 296,
-      "unclassified": 180,
+      "classified": 312,
+      "unclassified": 189,
       "out_of_taxonomy": 0,
-      "denominator": 476,
-      "ratio": 0.6218
+      "denominator": 501,
+      "ratio": 0.6228
     }
   },
   "nodes": [
@@ -141,6 +141,14 @@
       "summary": null
     },
     {
+      "id": "template/.forge/hooks/pre-tool-use/guard-cross-session-send.sh",
+      "lang": "shell",
+      "loc": 31,
+      "fingerprint": "4a54ba5f5a784ce820ca3035ad36d9d5f2df519b9972fa5bb14d720f9f6c9066",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
       "id": "template/.forge/hooks/pre-tool-use/lib/argv-bridge.sh",
       "lang": "shell",
       "loc": 83,
@@ -167,16 +175,16 @@
     {
       "id": "template/.forge/hooks/session/on-session-end.sh",
       "lang": "shell",
-      "loc": 8,
-      "fingerprint": "7ebe8b28bba19b2798d3c35dc1d3375d66e4b5a3b3462c99e045a9d205e64a90",
+      "loc": 69,
+      "fingerprint": "9a43b68083c8e4fd5478259f3c8d90d754518edfcefdce9ddf9ecf61e4d6b0bb",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "template/.forge/hooks/session/on-session-start.sh",
       "lang": "shell",
-      "loc": 75,
-      "fingerprint": "1544782c42f146caa44d2cf812415b95adc4b10f21d75ea762e13b69c78491b1",
+      "loc": 82,
+      "fingerprint": "c795a22af73960ae1578131540b5ea2a07841916760517e2ac91a5d1dadcc0b6",
       "layer": "unknown",
       "summary": null
     },
@@ -383,8 +391,8 @@
     {
       "id": "template/.forge/scripts/doctor.sh",
       "lang": "shell",
-      "loc": 1145,
-      "fingerprint": "3cb083a28d22427b20047c801fb189a0cdc30827954e865cc78a5bb4d9bab598",
+      "loc": 1306,
+      "fingerprint": "681e05cded4d1581dc5db590d815beb1908cf4e1bfdd08ed8d6c615724b5432e",
       "layer": "unknown",
       "summary": null
     },
@@ -487,8 +495,8 @@
     {
       "id": "template/.forge/scripts/liaison-ops.sh",
       "lang": "shell",
-      "loc": 1429,
-      "fingerprint": "6d5ff36b344749689816cb9553f2cc1f78d6db5a4e998fdea418102b29d535b2",
+      "loc": 2009,
+      "fingerprint": "d1007316f438d687e4295c430ef400a7b7020ad6ecd38f7b92c671e0f9f98d4e",
       "layer": "unknown",
       "summary": null
     },
@@ -815,16 +823,24 @@
     {
       "id": "template/.forge/scripts/lib/liaison-merge.mjs",
       "lang": "js",
-      "loc": 294,
-      "fingerprint": "8009c1eb83d95e49738a7b11a9a6ea6786b0985ec81ca6123781233e601b93c7",
+      "loc": 334,
+      "fingerprint": "35f5db95f9e070ff854c0053961c9e157a1124ed5844dbf46e4e7069c0d2870e",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/liaison-pointer.mjs",
+      "lang": "js",
+      "loc": 60,
+      "fingerprint": "61ce7ab6825cf3d6f5488c5a48e51a649acb661f209a13e313b1e057e59daccd",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "template/.forge/scripts/lib/liaison-publish.mjs",
       "lang": "js",
-      "loc": 88,
-      "fingerprint": "e5132162ac60fd017da50c09295aad94e54f1ded4638287ef02e6c7a1665050c",
+      "loc": 104,
+      "fingerprint": "3abd2ab1841e66cde389907868ef5770b14974940ddeb5ad51d5187abcf73d4e",
       "layer": "unknown",
       "summary": null
     },
@@ -839,8 +855,8 @@
     {
       "id": "template/.forge/scripts/lib/liaison-render.mjs",
       "lang": "js",
-      "loc": 159,
-      "fingerprint": "8383ee684055b29169613c815111fed072994038f9b8d8dc8ff6d7ce6c5e936d",
+      "loc": 171,
+      "fingerprint": "def70e6a8e8c0a96d3c8022de542e581f3f5947b2f4f270ceca7c25504031230",
       "layer": "unknown",
       "summary": null
     },
@@ -865,6 +881,62 @@
       "lang": "js",
       "loc": 244,
       "fingerprint": "244ed9b17ba686d542d224f4f481b1713a8fff96a5a7e4c49850dca199148c1f",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/native-allowlist.mjs",
+      "lang": "js",
+      "loc": 202,
+      "fingerprint": "9bfe083ba08e3293a2aaaf8ed10c72abf1b847364de20f0a7e274c3ef77160c2",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/native-classes.mjs",
+      "lang": "js",
+      "loc": 37,
+      "fingerprint": "3278f764ea1f22341ed0e9642831057eb364dbd3e873be5c5c6d5bab5e1c46f1",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/native-containment.mjs",
+      "lang": "js",
+      "loc": 273,
+      "fingerprint": "00fb10cc2fe5b57fc2b593601837f94e608b1bb9b8a9e0bf4573e2c7e8c2dda8",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/native-registry.mjs",
+      "lang": "js",
+      "loc": 157,
+      "fingerprint": "c1cd2725c8d0e3c72a0e4d70dfe711e6f400bb4da5417c78b45454cfbe4e791d",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/native-send-guard.mjs",
+      "lang": "js",
+      "loc": 475,
+      "fingerprint": "3145832f68e421e0e461b781289621dc976dbd1c282ee74253b465e28a1cb013",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/native-transcript.mjs",
+      "lang": "js",
+      "loc": 305,
+      "fingerprint": "2a3e929ed7b9d508078f2d46adb231cdcd388d30a130d6d919a7ff42c2425e4a",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/native-workspace.mjs",
+      "lang": "js",
+      "loc": 186,
+      "fingerprint": "1805b1d85a25ce19eba140169903278fcc609f42cdd946fba11f5a752bc0ec92",
       "layer": "unknown",
       "summary": null
     },
@@ -1031,8 +1103,8 @@
     {
       "id": "template/.forge/scripts/lib/sync-adapters.mjs",
       "lang": "js",
-      "loc": 1122,
-      "fingerprint": "35346634cd5970836d18d1e11ffe26660b1dce6ca7bab2f95e37208bb3bc71f0",
+      "loc": 1142,
+      "fingerprint": "01cdd4cb9de850e1b512f7d37f7499f1732de9e1ceea7c9fc6ee14ca2ceb7804",
       "layer": "unknown",
       "summary": null
     },
@@ -2429,6 +2501,30 @@
       "summary": null
     },
     {
+      "id": "tests/liaison-cross-session-record-gate.sh",
+      "lang": "shell",
+      "loc": 358,
+      "fingerprint": "352d739c64add780e7d31c98f461a60b4f9f01fd0913f2b40cb21ccafd32d0b8",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/liaison-envelope-parity-gate.sh",
+      "lang": "shell",
+      "loc": 231,
+      "fingerprint": "241bbecfd1c968c6776e6e428d3f226b3963634bdadc72e1449d24dbf91d5843",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/liaison-notify-gate.sh",
+      "lang": "shell",
+      "loc": 155,
+      "fingerprint": "d0b228404cb2f02243fff8eb1b740a77a2668ba517b155883fba7addb29f9a6f",
+      "layer": "test",
+      "summary": null
+    },
+    {
       "id": "tests/mdl-gen-gate.sh",
       "lang": "shell",
       "loc": 64,
@@ -2441,6 +2537,110 @@
       "lang": "shell",
       "loc": 81,
       "fingerprint": "cfac90a0b28706acc6447370d23688e8182a9db5052989afd40ce159cf9b1c96",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/native-containment-gate.driver.mjs",
+      "lang": "js",
+      "loc": 356,
+      "fingerprint": "e4cbf514115c9fa970f409575446302be55fdc782ed542db7d61b849f39d892f",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/native-containment-gate.sh",
+      "lang": "shell",
+      "loc": 171,
+      "fingerprint": "dfd092a5203e7b6f51ee156a6848241e785544be17ef7ef56205e82fd05996e0",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/native-containment-wiring-gate.sh",
+      "lang": "shell",
+      "loc": 429,
+      "fingerprint": "625bbed7f2e6c9b10ef11aeb67350dc9a2643f7b1a08ee95578a45526b659280",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/native-coverage-gate.sh",
+      "lang": "shell",
+      "loc": 358,
+      "fingerprint": "167760e79a776912b1e95dea373ad5b6cb9947aaba39d2f586b5024ea9c298a2",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/native-docs-gate.sh",
+      "lang": "shell",
+      "loc": 142,
+      "fingerprint": "fa2e7fa570e13fbb4f2a7dfd5225faf08d8862694994312117d2bf0a5bdf85e6",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/native-hook-packaging-gate.sh",
+      "lang": "shell",
+      "loc": 319,
+      "fingerprint": "e84866262960473c34c95706acaa498b3c28777068cf9c0a24267f3ca481a9b8",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/native-readers-gate.driver.mjs",
+      "lang": "js",
+      "loc": 545,
+      "fingerprint": "3a8998634a106386e712bdbd3be5f32555dd3797919e1e35454d960c59de98ad",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/native-readers-gate.sh",
+      "lang": "shell",
+      "loc": 20,
+      "fingerprint": "a1bcdeefced35dad7ac27835ee871d02d19767f936045647e719654a4bd853b9",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/native-rules-parity-gate.sh",
+      "lang": "shell",
+      "loc": 190,
+      "fingerprint": "83b66cbc53aa84fbf9f71f385ab9ff24b360a0ee4f481bcfe63a2b736cfcfa2f",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/native-send-guard-gate.driver.mjs",
+      "lang": "js",
+      "loc": 882,
+      "fingerprint": "2a43948108c9a02a596095c4711490b43af79563a50209adb14cd9f61fbce493",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/native-send-guard-gate.sh",
+      "lang": "shell",
+      "loc": 23,
+      "fingerprint": "5a73701bbf51d432a11571d4fa40f2fcbb8b97ae8ce11e1d4e330e6efed8ff09",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/native-send-guard-perf-gate.driver.mjs",
+      "lang": "js",
+      "loc": 218,
+      "fingerprint": "5a00c81b2aa55ccfbdd2bde8a4ee749a06d031ef8f62a564aaf30e17c432f39d",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/native-send-guard-perf-gate.sh",
+      "lang": "shell",
+      "loc": 15,
+      "fingerprint": "9aecbce979d57bfa539909c0685fbbe810c5477e45538c97473a3aae22fa8ec3",
       "layer": "test",
       "summary": null
     },
@@ -2631,8 +2831,8 @@
     {
       "id": "tests/w113-liaison-enforce-gate.sh",
       "lang": "shell",
-      "loc": 277,
-      "fingerprint": "7cc63124001ee6d5f0457d66b41d9167a2fd33aea42429ac18561949e1ebb7bf",
+      "loc": 338,
+      "fingerprint": "d0f3a9212b598eaff24dc70b505522ba276f3ec626c6efbd9833b99565c2db52",
       "layer": "test",
       "summary": null
     },
@@ -2815,8 +3015,8 @@
     {
       "id": "tests/w150-liaison-flag-and-trust-gate.sh",
       "lang": "shell",
-      "loc": 385,
-      "fingerprint": "1efad613214701fabd80303996d1f0d4a44c9d987e9a01d73efffd2545d4e93a",
+      "loc": 392,
+      "fingerprint": "3d3708139ddf705d13fcadbc57701063f81542d450208e87151ecf21ac8dcd97",
       "layer": "test",
       "summary": null
     },
@@ -3239,8 +3439,8 @@
     {
       "id": "tests/w215-hook-wiring-derived-gate.sh",
       "lang": "shell",
-      "loc": 1476,
-      "fingerprint": "5b5f105d6bad4da4a5b0423b35a31c5286e7fcd8bc8d48b988882b5c953843b3",
+      "loc": 1478,
+      "fingerprint": "29da00bf315ac6b44393ea680c0c4f4114690cc5b61abb805ec36088653ed730",
       "layer": "test",
       "summary": null
     },
@@ -3335,8 +3535,8 @@
     {
       "id": "tests/w238-settings-json-merge-gate.sh",
       "lang": "shell",
-      "loc": 1225,
-      "fingerprint": "d45813d5e6db1734ebc02295915db9becf06d15ba69f813d5c4c4b7b64f7a6d5",
+      "loc": 1226,
+      "fingerprint": "016f4359d9dc608e95a9518a1b4c2f589e92d15a836e459a4e15a6c608a15611",
       "layer": "test",
       "summary": null
     },
@@ -3687,8 +3887,8 @@
     {
       "id": "tests/w62-handoff-hook-gate.sh",
       "lang": "shell",
-      "loc": 64,
-      "fingerprint": "0064e46cee756dd9ba2129d719eab053615a08567def9073768acb1f6d1f8c70",
+      "loc": 65,
+      "fingerprint": "98b1ccd75b919fee68c85a87e1098380b63cd8b0853778fe09467e1d630702ec",
       "layer": "test",
       "summary": null
     },
@@ -4069,6 +4269,18 @@
       "resolved": true
     },
     {
+      "from": "template/.forge/scripts/lib/liaison-pointer.mjs",
+      "to": "template/.forge/scripts/lib/liaison-config.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/liaison-pointer.mjs",
+      "to": "template/.forge/scripts/lib/liaison-publish.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
       "from": "template/.forge/scripts/lib/liaison-push-union.mjs",
       "to": "template/.forge/scripts/lib/liaison-merge.mjs",
       "kind": "import",
@@ -4089,6 +4301,84 @@
     {
       "from": "template/.forge/scripts/lib/liaison-render.mjs",
       "to": "template/.forge/scripts/lib/untrusted-render.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/native-allowlist.mjs",
+      "to": "template/.forge/scripts/lib/native-workspace.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/native-containment.mjs",
+      "to": "template/.forge/scripts/lib/hooks-manifest.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/native-containment.mjs",
+      "to": "template/.forge/scripts/lib/native-allowlist.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/native-containment.mjs",
+      "to": "template/.forge/scripts/lib/native-workspace.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/native-containment.mjs",
+      "to": "template/.forge/scripts/lib/sync-adapters.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/native-send-guard.mjs",
+      "to": "template/.forge/scripts/lib/liaison-config.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/native-send-guard.mjs",
+      "to": "template/.forge/scripts/lib/liaison-pointer.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/native-send-guard.mjs",
+      "to": "template/.forge/scripts/lib/native-allowlist.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/native-send-guard.mjs",
+      "to": "template/.forge/scripts/lib/native-classes.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/native-send-guard.mjs",
+      "to": "template/.forge/scripts/lib/native-registry.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/native-send-guard.mjs",
+      "to": "template/.forge/scripts/lib/native-transcript.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/native-send-guard.mjs",
+      "to": "template/.forge/scripts/lib/native-workspace.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/native-send-guard.mjs",
+      "to": "template/.forge/scripts/lib/secret-scan.mjs",
       "kind": "import",
       "resolved": true
     },
@@ -4229,6 +4519,18 @@
       "to": "example.com/orders/packages/otel",
       "kind": "import",
       "resolved": false
+    },
+    {
+      "from": "tests/native-containment-gate.driver.mjs",
+      "to": "template/.forge/scripts/lib/native-workspace.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "tests/native-send-guard-gate.driver.mjs",
+      "to": "template/.forge/scripts/lib/liaison-config.mjs",
+      "kind": "import",
+      "resolved": true
     }
   ]
 }

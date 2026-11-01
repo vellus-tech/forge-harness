@@ -1,0 +1,1 @@
+{"story": "STORY-01", "status": "passed", "verified_at": "2026-10-30T22:59:19.533940+00:00", "commit": "01b638c4", "checks": [], "inputs": {"device": 16777234, "inode": 508609105, "sha256": "13ef9cfdfa0e42a2bcd9753a6a12b723b1a93785aba3329014e3ebc2add44539"}}

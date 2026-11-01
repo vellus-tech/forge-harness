@@ -1,0 +1,47 @@
+id: add-unify-changelog-skill
+type: refactor
+mode: brownfield
+rigor: spec-anchored
+scale: 2
+status: archived
+created_at: "2026-10-31"
+updated_at: "2026-11-01"
+owner: "milton"
+parent:
+  baseline: .forge/product/current
+affected_capabilities:
+  - changelog-authoring
+  - post-merge-automation
+affected_paths:
+  - template/.forge/commands/docs/update-changelog.md
+  - template/.forge/skills/readme-generator
+  - template/.forge/scripts/resolve-skill.sh
+  - template/.forge/hooks/git/post-merge
+  - template/.forge/scripts/lib/changelog-from-merge.mjs
+  - tests/changelog-merge-gate.sh
+  - tests/w147-hook-delegation-gate.sh
+  - tests/w223-delegacao-arvore-do-hook-gate.sh
+  - tests/w248-git-dir-isolation-gate.sh
+  - installer/removed-files.txt
+  - plugin/forge/commands/update-changelog.md
+dependencies:
+  specs: []
+  code: []
+gates:
+  requirements_reviewed: true
+  design_reviewed: true
+  tasks_reviewed: true
+  implementation_verified: true
+  human_archive_approval: true
+dev_loop:
+  sharded: false
+  stories_path: stories/
+  epic_context_compiled: false
+quick_plan:
+  enabled: false
+  skipped_phases: []
+  justification:
+archive:
+  kind: baseline_update
+  eligible: true
+  reason: "deltas applied to baseline on 2026-11-01"

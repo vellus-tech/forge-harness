@@ -3,7 +3,7 @@ title: Protocolo de uso do liaison
 applies_to:
   - all
 priority: medium
-last_reviewed: 2026-08-20
+last_reviewed: 2026-10-31
 ---
 
 # Protocolo do liaison
@@ -68,6 +68,35 @@ Quando a verificação reprova, o conserto é **restaurar o arquivo apontado a p
 Nenhum subcomando de `liaison-ops.sh` aceita flag que não conheça. Cada um recusa nomeando a flag, o subcomando que a recusou e as flags que ele aceita — e o conjunto varia por subcomando, então a mensagem tem de dizer **qual** deles recusou. O `ack` não aceita corpo: o corpo tem um caminho único de escrita, o `send` (é lá que moram a varredura de segredo, o teto de blob e o `body_ref`), e um `ack` é recibo, não conteúdo. Para acompanhar um ack de material, publique o material com `send --kind note --in-reply-to <msg_id>` e acke em seguida.
 
 Antes disso a flag desconhecida era descartada em silêncio: `ack ... --body-file corpo.md` publicava o ack **sem corpo nenhum**, com `rc` 0 e sem uma linha de aviso, e `--subjet` publicava mensagem sem assunto. Publicar nunca foi prova de ter publicado o que se pretendia — mas a verificação em bytes no destino deixou de ser a única defesa.
+
+## Mensageria nativa entre sessões
+
+O recurso nativo de mensageria entre sessões do Claude Code (`SendMessage`) e o liaison resolvem problemas diferentes: **o nativo é campainha, o liaison é o registro**. O nativo avisa que algo aconteceu agora, na sessão do destinatário; ele não sobrevive ao fim da sessão, não tem ordem garantida entre repositórios e não pode ser citado num ADR. Toda troca que precisa virar registro durável passa pelo liaison, nunca só pelo nativo.
+
+### Quando a troca precisa virar registro
+
+Uma troca por mensageria nativa **precisa** virar mensagem no liaison quando for: uma decisão que afeta outro repositório; uma mudança de contrato ou de ack; uma retratação; um achado de segurança; uma pergunta bloqueante e a resposta que a resolve; ou a descoberta de trabalho sobreposto entre repositórios. Fora desses casos, a troca pode ficar só no nativo.
+
+### Classes efêmeras
+
+Uma troca que não precisa virar registro no liaison é declarada com `ephemeral: <classe>` na primeira linha não vazia do corpo, usando uma das classes abaixo — lista FECHADA, gerada a partir de `EPHEMERAL_CLASSES` (`scripts/lib/native-classes.mjs`) e conferida pelo gate de paridade (`tests/w294-native-rules-parity-gate.sh`): alterar a lista num lado sem alterar o outro reprova.
+
+- `identification`
+- `presence`
+- `schedule`
+- `turn-notice`
+- `reread-request`
+- `internal-coordination`
+
+Coordenação substantiva dentro do MESMO repositório usa `ephemeral: internal-coordination` e não o liaison — o liaison existe para a fronteira ENTRE repositórios, e coordenação interna que virasse registro ali seria ruído indistinguível de contrato.
+
+### O fluxo campainha
+
+O caminho desenhado é: `send` grava o fato no liaison; `sync` publica; `notify` resolve o ponteiro (`liaison:<channel>/<msg_id>`) e confirma que a mensagem está publicada; e só então o `SendMessage` nativo leva, como primeira linha do corpo, o ponteiro resolvido — a campainha aponta para o registro, nunca o substitui. Do lado de quem recebe, o registro do que chegou é `send --via cross-session --native-ref <fingerprint>` (quando a troca tem conteúdo que vira mensagem própria) ou `native dispose <fingerprint> --ephemeral <classe>` (quando a troca é efêmera).
+
+### O limite
+
+`allowed_workspaces` (REQ-12) vale só para a SAÍDA de mensagem nativa — os dois lados de uma conversa precisam cadastrar um ao outro para que ela flua nos dois sentidos — e é proteção contra **liberação induzida** pelo próprio fluxo de trabalho, não fronteira de segurança: um agente determinado, rodando como o mesmo usuário do sistema, pode remover marcadores, editar o cadastro e enviar por fora da guarda. A contenção torna esse contorno visível (no push, no doctor, no PR); ela não o impede.
 
 ## Sobre o que chega
 

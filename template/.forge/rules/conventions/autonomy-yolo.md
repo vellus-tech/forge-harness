@@ -3,7 +3,7 @@ title: Autonomia — HITL vs YOLO
 applies_to:
   - all
 priority: high
-last_reviewed: 2026-10-04
+last_reviewed: 2026-10-30
 based_on: []
 ---
 
@@ -71,6 +71,15 @@ problemas":
   `branch_cleanup`) — ações de alto risco (produção/dados) **nunca** auto-aprovadas em yolo,
   independentemente de `mode`. Merge para `develop` (integração contínua de baixo custo) **é**
   yolo-able; deploy para produção não.
+- **Merge com mudança de contenção** (REQ-12, design §2.7) — mesmo com `human_hard_stops` vazio e
+  fora de `irreversible_hard_stops`, entra na lista de paradas humanas obrigatórias: um merge de
+  `/forge:ship --yolo` cujo `native containment --range develop..HEAD` reporte qualquer achado (ou
+  rc 2, detector indisponível) cai para confirmação humana. Não é opção de config — `ship.md` roda
+  o detector antes da decisão de merge, e o `yolo-gate` decide `block` com o motivo "mudança de
+  contenção exige humano" em vez de aprovar sozinho. A contenção por workspace (`allowed-
+  workspaces.json`) é proteção contra liberação induzida pelo próprio fluxo, não fronteira de
+  segurança (`liaison-protocol.md`) — e justamente por isso o merge que a altera exige um humano
+  fora da sessão, não um juízo autônomo.
 
 ## Como um comando se comporta em yolo
 

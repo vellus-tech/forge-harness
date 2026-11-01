@@ -45,7 +45,7 @@ EOF
 # issue #49 um diretório de scripts do harness presente com alvo declarado AUSENTE é erro, não
 # no-op. Stubs neutros mantêm este gate medindo o que ele diz medir (a re-exportação do stdin do
 # git), sem transformá-lo num teste de integridade da instalação (isso é o w147).
-for _stub in check-ai-attribution.sh check-liaison-acks.sh; do
+for _stub in check-ai-attribution.sh check-liaison-acks.sh check-migration-review.sh; do
   printf '#!/usr/bin/env bash\nexit 0\n' > "$T/.forge/scripts/$_stub"
 done
 

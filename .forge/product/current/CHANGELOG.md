@@ -2,6 +2,24 @@
 
 > One entry per archived change (newest first). Maintained by `/forge:archive` — do not edit by hand.
 
+## 2026-11-01 — add-unify-changelog-skill
+
+- **Capabilities:** changelog-authoring post-merge-automation
+- **Operações:** 13
+- **Pasta:** `.forge/specs/archived/2026-11-01-add-unify-changelog-skill/`
+
+## 2026-11-01 — add-migration-review-rule
+
+- **Capabilities:** forge-harness-template
+- **Operações:** 6
+- **Pasta:** `.forge/specs/archived/2026-11-01-add-migration-review-rule/`
+
+## 2026-10-31 — add-liaison-native-bridge
+
+- **Capabilities:** forge-harness-template
+- **Operações:** 12
+- **Pasta:** `.forge/specs/archived/2026-10-31-add-liaison-native-bridge/`
+
 ## 2026-08-04 — surface-literal-endpoint
 
 - **Capabilities:** forge-harness-template

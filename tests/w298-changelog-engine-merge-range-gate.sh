@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gate W286 — changelog-engine.mjs, modo --merge-range (TASK-03).
+# Gate W298 — changelog-engine.mjs, modo --merge-range (TASK-03).
 #
 # Cenários:
 #   [1] merge feat+fix gera 2 entradas com sufixo de hash
@@ -8,13 +8,15 @@
 #   [4] sem CHANGELOG raiz nao cria nada e sai rc 0
 #   [5] HEAD nao-merge nao altera o arquivo
 #   [6] CHANGELOG sem [Unreleased] ganha a secao criada antes da primeira versao numerada
+#   [7] subject com $' no hook fica literal (String.replace com função).
+#   [8] comando (--subject) na branch + hook no merge não duplicam a mudança.
 set -uo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENGINE="$WS/template/.forge/skills/readme-generator/scripts/changelog-engine.mjs"
 
-T="$(mktemp -d /tmp/forge-w286.XXXXXX)"
+T="$(mktemp -d /tmp/forge-w298.XXXXXX)"
 trap 'rm -rf "$T"' EXIT
 
 mkmerge() { # mkmerge <dir> — repo com merge de feature (feat+fix) em main
@@ -120,4 +122,39 @@ v100_line="$(grep -n '## \[1.0.0\]' "$R6/CHANGELOG.md" | head -1 | cut -d: -f1)"
 [ "$unrel_line" -lt "$v100_line" ] || { echo "FAIL [6]: Unreleased nao ficou antes da versao numerada"; exit 1; }
 echo "OK [6]"
 
-echo "PASS w286-changelog-engine-merge-range"
+# ── [7] ──────────────────────────────────────────────────────────────────────────────────────
+echo "[7] subject com \$' no hook fica literal e não duplica a entrada antiga"
+R7="$T/r7"; mkdir -p "$R7"
+git -C "$R7" init -q -b main
+git -C "$R7" config user.email t@t; git -C "$R7" config user.name t; git -C "$R7" config commit.gpgsign false
+printf '# Changelog\n\n## [Unreleased]\n\n### Corrigido\n- antiga (0000000)\n' > "$R7/CHANGELOG.md"
+git -C "$R7" add -A >/dev/null 2>&1; git -C "$R7" commit -qm 'chore: init' >/dev/null 2>&1
+git -C "$R7" checkout -qb feature >/dev/null 2>&1
+printf 'x\n' > "$R7/x.txt"; git -C "$R7" add -A >/dev/null 2>&1
+git -C "$R7" commit -qm "fix: arredonda \$' antes do total" >/dev/null 2>&1
+git -C "$R7" checkout -q main >/dev/null 2>&1
+git -C "$R7" merge -q --no-ff feature -m 'merge feature' >/dev/null 2>&1
+node "$ENGINE" --root "$R7" --merge-range >/dev/null 2>&1 || { echo "FAIL [7]: motor saiu com erro"; exit 1; }
+grep -qE -- "^- arredonda \\\$' antes do total \([0-9a-f]+\)\$" "$R7/CHANGELOG.md" || { echo "FAIL [7]: entrada corrompida"; cat "$R7/CHANGELOG.md"; exit 1; }
+[ "$(grep -c -- '- antiga' "$R7/CHANGELOG.md")" -eq 1 ] || { echo "FAIL [7]: entrada antiga duplicada"; cat "$R7/CHANGELOG.md"; exit 1; }
+echo "OK [7]"
+
+# ── [8] ──────────────────────────────────────────────────────────────────────────────────────
+echo "[8] comando na branch (--subject, sem hash) + hook no merge não registram a mudança duas vezes"
+R8="$T/r8"; mkdir -p "$R8"
+git -C "$R8" init -q -b main
+git -C "$R8" config user.email t@t; git -C "$R8" config user.name t; git -C "$R8" config commit.gpgsign false
+printf '# Changelog\n\n## [Unreleased]\n' > "$R8/CHANGELOG.md"
+git -C "$R8" add -A >/dev/null 2>&1; git -C "$R8" commit -qm 'chore: init' >/dev/null 2>&1
+git -C "$R8" checkout -qb feature >/dev/null 2>&1
+printf 'x\n' > "$R8/x.txt"; git -C "$R8" add -A >/dev/null 2>&1
+git -C "$R8" commit -qm 'feat(api): adiciona exportação' >/dev/null 2>&1
+node "$ENGINE" --root "$R8" --subject 'feat(api): adiciona exportação' >/dev/null 2>&1 || { echo "FAIL [8]: --subject saiu com erro"; exit 1; }
+git -C "$R8" commit -qam 'docs: changelog' >/dev/null 2>&1
+git -C "$R8" checkout -q main >/dev/null 2>&1
+git -C "$R8" merge -q --no-ff feature -m 'merge feature' >/dev/null 2>&1
+node "$ENGINE" --root "$R8" --merge-range >/dev/null 2>&1 || { echo "FAIL [8]: --merge-range saiu com erro"; exit 1; }
+[ "$(grep -c 'adiciona exportação' "$R8/CHANGELOG.md")" -eq 1 ] || { echo "FAIL [8]: mudança registrada duas vezes"; cat "$R8/CHANGELOG.md"; exit 1; }
+echo "OK [8]"
+
+echo "PASS w298-changelog-engine-merge-range"

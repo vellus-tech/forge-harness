@@ -227,8 +227,22 @@ function checkContainment({ payload, classification, cache, opts }) {
   const originIdentity = workspaceIdentity(originWorkspaceRoot);
   const destIdentity = workspaceIdentity(destWorkspaceRoot);
 
+  // Mesma raiz FÍSICA de workspace: não há para onde vazar, e a troca de remote que o
+  // self_identity fecha só importa entre workspaces físicos diferentes. Passa sem ler o cadastro —
+  // a identidade depende da máquina (alias de ssh config, insteadOf) e o cadastro é compartilhado
+  // pelo time; conferir aqui bloqueava o tráfego interno do colega com outra forma de remote
+  // (code-evaluator PR #245, round 2, R2-002), e poupa o `git show` do caso mais comum.
+  if (originWorkspaceRoot === destWorkspaceRoot) {
+    return { ok: true, originCwd, destCwd };
+  }
+
   const originMainRepo = mainRepoRoot(originCwd) || originWorkspaceRoot;
-  const { doc } = readEffectiveAllowlist({ root: originMainRepo });
+  const { doc, error: allowlistError } = readEffectiveAllowlist({ root: originMainRepo });
+  // Cadastro commitado ilegível ou inválido: nunca vira "documento vazio" aqui — o self_identity
+  // sumiria e a troca de remote voltaria a liberar (code-evaluator PR #245, round 2, R2-001).
+  if (allowlistError) {
+    return { ok: false, reason: `cadastro de workspaces inválido no HEAD (${allowlistError}); contenção suspensa até decisão humana` };
+  }
 
   // self_identity ANTES da comparação de igualdade (design §2.5 etapa 5): é exatamente a troca do
   // remote para o do destino — que torna origem e destino "iguais" — que o `native pin` fecha.

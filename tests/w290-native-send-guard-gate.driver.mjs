@@ -584,6 +584,12 @@ async function main() {
     const udsNonParticipant = await makeDestSocket('non-participant', { cwd: nonParticipantRepo });
     const udsMismatchDest = await makeDestSocket('mismatch-dest', { cwd: mismatchDestRepo });
     const udsUncommittedDest = await makeDestSocket('uncommitted-dest', { cwd: uncommittedDestRepo });
+    // Repositório pinado cujo remote, nesta máquina, tem outra FORMA (alias de ssh config) — destino
+    // é outra sessão no MESMO repositório (code-evaluator PR #245, round 2, R2-002).
+    const aliasPinnedRepo = join(P2, 'alias-pinned');
+    initRepo(aliasPinnedRepo);
+    git(aliasPinnedRepo, ['remote', 'add', 'origin', 'https://github.com/acme/alias-pinned.git']);
+    const udsAliasSameRepo = await makeDestSocket('alias-same', { cwd: aliasPinnedRepo });
 
     // destino sem registro (socket nunca aberto)
     const udsNoRegistry = `uds:${join(T, 'p2-no-registry.sock')}`;
@@ -722,6 +728,35 @@ async function main() {
       const r = G.evaluateSendGuard(p2Payload({ to: udsMismatchDest, message: EPH, cwd: swapOrigin }), opts);
       assertEqual(r.exitCode, 2, `exit code deveria ser 2 (obtido ${r.exitCode}: ${r.message})`);
       assertTrue(/identidade fixada/i.test(r.message || ''), 'mensagem deveria citar a identidade fixada');
+    });
+
+    // code-evaluator PR #245, round 2, R2-001: cadastro commitado inválido pelo schema virava
+    // documento vazio (erro descartado), o self_identity sumia e a troca de remote voltava a
+    // liberar — contrariando "inválido nunca libera destino". Cadastro ilegível suspende a
+    // contenção entre workspaces físicos diferentes.
+    check('REQ-07 — cadastro commitado inválido + remote trocado para o do destino -> exit 2 (fail-closed)', () => {
+      const badOrigin = join(P2, 'bad-allowlist-origin');
+      initRepo(badOrigin);
+      git(badOrigin, ['remote', 'add', 'origin', 'https://github.com/acme/bad-allowlist-origin.git']);
+      writeAllowlistFile(badOrigin, { version: 1, self_identity: 'github.com/acme/bad-allowlist-origin', allowed_workspaces: [], extra: true });
+      commitAllowlist(badOrigin, 'chore: cadastro inválido');
+      git(badOrigin, ['remote', 'set-url', 'origin', 'https://github.com/acme/mismatch-dest.git']);
+      const r = G.evaluateSendGuard(p2Payload({ to: udsMismatchDest, message: EPH, cwd: badOrigin }), opts);
+      assertEqual(r.exitCode, 2, `exit code deveria ser 2 (obtido ${r.exitCode}: ${r.message})`);
+      assertTrue(/inválido|ilegível/i.test(r.message || ''), 'mensagem deveria citar o cadastro inválido');
+    });
+
+    // code-evaluator PR #245, round 2, R2-002: o cadastro é versionado e compartilhado pelo time,
+    // mas a identidade depende da máquina (alias de ssh config, insteadOf). Com a checagem de
+    // self_identity antes da igualdade, o colega que clona por alias tinha bloqueado até o envio
+    // para outra sessão do MESMO repositório. A troca de remote só importa quando origem e destino
+    // são workspaces FÍSICOS diferentes; mesma raiz física passa sem ler o cadastro.
+    check('REQ-07 — self_identity fixado, remote em outra forma nesta máquina, destino no MESMO repositório -> exit 0', () => {
+      writeAllowlistFile(aliasPinnedRepo, { version: 1, self_identity: 'github.com/acme/alias-pinned', allowed_workspaces: [] });
+      commitAllowlist(aliasPinnedRepo, 'chore: pin');
+      git(aliasPinnedRepo, ['remote', 'set-url', 'origin', 'git@gh-work:acme/alias-pinned.git']);
+      const r = G.evaluateSendGuard(p2Payload({ to: udsAliasSameRepo, message: EPH, cwd: aliasPinnedRepo }), opts);
+      assertEqual(r.exitCode, 0, `exit code deveria ser 0 (obtido ${r.exitCode}: ${r.message})`);
     });
 
     // code-evaluator PR #245, LOGIC-002: `pin`/`allow` gravavam self_identity com a identidade do

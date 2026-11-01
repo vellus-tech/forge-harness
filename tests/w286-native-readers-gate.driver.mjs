@@ -515,6 +515,13 @@ async function main() {
       assertEqual(realpathSync(ra), realpathSync(join(superRepo, 'sub-a')), 'mainRepoRoot de sub-a');
       assertEqual(realpathSync(rb), realpathSync(join(superRepo, 'sub-b')), 'mainRepoRoot de sub-b');
     });
+    // Worktree de submódulo: o git-common-dir é `<super>/.git/modules/sub-a` e o checkout
+    // principal só é conhecido pelo `core.worktree` do config (round 2, R2-008 — ramo sem teste).
+    const subWt = join(base, 'sub-a-wt');
+    git(join(superRepo, 'sub-a'), ['worktree', 'add', '-q', '-b', 'sub-wt-branch', subWt]);
+    check('workspace: raiz — worktree de submódulo resolve para o checkout do submódulo (core.worktree)', () => {
+      assertEqual(realpathSync(W.mainRepoRoot(subWt)), realpathSync(join(superRepo, 'sub-a')), 'mainRepoRoot da worktree do submódulo');
+    });
     check('workspace: raiz — submódulo: workspace sobe até o superprojeto', () => {
       const ws = W.workspaceRoot(join(superRepo, 'sub-a'), { home: fixtureHome });
       assertEqual(realpathSync(ws), realpathSync(superRepo), 'workspaceRoot do submódulo deveria ser o superprojeto');

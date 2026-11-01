@@ -1,0 +1,42 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: approve
+    autonomous: true
+    reason: "validator opus 3a rodada PASS limpo (sem BLOCKER); decisao do dono (opcao B) incorporada; aprovacao de agente dentro do mandato da sessao, pendente de confirmacao final do dono"
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-10-31T13:04:48-03:00"
+    iteration: 3
+    commit: "34f9d2c1"
+    scope: "refactor.md"
+  - gate: design_reviewed
+    decision: approve
+    autonomous: true
+    reason: "validator opus 3a rodada PASS limpo; design coerente com refactor.md e proposal.md; aprovacao de agente dentro do mandato da sessao, pendente de confirmacao final do dono"
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-10-31T13:11:29-03:00"
+    iteration: 3
+    commit: "34f9d2c1"
+    scope: "design.md"
+  - gate: tasks_reviewed
+    decision: approve
+    autonomous: true
+    reason: "validator opus rodada 2 PASS (4 achados menores corrigidos no ato: cenario Unreleased ausente, caso positivo --path, grep auto-contraditorio da TASK-17, comandos TASK-16/18 sem rc real); aprovacao de agente dentro do mandato da sessao, pendente de confirmacao final do dono"
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-10-31T13:17:11-03:00"
+    iteration: 2
+    commit: "34f9d2c1"
+    scope: "tasks.md"
+  - gate: implementation_verified
+    decision: approve
+    reason: "Checkpoint verify REQ a REQ (verification.md): 22 itens (REQ-01..14, DIV-01/02, TASK-16/17/18) todos VERIFICADO, cada um com gate isolado rodado de verdade (rc=0), nenhum PENDENTE. DIV-01/DIV-02 confirmados por leitura direta do codigo-fonte alem do teste. spec-delta.yaml preenchido e validado. npm test completo nao reexecutado por decisao deliberada, documentada em LDG-0210 (bug pre-existente do harness de testes, nao deste change)."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-01T12:15:17-03:00"
+    commit: "11ae22c9"
+    scope: "verification.md"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "verification.md: APROVADO, 22/22 itens VERIFICADO, sem PENDENTE. Decisao final do orquestrador apos revisar o relatorio do checkpoint e o conteudo de verification.md/spec-delta.yaml linha a linha, nao delegada."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-01T12:15:26-03:00"
+    commit: "11ae22c9"
+    scope: "verification.md"

@@ -243,6 +243,13 @@ run_sub() { # run_sub <label> — invoca o subcomando com a flag desconhecida no
     "transport probe")   LG sweep transport probe "$CH" "$BOGUS" ;;
     "sync")              LG sweep sync "$CH" "$BOGUS" ;;
     "render")            LG sweep render "$CH" "$BOGUS" ;;
+    "notify")            LG sweep notify "$CH" "$SWEEP_MSG" --to destino "$BOGUS" ;;
+    "native check")      LG sweep native check --session sessao-varredura "$BOGUS" ;;
+    "native dispose")    LG sweep native dispose 0000000000000000000000000000000000000000000000000000000000000000 --ephemeral presence "$BOGUS" ;;
+    "native allow")      LG sweep native allow example.com/varredura/repo --reason motivo "$BOGUS" ;;
+    "native revoke")     LG sweep native revoke example.com/varredura/repo --reason motivo "$BOGUS" ;;
+    "native pin")         LG sweep native pin "$BOGUS" ;;
+    "native containment") LG sweep native containment "$BOGUS" ;;
     *) return 99 ;;
   esac
 }

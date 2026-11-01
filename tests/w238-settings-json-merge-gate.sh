@@ -144,12 +144,13 @@ wiring_of() { # wiring_of <lib> <root>
 owned_projection_of() {
   node -e '
     const fs = require("fs");
-    // issue #125: o universo de PreToolUse deixou de ser fixo — inclui os quatro ganchos do
-    // template, nas duas formas de comando possíveis (direta e via lib/argv-bridge.sh). As formas
-    // COM ASPAS em $CLAUDE_PROJECT_DIR (achado de correção MEDIUM, iteração 3 do modo correção) e
-    // as formas *Legacy* sem aspas convivem no universo owned — mesma migração sem duplicar de
+    // issue #125: o universo de PreToolUse deixou de ser fixo — inclui os cinco ganchos do
+    // template (TASK-19/#214 acrescentou guard-cross-session-send.sh), nas duas formas de comando
+    // possíveis (direta e via lib/argv-bridge.sh). As formas COM ASPAS em $CLAUDE_PROJECT_DIR
+    // (achado de correção MEDIUM, iteração 3 do modo correção) e as formas *Legacy* sem aspas
+    // convivem no universo owned — mesma migração sem duplicar de
     // hookCommandDirect/hookCommandDirectLegacy na lib.
-    const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "check-language-policy.sh", "validate-naming-conventions.sh"];
+    const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "check-language-policy.sh", "validate-naming-conventions.sh", "guard-cross-session-send.sh"];
     const OWNED = new Set([
       "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-start.sh",
       "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-end.sh",

@@ -38,7 +38,15 @@
 #   liaison-ops.sh transport probe <channel>
 #   liaison-ops.sh sync     <channel> [--push-only | --pull-only] [--repair-own-log]
 #   liaison-ops.sh render   <channel>
+#   liaison-ops.sh notify   <channel> <msg_id> --to <destino>
+#   liaison-ops.sh native check [--session <id>] [--transcript <path>] [--report] [--pending]
+#   liaison-ops.sh native dispose <fingerprint> --ephemeral <class>
+#   liaison-ops.sh native allow <identidade> --reason "<motivo>"
+#   liaison-ops.sh native revoke <identidade> --reason "<motivo>"
+#   liaison-ops.sh native pin
+#   liaison-ops.sh native containment [--range <a>..<b>] [--format text|markdown]
 #
+
 # TRANSPORTE (Onda 2): plugável, em lib/transports/<kind>.sh, com o contrato t_probe/t_push/t_pull.
 # Move ARQUIVOS OPACOS — nunca parseia mensagem, nunca sabe o que é thread, nunca decide merge. A
 # política de merge é uma só, em lib/liaison-import.mjs, compartilhada por `import` e `sync`: se
@@ -107,9 +115,9 @@ TPL="$(cd "$SCRIPT_DIR/.." && pwd)/templates/liaison/CHANNEL.md"
 
 cmd="${1:-}"; shift || true
 case "$cmd" in
-  -h|--help|help) echo "Usage: liaison-ops.sh open|thread|send|inbox|read|ack|status|export|import|conflicts|peer|peer-path|transport|sync|render [args...]"; exit 0 ;;
+  -h|--help|help) echo "Usage: liaison-ops.sh open|thread|send|inbox|read|ack|status|export|import|conflicts|peer|peer-path|transport|sync|render|notify [args...]"; exit 0 ;;
 esac
-[ -n "$cmd" ] || { echo "Usage: liaison-ops.sh open|thread|send|inbox|read|ack|status|export|import|conflicts|peer|peer-path|transport|sync|render [args...]" >&2; exit 1; }
+[ -n "$cmd" ] || { echo "Usage: liaison-ops.sh open|thread|send|inbox|read|ack|status|export|import|conflicts|peer|peer-path|transport|sync|render|notify [args...]" >&2; exit 1; }
 
 _git_date() { git -C "$ROOT" log -1 --format=%cI 2>/dev/null || echo ""; }
 _id_ok() { printf '%s' "$1" | grep -Eq '^[a-z0-9][a-z0-9._-]*$'; }
@@ -360,6 +368,167 @@ const { createHash } = require('crypto');
 NODEEOF
 }
 
+# Registro de mensagem nativa recebida (REQ-02, REQ-03, design §2.4 passos 2 a 6), chamado só por
+# `send --via cross-session`. NENHUMA escrita acontece aqui — só leitura e validação; a recusa C1
+# e qualquer falha de leitura/extração/origem devolvem rc 1 sem tocar liaison.yaml, log, blobs ou
+# cursor. Em sucesso, ecoa "from_addr\x1ffrom_name\x1ffrom_mode\x1forigin_verified" em stdout.
+#
+# Reusa os leitores únicos da Wave 2 (native-transcript.mjs, native-registry.mjs,
+# native-workspace.mjs) e as constantes da Wave 1 (native-classes.mjs) — nunca duplica a lógica
+# de parsing de transcript, resolução de registro ou cálculo de identidade de workspace.
+_resolve_cross_session() {  # _resolve_cross_session <channel> <authored_by> <native_ref> <session_arg>
+  local channel="$1" authored_by="$2" native_ref="$3" session_arg="$4"
+  node - "$LIBDIR" "$CONFIG" "$channel" "$authored_by" "$native_ref" "$session_arg" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, cfg, channel, authoredBy, nativeRef, sessionArg] = process.argv;
+  const Config = await import(pathToFileURL(join(lib, 'liaison-config.mjs')).href);
+  const Transcript = await import(pathToFileURL(join(lib, 'native-transcript.mjs')).href);
+  const Registry = await import(pathToFileURL(join(lib, 'native-registry.mjs')).href);
+  const Workspace = await import(pathToFileURL(join(lib, 'native-workspace.mjs')).href);
+  const Classes = await import(pathToFileURL(join(lib, 'native-classes.mjs')).href);
+  const { findSecrets } = await import(pathToFileURL(join(lib, 'secret-scan.mjs')).href);
+
+  // C1 (REQ-03, design §2.4 passo 2): authored_by precisa participar do canal — recusa ANTES de
+  // tocar o transcript ou o registro, nomeando os dois caminhos de resolução com os ids
+  // preenchidos (open <channel> --participants <peer>; ou open <novo-canal> + transport set).
+  const doc = Config.readConfig(cfg);
+  const ch = doc.channels[channel];
+  const participants = (ch && ch.participants) || [];
+  if (!participants.includes(authoredBy)) {
+    console.error(`FAIL: '${authoredBy}' não participa do canal '${channel}' (REQ-03/C1) — nada gravado`);
+    console.error(`  opção 1: liaison-ops.sh open ${channel} --participants ${authoredBy}`);
+    console.error(`  opção 2: liaison-ops.sh open <novo-canal> --participants ${authoredBy}  (e liaison-ops.sh transport set <novo-canal> --kind <kind>)`);
+    console.error(`  o peer '${authoredBy}' precisa fazer o mesmo (abrir ou entrar no canal) do lado dele`);
+    process.exit(1);
+  }
+
+  // Localização + leitura do transcript (design §2.4 passo 3/4) pelo MESMO leitor do native check
+  // (native-transcript.mjs): roda a fixture de controle embutida, localiza por --session ou
+  // CLAUDE_CODE_SESSION_ID, e decide "instrumento quebrado" quando há candidata sem extração.
+  const sessionId = sessionArg || process.env.CLAUDE_CODE_SESSION_ID || '';
+  const read = Transcript.readTranscript({ sessionId: sessionId || undefined });
+  if (!read.ok) {
+    console.error(`FAIL: ${read.reason}`);
+    process.exit(1);
+  }
+  const rec = (read.receptions || []).find((r) => r.fingerprint === nativeRef);
+  if (!rec) {
+    console.error(`FAIL: fingerprint '${nativeRef}' não encontrado no transcript (cross-session/native-ref) — nada gravado`);
+    process.exit(1);
+  }
+
+  // Valores extraídos da tag (design §2.4 passo 5): teto de 128 caracteres, caractere de
+  // controle, segredo — qualquer falha recusa sem gravar.
+  const checks = [['from', rec.from], ['from-name', rec.fromName], ['from-mode', rec.fromMode]];
+  for (const [field, value] of checks) {
+    if (String(value).length > Classes.NATIVE_FIELD_MAX) {
+      console.error(`FAIL: ${field} extraído da tag excede ${Classes.NATIVE_FIELD_MAX} caracteres (cross-session)`);
+      process.exit(1);
+    }
+    if (/[\u0000-\u001f\u007f]/.test(value)) {
+      console.error(`FAIL: ${field} extraído da tag contém caractere de controle (cross-session)`);
+      process.exit(1);
+    }
+    const hits = findSecrets(value);
+    if (hits.length) {
+      console.error(`FAIL: possível segredo em ${field} extraído da tag (${hits.join(', ')}) (cross-session)`);
+      process.exit(1);
+    }
+  }
+
+  // Conferência de origem (design §2.4 passo 6): registro consultado pelo socket de `from`;
+  // quando a linha traz verifiedPeerPid, pid divergente DESCARTA o registro (cai em "ausente",
+  // nunca em origin_verified:true). Achado o registro, compara o repositório principal do `cwd`
+  // dele com o repositório principal do peer-path do authored_by — divergência recusa nomeando os
+  // dois caminhos; ausência de registro ou de peer-path é origin_verified:false (aceito).
+  let originVerified = false;
+  // `rec.from` traz o prefixo `uds:` (forma da tag — evidência b); o registro de sessões guarda
+  // `messagingSocketPath` SEM prefixo (evidência c). Despir o prefixo antes de consultar o
+  // registro por socket é o que torna a resolução possível.
+  const sockFile = rec.from.startsWith('uds:') ? rec.from.slice(4) : rec.from;
+  const bySocket = Registry.resolveBySocket({ sockFile });
+  let entry = bySocket.ok ? bySocket.entry : null;
+  // Sem verifiedPeerPid na linha, o `from` vem só do texto da tag — que um subagente ou um texto
+  // colado também escrevem — e um socket vivo no caminho previsível não prova quem enviou: o
+  // registro é descartado e a origem fica não verificada (code-evaluator PR #245, SEC-001).
+  if (entry && (typeof rec.verifiedPeerPid !== 'number' || entry.pid !== rec.verifiedPeerPid)) {
+    entry = null; // pid ausente ou divergente (socket reutilizado) — cai no caso "registro ausente"
+  }
+  if (entry) {
+    const originRepo = Workspace.mainRepoRoot(entry.cwd);
+    const peerPath = Config.getPeerPath(doc, channel, authoredBy);
+    if (peerPath) {
+      const peerRepo = Workspace.mainRepoRoot(peerPath);
+      if (originRepo && peerRepo && originRepo === peerRepo) {
+        originVerified = true;
+      } else {
+        console.error(`FAIL: origem diverge (cross-session/origem) — registro de '${authoredBy}' aponta para repositório '${originRepo}', peer-path aponta para '${peerRepo}' — nada gravado`);
+        process.exit(1);
+      }
+    }
+    // peerPath ausente: authored_by sem peer-path configurado → origin_verified fica false.
+  }
+  // registro ausente (sessão encerrada, Remote Control, nuvem) → origin_verified fica false.
+
+  process.stdout.write([rec.from, rec.fromName, rec.fromMode, String(originVerified)].join('\x1f'));
+})();
+NODEEOF
+}
+
+# _native_state_dir — <git-common-dir>/forge-native/, o estado local NÃO VERSIONADO da
+# mensageria nativa (REQ-08, design §2.6): dispositions.jsonl e reports/<session-id>.json. Fora
+# da árvore de trabalho (nunca sob um .gitignore de branch) e compartilhado por todas as
+# worktrees do repositório, porque é o MESMO <git-common-dir> que o visitante de qualquer uma
+# delas resolve.
+_native_state_dir() {
+  local common
+  common="$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" \
+    || { echo "FAIL: não foi possível resolver o git-common-dir de '$ROOT'" >&2; return 1; }
+  printf '%s/forge-native\n' "$common"
+}
+
+# _native_ancestor_is_claude — percorre a cadeia de PPID a partir do pai deste processo, até o
+# pid 1, com `ps` resolvido pelo PATH (nunca por caminho absoluto — design §2.7: o produtor não
+# precisa de variável de escape própria, que o agente também usaria). Teto de 64 saltos, mesmo
+# idioma de lib/heavy-mutex.sh::_fhm_is_ancestor, contra uma cadeia de PPID corrompida.
+_native_ancestor_is_claude() {
+  local cur="$PPID" hops=0 comm
+  while [ -n "$cur" ] && [ "$hops" -lt 64 ]; do
+    comm="$(ps -o comm= -p "$cur" 2>/dev/null | tr -d '[:space:]')"
+    case "$comm" in
+      claude|*/claude) return 0 ;;
+    esac
+    [ "$cur" = "1" ] && break
+    cur="$(ps -o ppid= -p "$cur" 2>/dev/null | tr -d '[:space:]')"
+    hops=$((hops + 1))
+  done
+  return 1
+}
+
+# _native_operator_guard — recusa com rc 1 (achado A-01 do /forge:analyze, design §2.7) quando:
+# (a) o ambiente tem qualquer marcador de sessão do Claude Code; ou (b) algum ancestral do
+# processo é o executável do Claude Code. Nenhuma das duas é fronteira — o agente remove
+# variáveis com `env -u` e o `ps` é resolvido pelo PATH —, e a doc registra isso (REQ-12,
+# rules/conventions/liaison-untrusted-input.md). Chamada sempre DEPOIS do parsing de flags (a
+# flag desconhecida reprova por conta própria, independente de sessão) e ANTES de qualquer
+# escrita em disco.
+_native_operator_guard() {
+  local marker
+  for marker in CLAUDECODE CLAUDE_CODE_SESSION_ID CLAUDE_PID CLAUDE_CODE_ENTRYPOINT; do
+    if eval "[ -n \"\${$marker-}\" ]"; then
+      echo "FAIL: variável de ambiente '$marker' detectada — o cadastro de workspaces é ato do operador humano, num terminal fora de qualquer sessão do Claude Code" >&2
+      return 1
+    fi
+  done
+  if _native_ancestor_is_claude; then
+    echo "FAIL: processo ancestral do Claude Code detectado — o cadastro de workspaces é ato do operador humano, num terminal fora de qualquer sessão do Claude Code" >&2
+    return 1
+  fi
+  return 0
+}
+
 case "$cmd" in
 
 # ---------------------------------------------------------------------------------------------
@@ -591,8 +760,8 @@ send)
   [ -n "$self" ] || { echo "FAIL: self não configurado (rode 'open' primeiro)" >&2; exit 1; }
 
   thread_id=""; kind=""; subject=""; body=""; body_file=""; requires_ack="false"; authored_by=""; via=""
-  in_reply_to=""; change=""; contract_files=""; commit=""
-  SEND_FLAGS="--thread, --kind, --subject, --body, --body-file, --requires-ack, --in-reply-to, --change, --contract-files, --commit, --authored-by, --via"
+  in_reply_to=""; change=""; contract_files=""; commit=""; native_ref=""; session_arg=""
+  SEND_FLAGS="--thread, --kind, --subject, --body, --body-file, --requires-ack, --in-reply-to, --change, --contract-files, --commit, --authored-by, --via, --native-ref, --session"
   while [ $# -gt 0 ]; do case "$1" in
     --thread) forge_reject_flag_as_value send --thread "${2-}" "$SEND_FLAGS"; thread_id="$2"; shift 2 ;;
     --kind) forge_reject_flag_as_value send --kind "${2-}" "$SEND_FLAGS"; kind="$2"; shift 2 ;;
@@ -606,8 +775,22 @@ send)
     --commit) forge_reject_flag_as_value send --commit "${2-}" "$SEND_FLAGS"; commit="$2"; shift 2 ;;
     --authored-by) forge_reject_flag_as_value send --authored-by "${2-}" "$SEND_FLAGS"; authored_by="$2"; shift 2 ;;
     --via) forge_reject_flag_as_value send --via "${2-}" "$SEND_FLAGS"; via="$2"; shift 2 ;;
+    --native-ref) forge_reject_flag_as_value send --native-ref "${2-}" "$SEND_FLAGS"; native_ref="$2"; shift 2 ;;
+    --session) forge_reject_flag_as_value send --session "${2-}" "$SEND_FLAGS"; session_arg="$2"; shift 2 ;;
     *) _reject_unknown "send" "$SEND_FLAGS" "$1" ;;
   esac; done
+  # Coerência de flags do REQ-02/design §2.4 passo 1 — ANTES de qualquer outra validação ou
+  # escrita: --native-ref/--session só fazem sentido com --via cross-session, e --via
+  # cross-session exige os dois (--native-ref e --authored-by, checado mais abaixo).
+  if [ "$via" != "cross-session" ]; then
+    [ -z "$native_ref" ] || { echo "FAIL: --native-ref exige --via cross-session" >&2; exit 1; }
+    [ -z "$session_arg" ] || { echo "FAIL: --session exige --via cross-session" >&2; exit 1; }
+  fi
+  if [ "$via" = "cross-session" ]; then
+    [ -n "$native_ref" ] || { echo "FAIL: --via cross-session exige --native-ref <fingerprint>" >&2; exit 1; }
+    [ -n "$authored_by" ] || { echo "FAIL: --via cross-session exige --authored-by <repo-do-peer>" >&2; exit 1; }
+    printf '%s' "$native_ref" | grep -Eq '^[0-9a-f]{64}$' || { echo "FAIL: --native-ref fora do padrão sha256 hex: '$native_ref'" >&2; exit 1; }
+  fi
   # authored_by registra a autoria REAL quando o conteúdo veio de outro repositório (o caso do
   # /forge:liaison ask). O sender continua sendo este repositório — é o invariante de um escritor por
   # arquivo que torna o merge livre de conflito; gravar no log alheio faria o log dele divergir do
@@ -615,6 +798,15 @@ send)
   if [ -n "${authored_by:-}" ]; then
     self_local="$(_read_self)"
     [ "$authored_by" != "$self_local" ] || { echo "FAIL: --authored-by igual ao self ($self_local) — omita a flag" >&2; exit 1; }
+  fi
+  # Registro de mensagem nativa recebida (REQ-02/REQ-03, design §2.4 passos 2 a 6): recusa C1,
+  # localização/leitura do transcript pelo leitor único (native-transcript.mjs), tetos/controle/
+  # segredo nos valores extraídos e conferência de origem pelo registro de sessões — tudo ANTES de
+  # qualquer escrita. Em sucesso, ecoa from_addr/from_name/from_mode/origin_verified.
+  cs_from=""; cs_from_name=""; cs_from_mode=""; cs_origin_verified=""
+  if [ "$via" = "cross-session" ]; then
+    resolved="$(_resolve_cross_session "$channel" "$authored_by" "$native_ref" "$session_arg")" || exit 1
+    IFS=$'\x1f' read -r cs_from cs_from_name cs_from_mode cs_origin_verified <<< "$resolved"
   fi
   [ -n "$thread_id" ] || { echo "FAIL: --thread obrigatório" >&2; exit 1; }
   [ -n "$kind" ] || { echo "FAIL: --kind obrigatório (note|question|answer|contract-change)" >&2; exit 1; }
@@ -640,13 +832,15 @@ send)
   IFS=',' read -ra cfiles <<< "${contract_files:-}"
   out="$(node - "$LIBDIR" "$ch_dir" "$self" "$channel" "$thread_id" "$kind" "$subject" "$body" "$body_ref" \
     "$requires_ack" "${in_reply_to:-}" "${change:-}" "${cfiles[*]:-}" "${commit:-}" "$(_git_date)" \
-    "${authored_by:-}" "${via:-}" <<'NODEEOF'
+    "${authored_by:-}" "${via:-}" "${cs_from:-}" "${cs_from_name:-}" "${cs_from_mode:-}" \
+    "${native_ref:-}" "${cs_origin_verified:-}" <<'NODEEOF'
 const { readFileSync, writeFileSync, readdirSync, existsSync, renameSync } = require('fs');
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
   const [, , lib, chDir, self, channel, threadId, kind, subject, body, bodyRef,
-    requiresAck, inReplyTo, change, cfilesRaw, commit, now, authoredBy, via] = process.argv;
+    requiresAck, inReplyTo, change, cfilesRaw, commit, now, authoredBy, via,
+    csFrom, csFromName, csFromMode, csNativeRef, csOriginVerified] = process.argv;
   const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
   const logDir = join(chDir, 'log');
   const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
@@ -671,6 +865,14 @@ const { pathToFileURL } = require('url');
     refs: { change_id: change || null, contract_files: cfiles, commit: commit || null },
     ...(authoredBy ? { authored_by: authoredBy } : {}),
     ...(via ? { via } : {}),
+    // REQ-02/design §2.4 passo 8 — cross_session só quando via=cross-session; os cinco subcampos
+    // já vieram calculados e validados por _resolve_cross_session (origem, tetos, segredo).
+    ...(via === 'cross-session' ? {
+      cross_session: {
+        from_addr: csFrom, from_name: csFromName, from_mode: csFromMode,
+        native_ref: csNativeRef, origin_verified: csOriginVerified === 'true',
+      },
+    } : {}),
     created_at: now,
     // Conteúdo cuja autoria é de outro repositório NUNCA é 'self', mesmo tendo sido escrito no
     // nosso arquivo: quem lê precisa saber que a procedência é externa antes de agir sobre ele.
@@ -872,10 +1074,29 @@ const { pathToFileURL } = require('url');
       // O corpo só sai com --show, e nunca cru: vai dentro do banner UNTRUSTED, em fence, com
       // `/forge:` neutralizado. Assunto e metadados são gerados por nós a partir do envelope;
       // o corpo é texto arbitrário de outro repositório.
-      if (showBody === 'true' && m.body) {
-        for (const line of R.renderUntrusted(m.body, m.sender).split('\n')) console.log(`  ${line}`);
-      } else if (showBody === 'true' && m.body_ref) {
-        console.log(`    corpo em \`${m.body_ref}\` (blob — abra deliberadamente)`);
+      //
+      // REQ-02/design §2.4: mensagem via=cross-session ganha, DENTRO da mesma moldura, as linhas
+      // `via: cross-session`, nome e modo declarados (autodeclarados, não provam repositório) e,
+      // quando origin_verified é false, "origem não verificada" — tudo neutralizado pela mesma
+      // função que embrulha o corpo.
+      if (showBody === 'true') {
+        const cs = m.via === 'cross-session' && m.cross_session ? m.cross_session : null;
+        const extra = [];
+        if (cs) {
+          extra.push('via: cross-session');
+          extra.push(`nome declarado (autodeclarado): ${cs.from_name}`);
+          extra.push(`modo declarado: ${cs.from_mode}`);
+          if (cs.origin_verified === false) extra.push('origem não verificada');
+        }
+        if (m.body) {
+          const composite = extra.length ? `${extra.join('\n')}\n\n${m.body}` : m.body;
+          for (const line of R.renderUntrusted(composite, m.sender).split('\n')) console.log(`  ${line}`);
+        } else if (m.body_ref) {
+          if (extra.length) for (const line of R.renderUntrusted(extra.join('\n'), m.sender).split('\n')) console.log(`  ${line}`);
+          console.log(`    corpo em \`${m.body_ref}\` (blob — abra deliberadamente)`);
+        } else if (extra.length) {
+          for (const line of R.renderUntrusted(extra.join('\n'), m.sender).split('\n')) console.log(`  ${line}`);
+        }
       }
     }
   }
@@ -1420,6 +1641,368 @@ render)
   [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado" >&2; exit 1; }
   _render "$channel"
   echo "OK $ch_dir/CHANNEL.md"
+  ;;
+
+# ---------------------------------------------------------------------------------------------
+# notify — ponteiro canônico (REQ-01, design §2.3): imprime, em stdout, o ponteiro
+# `liaison:<channel>/<msg_id>` só se a mensagem existir no log próprio, for mensagem própria e já
+# tiver sido publicada por um `sync` com push bem-sucedido. NÃO envia nada — a doc do comando
+# instrui o agente a colar o bloco impresso no `message` do SendMessage. `--to` é só informativo.
+notify)
+  channel="${1:-}"; shift || true
+  msg_id="${1:-}"; shift || true
+  [ -n "$channel" ] && [ -n "$msg_id" ] || { echo "FAIL: uso: notify <channel> <msg_id> --to <destino>" >&2; exit 1; }
+  to=""
+  NOTIFY_FLAGS="--to"
+  while [ $# -gt 0 ]; do case "$1" in
+    --to) forge_reject_flag_as_value notify --to "${2-}" "$NOTIFY_FLAGS"; to="$2"; shift 2 ;;
+    *) _reject_unknown "notify" "$NOTIFY_FLAGS" "$1" ;;
+  esac; done
+  [ -n "$to" ] || { echo "FAIL: '--to' obrigatório no subcomando 'notify'" >&2; echo "  flags aceitas em 'notify': $NOTIFY_FLAGS" >&2; exit 1; }
+
+  pointer_out="$(node - "$LIBDIR" "$ROOT" "$channel" "$msg_id" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, channel, msgId] = process.argv;
+  const { resolvePointer } = await import(pathToFileURL(join(lib, 'liaison-pointer.mjs')).href);
+  const r = resolvePointer({ root, channel, msgId });
+  if (!r.ok) { console.error(`FAIL: ${r.reason}`); process.exit(1); }
+  console.log(`liaison:${channel}/${msgId}`);
+  console.log(`thread_id: ${r.thread_id}`);
+  console.log(`content_sha: ${r.content_sha}`);
+  console.log(`subject: ${r.subject}`);
+})();
+NODEEOF
+)" || exit 1
+  echo "$pointer_out"
+  echo "to: $to"
+  ;;
+
+# ---------------------------------------------------------------------------------------------
+# native — diagnóstico de cobertura (REQ-08, design §2.6) e declaração de descarte. Estado local
+# NÃO VERSIONADO em <git-common-dir>/forge-native/ (dispositions.jsonl + reports/<session-id>.json)
+# — fora da árvore de trabalho, compartilhado por todas as worktrees do repositório.
+native)
+  native_sub="${1:-}"; shift || true
+  case "$native_sub" in
+
+  check)
+    native_session=""; native_transcript=""; native_report="false"; native_pending="false"
+    NATIVE_CHECK_FLAGS="--session, --transcript, --report, --pending"
+    while [ $# -gt 0 ]; do case "$1" in
+      --session) forge_reject_flag_as_value "native check" --session "${2-}" "$NATIVE_CHECK_FLAGS"; native_session="$2"; shift 2 ;;
+      --transcript) forge_reject_flag_as_value "native check" --transcript "${2-}" "$NATIVE_CHECK_FLAGS"; native_transcript="$2"; shift 2 ;;
+      --report) native_report="true"; shift ;;
+      --pending) native_pending="true"; shift ;;
+      *) _reject_unknown "native check" "$NATIVE_CHECK_FLAGS" "$1" ;;
+    esac; done
+
+    native_state_dir="$(_native_state_dir)" || exit 1
+    mkdir -p "$native_state_dir/reports"
+
+    if [ "$native_pending" = "true" ]; then
+      node - "$LIBDIR" "$native_state_dir" <<'NODEEOF'
+const { readFileSync, readdirSync, existsSync, writeFileSync } = require('fs');
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, stateDir] = process.argv;
+  const R = await import(pathToFileURL(join(lib, 'untrusted-render.mjs')).href);
+  const reportsDir = join(stateDir, 'reports');
+  const files = existsSync(reportsDir) ? readdirSync(reportsDir).filter((f) => f.endsWith('.json')) : [];
+  const reports = [];
+  for (const f of files) {
+    const full = join(reportsDir, f);
+    let r;
+    try { r = JSON.parse(readFileSync(full, 'utf8')); } catch { continue; }
+    if (r.delivered === true) continue;
+    reports.push({ file: full, data: r });
+  }
+  if (!reports.length) { console.log('native check --pending: nenhum relatório pendente'); return; }
+  reports.sort((a, b) => String(b.data.generatedAt || '').localeCompare(String(a.data.generatedAt || '')));
+  const shown = reports.slice(0, 5);
+  const rest = reports.length - shown.length;
+  for (const r of shown) {
+    const d = r.data;
+    const shortId = String(d.sessionId || '?').slice(0, 8);
+    const date = String(d.generatedAt || '?').slice(0, 10);
+    if (d.brokenInstrument) {
+      console.log(`${date} · sessão ${shortId} · instrumento quebrado — native check --session ${d.sessionId}`);
+    } else {
+      const c = d.counts || {};
+      console.log(`${date} · sessão ${shortId} · ${c.pending || 0} pendente(s), ${c.otherWorkspace || 0} de outro workspace, ${c.unknownWorkspace || 0} de workspace desconhecido — native check --session ${d.sessionId}`);
+    }
+  }
+  if (rest > 0) console.log(`+${rest} relatório(s)`);
+  // Entrega única (REQ-08): todo relatório visto aqui (os exibidos individualmente e os só
+  // contados em "+N") é marcado entregue — a próxima chamada de --pending não o repete.
+  for (const r of reports) {
+    r.data.delivered = true;
+    writeFileSync(r.file, JSON.stringify(r.data));
+  }
+})();
+NODEEOF
+      exit 0
+    fi
+
+    node - "$LIBDIR" "$ROOT" "$native_state_dir" "${native_session:-}" "${native_transcript:-}" "$native_report" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" <<'NODEEOF'
+const { readFileSync, readdirSync, existsSync, writeFileSync } = require('fs');
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, stateDir, sessionArg, transcriptArg, reportMode, nowWall] = process.argv;
+  const Transcript = await import(pathToFileURL(join(lib, 'native-transcript.mjs')).href);
+  const Registry = await import(pathToFileURL(join(lib, 'native-registry.mjs')).href);
+  const Workspace = await import(pathToFileURL(join(lib, 'native-workspace.mjs')).href);
+  const R = await import(pathToFileURL(join(lib, 'untrusted-render.mjs')).href);
+
+  const sessionId = sessionArg || process.env.CLAUDE_CODE_SESSION_ID || '';
+  // Único caso de rc != 0 (REQ-08): sessão não identificável — nem --transcript, nem --session,
+  // nem CLAUDE_CODE_SESSION_ID.
+  if (!transcriptArg && !sessionId) {
+    console.error('FAIL: sessão não identificável — informe --session <id>, --transcript <path> ou exporte CLAUDE_CODE_SESSION_ID');
+    process.exit(1);
+  }
+
+  function persist(data) {
+    if (reportMode !== 'true') return;
+    const reportsDir = join(stateDir, 'reports');
+    const name = (sessionId || 'unknown').replace(/[^A-Za-z0-9._-]/g, '_');
+    writeFileSync(join(reportsDir, `${name}.json`), JSON.stringify({
+      sessionId: sessionId || null, generatedAt: nowWall, delivered: false, ...data,
+    }));
+  }
+
+  const read = Transcript.readTranscript({ sessionId: sessionId || undefined, transcriptPath: transcriptArg || undefined });
+  if (!read.ok) {
+    // Diagnóstico é AVISO (REQ-08): nunca bloqueia o fim nem o início de sessão — "instrumento
+    // quebrado" ou leitura impossível sai com rc 0, nunca "nada pendente".
+    console.log(`native check: ${read.reason}`);
+    persist({ brokenInstrument: true, reason: read.reason, counts: { total: 0, pending: 0, otherWorkspace: 0, unknownWorkspace: 0 } });
+    return;
+  }
+
+  // Destinação (design §2.6): registro no liaison com cross_session.native_ref igual ao
+  // fingerprint EM QUALQUER CANAL DO TRONCO, ou declaração via `native dispose`.
+  const liaisonDir = join(root, '.forge', 'liaison');
+  const registeredRefs = new Set();
+  if (existsSync(liaisonDir)) {
+    for (const ch of readdirSync(liaisonDir, { withFileTypes: true })) {
+      if (!ch.isDirectory()) continue;
+      const logDir = join(liaisonDir, ch.name, 'log');
+      if (!existsSync(logDir)) continue;
+      for (const f of readdirSync(logDir).filter((x) => x.endsWith('.jsonl'))) {
+        const text = readFileSync(join(logDir, f), 'utf8');
+        for (const line of text.split('\n')) {
+          const t = line.trim();
+          if (!t) continue;
+          let m;
+          try { m = JSON.parse(t); } catch { continue; }
+          if (m && m.cross_session && m.cross_session.native_ref) registeredRefs.add(m.cross_session.native_ref);
+        }
+      }
+    }
+  }
+  const dispositionsFile = join(stateDir, 'dispositions.jsonl');
+  const disposedRefs = new Set();
+  if (existsSync(dispositionsFile)) {
+    for (const line of readFileSync(dispositionsFile, 'utf8').split('\n')) {
+      const t = line.trim();
+      if (!t) continue;
+      let d;
+      try { d = JSON.parse(t); } catch { continue; }
+      if (d && d.fingerprint) disposedRefs.add(d.fingerprint);
+    }
+  }
+
+  // Workspace do remetente (design §2.6): resolvido pelo socket de `from` e por verifiedPeerPid
+  // no registro — NUNCA "mesmo workspace" por omissão (registro ausente -> desconhecido).
+  const selfRoot = Workspace.mainRepoRoot(root) || root;
+  const selfWorkspace = Workspace.workspaceIdentity(selfRoot);
+  const items = [];
+  let otherWorkspace = 0;
+  let unknownWorkspace = 0;
+  let pendingCount = 0;
+  for (const rec of read.receptions) {
+    const destined = registeredRefs.has(rec.fingerprint) || disposedRefs.has(rec.fingerprint);
+    const sockFile = rec.from.startsWith('uds:') ? rec.from.slice(4) : rec.from;
+    const bySocket = Registry.resolveBySocket({ sockFile });
+    let entry = bySocket.ok ? bySocket.entry : null;
+    if (entry && typeof rec.verifiedPeerPid === 'number' && entry.pid !== rec.verifiedPeerPid) entry = null;
+    let workspace = 'unknown';
+    if (entry) {
+      const senderRoot = Workspace.mainRepoRoot(entry.cwd);
+      const senderWorkspace = senderRoot ? Workspace.workspaceIdentity(senderRoot) : null;
+      workspace = senderWorkspace && senderWorkspace === selfWorkspace ? 'same' : 'other';
+    }
+    if (workspace === 'other') otherWorkspace += 1;
+    if (workspace === 'unknown') unknownWorkspace += 1;
+    if (!destined) {
+      pendingCount += 1;
+      items.push({ fingerprint: rec.fingerprint, fromName: rec.fromName, workspace });
+    }
+  }
+
+  const wsLabel = (w) => (w === 'other' ? 'outro workspace' : w === 'unknown' ? 'workspace desconhecido' : 'mesmo workspace');
+  console.log(`native check — ${read.receptions.length} recepção(ões), ${pendingCount} pendente(s), ${otherWorkspace} de outro workspace, ${unknownWorkspace} de workspace desconhecido`);
+  const body = items.length
+    ? items.map((it) => `${it.fingerprint} — ${it.fromName} (${wsLabel(it.workspace)})`).join('\n')
+    : '(nenhuma recepção pendente)';
+  // from-name é autodeclarado e texto de peer — passa por untrusted-render (moldura e
+  // neutralização), nunca cru (REQ-08, rule conventions/liaison-untrusted-input.md).
+  for (const line of R.renderUntrusted(body, 'peer').split('\n')) console.log(line);
+
+  persist({
+    brokenInstrument: false,
+    counts: { total: read.receptions.length, pending: pendingCount, otherWorkspace, unknownWorkspace },
+    pending: items,
+  });
+})();
+NODEEOF
+    ;;
+
+  dispose)
+    native_fp="${1:-}"; shift || true
+    native_ephemeral=""
+    NATIVE_DISPOSE_FLAGS="--ephemeral"
+    while [ $# -gt 0 ]; do case "$1" in
+      --ephemeral) forge_reject_flag_as_value "native dispose" --ephemeral "${2-}" "$NATIVE_DISPOSE_FLAGS"; native_ephemeral="$2"; shift 2 ;;
+      *) _reject_unknown "native dispose" "$NATIVE_DISPOSE_FLAGS" "$1" ;;
+    esac; done
+    [ -n "$native_fp" ] || { echo "FAIL: uso: native dispose <fingerprint> --ephemeral <class>" >&2; exit 1; }
+    printf '%s' "$native_fp" | grep -Eq '^[0-9a-f]{64}$' || { echo "FAIL: fingerprint fora do padrão sha256 hex: '$native_fp'" >&2; exit 1; }
+    [ -n "$native_ephemeral" ] || { echo "FAIL: --ephemeral <class> obrigatório" >&2; exit 1; }
+
+    native_state_dir="$(_native_state_dir)" || exit 1
+    mkdir -p "$native_state_dir"
+    node - "$LIBDIR" "$native_state_dir" "$native_fp" "$native_ephemeral" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" <<'NODEEOF'
+const { appendFileSync } = require('fs');
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, stateDir, fingerprint, ephemeralClass, nowWall] = process.argv;
+  const Classes = await import(pathToFileURL(join(lib, 'native-classes.mjs')).href);
+  if (!Classes.EPHEMERAL_CLASSES.includes(ephemeralClass)) {
+    console.error(`FAIL: classe efêmera inválida '${ephemeralClass}' (use: ${Classes.EPHEMERAL_CLASSES.join('|')})`);
+    process.exit(1);
+  }
+  appendFileSync(join(stateDir, 'dispositions.jsonl'), JSON.stringify({ fingerprint, class: ephemeralClass, at: nowWall }) + '\n');
+})();
+NODEEOF
+    echo "OK native dispose — $native_fp declarado $native_ephemeral"
+    ;;
+
+  # ---------------------------------------------------------------------------------------------
+  # native allow|revoke|pin — cadastro de workspaces permitidos (REQ-12, design §2.7). Recusam
+  # com rc 1, SEM tocar o arquivo, quando a flag é desconhecida (checagem independente de sessão,
+  # dentro do parsing) ou quando `_native_operator_guard` detecta sessão de agente — SEMPRE depois
+  # do parsing e ANTES de qualquer leitura/escrita do cadastro. A lógica de escrita mora em
+  # lib/native-allowlist.mjs; este bloco só valida flags, resolve `granted_by`/`revoked_by` (git
+  # config user.email) e repassa.
+  allow)
+    native_id="${1:-}"; shift || true
+    native_reason=""
+    NATIVE_ALLOW_FLAGS="--reason"
+    while [ $# -gt 0 ]; do case "$1" in
+      --reason) forge_reject_flag_as_value "native allow" --reason "${2-}" "$NATIVE_ALLOW_FLAGS"; native_reason="$2"; shift 2 ;;
+      *) _reject_unknown "native allow" "$NATIVE_ALLOW_FLAGS" "$1" ;;
+    esac; done
+    _native_operator_guard || exit 1
+    [ -n "$native_id" ] || { echo "FAIL: uso: native allow <identidade> --reason \"<motivo>\"" >&2; exit 1; }
+    [ -n "$native_reason" ] || { echo "FAIL: '--reason' obrigatório no subcomando 'native allow'" >&2; exit 1; }
+    native_granted_by="$(git -C "$ROOT" config user.email 2>/dev/null || true)"
+    [ -n "$native_granted_by" ] || { echo "FAIL: git config user.email não configurado em '$ROOT' — obrigatório para granted_by" >&2; exit 1; }
+    node - "$LIBDIR" "$ROOT" "$native_id" "$native_reason" "$native_granted_by" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, id, reason, grantedBy, now] = process.argv;
+  const A = await import(pathToFileURL(join(lib, 'native-allowlist.mjs')).href);
+  const r = A.allow({ root, id, reason, grantedBy, now });
+  if (!r.ok) { console.error(`FAIL: ${r.error}`); process.exit(1); }
+  console.log(`OK native allow — ${id} cadastrado (${r.reminder})`);
+})();
+NODEEOF
+    ;;
+
+  revoke)
+    native_id="${1:-}"; shift || true
+    native_reason=""
+    NATIVE_REVOKE_FLAGS="--reason"
+    while [ $# -gt 0 ]; do case "$1" in
+      --reason) forge_reject_flag_as_value "native revoke" --reason "${2-}" "$NATIVE_REVOKE_FLAGS"; native_reason="$2"; shift 2 ;;
+      *) _reject_unknown "native revoke" "$NATIVE_REVOKE_FLAGS" "$1" ;;
+    esac; done
+    _native_operator_guard || exit 1
+    [ -n "$native_id" ] || { echo "FAIL: uso: native revoke <identidade> --reason \"<motivo>\"" >&2; exit 1; }
+    [ -n "$native_reason" ] || { echo "FAIL: '--reason' obrigatório no subcomando 'native revoke'" >&2; exit 1; }
+    native_revoked_by="$(git -C "$ROOT" config user.email 2>/dev/null || true)"
+    [ -n "$native_revoked_by" ] || { echo "FAIL: git config user.email não configurado em '$ROOT' — obrigatório para revoked_by" >&2; exit 1; }
+    node - "$LIBDIR" "$ROOT" "$native_id" "$native_reason" "$native_revoked_by" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, id, reason, revokedBy, now] = process.argv;
+  const A = await import(pathToFileURL(join(lib, 'native-allowlist.mjs')).href);
+  const r = A.revoke({ root, id, reason, revokedBy, now });
+  if (!r.ok) { console.error(`FAIL: ${r.error}`); process.exit(1); }
+  console.log(`OK native revoke — ${id} revogado (${r.reminder})`);
+})();
+NODEEOF
+    ;;
+
+  pin)
+    NATIVE_PIN_FLAGS=""
+    while [ $# -gt 0 ]; do case "$1" in
+      *) _reject_unknown "native pin" "$NATIVE_PIN_FLAGS" "$1" ;;
+    esac; done
+    _native_operator_guard || exit 1
+    node - "$LIBDIR" "$ROOT" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root] = process.argv;
+  const A = await import(pathToFileURL(join(lib, 'native-allowlist.mjs')).href);
+  const r = A.pin({ root });
+  if (!r.ok) { console.error(`FAIL: ${r.error}`); process.exit(1); }
+  console.log(`OK native pin — self_identity fixado em '${r.doc.self_identity}' (${r.reminder})`);
+})();
+NODEEOF
+    ;;
+
+  # ---------------------------------------------------------------------------------------------
+  # native containment — detector único de mudanças de contenção (REQ-12, design §2.7). rc 0
+  # sempre que conseguiu medir (lista vazia = "nada mudou" é resultado, não falha); rc 2 quando
+  # NÃO conseguiu medir (git indisponível, intervalo inválido, hooks.manifest do consumidor
+  # corrompido) — para o chamador (pre-push, doctor, prepare-pr, ship) nunca confundir os dois.
+  containment)
+    native_range=""; native_format="text"
+    NATIVE_CONTAINMENT_FLAGS="--range, --format"
+    while [ $# -gt 0 ]; do case "$1" in
+      --range) forge_reject_flag_as_value "native containment" --range "${2-}" "$NATIVE_CONTAINMENT_FLAGS"; native_range="$2"; shift 2 ;;
+      --format) forge_reject_flag_as_value "native containment" --format "${2-}" "$NATIVE_CONTAINMENT_FLAGS"; native_format="$2"; shift 2 ;;
+      *) _reject_unknown "native containment" "$NATIVE_CONTAINMENT_FLAGS" "$1" ;;
+    esac; done
+    case "$native_format" in
+      text|markdown) ;;
+      *) echo "FAIL: --format inválido '$native_format' no subcomando 'native containment' (use: text, markdown)" >&2; exit 1 ;;
+    esac
+    node - "$LIBDIR" "$ROOT" "$native_range" "$native_format" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, range, format] = process.argv;
+  const C = await import(pathToFileURL(join(lib, 'native-containment.mjs')).href);
+  const r = C.detectContainment({ root, range: range || undefined });
+  if (!r.ok) { console.error(`FAIL: ${r.reason}`); process.exit(2); }
+  console.log(C.renderContainment(r.findings, format));
+})();
+NODEEOF
+    ;;
+
+  *) echo "FAIL: subcomando desconhecido 'native $native_sub' (use: check, dispose, allow, revoke, pin, containment)" >&2; exit 1 ;;
+  esac
   ;;
 
 *)

@@ -69,8 +69,20 @@ function renderMessage(m) {
   // (banner + fence + neutralização), inclusive o que nós mesmos escrevemos: um render que trata
   // conteúdo próprio e alheio de formas diferentes convida ao erro no dia em que a origem do
   // registro deixar de ser óbvia — e o custo de embrulhar o próprio é uma linha a mais.
-  if (m.body) lines.push(...renderUntrusted(m.body, m.sender).split('\n').map((l) => `  ${l}`));
-  else if (m.body_ref) lines.push(`  corpo em \`${m.body_ref}\``);
+  //
+  // REQ-02/design §2.4: via=cross-session mostra `via: cross-session` e o nome declarado
+  // rotulado como autodeclarado, DENTRO da mesma moldura (neutralizado pela mesma função).
+  const cs = m.via === 'cross-session' && m.cross_session ? m.cross_session : null;
+  const extra = cs ? [`via: cross-session`, `nome declarado (autodeclarado): ${cs.from_name}`] : [];
+  if (m.body) {
+    const composite = extra.length ? `${extra.join('\n')}\n\n${m.body}` : m.body;
+    lines.push(...renderUntrusted(composite, m.sender).split('\n').map((l) => `  ${l}`));
+  } else if (m.body_ref) {
+    if (extra.length) lines.push(...renderUntrusted(extra.join('\n'), m.sender).split('\n').map((l) => `  ${l}`));
+    lines.push(`  corpo em \`${m.body_ref}\``);
+  } else if (extra.length) {
+    lines.push(...renderUntrusted(extra.join('\n'), m.sender).split('\n').map((l) => `  ${l}`));
+  }
   const refs = m.refs || {};
   const refBits = [];
   if (refs.change_id) refBits.push(`change \`${refs.change_id}\``);

@@ -68,11 +68,69 @@ export function gitCommonDir(startDir) {
   }
 }
 
-// mainRepoRoot(startDir) -> diretório de trabalho do repositório PRINCIPAL (pai do
-// git-common-dir), ou `null` fora de repositório.
+// coreWorktree(gitDir) -> valor de `core.worktree` do `config` de `gitDir` (absoluto), ou null.
+// Leitura mínima do formato INI do git, sem subprocesso: só a chave `worktree` da seção `[core]`.
+function coreWorktree(gitDir) {
+  const cfg = join(gitDir, 'config');
+  if (!existsSync(cfg)) return null;
+  let section = '';
+  for (const raw of readFileSync(cfg, 'utf8').split('\n')) {
+    const line = raw.trim();
+    const sec = /^\[([^\]\s]+)[^\]]*\]$/.exec(line);
+    if (sec) {
+      section = sec[1].toLowerCase();
+      continue;
+    }
+    if (section !== 'core') continue;
+    const kv = /^worktree\s*=\s*(.+)$/i.exec(line);
+    if (kv) {
+      const p = kv[1].trim().replace(/^"(.*)"$/, '$1');
+      return isAbsolute(p) ? p : resolve(gitDir, p);
+    }
+  }
+  return null;
+}
+
+// mainRepoRoot(startDir) -> diretório de trabalho do repositório PRINCIPAL, ou `null` fora de
+// repositório. Três casos (code-evaluator PR #245, LOGIC-001 — "pai do git-common-dir" só vale
+// para `.git` em diretório):
+//   - `.git` diretório: o próprio diretório que o contém;
+//   - `.git` arquivo SEM `commondir` no git-dir apontado (submódulo, `--separate-git-dir`): o
+//     diretório que contém o arquivo `.git` — o pai de `<super>/.git/modules/<nome>` seria
+//     `<super>/.git/modules`, o MESMO para todo submódulo;
+//   - `.git` arquivo COM `commondir` (worktree): o checkout principal do git-common-dir — o pai
+//     dele quando é um `.git` comum, senão o `core.worktree` do config (worktree de submódulo).
 export function mainRepoRoot(startDir) {
-  const commonDir = gitCommonDir(startDir);
-  return commonDir ? dirname(commonDir) : null;
+  let dir;
+  try {
+    dir = realpathSync(startDir);
+  } catch {
+    return null;
+  }
+  for (;;) {
+    const gitPath = join(dir, '.git');
+    if (existsSync(gitPath)) {
+      const st = statSync(gitPath);
+      if (st.isDirectory()) return dir;
+      if (!st.isFile()) return null;
+      const gd = readGitDirFile(gitPath);
+      if (!gd) return null;
+      if (!existsSync(join(gd, 'commondir'))) return dir;
+      const commonDir = resolveCommonDir(gd);
+      const wt = coreWorktree(commonDir);
+      if (wt) {
+        try {
+          return realpathSync(wt);
+        } catch {
+          return wt;
+        }
+      }
+      return dirname(commonDir);
+    }
+    const parent = dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
 }
 
 function resolveHomeReal(home) {
@@ -178,6 +236,15 @@ export function workspaceIdentity(root) {
   }
   identityCache.set(root, identity);
   return identity;
+}
+
+// workspaceIdentityFor(startDir, { home }) -> identidade do WORKSPACE que contém `startDir`
+// (raiz de workspace + identidade). É a MESMA base que o gancho de saída usa para origem e
+// destino; `self_identity` (gravado por `pin`/`allow` e conferido pelo detector) precisa usá-la
+// também — gravar a identidade do repositório aninhado e comparar com a do workspace bloqueava
+// todo envio cadastrado a partir de um repositório aninhado (code-evaluator PR #245, LOGIC-002).
+export function workspaceIdentityFor(startDir, { home } = {}) {
+  return workspaceIdentity(workspaceRoot(startDir, { home }));
 }
 
 export function clearWorkspaceCaches() {

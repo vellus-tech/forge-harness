@@ -22,7 +22,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join } from 'node:path';
-import { workspaceIdentity } from './native-workspace.mjs';
+import { workspaceIdentityFor } from './native-workspace.mjs';
 
 export const ALLOWED_WORKSPACES_REL_PATH = '.forge/liaison/allowed-workspaces.json';
 
@@ -153,7 +153,7 @@ export function allow({ root, id, reason, grantedBy, now }) {
   const read = readWorkingAllowlist({ root });
   if (read.error) return { ok: false, error: read.error };
   const doc = read.doc;
-  if (!doc.self_identity) doc.self_identity = workspaceIdentity(root);
+  if (!doc.self_identity) doc.self_identity = workspaceIdentityFor(root);
   const hasActive = doc.allowed_workspaces.some((e) => e.id === id && !e.revoked_at);
   if (!hasActive) {
     doc.allowed_workspaces.push({ id, reason, granted_by: grantedBy, granted_at: now });
@@ -194,7 +194,7 @@ export function pin({ root }) {
   const read = readWorkingAllowlist({ root });
   if (read.error) return { ok: false, error: read.error };
   const doc = read.doc;
-  doc.self_identity = workspaceIdentity(root);
+  doc.self_identity = workspaceIdentityFor(root);
   const written = writeAllowlist({ root, doc });
   if (!written.ok) return written;
   return { ok: true, doc: written.doc, reminder: COMMIT_REMINDER };

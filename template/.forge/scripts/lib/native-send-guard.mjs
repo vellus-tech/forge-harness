@@ -227,18 +227,21 @@ function checkContainment({ payload, classification, cache, opts }) {
   const originIdentity = workspaceIdentity(originWorkspaceRoot);
   const destIdentity = workspaceIdentity(destWorkspaceRoot);
 
-  if (originIdentity === destIdentity) {
-    return { ok: true, originCwd, destCwd };
-  }
-
   const originMainRepo = mainRepoRoot(originCwd) || originWorkspaceRoot;
   const { doc } = readEffectiveAllowlist({ root: originMainRepo });
 
+  // self_identity ANTES da comparação de igualdade (design §2.5 etapa 5): é exatamente a troca do
+  // remote para o do destino — que torna origem e destino "iguais" — que o `native pin` fecha.
+  // Com o atalho de igualdade primeiro, essa troca liberava o envio com cadastro vazio.
   if (doc.self_identity && doc.self_identity !== originIdentity) {
     return {
       ok: false,
       reason: `remote do repositório diverge da identidade fixada ('${doc.self_identity}' vs '${originIdentity}'); contenção suspensa até decisão humana`,
     };
+  }
+
+  if (originIdentity === destIdentity) {
+    return { ok: true, originCwd, destCwd };
   }
 
   const active = (doc.allowed_workspaces || []).some((e) => e.id === destIdentity && !e.revoked_at);
@@ -409,13 +412,16 @@ export function evaluateSendGuard(payload, opts = {}) {
         message: 'gancho: não consegui extrair o corpo da mensagem (campo ausente ou vazio, e não é pedido só de aviso de ociosidade)',
       };
     }
-    const secretCheck = scanToolInputForSecrets(input);
-    if (secretCheck.found) {
-      return {
-        exitCode: 2,
-        message: `gancho: segredo detectado (${secretCheck.pattern}) no campo '${secretCheck.field}' — valor nunca ecoado`,
-      };
-    }
+  }
+  // Varredura de segredo em TODO campo string do tool_input (REQ-04), inclusive no pedido só de
+  // aviso de ociosidade: message/content vazios não tornam vazio um `summary` preenchido
+  // (code-evaluator PR #245, LOGIC-005/SEC-007).
+  const secretCheck = scanToolInputForSecrets(input);
+  if (secretCheck.found) {
+    return {
+      exitCode: 2,
+      message: `gancho: segredo detectado (${secretCheck.pattern}) no campo '${secretCheck.field}' — valor nunca ecoado`,
+    };
   }
 
   // Etapa 5 — contenção por workspace (REQ-07).

@@ -27,4 +27,11 @@ if ! command -v node >/dev/null 2>&1; then
   exit 2
 fi
 
-exec node "$LIB_DIR/native-send-guard.mjs"
+# Sem `exec`: o rc do node é normalizado aqui. Falha de CARGA de módulo (lib dependente ausente
+# num upgrade parcial, erro de sintaxe, marcador de conflito) acontece antes de `main()` registrar
+# o fail-closed e sai com 1; morte por sinal sai com 128+N. Qualquer rc diferente de 0 vira 2.
+node "$LIB_DIR/native-send-guard.mjs"
+rc=$?
+[ "$rc" -eq 0 ] && exit 0
+[ "$rc" -eq 2 ] || echo "[HOOK] guard-cross-session-send: avaliador saiu com rc $rc (falha de carga ou interrupção) — fail-closed" >&2
+exit 2

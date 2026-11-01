@@ -450,8 +450,11 @@ const { pathToFileURL } = require('url');
   const sockFile = rec.from.startsWith('uds:') ? rec.from.slice(4) : rec.from;
   const bySocket = Registry.resolveBySocket({ sockFile });
   let entry = bySocket.ok ? bySocket.entry : null;
-  if (entry && typeof rec.verifiedPeerPid === 'number' && entry.pid !== rec.verifiedPeerPid) {
-    entry = null; // socket reutilizado por outra sessão — descartado, cai no caso "registro ausente"
+  // Sem verifiedPeerPid na linha, o `from` vem só do texto da tag — que um subagente ou um texto
+  // colado também escrevem — e um socket vivo no caminho previsível não prova quem enviou: o
+  // registro é descartado e a origem fica não verificada (code-evaluator PR #245, SEC-001).
+  if (entry && (typeof rec.verifiedPeerPid !== 'number' || entry.pid !== rec.verifiedPeerPid)) {
+    entry = null; // pid ausente ou divergente (socket reutilizado) — cai no caso "registro ausente"
   }
   if (entry) {
     const originRepo = Workspace.mainRepoRoot(entry.cwd);

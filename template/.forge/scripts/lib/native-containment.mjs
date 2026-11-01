@@ -23,7 +23,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DESFECHO, derivarFiacao, lerHooksManifest } from './hooks-manifest.mjs';
 import { preToolUseWiring } from './sync-adapters.mjs';
-import { workspaceIdentity } from './native-workspace.mjs';
+import { workspaceIdentityFor } from './native-workspace.mjs';
 import { ALLOWED_WORKSPACES_REL_PATH, readEffectiveAllowlist } from './native-allowlist.mjs';
 
 export const GUARD_HOOK = 'guard-cross-session-send.sh';
@@ -217,7 +217,7 @@ function detectRemoteIdentityMismatch(root) {
   const { doc, error } = readEffectiveAllowlist({ root });
   if (error) return { error };
   if (!doc.self_identity) return { changed: false };
-  const current = workspaceIdentity(root);
+  const current = workspaceIdentityFor(root);
   if (current !== doc.self_identity) {
     return { changed: true, detail: `identidade atual do origin '${current}' diverge de self_identity cadastrado '${doc.self_identity}'` };
   }

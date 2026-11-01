@@ -23,6 +23,10 @@ import { join } from 'node:path';
 // de uma tag (não medido, mas evita capturar até a ÚLTIMA ocorrência).
 const TAG_RE =
   /<cross-session-message from="([^"]*)" from-name="([^"]*)" from-mode="([^"]*)">([\s\S]*?)<\/cross-session-message>/;
+// Mesma tag com o corpo GULOSO (até o último fechamento) — só usado para conferir contra
+// `origin.body` quando o corpo cita o próprio fechamento da tag (ver extractReception).
+const TAG_RE_GREEDY =
+  /<cross-session-message from="([^"]*)" from-name="([^"]*)" from-mode="([^"]*)">([\s\S]*)<\/cross-session-message>/;
 // Só o prefixo da abertura — usado para a detecção de "candidata" sem precisar casar a tag inteira
 // (uma tag malformada ainda é candidata; só não extrai).
 const TAG_PROBE = '<cross-session-message from="';
@@ -84,18 +88,35 @@ export function isCandidateLine(line) {
 }
 
 // extractReception(line) -> { from, fromName, fromMode, body, verifiedPeerPid, fingerprint,
-// consistent, inconsistencyReason } | null. Independente de `isCandidateLine`: extrai sempre que
-// a tag casa e `from` começa com `uds:`, para que formatos derivados (tag em bloco de array sem
-// `origin`) também sejam extraídos mesmo sem os marcadores de candidata.
+// consistent, inconsistencyReason } | null. Independente dos MARCADORES de candidata
+// (`isMeta`/`promptSource`): extrai sempre que a tag casa e `from` começa com `uds:`, para que
+// formatos derivados (tag em bloco de array sem `origin`) também sejam extraídos. Os controles
+// NEGATIVOS do design §2.6 (`origin.kind` presente e diferente de "peer"; `turnOrigin`
+// "scheduled") valem também aqui, não só no diagnóstico de candidata: sem eles, a tag escrita
+// por um subagente no próprio `<result>` (linha `task-notification`) ou num turno agendado virava
+// "recepção" com `from`/`from-name` escolhidos por quem escreveu (code-evaluator PR #245,
+// SEC-001).
 export function extractReception(line) {
   if (!line || line.type !== 'user') return null;
   if (line.toolUseResult) return null;
   if (hasToolResultBlock(line.message)) return null;
+  if (line.turnOrigin === 'scheduled') return null;
+  if (line.origin && line.origin.kind && line.origin.kind !== 'peer') return null;
   const text = contentText(line.message);
   const m = TAG_RE.exec(text);
   if (!m) return null;
-  const [, from, fromName, fromMode, bodyRaw] = m;
+  const [, from, fromName, fromMode, bodyRawLazy] = m;
   if (!from.startsWith('uds:')) return null;
+  let bodyRaw = bodyRawLazy;
+  // Corpo que CITA o fechamento da tag (code-evaluator PR #245, LOGIC-003): o casamento não
+  // guloso corta no primeiro fechamento. Quando o `origin.body` medido diverge do corte, tenta o
+  // casamento guloso (até o ÚLTIMO fechamento) e fica com ele se, e só se, bater com
+  // `origin.body` — sem `origin.body` não há com o que conferir, e vale o corte não guloso.
+  const originBody = line.origin && line.origin.kind === 'peer' ? line.origin.body : undefined;
+  if (typeof originBody === 'string' && unwrapBody(bodyRaw) !== originBody) {
+    const g = TAG_RE_GREEDY.exec(text);
+    if (g && g[1] === from && g[2] === fromName && g[3] === fromMode && unwrapBody(g[4]) === originBody) bodyRaw = g[4];
+  }
   const body = unwrapBody(bodyRaw);
 
   let consistent = true;

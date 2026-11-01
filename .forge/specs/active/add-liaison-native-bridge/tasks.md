@@ -110,7 +110,7 @@
 - [X] TASK-27 — ADR "Mensageria nativa entre sessões é sinalização; o registro durável é o liaison" no baseline, no protocolo do `/forge:adr` (constitution §9; design §10; achado A-03 do analyze), com índice atualizado e o item de ledger correspondente resolvido (rastreia: REQ-09, design §10; paths: `.forge/product/current/adr/`, `.forge/ledger/`; depende: TASK-23)
   - Teste (comando): `FORGE_ROOT="$(pwd)" bash template/.forge/scripts/validate-spec.sh add-liaison-native-bridge && grep -q 'Mensageria nativa' .forge/product/current/adr/README.md`
   - Padrão de falha: `(FAIL|^$)`
-- [-] TASK-26 — `spec-delta.yaml` real do change (requisitos novos da capacidade `forge-harness-template`) e suíte completa verde, rodada sem outro gate em paralelo (rastreia: REQ-01..REQ-12, NFR-03; paths: `.forge/specs/active/add-liaison-native-bridge/spec-delta.yaml`; depende: TASK-02, TASK-03, TASK-11, TASK-17, TASK-21, TASK-25, TASK-27)
+- [X] TASK-26 — `spec-delta.yaml` real do change (requisitos novos da capacidade `forge-harness-template`) e suíte completa verde, rodada sem outro gate em paralelo (rastreia: REQ-01..REQ-12, NFR-03; paths: `.forge/specs/active/add-liaison-native-bridge/spec-delta.yaml`; depende: TASK-02, TASK-03, TASK-11, TASK-17, TASK-21, TASK-25, TASK-27)
   - Teste (comando): `FORGE_ROOT="$(pwd)" bash template/.forge/scripts/validate-spec.sh add-liaison-native-bridge && bash tests/run-all.sh`
   - Padrão de falha: `(FAIL|placeholder)`
 

@@ -3,7 +3,7 @@ story_id: STORY-14
 epic: add-liaison-native-bridge
 title: "spec-delta e suíte completa"
 depends_on: [STORY-01, STORY-02, STORY-06, STORY-09, STORY-11, STORY-12, STORY-13]
-status: in_progress
+status: done
 ---
 
 # STORY-14 — spec-delta e suíte completa

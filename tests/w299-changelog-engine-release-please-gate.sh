@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gate W287 — changelog-engine.mjs, deteccao de release-please-config.json (TASK-04).
+# Gate W299 — changelog-engine.mjs, deteccao de release-please-config.json (TASK-04).
 #
 # Cenários:
 #   [1] componente com release-please-config.json + modo explicito -> CHANGELOG intocado, saida
@@ -11,7 +11,7 @@ unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY G
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENGINE="$WS/template/.forge/skills/readme-generator/scripts/changelog-engine.mjs"
 
-T="$(mktemp -d /tmp/forge-w287.XXXXXX)"
+T="$(mktemp -d /tmp/forge-w299.XXXXXX)"
 trap 'rm -rf "$T"' EXIT
 
 # ── [1] ──────────────────────────────────────────────────────────────────────────────────────
@@ -49,4 +49,4 @@ after2="$(cat "$R2/CHANGELOG.md")"
 [ "$before2" = "$after2" ] || { echo "FAIL [2]: CHANGELOG.md alterado com release-please-config.json presente na raiz"; exit 1; }
 echo "OK [2]"
 
-echo "PASS w287-changelog-engine-release-please"
+echo "PASS w299-changelog-engine-release-please"

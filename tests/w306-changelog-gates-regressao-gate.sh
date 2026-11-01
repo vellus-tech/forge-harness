@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gate W294 — regressão dedicada aos gates released/preserve (TASK-13, add-unify-changelog-skill)
+# Gate W306 — regressão dedicada aos gates released/preserve (TASK-13, add-unify-changelog-skill)
 # com os 4 controles descritos na issue #238 item 4:
 #   [1] versao publicada ALTERADA (1 byte) entre o arquivo anterior e o novo → FAIL released
 #   [2] versao publicada REMOVIDA no arquivo novo → FAIL released
@@ -23,7 +23,7 @@ PRESERVE="$WS/template/.forge/skills/readme-generator/scripts/gates/preserve.mjs
 [ -f "$RELEASED" ]
 [ -f "$PRESERVE" ]
 
-T="$(mktemp -d /tmp/forge-w294.XXXXXX)"
+T="$(mktemp -d /tmp/forge-w306.XXXXXX)"
 trap 'rm -rf "$T"' EXIT
 
 # Repositório sintético, sem relação funcional com released/preserve: existe só para exercitar
@@ -36,7 +36,7 @@ trap 'rm -rf "$T"' EXIT
   git config commit.gpgsign false
   printf 'x\n' > "$T/sentinela-git.txt"
   git add -A
-  git commit -qm "chore: sentinela de isolamento (w294)" >/dev/null
+  git commit -qm "chore: sentinela de isolamento (w306)" >/dev/null
 )
 
 # ── [1] versão publicada alterada (1 byte) ──────────────────────────────────────────────────
@@ -112,4 +112,4 @@ node "$PRESERVE" "$T/old4.md" "$T/new4.md" >"$T/out4p.log" 2>&1 \
   || { echo "FAIL [4]: preserve reprovou arquivo anterior vazio contra novo vazio"; cat "$T/out4p.log"; exit 1; }
 echo "OK [4]"
 
-echo "PASS w294-changelog-gates-regressao"
+echo "PASS w306-changelog-gates-regressao"

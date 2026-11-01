@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gate W296 — SKILL.md de readme-generator não promete README nem comparação de branches irmãs
+# Gate W308 — SKILL.md de readme-generator não promete README nem comparação de branches irmãs
 # sem a ressalva de escopo (TASK-17, add-unify-changelog-skill).
 #
 # Distinção por PROXIMIDADE DE FRASE, não por presença da palavra: "readme.md"/"branches irmãs"
@@ -16,7 +16,7 @@ WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SKILL="$WS/template/.forge/skills/readme-generator/SKILL.md"
 [ -f "$SKILL" ] || { echo "FAIL: $SKILL não existe"; exit 1; }
 
-T="$(mktemp -d /tmp/forge-w296.XXXXXX)"
+T="$(mktemp -d /tmp/forge-w308.XXXXXX)"
 trap 'rm -rf "$T"' EXIT
 
 checker() { # checker <arquivo> -> rc 0 se nenhuma frase viola, rc 1 com FAIL citando a frase
@@ -72,4 +72,4 @@ case "$out" in
 esac
 echo "OK [3]"
 
-echo "PASS w296-skill-readme-generator-escopo"
+echo "PASS w308-skill-readme-generator-escopo"

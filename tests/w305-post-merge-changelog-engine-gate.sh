@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gate W293 — post-merge religado ao motor único (TASK-10, add-unify-changelog-skill).
+# Gate W305 — post-merge religado ao motor único (TASK-10, add-unify-changelog-skill).
 #
 # O hook `post-merge` deixa de chamar `scripts/lib/changelog-from-merge.mjs` e passa a
 # delegar para `skills/readme-generator/scripts/changelog-engine.mjs` em modo --merge-range,
@@ -20,7 +20,7 @@ WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOOK="$WS/template/.forge/hooks/git/post-merge"
 ENGINE_REL="skills/readme-generator/scripts/changelog-engine.mjs"
 
-T="$(mktemp -d /tmp/forge-w293.XXXXXX)"
+T="$(mktemp -d /tmp/forge-w305.XXXXXX)"
 trap 'rm -rf "$T"' EXIT
 
 mkrepo() { # mkrepo <dir> — repo com harness completo instalado
@@ -110,4 +110,4 @@ case "$out" in
 esac
 echo "OK [5]"
 
-echo "PASS w293-post-merge-changelog-engine"
+echo "PASS w305-post-merge-changelog-engine"

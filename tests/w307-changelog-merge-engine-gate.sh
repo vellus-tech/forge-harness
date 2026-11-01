@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gate W295 — paridade com o `tests/changelog-merge-gate.sh` antigo (TASK-14,
+# Gate W307 — paridade com o `tests/changelog-merge-gate.sh` antigo (TASK-14,
 # add-unify-changelog-skill), agora contra o motor único `changelog-engine.mjs` em modo
 # --merge-range. O arquivo antigo é removido na TASK-16 (tombstone); este é o substituto.
 #   [1] no-op sem CHANGELOG.md raiz
@@ -31,7 +31,7 @@ mkbase() { # mkbase <dir> — repo git mínimo com CHANGELOG.md inicial
 
 # ── [1] ──────────────────────────────────────────────────────────────────────────────────────
 echo "[1] no-op sem CHANGELOG.md raiz"
-T1="$(mktemp -d /tmp/forge-w295-1.XXXXXX)"
+T1="$(mktemp -d /tmp/forge-w307-1.XXXXXX)"
 (
   cd "$T1"
   git init -q
@@ -45,7 +45,7 @@ echo "OK [1]"
 
 # ── [2] ──────────────────────────────────────────────────────────────────────────────────────
 echo "[2] merge feat/fix/chore → Adicionado+Corrigido pt-BR; chore ignorado"
-T2="$(mktemp -d /tmp/forge-w295-2.XXXXXX)"
+T2="$(mktemp -d /tmp/forge-w307-2.XXXXXX)"
 mkbase "$T2"
 (
   cd "$T2"
@@ -88,7 +88,7 @@ echo "OK [4]"
 
 # ── [5] ──────────────────────────────────────────────────────────────────────────────────────
 echo "[5] refactor ignorado (DIV-02)"
-T5="$(mktemp -d /tmp/forge-w295-5.XXXXXX)"
+T5="$(mktemp -d /tmp/forge-w307-5.XXXXXX)"
 mkbase "$T5"
 (
   cd "$T5"
@@ -104,7 +104,7 @@ echo "OK [5]"
 
 # ── [6] ──────────────────────────────────────────────────────────────────────────────────────
 echo "[6] revert ignorado (DIV-02)"
-T6="$(mktemp -d /tmp/forge-w295-6.XXXXXX)"
+T6="$(mktemp -d /tmp/forge-w307-6.XXXXXX)"
 mkbase "$T6"
 (
   cd "$T6"
@@ -120,7 +120,7 @@ echo "OK [6]"
 
 # ── [7] ──────────────────────────────────────────────────────────────────────────────────────
 echo "[7] perf → Corrigido, nunca Alterado (DIV-01)"
-T7="$(mktemp -d /tmp/forge-w295-7.XXXXXX)"
+T7="$(mktemp -d /tmp/forge-w307-7.XXXXXX)"
 mkbase "$T7"
 (
   cd "$T7"
@@ -138,7 +138,7 @@ echo "OK [7]"
 
 # ── [8] ──────────────────────────────────────────────────────────────────────────────────────
 echo "[8] no-op com release-please-config.json na raiz (REQ-10b)"
-T8="$(mktemp -d /tmp/forge-w295-8.XXXXXX)"
+T8="$(mktemp -d /tmp/forge-w307-8.XXXXXX)"
 mkbase "$T8"
 printf '{}\n' > "$T8/release-please-config.json"
 (
@@ -156,4 +156,4 @@ out="$(node "$ENGINE" --root "$T8" --merge-range 2>&1)"; rc=$?
 rm -rf "$T8"
 echo "OK [8]"
 
-echo "PASS w295-changelog-merge-engine"
+echo "PASS w307-changelog-merge-engine"

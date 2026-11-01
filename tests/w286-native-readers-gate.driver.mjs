@@ -430,7 +430,22 @@ async function main() {
       assertFalse(res.ambiguous, 'não deveria ser ambíguo');
     });
 
+    // `/tmp` só é symlink de `/private/tmp` no macOS. Em Linux (o CI) `/private/tmp` não existe, e
+    // a mesma propriedade se reduz a resolver pelo caminho literal — o caso macOS continua
+    // exercitado em toda máquina macOS que roda o gate.
+    let tmpIsPrivateTmp = false;
+    try {
+      tmpIsPrivateTmp = realpathSync('/tmp') === '/private/tmp';
+    } catch {
+      tmpIsPrivateTmp = false;
+    }
     check('registry: resolução por socket — /tmp e /private/tmp convergem (realpath do diretório pai)', () => {
+      if (!tmpIsPrivateTmp) {
+        const literal = R.resolveBySocket({ sessionsDir: uniqueDir, sockFile: uniqueSocketPath });
+        assertTrue(literal.ok, `deveria resolver pelo caminho literal (SO sem /private/tmp): ${literal.reason || ''}`);
+        assertEqual(literal.entry.sessionId, 'session-unique', 'sessionId resolvido pelo socket literal');
+        return;
+      }
       const viaRealTmp = uniqueSocketPath.replace(/^\/tmp\//, '/private/tmp/');
       const res = R.resolveBySocket({ sessionsDir: uniqueDir, sockFile: viaRealTmp });
       assertTrue(res.ok, `deveria resolver via /private/tmp: ${res.reason || ''}`);

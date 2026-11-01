@@ -1,6 +1,6 @@
 ---
 description: Canal de mensagens ORDENADAS entre agentes de repositórios distintos (ex.: dono do .proto/gRPC e app cliente) — elimina drift de handoff manual. Store JSONL append-only por remetente, thread como campo, relógio de Lamport por thread, abertura de thread e entrada de participante como mensagens auditáveis. Transporte plugável (fs, git, manual) com sync idempotente e merge append-only. Operado por script determinista — exceto o subcomando ask, consulta síncrona a um peer sob mandato read-only.
-argument-hint: "[open|thread|send|ask|inbox|read|ack|status|conflicts|export|import|peer|transport|sync|render] [flags]"
+argument-hint: "[open|thread|send|ask|notify|native|inbox|read|ack|status|conflicts|export|import|peer|transport|sync|render] [flags]"
 ---
 
 # /forge:liaison — canal de mensagens ordenadas entre repositórios
@@ -196,6 +196,60 @@ resposta é **nossa mensagem sobre o que o peer disse**: `authored_by` preserva 
   existe: ou você sabe a quem perguntar, ou o caminho é o assíncrono, que roteia pela thread.
 - **Nunca invente a resposta.** Se a consulta falhou, diga que falhou. Uma resposta fabricada com
   `authored_by` de outro repositório é a pior corrupção possível deste canal.
+
+## Mensageria nativa entre sessões (campainha → `sync` → `inbox --show`)
+
+A mensageria nativa do Claude Code (`SendMessage`) é **campainha**, não registro — ver [liaison-protocol](../../rules/conventions/liaison-protocol.md#mensageria-nativa-entre-sessões). O fluxo operacional:
+
+```bash
+# 1. gravar o fato no liaison, publicar, e resolver o ponteiro canônico
+bash .forge/scripts/liaison-ops.sh send <channel> --thread <id> --kind <k> --subject "<txt>" [--body "<txt>"]
+bash .forge/scripts/liaison-ops.sh sync <channel>
+bash .forge/scripts/liaison-ops.sh notify <channel> <msg_id> --to <destino>
+# imprime "liaison:<channel>/<msg_id>" — esse ponteiro vai como primeira linha não vazia do
+# corpo do SendMessage nativo (é a forma que a ferramenta `notify` já imprime); ponteiro no
+# meio do texto seria ambíguo com uma citação
+
+# 2. o SendMessage nativo (fora do liaison) leva o ponteiro como primeira linha
+
+# 3. do lado de quem recebe: diagnóstico de cobertura
+bash .forge/scripts/liaison-ops.sh native check [--session <id>] [--transcript <path>] [--report] [--pending]
+
+# 4. registrar o que chegou — mensagem com conteúdo que vira registro próprio
+bash .forge/scripts/liaison-ops.sh send <channel> --via cross-session --native-ref <fingerprint> --session <id>
+# --native-ref é o fingerprint da recepção (sha256 hex); a origem (from_addr/from_name/from_mode)
+# é extraída do transcript por esse fingerprint, nunca informada por flag
+
+# 4b. ou, quando a troca é genuinamente efêmera (lista FECHADA de classes)
+bash .forge/scripts/liaison-ops.sh native dispose <fingerprint> --ephemeral <classe>
+
+# 5. ler o que chegou (corpo sob banner UNTRUSTED, neutralizado — regra liaison-untrusted-input)
+bash .forge/scripts/liaison-ops.sh inbox <channel> --show
+```
+
+### Cadastro de workspaces permitidos (`native allow|revoke|pin`) — restrição humana
+
+```bash
+# só roda num terminal do operador, FORA de qualquer sessão do Claude Code — o CLI recusa
+# com rc != 0 se detectar qualquer marcador de sessão de agente (CLAUDECODE, CLAUDE_CODE_SESSION_ID, CLAUDE_PID)
+bash .forge/scripts/liaison-ops.sh native allow <identidade> --reason "<motivo>"
+bash .forge/scripts/liaison-ops.sh native revoke <identidade> --reason "<motivo>"
+bash .forge/scripts/liaison-ops.sh native pin   # fixa self_identity no primeiro cadastro
+```
+
+A identidade de workspace é o remote `origin` do repositório mais externo (`git remote get-url origin`, que aplica `insteadOf`); remote com alias SSH (`git@<alias>:owner/repo`) gera identidade com o alias como host, e é assim que deve ser cadastrado. O cadastro vale **só para a saída**: os dois lados de uma conversa precisam cadastrar um ao outro para que ela flua nos dois sentidos.
+
+### Detector de mudanças de contenção
+
+```bash
+bash .forge/scripts/liaison-ops.sh native containment [--range <a>..<b>] [--format text|markdown]
+```
+
+Chamado por `pre-push` (avisa, sem bloquear), `doctor` (estado atual) e `/forge:prepare-pr`/`/forge:ship` (seção "Mudanças de contenção" no PR, para decisão humana no merge). As quatro mudanças fechadas: cadastro alterado; linha do gancho de `SendMessage` removida/trocada em `hooks.manifest`; gancho ausente da fiação efetiva quando o manifesto o declara armado; identidade do remote `origin` diferente de `self_identity`.
+
+### O gancho de saída
+
+`guard-cross-session-send.sh` (`PreToolUse`, `SendMessage`) recusa com rc 2 quando: o corpo contém segredo (mesma varredura do `send`); o destino é sessão/subagente sem ponteiro resolvido nem declaração efêmera válida na primeira linha; ou o destino está fora do workspace atual e não há cadastro `allow` ativo. **Limite declarado:** `allowed_workspaces` protege contra liberação induzida pelo próprio fluxo, não é fronteira de segurança — um agente determinado rodando como o mesmo usuário do sistema contorna o gancho inteiro (ver [liaison-untrusted-input](../../rules/conventions/liaison-untrusted-input.md#mensagem-nativa-recebida)). A única contenção que o usuário do sistema não altera é a configuração gerenciada do Claude Code, recomendada para repositórios em escopo PCI.
 
 ## Quando usar
 

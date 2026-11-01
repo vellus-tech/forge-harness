@@ -266,6 +266,14 @@ export const BLOB_MAX_BYTES = 65536;
 export const IMPORT_MAX_MESSAGES = 200;
 export const BODY_REF_RE = /^blobs\/[A-Za-z0-9._-]+$/;
 export const ID_RE = /^[a-z0-9][a-z0-9._-]*$/;
+// REQ-02/design §4.1 — mesmas regras do schema liaison-message.schema.json para `via` e
+// `cross_session`, reimplementadas aqui à mão (sem ajv em runtime), igual ao resto deste arquivo.
+export const VIA_VALUES = ['ask-peer', 'divergence-resolve', 'cross-session'];
+export const CROSS_SESSION_FIELDS = ['from_addr', 'from_name', 'from_mode', 'native_ref', 'origin_verified'];
+export const CROSS_SESSION_TEXT_FIELDS = ['from_addr', 'from_name', 'from_mode'];
+export const CROSS_SESSION_TEXT_MAX = 128;
+export const CROSS_SESSION_CONTROL_CHAR_RE = /[\u0000-\u001f\u007f]/;
+export const NATIVE_REF_RE = /^[0-9a-f]{64}$/;
 
 // Valida a forma do envelope (campos obrigatórios, enums, tetos). Não decide política de
 // import (spoofing, duplicata, quarentena) — isso mora em liaison-ops.sh, que tem o contexto de
@@ -289,5 +297,37 @@ export function validateEnvelope(msg) {
   if (hasBody && Buffer.byteLength(msg.body, 'utf8') > BODY_MAX_BYTES) errors.push(`body excede ${BODY_MAX_BYTES} bytes`);
   if (hasBodyRef && !BODY_REF_RE.test(msg.body_ref)) errors.push(`body_ref fora do padrão permitido: ${msg.body_ref}`);
   if (msg.trust && !['self', 'untrusted-peer'].includes(msg.trust)) errors.push(`trust inválido: ${msg.trust}`);
+
+  // REQ-02/design §4.1 — `via` e `cross_session` com as MESMAS regras do schema (mão dupla: um
+  // exige o outro). `cross_session` presente é testado por chave, não por truthiness — um objeto
+  // vazio ainda conta como presente para esta condição; a validade interna dele é checada abaixo.
+  if (msg.via !== undefined && !VIA_VALUES.includes(msg.via)) errors.push(`via inválido: ${msg.via}`);
+  const isCrossSessionVia = msg.via === 'cross-session';
+  const hasCrossSession = Object.prototype.hasOwnProperty.call(msg, 'cross_session') && msg.cross_session !== null;
+  if (isCrossSessionVia) {
+    if (!msg.authored_by) errors.push('via=cross-session exige authored_by');
+    if (!hasCrossSession) errors.push('via=cross-session exige cross_session');
+  }
+  if (hasCrossSession && !isCrossSessionVia) errors.push("cross_session exige via: 'cross-session'");
+  if (hasCrossSession) {
+    const cs = msg.cross_session;
+    if (typeof cs !== 'object' || Array.isArray(cs)) {
+      errors.push('cross_session não é um objeto');
+    } else {
+      for (const f of CROSS_SESSION_FIELDS) if (cs[f] === undefined) errors.push(`cross_session.${f} obrigatório ausente`);
+      for (const k of Object.keys(cs)) if (!CROSS_SESSION_FIELDS.includes(k)) errors.push(`cross_session com campo não declarado: ${k}`);
+      for (const f of CROSS_SESSION_TEXT_FIELDS) {
+        if (typeof cs[f] !== 'string') continue;
+        if (cs[f].length > CROSS_SESSION_TEXT_MAX) errors.push(`cross_session.${f} excede ${CROSS_SESSION_TEXT_MAX} caracteres`);
+        if (CROSS_SESSION_CONTROL_CHAR_RE.test(cs[f])) errors.push(`cross_session.${f} contém caractere de controle`);
+      }
+      if (cs.native_ref !== undefined && typeof cs.native_ref === 'string' && !NATIVE_REF_RE.test(cs.native_ref)) {
+        errors.push(`cross_session.native_ref fora do padrão sha256 hex: ${cs.native_ref}`);
+      }
+      if (cs.origin_verified !== undefined && typeof cs.origin_verified !== 'boolean') {
+        errors.push('cross_session.origin_verified deve ser boolean');
+      }
+    }
+  }
   return errors;
 }

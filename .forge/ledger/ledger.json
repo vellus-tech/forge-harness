@@ -3262,6 +3262,318 @@
     },
     {
       "id": "LDG-0203",
+      "type": "tech-debt",
+      "title": "Avaliar configuração gerenciada do Claude Code para negar/isolar mensageria nativa entre sessões em repositórios PCI",
+      "detail": "A contenção por allowed_workspaces e o gancho de saída não são fronteira contra um agente determinado rodando como o usuário do sistema (socket+token de mensageria estão no ambiente dele). A única contenção que o usuário não altera é a configuração gerenciada do Claude Code. Avaliar, para repositórios em escopo PCI, negar ou isolar a mensageria nativa entre sessões por essa política — fecha quando a avaliação (viável/inviável) estiver registrada e, se viável, a política documentada.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T17:08:13-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0203"
+    },
+    {
+      "id": "LDG-0204",
+      "type": "follow-up",
+      "title": "Medir o formato de agente nomeado (Agent com input.name, agent teams) quando o recurso estiver disponível",
+      "detail": "O gancho de saída (native-send-guard.mjs) trata nome de sessão igual a Agent nomeado como destino de sessão quando o registro local tem entrada viva única com esse nome (REQ-05, design item 2 do gate design_reviewed). O formato de chamada Agent com input.name em agent teams não foi medido em produção — a medição atual é sobre fixture sintética. Fecha quando o recurso estiver disponível e a medição real confirmar ou corrigir o payload assumido.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T17:08:13-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0204"
+    },
+    {
+      "id": "LDG-0205",
+      "type": "follow-up",
+      "title": "Auditar outros ganchos/scripts que leem stdin sem limite de tempo",
+      "detail": "Medido neste change: on-session-end.sh travava com stdin nunca fechado (corrigido aqui). Auditar os demais ganchos e scripts do harness que leem stdin para confirmar se algum outro tem o mesmo defeito — fecha com a lista de pontos auditados e, se achar outro caso, com o fix correspondente ou um item novo de ledger apontando para ele.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T17:08:13-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0205"
+    },
+    {
+      "id": "LDG-0206",
+      "type": "roadmap",
+      "title": "ADR: Mensageria nativa entre sessões é sinalização; o registro durável é o liaison",
+      "detail": "Decisão transversal sugerida no design §10 deste change: corpo canônico sempre no liaison, ponteiro liaison:<channel>/<msg_id>, declaração efêmera com classes fechadas, contenção por workspace com cadastro humano e detecção, configuração gerenciada como única fronteira real. Fecha quando o ADR for criado no baseline (/forge:adr) com status accepted. — Resolvido: ADR 0004 criado no baseline (.forge/product/current/adr/0004-mensageria-nativa-e-sinalizacao.md), status accepted, índice atualizado.",
+      "severity": null,
+      "priority": "P2",
+      "status": "resolved",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T17:08:13-03:00",
+      "updated_at": "2026-10-31T17:12:36-03:00",
+      "resolved_at": "2026-10-31T17:12:36-03:00",
+      "dedup_key": "manual:LDG-0206"
+    },
+    {
+      "id": "LDG-0207",
+      "type": "follow-up",
+      "title": "Teste de injeção da fixture de controle do leitor de transcript (ramo instrumento quebrado por controle)",
+      "detail": "A mutação que remove o ramo 'fixture de controle falhou' de readTranscript (native-transcript.mjs) sobrevive aos gates native-readers e native-coverage; acrescentar ponto de injeção da fixture no teste (gate implementation_verified, rodada 1).",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "verify",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:49:43-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0207"
+    },
+    {
+      "id": "LDG-0208",
+      "type": "tech-debt",
+      "title": "Merge humano com mudança de contenção em ship/yolo é regra de prompt, sem verificação determinística",
+      "detail": "ship.md 10b, yolo-gate.md e autonomy-yolo.md trazem a regra e o gate só confere o texto; avaliar script de merge que consulte native containment antes de mesclar (gate implementation_verified, rodada 1).",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "verify",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:49:43-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0208"
+    },
+    {
+      "id": "LDG-0209",
+      "type": "follow-up",
+      "title": "Fixture de pre-push com o detector de contenção devolvendo rc 2 (não mediu)",
+      "detail": "O pre-push trata rc 2 do native containment, mas nenhum gate tem fixture desse caminho (gate implementation_verified, rodada 1).",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "verify",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:49:43-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0209"
+    },
+    {
+      "id": "LDG-0210",
+      "type": "tech-debt",
+      "title": "coverage — REQ-11 e checklist de superfície — Resolvido: `pin` e `containment` no REQ-11 e na tabela; linha do REQ-11 acrescentada.",
+      "detail": "Resolvido: Colhido pelo harvest do archive a partir de achado do analyze que já estava resolvido na rodada 2 (coluna Recomendação começa com 'Resolvido'); nada a fazer.",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "resolved",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "archive",
+        "ref": "A-05"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:59:26-03:00",
+      "updated_at": "2026-10-31T21:59:26-03:00",
+      "resolved_at": "2026-10-31T21:59:26-03:00",
+      "dedup_key": "add-liaison-native-bridge:A-05"
+    },
+    {
+      "id": "LDG-0211",
+      "type": "tech-debt",
+      "title": "drift — design §9 × tasks — Resolvido: nomes sem ordinal, linhas do `w293-native-containment-wiring-gate.sh` e do `w286-native-readers-gate.sh`, nota de divisão.",
+      "detail": "Resolvido: Colhido pelo harvest do archive a partir de achado do analyze que já estava resolvido na rodada 2 (coluna Recomendação começa com 'Resolvido'); nada a fazer.",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "resolved",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "archive",
+        "ref": "A-06"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:59:26-03:00",
+      "updated_at": "2026-10-31T21:59:26-03:00",
+      "resolved_at": "2026-10-31T21:59:26-03:00",
+      "dedup_key": "add-liaison-native-bridge:A-06"
+    },
+    {
+      "id": "LDG-0212",
+      "type": "tech-debt",
+      "title": "drift — design §2.7 (`hook-unwired`) — Resolvido: detector usa o wrapper exportado `preToolUseWiring`; derivação `unresolved` (manifesto corrompido) vira rc 2 (TASK-12).",
+      "detail": "Resolvido: Colhido pelo harvest do archive a partir de achado do analyze que já estava resolvido na rodada 2 (coluna Recomendação começa com 'Resolvido'); nada a fazer.",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "resolved",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "archive",
+        "ref": "A-07"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:59:26-03:00",
+      "updated_at": "2026-10-31T21:59:26-03:00",
+      "resolved_at": "2026-10-31T21:59:26-03:00",
+      "dedup_key": "add-liaison-native-bridge:A-07"
+    },
+    {
+      "id": "LDG-0213",
+      "type": "tech-debt",
+      "title": "risk — design §2.4 passo 3 — Resolvido: `FORGE_CLAUDE_PROJECTS_DIR` para fixtures, sem redirecionar `HOME`.",
+      "detail": "Resolvido: Colhido pelo harvest do archive a partir de achado do analyze que já estava resolvido na rodada 2 (coluna Recomendação começa com 'Resolvido'); nada a fazer.",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "resolved",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "archive",
+        "ref": "A-08"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:59:26-03:00",
+      "updated_at": "2026-10-31T21:59:26-03:00",
+      "resolved_at": "2026-10-31T21:59:26-03:00",
+      "dedup_key": "add-liaison-native-bridge:A-08"
+    },
+    {
+      "id": "LDG-0214",
+      "type": "tech-debt",
+      "title": "risk — preâmbulo das tasks — Resolvido: execução estritamente sequencial; vermelho esperado do `w200` até a TASK-25 declarado.",
+      "detail": "Resolvido: Colhido pelo harvest do archive a partir de achado do analyze que já estava resolvido na rodada 2 (coluna Recomendação começa com 'Resolvido'); nada a fazer.",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "resolved",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "archive",
+        "ref": "A-09"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:59:26-03:00",
+      "updated_at": "2026-10-31T21:59:26-03:00",
+      "resolved_at": "2026-10-31T21:59:26-03:00",
+      "dedup_key": "add-liaison-native-bridge:A-09"
+    },
+    {
+      "id": "LDG-0215",
       "type": "known-bug",
       "title": "Archive dobra barras invertidas de cenários pré-existentes do baseline (round-trip de escape no load/dump)",
       "detail": "Cada /forge:archive re-escapa valores já escapados de spec.yaml: em origin/develop o given de SCN-FHT-004-A já tinha 16.382 barras (2^14-2, ~13 archives); o archive do add-migration-review-rule levou a 32.766 e o arquivo de 272 KB para 505 KB, afetando 17 cenários não tocados pela delta. Mitigado no PR #246 reconstruindo spec.yaml (develop + REQs novos). Causa provável na assimetria escape/unescape entre yaml-lite.mjs (parse) e o dump do delta-apply; falta teste de round-trip load-dump-load com campo contendo barra/aspas.\n\nMEDIÇÃO (2026-11-01): Round 2 do code-evaluator: os REQs recém-aplicados também saem do archive com uma rodada de escape a mais em relação ao spec-delta (\\\" em vez de \"); corrigido à mão nos 4 given/when de REQ-FHT-055/056/058/059 no PR #246.",
@@ -3284,10 +3596,10 @@
       "created_at": "2026-11-01T13:50:30-03:00",
       "updated_at": "2026-11-01T13:52:41-03:00",
       "resolved_at": null,
-      "dedup_key": "add-migration-review-rule:PR #246"
+      "dedup_key": "add-migration-review-rule:PR #246 (LDG-0215)"
     },
     {
-      "id": "LDG-0204",
+      "id": "LDG-0216",
       "type": "tech-debt",
       "title": "check-data-governance aplica LOG_TAINT de linguagem de aplicação a .sql",
       "detail": "LOG_CALL (log.x( / logger.x() casa INSERT INTO log.events (...) e PAN/CPF casam epoch-ms (13 dígitos) e celular (11 dígitos): falso positivo não rebaixável em seed/migration de schema log. E o log real em SQL (RAISE NOTICE/LOG/EXCEPTION com PAN/CPF/e-mail) não é detectado; a fixture sql-log-pan-fail só reprova por ter uma linha Go dentro de comentário. Proposta: matriz própria para .sql sobre RAISE, sem LOG_CALL. Achados LOGIC-005/SEC-006 do code-evaluator.",
@@ -3310,10 +3622,10 @@
       "created_at": "2026-11-01T13:50:30-03:00",
       "updated_at": null,
       "resolved_at": null,
-      "dedup_key": "add-migration-review-rule:PR #246"
+      "dedup_key": "add-migration-review-rule:PR #246 (LDG-0216)"
     },
     {
-      "id": "LDG-0205",
+      "id": "LDG-0217",
       "type": "tech-debt",
       "title": "migration-review: diff de árvore rsha..lsha cobra migrations de outros PRs trazidas por merge/rebase; endurecimento da rule",
       "detail": "Em ref existente o gate usa git diff rsha..lsha (semântica de árvore). Atualizar a feature com develop traz migrations de outros PRs para o diff; sem linha de evidência adicionada no range, o push é bloqueado (janela de adoção, --no-verify). Proposta: listar arquivos dos commits novos (git log --no-merges --name-only -z lsha --not --remotes). Também: endurecer a rule (adr= nos itens 3/4/12, role de runtime distinta da dona, SAD/PAN ilegível no item 9) e pular spawn de node quando nenhuma ref toca migration. Achados LOGIC-003, SEC-003/004/005, PLAT-001.\n\nMEDIÇÃO (2026-11-01): Round 2 do code-evaluator: path de migration com espaço não pode ser satisfeito por linha de evidência (regex captura \\S+; aceitar path entre crases/aspas); range <sha> num merge commit lista zero arquivos e passa no uso manual/CI (no pre-push não é alcançável); evidência em NFD não casa arquivo em NFC.",
@@ -3336,7 +3648,7 @@
       "created_at": "2026-11-01T13:50:30-03:00",
       "updated_at": "2026-11-01T13:52:41-03:00",
       "resolved_at": null,
-      "dedup_key": "add-migration-review-rule:PR #246"
+      "dedup_key": "add-migration-review-rule:PR #246 (LDG-0217)"
     }
   ]
 }

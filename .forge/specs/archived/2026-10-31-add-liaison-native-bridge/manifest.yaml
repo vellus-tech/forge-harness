@@ -1,0 +1,58 @@
+id: add-liaison-native-bridge
+type: feature
+mode: brownfield
+rigor: spec-anchored
+scale: 3
+status: archived
+created_at: "2026-10-30"
+updated_at: "2026-10-31"
+owner: "milton"
+parent:
+  baseline: .forge/product/current
+affected_capabilities:
+  - forge-harness-template
+affected_paths:
+  - template/.forge/scripts/
+  - template/.forge/schemas/liaison-message.schema.json
+  - template/.forge/hooks/
+  - template/.forge/commands/git/
+  - template/.forge/rules/conventions/
+  - template/.forge/agents/review/yolo-gate.md
+  - template/.forge/schemas/liaison-allowed-workspaces.schema.json
+  - template/.forge/commands/harness/liaison.md
+  - template/.forge/commands/harness/prepare-pr.md
+  - template/.forge/commands/harness/upgrade.md
+  - template/.forge/commands/harness/doctor.md
+  - plugin/forge/commands/liaison.md
+  - plugin/forge/commands/prepare-pr.md
+  - plugin/forge/commands/ship.md
+  - plugin/forge/commands/doctor.md
+  - plugin/forge/commands/upgrade.md
+  - template/.forge/scripts/lib/sync-adapters.mjs
+  - docs/
+  - CHANGELOG.md
+  - README.md
+  - tests/
+  - .forge/ledger/
+  - .forge/product/current/adr/
+dependencies:
+  specs: []
+  code: []
+gates:
+  requirements_reviewed: true
+  design_reviewed: true
+  tasks_reviewed: true
+  implementation_verified: true
+  human_archive_approval: true
+dev_loop:
+  sharded: true
+  stories_path: stories/
+  epic_context_compiled: true
+quick_plan:
+  enabled: false
+  skipped_phases: []
+  justification:
+archive:
+  kind: baseline_update
+  eligible: true
+  reason: "deltas applied to baseline on 2026-10-31"

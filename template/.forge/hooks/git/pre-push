@@ -805,4 +805,36 @@ if [ -f "$PUSH_AHEAD" ]; then
   printf '%s\n' "$INPUT" | bash "$PUSH_AHEAD" "${1:-}" "${2:-}" || true
 fi
 
+# ── mudanças de contenção da mensageria nativa (REQ-12, design §2.7) ────────────────────────────
+# O detector único (`native-containment.mjs`, chamado aqui pelo CLI `liaison-ops.sh native
+# containment`) avisa, nunca bloqueia — a decisão é do humano no merge (`/forge:ship`,
+# `yolo-gate`), não no push. Por isso nenhum caminho abaixo usa `exit`; o rc do próprio detector
+# (0 sempre que mediu, 2 quando não conseguiu medir) só decide o TEXTO da linha impressa. Intervalo
+# por ref: `<remote_sha>..<local_sha>` para ref existente; para ref NOVA (sem remote_sha), a base
+# de merge com o tronco (`develop`, design §5/§2.7) — sem um `develop` local para comparar, a ref
+# é pulada (nada a medir), nunca tratada como "sem mudança".
+if [ "$_pp_so_delecao" != 1 ] && [ -f "$ROOT/.forge/scripts/liaison-ops.sh" ] && [ -f "$ROOT/.forge/scripts/lib/native-containment.mjs" ]; then
+  while read -r _nc_lref _nc_lsha _nc_rref _nc_rsha; do
+    [ -n "${_nc_lsha:-}" ] || continue
+    case "$_nc_lsha" in *[!0]*) : ;; *) continue ;; esac   # deleção de ref: nada a medir
+    if [ -z "${_nc_rsha:-}" ] || [ "$_nc_rsha" = "0000000000000000000000000000000000000000" ]; then
+      _nc_base="$(git -C "$ROOT" merge-base "$_nc_lsha" develop 2>/dev/null || true)"
+      [ -n "$_nc_base" ] || continue
+    else
+      _nc_base="$_nc_rsha"
+    fi
+    _nc_range="${_nc_base}..${_nc_lsha}"
+    _nc_out="$(FORGE_ROOT="$ROOT" bash "$ROOT/.forge/scripts/liaison-ops.sh" native containment --range "$_nc_range" --format text 2>&1)"
+    _nc_rc=$?
+    if [ "$_nc_rc" -eq 2 ]; then
+      echo "pre-push: CONTENÇÃO — detector indisponível para $_nc_lref ($_nc_range): $_nc_out"
+    elif [ "$_nc_out" != "nenhuma mudança de contenção detectada" ]; then
+      echo "pre-push: CONTENÇÃO — $_nc_lref ($_nc_range):"
+      printf '%s\n' "$_nc_out" | sed 's/^/  /'
+    fi
+  done <<EOF_NC
+$INPUT
+EOF_NC
+fi
+
 echo "pre-push OK"

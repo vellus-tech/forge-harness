@@ -26,6 +26,11 @@
 #   [22] color.ui=always / diff.external do usuário não esvaziam a evidência adicionada
 set -euo pipefail
 
+# Isolamento git (LDG-0201), antes de qualquer uso de git neste arquivo: GIT_DIR herdado do
+# ambiente faria os comandos git abaixo obedecerem ao repositório de quem invocou o gate, e não
+# ao repositório sintético criado aqui.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
+
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RULE="$WS/template/.forge/rules/data/migration-review.md"
 MJS="$WS/template/.forge/scripts/lib/check-migration-review.mjs"
@@ -211,9 +216,6 @@ else
 fi
 
 echo "[12]-[14] wiring no pre-push — bloco MIGRATION_REVIEW_CHECK"
-# Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo
-# obedecerem ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
-unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 T2="$(mktemp -d "${TMPDIR:-/tmp}/forge-migreview-hook.XXXXXX")"
 trap 'rm -rf "$T" "$T2"' EXIT

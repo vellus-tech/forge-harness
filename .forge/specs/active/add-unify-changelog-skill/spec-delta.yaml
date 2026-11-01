@@ -3,19 +3,293 @@
 # modify_requirement is FULL REPLACEMENT — never a partial patch.
 # For deterministic apply, carry the structured `requirement:` payload
 # (baseline-capability shape) alongside the documentary content_ref.
+#
+# add-unify-changelog-skill (issue #238): nenhum requisito pré-existe no baseline para
+# changelog-authoring ou post-merge-automation (grep em .forge/product/current/ sem match) —
+# todas as operações são add_requirement. A numeração interna REQ-CA-*/REQ-PMA-* é nova; o
+# mapeamento para os REQ-NN/DIV-NN de refactor.md está em cada `content_ref`.
 operations:
+  # ───────────────────────── changelog-authoring (comando /forge:update-changelog) ─────────────
   - op: add_requirement
-    capability: <capability-kebab>
-    requirement_id: REQ-XXX-001
-    content_ref: requirements.md#req-xxx-001
+    capability: changelog-authoring
+    requirement_id: REQ-CA-001
+    content_ref: refactor.md#1-invariantes-comportamentais-o-que-não-pode-mudar (REQ-01)
     requirement:
-      id: REQ-XXX-001
-      title: <title>
+      id: REQ-CA-001
+      title: "Modo explícito grava entrada pt-BR em Unreleased sem alterar seções numeradas"
       normative: SHALL
       scenarios:
-        - id: SCN-XXX-001-A
-          given: "<precondition>"
-          when: "<action>"
-          then: "<observable outcome>"
+        - id: SCN-CA-001-A
+          given: "um CHANGELOG.md com [Unreleased] vazio e uma seção numerada publicada"
+          when: "/forge:update-changelog <component> <type> <description> roda em branch não protegida, sem release-please-config.json"
+          then: "grava '- <description>' na seção pt-BR mapeada de <type>, dentro de [Unreleased], e a seção numerada publicada permanece byte a byte idêntica"
+        - id: SCN-CA-001-B
+          given: "CHANGELOG.md ainda inexistente no componente"
+          when: "o motor roda em modo explícito"
+          then: "cria o arquivo com cabeçalho Keep a Changelog padrão antes de gravar a entrada (REQ-14)"
       contracts: []
-      tests: []
+      tests:
+        - tests/w284-changelog-engine-explicito-gate.sh
+        - tests/w292-update-changelog-comando-gate.sh
+
+  - op: add_requirement
+    capability: changelog-authoring
+    requirement_id: REQ-CA-002
+    content_ref: refactor.md#1-invariantes-comportamentais-o-que-não-pode-mudar (REQ-08)
+    requirement:
+      id: REQ-CA-002
+      title: "Modo derivado deriva entradas de Conventional Commits por subject ou path"
+      normative: SHALL
+      scenarios:
+        - id: SCN-CA-002-A
+          given: "type e description omitidos e --subject \"feat(x): ...\" informado"
+          when: "o comando roda sem argumentos de tipo/descrição"
+          then: "deriva e grava a entrada na seção Adicionado, a partir do título do commit"
+        - id: SCN-CA-002-B
+          given: "--path aponta para um componente inexistente no repositório"
+          when: "o comando roda em modo derivado por path"
+          then: "sai com rc=2 e não grava 'nada a registrar' por vacuidade"
+      contracts: []
+      tests:
+        - tests/w285-changelog-engine-derivado-gate.sh
+
+  - op: add_requirement
+    capability: changelog-authoring
+    requirement_id: REQ-CA-003
+    content_ref: refactor.md#1-invariantes-comportamentais-o-que-não-pode-mudar (REQ-09)
+    requirement:
+      id: REQ-CA-003
+      title: "Comando para sem editar nada em branch protegida"
+      normative: SHALL
+      scenarios:
+        - id: SCN-CA-003-A
+          given: "a branch atual é develop, master ou main"
+          when: "/forge:update-changelog roda em qualquer modo (explícito ou derivado)"
+          then: "o comando para antes de editar qualquer CHANGELOG.md e informa que não roda em branch protegida"
+      contracts: []
+      tests:
+        - tests/w292-update-changelog-comando-gate.sh
+
+  - op: add_requirement
+    capability: changelog-authoring
+    requirement_id: REQ-CA-004
+    content_ref: refactor.md#1-invariantes-comportamentais-o-que-não-pode-mudar (REQ-10)
+    requirement:
+      id: REQ-CA-004
+      title: "Comando recusa editar CHANGELOG quando o componente tem release-please-config.json"
+      normative: SHALL
+      scenarios:
+        - id: SCN-CA-004-A
+          given: "o componente (ou raiz) alvo tem release-please-config.json"
+          when: "/forge:update-changelog roda em modo explícito ou derivado"
+          then: "o CHANGELOG.md permanece intocado e a saída aponta o título do PR atual como fonte da entrada de release"
+      contracts: []
+      tests:
+        - tests/w287-changelog-engine-release-please-gate.sh
+        - tests/w292-update-changelog-comando-gate.sh
+
+  - op: add_requirement
+    capability: changelog-authoring
+    requirement_id: REQ-CA-005
+    content_ref: refactor.md#1-invariantes-comportamentais-o-que-não-pode-mudar (REQ-11)
+    requirement:
+      id: REQ-CA-005
+      title: "Comando só conclui se os quatro gates pós-escrita passarem"
+      normative: SHALL
+      scenarios:
+        - id: SCN-CA-005-A
+          given: "a escrita do motor alterou (byte a byte) uma seção [X.Y.Z] já publicada no arquivo anterior"
+          when: "o gate released roda sobre o par de arquivos (antigo, novo)"
+          then: "reprova com FAIL released e o comando não conclui com sucesso"
+        - id: SCN-CA-005-B
+          given: "um bloco antigo (### Added) foi removido sem substituto equivalente"
+          when: "o gate preserve roda sobre o par de arquivos"
+          then: "reprova com FAIL preserve"
+        - id: SCN-CA-005-C
+          given: "a entrada gravada contém travessão, quebra de linha dentro do parágrafo, acentuação ASCII ou placeholder"
+          when: "o gate lint roda sobre o arquivo novo"
+          then: "reprova com FAIL lint, nomeando a violação"
+      contracts: []
+      tests:
+        - tests/w288-changelog-gate-released-gate.sh
+        - tests/w289-changelog-gate-preserve-gate.sh
+        - tests/w290-changelog-gate-lint-gate.sh
+        - tests/w294-changelog-gates-regressao-gate.sh
+
+  - op: add_requirement
+    capability: changelog-authoring
+    requirement_id: REQ-CA-006
+    content_ref: refactor.md#1-invariantes-comportamentais-o-que-não-pode-mudar (REQ-12)
+    requirement:
+      id: REQ-CA-006
+      title: "resolve-skill.sh resolve o motor só para o comando, com precedência e falha explícita"
+      normative: SHALL
+      scenarios:
+        - id: SCN-CA-006-A
+          given: "FORGE_SKILL_DIR_README_GENERATOR definido no ambiente"
+          when: "resolve-skill.sh readme-generator roda"
+          then: "resolve esse override antes de .forge/skills/readme-generator/ do projeto e antes da skill de usuário"
+        - id: SCN-CA-006-B
+          given: "nenhuma das três fontes (override, projeto, skill de usuário) tem o diretório ou o arquivo obrigatório"
+          when: "resolve-skill.sh readme-generator scripts/changelog-engine.mjs roda"
+          then: "sai com 'FAIL skill readme-generator ausente' e rc 1, nunca em silêncio"
+      contracts: []
+      tests:
+        - tests/w291-resolve-skill-gate.sh
+
+  - op: add_requirement
+    capability: changelog-authoring
+    requirement_id: REQ-CA-007
+    content_ref: refactor.md#1-invariantes-comportamentais-o-que-não-pode-mudar (REQ-06, REQ-14)
+    requirement:
+      id: REQ-CA-007
+      title: "Formato Keep a Changelog preservado e motor aceita CHANGELOG ausente nos modos do comando"
+      normative: SHALL
+      scenarios:
+        - id: SCN-CA-007-A
+          given: "CHANGELOG.md inexistente no componente alvo, modo explícito ou derivado"
+          when: "o motor roda"
+          then: "cria o arquivo com cabeçalho Keep a Changelog padrão em vez de falhar com erro de arquivo ausente"
+        - id: SCN-CA-007-B
+          given: "um CHANGELOG.md sem a seção ## [Unreleased]"
+          when: "o motor grava uma entrada nova"
+          then: "cria a seção [Unreleased] antes da primeira versão numerada, preservando ## [X.Y.Z] - lista '- ' do Keep a Changelog"
+      contracts: []
+      tests:
+        - tests/w284-changelog-engine-explicito-gate.sh
+        - tests/w286-changelog-engine-merge-range-gate.sh
+
+  - op: add_requirement
+    capability: changelog-authoring
+    requirement_id: REQ-CA-008
+    content_ref: refactor.md#1-invariantes-comportamentais-o-que-não-pode-mudar (DIV-01, modo derivado por subject)
+    requirement:
+      id: REQ-CA-008
+      title: "Mapeamento pt-BR de Conventional Commits trata perf como Corrigido, nunca Alterado"
+      normative: SHALL
+      scenarios:
+        - id: SCN-CA-008-A
+          given: "--subject \"perf(x): ...\" no modo derivado"
+          when: "o motor deriva a seção a partir do tipo do commit"
+          then: "grava a entrada em ### Corrigido, nunca em ### Alterado"
+        - id: SCN-CA-008-B
+          given: "--subject \"refactor(x): ...\" no modo derivado"
+          when: "o motor deriva a seção"
+          then: "não gera entrada nenhuma (DIV-02)"
+      contracts: []
+      tests:
+        - tests/w285-changelog-engine-derivado-gate.sh
+
+  # ───────────────────────── post-merge-automation (hook git post-merge) ───────────────────────
+  - op: add_requirement
+    capability: post-merge-automation
+    requirement_id: REQ-PMA-001
+    content_ref: refactor.md#1-invariantes-comportamentais-o-que-não-pode-mudar (REQ-02, REQ-03c, REQ-03d)
+    requirement:
+      id: REQ-PMA-001
+      title: "Hook post-merge roda automaticamente, sem gates de bloqueio e nunca commita"
+      normative: SHALL
+      scenarios:
+        - id: SCN-PMA-001-A
+          given: "um merge real em qualquer branch, com CHANGELOG.md na raiz e node disponível no PATH"
+          when: "o hook post-merge executa"
+          then: "chama o motor em modo --merge-range sem rodar nenhum dos quatro gates do comando, e não executa git commit em nenhum momento"
+        - id: SCN-PMA-001-B
+          given: "node ausente do PATH"
+          when: "o hook post-merge executa"
+          then: "o passo de changelog é no-op sem erro observável"
+      contracts: []
+      tests:
+        - tests/w293-post-merge-changelog-engine-gate.sh
+
+  - op: add_requirement
+    capability: post-merge-automation
+    requirement_id: REQ-PMA-002
+    content_ref: refactor.md#1-invariantes-comportamentais-o-que-não-pode-mudar (REQ-03, REQ-03b, REQ-03e)
+    requirement:
+      id: REQ-PMA-002
+      title: "Modo --merge-range é idempotente por sufixo de hash e marca BREAKING"
+      normative: SHALL
+      scenarios:
+        - id: SCN-PMA-002-A
+          given: "um merge com commits feat e fix, e o motor já rodou uma vez sobre ele"
+          when: "o hook/motor roda novamente sobre o mesmo merge (--merge-range)"
+          then: "a contagem de entradas não muda — a dedup usa o sufixo (<hash>) ao final da linha como chave"
+        - id: SCN-PMA-002-B
+          given: "um commit feat(auth)!: ... no intervalo do merge"
+          when: "o motor deriva a entrada"
+          then: "grava o marcador **[BREAKING]** na linha"
+      contracts: []
+      tests:
+        - tests/w286-changelog-engine-merge-range-gate.sh
+        - tests/w295-changelog-merge-engine-gate.sh
+
+  - op: add_requirement
+    capability: post-merge-automation
+    requirement_id: REQ-PMA-003
+    content_ref: refactor.md#1-invariantes-comportamentais-o-que-não-pode-mudar (REQ-05, REQ-05b, REQ-05c, REQ-13)
+    requirement:
+      id: REQ-PMA-003
+      title: "Delegação do hook ao motor segue a regra estrita de resolve_delegated"
+      normative: SHALL
+      scenarios:
+        - id: SCN-PMA-003-A
+          given: "a worktree tem .forge/skills/readme-generator/ mas scripts/changelog-engine.mjs está ausente"
+          when: "o hook post-merge executa"
+          then: "sai com delegation_failed=1 e uma linha própria citando scripts/changelog-engine.mjs, nunca como 'post-merge OK' silencioso"
+        - id: SCN-PMA-003-B
+          given: "a worktree que executa o hook não tem .forge/ nenhum instalado"
+          when: "o hook post-merge executa"
+          then: "o passo de changelog é no-op silencioso (rc 2 de resolve_delegated), sem consultar o tronco"
+        - id: SCN-PMA-003-C
+          given: "a worktree tem .forge/ desatualizado (alvo ausente) e o tronco (hooksPath absoluto) tem o alvo"
+          when: "o hook post-merge executa"
+          then: "delega para a cópia do tronco, nomeando-a numa linha própria em stderr"
+      contracts: []
+      tests:
+        - tests/w147-hook-delegation-gate.sh
+        - tests/w223-delegacao-arvore-do-hook-gate.sh
+        - tests/w293-post-merge-changelog-engine-gate.sh
+
+  - op: add_requirement
+    capability: post-merge-automation
+    requirement_id: REQ-PMA-004
+    content_ref: refactor.md#1-invariantes-comportamentais-o-que-não-pode-mudar (REQ-07)
+    requirement:
+      id: REQ-PMA-004
+      title: "Hook resolve só a cópia do motor no projeto, nunca a skill de escopo de usuário"
+      normative: SHALL
+      scenarios:
+        - id: SCN-PMA-004-A
+          given: "FORGE_SKILL_DIR_README_GENERATOR definido no ambiente apontando para outra skill (ex.: readme-generator Python de outro consumidor)"
+          when: "o hook post-merge executa"
+          then: "a variável não é consultada — o hook resolve exclusivamente .forge/skills/readme-generator/ do próprio projeto (ou do tronco, via resolve_delegated), nunca via resolve-skill.sh"
+      contracts: []
+      tests:
+        - tests/w293-post-merge-changelog-engine-gate.sh
+
+  - op: add_requirement
+    capability: post-merge-automation
+    requirement_id: REQ-PMA-005
+    content_ref: refactor.md#1-invariantes-comportamentais-o-que-não-pode-mudar (REQ-10b, DIV-01, DIV-02)
+    requirement:
+      id: REQ-PMA-005
+      title: "Hook escreve seções pt-BR restritas a feat/fix/perf e não edita CHANGELOG com release-please na raiz"
+      normative: SHALL
+      scenarios:
+        - id: SCN-PMA-005-A
+          given: "um merge cujo intervalo só contém commits refactor e revert, nenhum feat/fix/perf"
+          when: "o hook post-merge executa em --merge-range"
+          then: "nenhuma entrada é gravada no CHANGELOG.md raiz (DIV-02) — no-op onde antes gerava entrada"
+        - id: SCN-PMA-005-B
+          given: "um merge com um commit perf(x): ..."
+          when: "o hook post-merge executa"
+          then: "a entrada é gravada em ### Corrigido, nunca em ### Changed/Alterado (DIV-01)"
+        - id: SCN-PMA-005-C
+          given: "release-please-config.json presente na raiz do repositório"
+          when: "o hook post-merge executa em --merge-range"
+          then: "o CHANGELOG.md raiz permanece intocado, sem erro — checagem avaliada antes da guarda de ausência de CHANGELOG do REQ-02"
+      contracts: []
+      tests:
+        - tests/w287-changelog-engine-release-please-gate.sh
+        - tests/w295-changelog-merge-engine-gate.sh

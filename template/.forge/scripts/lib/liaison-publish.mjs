@@ -85,3 +85,19 @@ export function unpublishedCount({ chDir, self }) {
   }
   return { count: ids.length - (idx + 1), publishedAt };
 }
+
+// isPublished({ chDir, self, msgId }) — MESMA regra de unpublishedCount: o msgId está no log
+// próprio em posição menor ou igual à da marca published[self]. Usada por `resolvePointer`
+// (lib/liaison-pointer.mjs, condição "está publicada" do REQ-01) e pelo gancho de saída, para
+// que `notify` e o gancho decidam exatamente a mesma coisa sobre o mesmo msg_id.
+export function isPublished({ chDir, self, msgId }) {
+  const ids = ownMsgIds(chDir, self);
+  const idx = ids.indexOf(msgId);
+  if (idx < 0) return false; // não está no log próprio — quem chama já checou autoria antes
+  const state = readState(chDir);
+  const publishedId = state.published && state.published[self];
+  if (!publishedId) return false; // nunca houve sync com push bem-sucedido
+  const pubIdx = ids.indexOf(publishedId);
+  if (pubIdx < 0) return false; // marca aponta para posição que não está mais no log local
+  return idx <= pubIdx;
+}

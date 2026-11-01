@@ -16,7 +16,8 @@
 //       entrada correspondente no artefato `data-classification` (JSON, schema
 //       data-classification.schema.json) encontrado dentro dos mesmos `inputs`.
 // A varredura de código usa o coletor genérico `source-scan.collect` com `exts`
-// ampliado (`.go/.kt/.ts/.rego/.py`) — o coletor .md original fica com `exts`
+// ampliado (`.go/.kt/.ts/.rego/.py/.sql` — `.sql` adicionado pelo change
+// add-migration-review-rule, REQ-06) — o coletor .md original fica com `exts`
 // default (`.md`), preservando 100% o comportamento de `gw3-data-governance-gate.sh`
 // [1]-[8] (NFR-04).
 //
@@ -77,8 +78,11 @@ const LOG_TAINT = [
 // Python/Rego com `#`): `// forge:sensitive-field="cpf"` ou `# forge:sensitive-field="cpf"`.
 // O gate procura um artefato `data-classification.json` (schema data-classification.
 // schema.json) dentro dos mesmos `inputs`; campo marcado sem entrada correspondente no
-// mapa (ou artefato ausente) é finding.
+// mapa (ou artefato ausente) é finding. Em `.sql` o comentário de linha é `--`, aceito SÓ
+// nessa extensão: nas demais, `--` não é comentário e um texto como `--forge:sensitive-field=x`
+// numa docstring ou help de CLI viraria finding não rebaixável.
 const SENSITIVE_MARKER_RE = /(?:\/\/|#)\s*forge:sensitive-field\s*[:=]\s*"?([A-Za-z0-9_.]+)"?/i;
+const SENSITIVE_MARKER_SQL_RE = /(?:\/\/|#|--)\s*forge:sensitive-field\s*[:=]\s*"?([A-Za-z0-9_.]+)"?/i;
 
 function loadClassification(paths) {
   const jsonFiles = collect(paths, { exts: new Set(['.json']) });
@@ -96,8 +100,9 @@ function scanSensitiveFields(files, classification) {
   for (const f of files) {
     const r = relLike(f);
     const lines = readFileSync(f, 'utf8').split('\n');
+    const markerRe = f.toLowerCase().endsWith('.sql') ? SENSITIVE_MARKER_SQL_RE : SENSITIVE_MARKER_RE;
     lines.forEach((line, i) => {
-      const m = line.match(SENSITIVE_MARKER_RE);
+      const m = line.match(markerRe);
       if (!m) return;
       const field = m[1];
       if (!classification || !Object.prototype.hasOwnProperty.call(classification, field)) {
@@ -108,7 +113,7 @@ function scanSensitiveFields(files, classification) {
   return findings;
 }
 
-const CODE_EXTS = new Set(['.go', '.kt', '.ts', '.rego', '.py']);
+const CODE_EXTS = new Set(['.go', '.kt', '.ts', '.rego', '.py', '.sql']);
 
 const mdFindings = scan(collect(inputs), ANTI); // default exts {'.md'} — retrocompat NFR-04
 const codeFiles = collect(inputs, { exts: CODE_EXTS });

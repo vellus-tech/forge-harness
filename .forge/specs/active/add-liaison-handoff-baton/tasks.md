@@ -22,11 +22,11 @@
 
 ## Wave 1 — Ordem determinística, trava do log próprio e publicação sem trava
 
-- [ ] TASK-02 — Gate vermelho do desempate de `sender` por code point sob `LANG`/`LC_ALL` variados (rastreia: REQ-04; paths: `tests/wNNN-liaison-sender-order-gate.sh`; depende: TASK-01)
-  - Teste (comando): `bash tests/wNNN-liaison-sender-order-gate.sh`
+- [X] TASK-02 — Gate vermelho do desempate de `sender` por code point sob `LANG`/`LC_ALL` variados (rastreia: REQ-04; paths: `tests/liaison-sender-order-gate.sh`; depende: TASK-01)
+  - Teste (comando): `bash tests/liaison-sender-order-gate.sh`
   - Padrão de falha: `^FAIL \[ordem-sender\]`
-- [ ] TASK-03 — `compareSender` por code point em `threadOrder` e na escolha do `thread-open` de `mergeLogs` (rastreia: REQ-04, design §2.6.1; paths: `template/.forge/scripts/lib/liaison-merge.mjs`; depende: TASK-02)
-  - Teste (comando): `bash tests/wNNN-liaison-sender-order-gate.sh`
+- [X] TASK-03 — `compareSender` por code point em `threadOrder` e na escolha do `thread-open` de `mergeLogs` (rastreia: REQ-04, design §2.6.1; paths: `template/.forge/scripts/lib/liaison-merge.mjs`; depende: TASK-02)
+  - Teste (comando): `bash tests/liaison-sender-order-gate.sh`
   - Padrão de falha: `^FAIL \[`
 - [ ] TASK-04 — Gate vermelho da trava do log próprio: 20 `send` concorrentes, duas worktrees, timeout de 10 s nomeando o dono, recuperação por pid morto e por idade, dois recuperadores concorrentes mais um adquirente, trava sem `owner.json` com menos e mais de 120 s, conferência de `nonce` antes de gravar, faixa de `FORGE_LIAISON_LOCK_WAIT_MS`, nomes de trava com `@` sem colisão (canal `locks`, ids com ponto), escritores concorrentes de `state.json` e `baton-local.json` sem atualização perdida nem JSON truncado, varredura de escrita dinâmica (preload `NODE_OPTIONS=--require`) e estática (bash), trava fora do `export` e do versionamento, seção crítica ≤ 2 s p95 com 2.000 mensagens (rastreia: REQ-09, REQ-11, NFR-02; paths: `tests/wNNN-liaison-own-log-lock-gate.sh`, `tests/fixtures/liaison-lock/`; depende: TASK-01)
   - Teste (comando): `bash tests/wNNN-liaison-own-log-lock-gate.sh`

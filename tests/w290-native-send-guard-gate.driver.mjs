@@ -182,7 +182,9 @@ async function main() {
   // REQ-05 — classificação de destino (evidência a, emenda de 2026-10-30)
   // ---------------------------------------------------------------------------------------
   const G = await importModuleOrFail('native-send-guard', 'native-send-guard.mjs');
-  if (G) {
+  const A = await importModuleOrFail('native-allowlist', 'native-allowlist.mjs');
+  const C = await importModuleOrFail('native-containment', 'native-containment.mjs');
+  if (G && A && C) {
     check('REQ-05 caso 1 — nome sem registro e sem Agent nomeado no transcript -> bloqueado (emenda)', () => {
       const payload = basePayload({
         transcript_path: transcriptNoAgent,
@@ -383,6 +385,32 @@ async function main() {
       assertTrue(res.status === 2, `exit code deveria ser 2 (obtido ${res.status})`);
     });
 
+    // Fail-closed contra falha de CARGA de módulo (code-evaluator PR #245, SEC-003): os imports
+    // estáticos de native-send-guard.mjs resolvem antes de main() registrar failClosed; uma lib
+    // dependente ausente (upgrade parcial, arquivo apagado) fazia o node sair com 1, que o Claude
+    // Code trata como não bloqueante — o envio seguia sem varredura de segredo nem contenção.
+    check('gancho .sh — lib dependente ausente (falha de carga do módulo) -> exit 2, nunca 1', () => {
+      const brokenDir = join(T, 'lib-ausente-repo');
+      mkConsumerRepo(brokenDir);
+      rmSync(join(brokenDir, '.forge', 'scripts', 'lib', 'native-classes.mjs'));
+      const brokenHook = join(brokenDir, '.forge', 'hooks', 'pre-tool-use', 'guard-cross-session-send.sh');
+      const payload = JSON.stringify(
+        basePayload({ cwd: brokenDir, tool_input: { to: 'SESSION-UNIQUE', recipient_kind: 'name', message: 'AKIA' + 'ABCDEFGHIJKLMNOP' } }),
+      );
+      const res = spawnSync('bash', [brokenHook], { input: payload, encoding: 'utf8', env: { ...process.env, FORGE_CLAUDE_SESSIONS_DIR: SESS_DIR, FORGE_CLAUDE_PROJECTS_DIR: PROJECTS_DIR } });
+      assertEqual(res.status, 2, `exit code deveria ser 2 (obtido ${res.status}; stderr: ${(res.stderr || '').slice(0, 160)})`);
+    });
+
+    // Pedido só de aviso de ociosidade (code-evaluator PR #245, LOGIC-005/SEC-007): a varredura de
+    // segredo vale para TODO campo string do tool_input (REQ-04), inclusive `summary`, mesmo
+    // quando message/content estão vazios.
+    check('REQ-04 — só aviso de ociosidade com segredo em summary -> exit 2', () => {
+      const payload = basePayload({
+        tool_input: { to: 'SESSION-UNIQUE', recipient_kind: 'name', message: '', content: '', notify_when_idle: true, summary: 'AKIA' + 'ABCDEFGHIJKLMNOP' },
+      });
+      assertEqual(G.evaluateSendGuard(payload, opts).exitCode, 2, 'exit code deveria ser 2');
+    });
+
     // -------------------------------------------------------------------------------------
     // Leitor único: mutar um padrão de secret-scan.mjs numa CÓPIA da árvore e ver `send` e o
     // gancho mudarem juntos (REQ-04, "a varredura é a mesma função usada pelo send").
@@ -433,7 +461,7 @@ async function main() {
       const copyEnv = { ...process.env, FORGE_ROOT: copyDir };
       try {
         execFileSync('bash', [copiedOps, 'open', 'fx', '--self', 'me', '--participants', 'me,peer'], { cwd: copyDir, env: copyEnv, encoding: 'utf8' });
-        execFileSync('bash', [copiedOps, 'thread', 'open', 'fx', 'th1', '--subject', 'leitor unico', '--participants', 'me'], { cwd: copyDir, env: copyEnv, encoding: 'utf8' });
+        execFileSync('bash', [copiedOps, 'thread', 'open', 'fx', 'th1', '--subject', 'leitor único', '--participants', 'me'], { cwd: copyDir, env: copyEnv, encoding: 'utf8' });
       } catch (err) {
         throw new Error(`setup do canal falhou: ${err.stderr || err.stdout || err.message}`);
       }
@@ -571,7 +599,7 @@ async function main() {
     // registro ilegível (JSON inválido) ao lado de destinos válidos — resolução por SOCKET não
     // é fail-closed quando já achou o destino certo (native-registry.mjs só é fail-closed por
     // socket quando NENHUM registro válido deu match); por NOME, é sempre fail-closed (parte 1).
-    writeFileSync(join(SESS_DIR, 'p2-illegible.json'), '{ nao é json');
+    writeFileSync(join(SESS_DIR, 'p2-illegible.json'), '{ não é json');
 
     // /tmp vs /private/tmp — socket real criado sob /tmp literal (symlink para /private/tmp no
     // macOS); o payload referencia o endereço pelo caminho /private/tmp e precisa casar.
@@ -678,6 +706,47 @@ async function main() {
       const r = G.evaluateSendGuard(p2Payload({ to: udsMismatchDest, message: EPH, cwd: mismatchOriginRepo }), opts);
       assertEqual(r.exitCode, 2, `exit code deveria ser 2 mesmo com o destino cadastrado (obtido ${r.exitCode}: ${r.message})`);
       assertTrue(/diverge|identidade fixada/i.test(r.message || ''), 'mensagem deveria citar a divergência de identidade fixada');
+    });
+
+    // code-evaluator PR #245, SEC-002: `native pin` existe para fechar o contorno "trocar o remote
+    // para o do destino faz origem e destino iguais" (design §2.5 etapa 5: a checagem de
+    // self_identity vem ANTES da comparação). Com o atalho de igualdade rodando primeiro, a troca
+    // de remote liberava o envio para outro workspace com cadastro vazio.
+    check('REQ-07 — self_identity fixado e remote trocado para o do destino -> exit 2 (pin fecha a troca de remote)', () => {
+      const swapOrigin = join(P2, 'swap-origin');
+      initRepo(swapOrigin);
+      git(swapOrigin, ['remote', 'add', 'origin', 'https://github.com/acme/swap-origin.git']);
+      writeAllowlistFile(swapOrigin, { version: 1, self_identity: 'github.com/acme/swap-origin', allowed_workspaces: [] });
+      commitAllowlist(swapOrigin, 'chore: pin');
+      git(swapOrigin, ['remote', 'set-url', 'origin', 'https://github.com/acme/mismatch-dest.git']);
+      const r = G.evaluateSendGuard(p2Payload({ to: udsMismatchDest, message: EPH, cwd: swapOrigin }), opts);
+      assertEqual(r.exitCode, 2, `exit code deveria ser 2 (obtido ${r.exitCode}: ${r.message})`);
+      assertTrue(/identidade fixada/i.test(r.message || ''), 'mensagem deveria citar a identidade fixada');
+    });
+
+    // code-evaluator PR #245, LOGIC-002: `pin`/`allow` gravavam self_identity com a identidade do
+    // REPOSITÓRIO, e o gancho compara com a identidade do WORKSPACE (repositório mais externo).
+    // Num repositório aninhado, o procedimento documentado (pin -> allow -> commit) bloqueava todo
+    // envio para outro workspace, mesmo cadastrado, sem achado no detector.
+    check('REQ-07 — pin + allow num repositório ANINHADO (pela API dos escritores), destino cadastrado -> exit 0, detector sem divergência', () => {
+      const nestOuter = join(P2, 'nest-outer');
+      initRepo(nestOuter);
+      git(nestOuter, ['remote', 'add', 'origin', 'https://github.com/acme/nest-outer.git']);
+      const nestInner = join(nestOuter, 'sub', 'nest-inner');
+      initRepo(nestInner);
+      git(nestInner, ['remote', 'add', 'origin', 'https://github.com/acme/nest-inner.git']);
+      for (const res of [
+        A.pin({ root: nestInner }),
+        A.allow({ root: nestInner, id: 'github.com/acme/mismatch-dest', reason: 'teste aninhado', grantedBy: 'fixture@test', now: '2026-11-01T00:00:00Z' }),
+      ]) {
+        if (!res.ok) throw new Error(`escritor recusou: ${res.error}`);
+      }
+      commitAllowlist(nestInner, 'chore: pin e allow no aninhado');
+      const r = G.evaluateSendGuard(p2Payload({ to: udsMismatchDest, message: EPH, cwd: nestInner }), opts);
+      assertEqual(r.exitCode, 0, `exit code deveria ser 0 (obtido ${r.exitCode}: ${r.message})`);
+      const det = C.detectContainment({ root: nestInner });
+      assertTrue(det.ok, `detector deveria medir: ${det.reason}`);
+      assertFalse(det.findings.some((f) => f.type === 'remote-identity-mismatch'), 'detector não deveria acusar remote-identity-mismatch logo depois do pin');
     });
 
     check('REQ-07 — nome homônimo em workspaces diferentes resolvido pelo socket, sem ambiguidade', () => {

@@ -150,6 +150,10 @@ const { join } = require('path');
     WORKTREE: { from: `uds:${sockWorktree}`, fromName: 'PEER-WORKTREE', fromMode: 'default', body: 'corpo-worktree', verifiedPeerPid: Number(mypid) },
     PIDMISMATCH: { from: `uds:${sockPidmismatch}`, fromName: 'PEER-PIDMISMATCH', fromMode: 'default', body: 'corpo-pidmismatch', verifiedPeerPid: 999999 },
     UNRESOLVED: { from: 'uds:/tmp/cc-socks/99999-ghost.sock', fromName: 'PEER-UNRESOLVED', fromMode: 'default', body: 'corpo-unresolved', verifiedPeerPid: 12345 },
+    // Linha SEM origin, formato derivado sem verifiedPeerPid, apontando para o socket vivo do
+    // peer: o from vem só do texto da tag, que qualquer um pode escrever, e nunca prova origem.
+    // Achado SEC-001 do code-evaluator no PR 245.
+    NOPID: { from: `uds:${sockOk}`, fromName: 'PEER-OK', fromMode: 'default', body: 'corpo-nopid' },
   };
 
   const lines = [];
@@ -307,6 +311,18 @@ out="$(send_cs peer-ok "$(fp_of OK)")"
 grep -q 'OK send' <<<"$out" || fail "origem ok [cross-session] deveria aceitar: $out"
 msgid_ok="$(grep -oE '[a-z0-9-]+-[0-9]{4}' <<<"$out" | tail -1)"
 pass "conferência de origem — registro+peer-path coincidem aceita"
+
+out="$(send_cs peer-ok "$(fp_of NOPID)")"
+grep -q 'OK send' <<<"$out" || fail "recepção sem verifiedPeerPid [cross-session] deveria aceitar (como não verificada): $out"
+msgid_nopid="$(grep -oE '[a-z0-9-]+-[0-9]{4}' <<<"$out" | tail -1)"
+node - "$T/me/.forge/liaison/$CH/log/local-me.jsonl" "$msgid_nopid" <<'NODEEOF'
+const fs = require('fs');
+const [, , file, msgId] = process.argv;
+const m = fs.readFileSync(file, 'utf8').trim().split('\n').map((l) => JSON.parse(l)).find((x) => x.msg_id === msgId);
+if (!m) { console.error('mensagem não encontrada'); process.exit(1); }
+if (m.cross_session.origin_verified !== false) { console.error(`origin_verified deveria ser false sem verifiedPeerPid, veio ${m.cross_session.origin_verified}`); process.exit(1); }
+NODEEOF
+pass "conferência de origem — sem verifiedPeerPid na linha, socket vivo não basta (origin_verified:false)"
 
 out="$(send_cs peer-worktree "$(fp_of WORKTREE)")"
 grep -q 'OK send' <<<"$out" || fail "origem peer em worktree [cross-session] deveria aceitar (normalização git-common-dir): $out"

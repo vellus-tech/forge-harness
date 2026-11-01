@@ -237,6 +237,44 @@ async function main() {
       assertTrue(parsed.brokenInstrument, 'divergência tag×origin deveria ser instrumento quebrado');
     });
 
+    // code-evaluator PR #245, LOGIC-003: um corpo legítimo de peer que CITA o fechamento da tag
+    // (discutir o próprio protocolo basta) era cortado no primeiro fechamento, divergia de
+    // origin.body e marcava o transcript inteiro como instrumento quebrado — derrubando o
+    // registro de todas as recepções da sessão.
+    check('transcript: corpo de peer que cita o fechamento da tag é extraído inteiro, sem instrumento quebrado', () => {
+      const corpo = 'o fechamento da tag é </cross-session-message> — veja o parser';
+      const normal = line({
+        message: { role: 'user', content: tag('uds:/tmp/cc-socks/31.sock', 'PEER', 'default', 'mensagem normal') },
+        origin: { kind: 'peer', from: 'uds:/tmp/cc-socks/31.sock', verifiedPeerPid: 31, name: 'PEER', fromMode: 'default', body: 'mensagem normal' },
+      });
+      const citando = line({
+        message: { role: 'user', content: tag('uds:/tmp/cc-socks/31.sock', 'PEER', 'default', corpo) },
+        origin: { kind: 'peer', from: 'uds:/tmp/cc-socks/31.sock', verifiedPeerPid: 31, name: 'PEER', fromMode: 'default', body: corpo },
+      });
+      const parsed = T.parseTranscriptText([normal, citando].map((x) => JSON.stringify(x)).join('\n'));
+      assertFalse(parsed.brokenInstrument, `não deveria ser instrumento quebrado: ${parsed.inconsistent.map((x) => x.inconsistencyReason).join('; ')}`);
+      assertEqual(parsed.receptions.length, 2, 'deveria extrair as duas recepções');
+      assertEqual(parsed.receptions[1].body, corpo, 'corpo deveria sair inteiro');
+    });
+
+    // code-evaluator PR #245, SEC-001: a extração aceitava a tag em QUALQUER linha type:user,
+    // inclusive o <result> de subagente (origin.kind 'task-notification') e turno agendado — um
+    // texto de subagente que leu conteúdo hostil produzia uma "recepção" com from/from-name
+    // escolhidos por quem escreveu. Os controles negativos do design §2.6 valem também para a
+    // extração, não só para o diagnóstico de candidata.
+    for (const [desc, extra] of [
+      ["origin.kind 'task-notification'", { origin: { kind: 'task-notification' } }],
+      ["origin.kind 'human'", { origin: { kind: 'human' } }],
+      ["turnOrigin 'scheduled'", { turnOrigin: 'scheduled' }],
+    ]) {
+      check(`transcript: tag completa em linha com ${desc} NÃO é extraída como recepção`, () => {
+        const l = line({ message: { role: 'user', content: tag('uds:/tmp/cc-socks/77.sock', 'FORJADO', 'default', 'corpo forjado') }, ...extra });
+        assertEqual(T.extractReception(l), null, 'extractReception deveria recusar a linha');
+        const parsed = T.parseTranscriptText(JSON.stringify(l));
+        assertEqual(parsed.receptions.length, 0, 'parseTranscriptText não deveria listar recepção');
+      });
+    }
+
     const projectsDir = mkdtempSync('/tmp/forge-native-readers-projects-');
     onCleanup(() => rmSync(projectsDir, { recursive: true, force: true }));
     check('transcript: locateTranscript — zero resultado reprova nomeando a sessão', () => {
@@ -456,6 +494,30 @@ async function main() {
     check('workspace: raiz — worktree fora da árvore resolve para o repositório principal', () => {
       const root = W.mainRepoRoot(wtOutside);
       assertEqual(realpathSync(root), realpathSync(wtMain), 'mainRepoRoot da worktree deveria ser o repo principal');
+    });
+
+    // --- raiz: submódulos (code-evaluator PR #245, LOGIC-001) ---
+    // O `.git` de um submódulo é arquivo apontando para `<super>/.git/modules/<nome>`, sem
+    // `commondir`; o pai desse git-dir é `<super>/.git/modules` para TODOS os submódulos, e dois
+    // repositórios distintos passavam como o mesmo (internal-coordination entre eles, origem
+    // conferida errada, ponteiro e cadastro lidos fora do repositório).
+    const subSrcA = join(base, 'sub-src-a');
+    initRepo(subSrcA);
+    const subSrcB = join(base, 'sub-src-b');
+    initRepo(subSrcB);
+    const superRepo = join(base, 'super');
+    initRepo(superRepo);
+    git(superRepo, ['-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', subSrcA, 'sub-a']);
+    git(superRepo, ['-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', subSrcB, 'sub-b']);
+    check('workspace: raiz — submódulo: repositório principal é o próprio submódulo, e dois submódulos são repositórios distintos', () => {
+      const ra = W.mainRepoRoot(join(superRepo, 'sub-a'));
+      const rb = W.mainRepoRoot(join(superRepo, 'sub-b'));
+      assertEqual(realpathSync(ra), realpathSync(join(superRepo, 'sub-a')), 'mainRepoRoot de sub-a');
+      assertEqual(realpathSync(rb), realpathSync(join(superRepo, 'sub-b')), 'mainRepoRoot de sub-b');
+    });
+    check('workspace: raiz — submódulo: workspace sobe até o superprojeto', () => {
+      const ws = W.workspaceRoot(join(superRepo, 'sub-a'), { home: fixtureHome });
+      assertEqual(realpathSync(ws), realpathSync(superRepo), 'workspaceRoot do submódulo deveria ser o superprojeto');
     });
 
     // --- raiz: home como repositório (dotfiles) ---

@@ -20,8 +20,14 @@
 //     ou sem o sufixo "(<hash>)" do hook, não é gravada de novo;
 //   - --merge-range (hook): a chave por commit continua sendo o hash (REQ-03 — dois commits
 //     distintos com o mesmo subject geram duas entradas); além disso, o commit é pulado quando a
-//     mesma seção já tem a entrada SEM hash, gravada pelo comando na branch, para que comando e hook
-//     não registrem a mesma mudança duas vezes quando o texto coincide.
+//     mesma seção já tem uma entrada com exatamente o mesmo texto (a gravada pelo comando na
+//     branch), para que comando e hook não registrem a mesma mudança duas vezes quando o texto
+//     coincide. O texto do commit é comparado ANTES de receber o sufixo — nenhum hash, nem um só
+//     de dígitos, passa por regex.
+//
+// Confinamento: o CHANGELOG (ou o alvo do symlink, ou o diretório onde ele será criado) precisa
+// ficar dentro de --root. Symlink pendente ou que aponte para fora é recusado (FAIL rc 1): o hook
+// grava texto vindo de commits de terceiros e nunca pode escrever num arquivo arbitrário do usuário.
 //
 // Mapeamento tipo->seção (pt-BR), alinhado a rules/conventions/conventional-commits.md:
 //   feat -> Adicionado; fix -> Corrigido; perf -> Corrigido (DIV-01). Demais tipos não geram entrada.
@@ -32,8 +38,8 @@
 // Requer git ≥ 2.24 (usa --end-of-options no git log).
 //
 // Uso: changelog-engine.mjs --root <dir> [--changelog <path-relativo-opcional>] <modo...>
-import { readFileSync, writeFileSync, existsSync, renameSync, realpathSync, statSync, chmodSync, unlinkSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, writeFileSync, existsSync, renameSync, realpathSync, statSync, lstatSync, chmodSync, unlinkSync } from 'node:fs';
+import { join, dirname, basename, relative, isAbsolute } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 const SECTION_HEADERS = {
@@ -100,8 +106,11 @@ function gitRun(root, args) {
   } catch (e) {
     // err = só o stderr do git: vazio quando o git sai ≠ 0 sem diagnóstico (ex.: rev-parse -q
     // --verify de uma referência inexistente); o erro de spawn (git ausente) entra como texto.
-    const err = e && e.stderr ? String(e.stderr).trim() : (e && e.code === 'ENOENT' ? String(e.message) : '');
-    return { ok: false, out: '', err };
+    const err = e && e.stderr ? String(e.stderr).trim() : (e && e.code ? String(e.message) : '');
+    // `clean` = o git rodou e saiu 1 sem sinal nem erro de spawn: a única saída que um
+    // rev-parse -q --verify usa para "referência inexistente".
+    const clean = !!e && e.status === 1 && !e.signal && !e.code;
+    return { ok: false, out: '', err, clean };
   }
 }
 
@@ -127,33 +136,59 @@ function unreleasedBounds(md) {
   return { start, end };
 }
 
-// Sufixo de idempotência " (<hash>)" gravado pelo --merge-range: hash abreviado hexadecimal com ao
-// menos uma letra, para não confundir com um número entre parênteses no texto ("lote (2024999)").
-const HASH_SUFFIX_RE = /\s+\((?=[0-9a-f]*[a-f])[0-9a-f]{7,40}\)\s*$/;
+// Possível sufixo de idempotência " (<hash>)" de uma entrada JÁ gravada pelo --merge-range (hash
+// abreviado hexadecimal, inclusive só de dígitos). Só é usado para ler entradas existentes.
+const HASH_SUFFIX_RE = /\s+\([0-9a-f]{7,40}\)\s*$/;
 
-function splitEntry(text) {
-  const hashed = HASH_SUFFIX_RE.test(text);
-  return { text: text.replace(HASH_SUFFIX_RE, '').trim(), hashed };
-}
-
-// Chaves "<seção>|<texto>" dos itens de lista já presentes em [Unreleased]: `all` (com ou sem
-// hash) e `unhashed` (só as gravadas sem hash, isto é, pelo comando).
+// Chaves "<seção>|<texto>" dos itens de lista já presentes em [Unreleased]:
+//   exact — o texto integral de cada item (o que o hook compara: só pula commit cujo texto já está
+//           gravado igual, sem hash, pelo comando);
+//   loose — o texto integral E, quando termina num possível hash, o texto sem ele (o que o comando
+//           compara: não regrava o que o hook já registrou com hash).
+// Um texto como "lote (2024999)" entra nas duas formas; isso só pode fazer o comando deixar de
+// gravar "lote" quando já existe "lote (2024999)" na mesma seção.
 function unreleasedKeys(md) {
-  const all = new Set();
-  const unhashed = new Set();
+  const exact = new Set();
+  const loose = new Set();
   const b = unreleasedBounds(md);
-  if (!b) return { all, unhashed };
+  if (!b) return { exact, loose };
   let section = '';
   for (const line of md.slice(b.start, b.end).split('\n')) {
     const h3 = line.match(/^###\s+(.+?)\s*$/);
     if (h3) { section = h3[1]; continue; }
     const m = line.match(/^[-*]\s+(.+)$/);
     if (!m) continue;
-    const { text, hashed } = splitEntry(m[1]);
-    all.add(`${section}|${text}`);
-    if (!hashed) unhashed.add(`${section}|${text}`);
+    const full = m[1].trim();
+    exact.add(`${section}|${full}`);
+    loose.add(`${section}|${full}`);
+    if (HASH_SUFFIX_RE.test(full)) loose.add(`${section}|${full.replace(HASH_SUFFIX_RE, '').trim()}`);
   }
-  return { all, unhashed };
+  return { exact, loose };
+}
+
+// Caminho real do CHANGELOG confinado a `root` (ver o cabeçalho). Devolve o caminho a ler/gravar.
+function confineChangelog(root, changelogPath) {
+  let rootReal;
+  try { rootReal = realpathSync(root); } catch { fail(`raiz '${root}' não existe`, 2); }
+  let target;
+  let st = null;
+  try { st = lstatSync(changelogPath); } catch { st = null; }
+  if (st) {
+    try { target = realpathSync(changelogPath); } catch {
+      fail(`'${changelogPath}' é symlink pendente — recusado (o motor não cria arquivo por cima de link)`, 1);
+    }
+  } else {
+    let dirReal;
+    try { dirReal = realpathSync(dirname(changelogPath)); } catch {
+      fail(`diretório de '${changelogPath}' não existe`, 2);
+    }
+    target = join(dirReal, basename(changelogPath));
+  }
+  const rel = relative(rootReal, target);
+  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) {
+    fail(`'${changelogPath}' resolve para fora de '${root}' (${target}) — recusado`, 1);
+  }
+  return target;
 }
 
 // Insere `lines` sob "### <sectionHeader>" dentro do bloco [Unreleased], criando a subseção
@@ -188,11 +223,12 @@ function readChangelog(changelogPath, { allowCreate }) {
   return { md: DEFAULT_HEADER, eol: '\n' };
 }
 
-// Escrita atômica (temporário + rename) com o terminador original. Grava no alvo real (um
-// CHANGELOG.md symlink continua symlink e o alvo recebe a entrada) e preserva o modo do arquivo.
+// Escrita atômica (temporário + rename) com o terminador original, sobre o caminho já confinado
+// por confineChangelog (um CHANGELOG.md symlink interno continua symlink e o alvo recebe a
+// entrada), preservando o modo do arquivo.
 function writeChangelog(changelogPath, md, eol) {
   const out = eol === '\r\n' ? md.replace(/\n/g, '\r\n') : md;
-  const target = existsSync(changelogPath) ? realpathSync(changelogPath) : changelogPath;
+  const target = changelogPath;
   const mode = existsSync(target) ? statSync(target).mode & 0o7777 : null;
   const tmp = `${target}.tmp-${process.pid}`;
   try {
@@ -210,16 +246,16 @@ function hasReleasePlease(componentRoot) {
 }
 
 // Filtra as entradas já presentes em [Unreleased] e devolve {section: lines} só com o que é novo,
-// mais o total. `hashed` = lote do --merge-range (ver o cabeçalho: lá a chave por commit é o hash,
-// e o texto só é comparado com entradas sem hash).
+// mais o total. Cada entrada chega como {text, line}: `text` é o que se compara (sem sufixo de
+// hash), `line` é o que se grava. `hashed` = lote do --merge-range (ver o cabeçalho).
 function dedupe(md, entriesBySection, { hashed }) {
-  const { all, unhashed } = unreleasedKeys(md);
-  const seen = hashed ? unhashed : all;
+  const { exact, loose } = unreleasedKeys(md);
+  const seen = hashed ? exact : loose;
   const fresh = {};
   let total = 0;
-  for (const [section, lines] of Object.entries(entriesBySection)) {
-    for (const line of lines) {
-      const key = `${section}|${splitEntry(line.replace(/^[-*]\s+/, '')).text}`;
+  for (const [section, entries] of Object.entries(entriesBySection)) {
+    for (const { text, line } of entries) {
+      const key = `${section}|${text}`;
       if (seen.has(key)) continue;
       if (!hashed) seen.add(key);
       (fresh[section] = fresh[section] || []).push(line);
@@ -259,7 +295,7 @@ function runExplicit(args) {
     fail('--description obrigatória no modo explícito', 2);
   }
 
-  const n = applyEntries(changelogPath, { [sectionHeader]: [`- ${description}`] }, { allowCreate: true });
+  const n = applyEntries(confineChangelog(root, changelogPath), { [sectionHeader]: [{ text: description.trim(), line: `- ${description}` }] }, { allowCreate: true });
   console.log(n
     ? `changelog: entrada adicionada em ### ${sectionHeader} (modo explícito)`
     : `changelog: entrada já presente em [Unreleased] — nada a registrar (modo explícito)`);
@@ -273,7 +309,8 @@ function deriveFromSubject(subject) {
   const section = CC_SECTION[type];
   if (!section) return null;
   const breaking = m[3] === '!' ? ' **[BREAKING]**' : '';
-  return { section, line: `- ${m[4]}${breaking}` };
+  const text = `${m[4]}${breaking}`.trim();
+  return { section, text, line: `- ${text}` };
 }
 
 function runDerivedSubject(args) {
@@ -289,7 +326,7 @@ function runDerivedSubject(args) {
     process.exit(0);
   }
 
-  const n = applyEntries(changelogPath, { [entry.section]: [entry.line] }, { allowCreate: true });
+  const n = applyEntries(confineChangelog(root, changelogPath), { [entry.section]: [entry] }, { allowCreate: true });
   console.log(n
     ? `changelog: entrada derivada adicionada em ### ${entry.section} (modo --subject)`
     : 'changelog: entrada já presente em [Unreleased] — nada a registrar (modo --subject)');
@@ -351,11 +388,11 @@ function runDerivedPath(args) {
     if (!subject) continue;
     const entry = deriveFromSubject(subject);
     if (!entry) continue;
-    (entriesBySection[entry.section] = entriesBySection[entry.section] || []).push(entry.line);
+    (entriesBySection[entry.section] = entriesBySection[entry.section] || []).push(entry);
   }
 
   const n = Object.keys(entriesBySection).length
-    ? applyEntries(changelogPath, entriesBySection, { allowCreate: true })
+    ? applyEntries(confineChangelog(root, changelogPath), entriesBySection, { allowCreate: true })
     : 0;
   console.log(n
     ? `changelog: ${n} entrada(s) derivada(s) do componente '${componentPath}' (desde ${base}) adicionada(s)`
@@ -379,13 +416,14 @@ function runMergeRange(args) {
   if (!existsSync(changelogPath)) {
     process.exit(0);
   }
+  const target = confineChangelog(root, changelogPath);
 
   let range = args['merge-range'];
   if (range === true || !range) {
     // -q --verify: "HEAD não é merge" sai rc 1 sem stderr (no-op legítimo); qualquer outra falha
     // (fora de repositório, .git ilegível) tem stderr e não pode sair como sucesso.
     const p2 = gitRun(root, ['rev-parse', '-q', '--verify', 'HEAD^2']);
-    if (!p2.ok && p2.err) fail(`não foi possível ler HEAD^2 em '${root}': ${p2.err}`, 1);
+    if (!p2.ok && !p2.clean) fail(`não foi possível ler HEAD^2 em '${root}': ${p2.err || 'git falhou sem diagnóstico'}`, 1);
     if (!p2.ok || !p2.out) process.exit(0); // no-op: HEAD não é merge
     range = 'HEAD^1..HEAD^2';
   }
@@ -394,7 +432,7 @@ function runMergeRange(args) {
   if (!log.ok) fail(`git log falhou para o intervalo '${range}': ${log.err}`, 1);
   if (!log.out) process.exit(0);
 
-  const { md } = readChangelog(changelogPath, { allowCreate: false });
+  const { md } = readChangelog(target, { allowCreate: false });
   const entriesBySection = {};
   for (const row of log.out.split('\n')) {
     const [hash, subject] = row.split('\x1f');
@@ -402,10 +440,10 @@ function runMergeRange(args) {
     if (md.includes(`(${hash})`)) continue; // idempotência: já registrado
     const entry = deriveFromSubject(subject);
     if (!entry) continue; // DIV-02: refactor/revert/chore/... não geram entrada
-    (entriesBySection[entry.section] = entriesBySection[entry.section] || []).push(`${entry.line} (${hash})`);
+    (entriesBySection[entry.section] = entriesBySection[entry.section] || []).push({ text: entry.text, line: `${entry.line} (${hash})` });
   }
 
-  const total = applyEntries(changelogPath, entriesBySection, { allowCreate: false, hashed: true });
+  const total = applyEntries(target, entriesBySection, { allowCreate: false, hashed: true });
   if (total === 0) process.exit(0);
   console.log(`changelog: ${total} entrada(s) adicionada(s) a [Unreleased] no CHANGELOG.md (commit pendente)`);
   process.exit(0);

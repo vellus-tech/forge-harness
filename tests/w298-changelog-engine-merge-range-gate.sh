@@ -12,6 +12,8 @@
 #   [8] comando (--subject) na branch + hook no merge não duplicam a mudança.
 #   [9] commits distintos com o mesmo subject: uma entrada por hash.
 #   [10] --merge-range fora de repositório git -> erro observável
+#   [11] texto igual a entrada manual "lote (2024999)": o hook não duplica.
+#   [12] CHANGELOG.md symlink para fora do repositório: FAIL, alvo intocado.
 set -uo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
@@ -185,5 +187,40 @@ out="$(GIT_CEILING_DIRECTORIES="$T" node "$ENGINE" --root "$R10" --merge-range 2
 [ "$rc" -ne 0 ] || { echo "FAIL [10]: rc 0 fora de repositório (saída: $out)"; exit 1; }
 case "$out" in *FAIL*) : ;; *) echo "FAIL [10]: saída sem FAIL (saída: $out)"; exit 1 ;; esac
 echo "OK [10]"
+
+# ── [11] ─────────────────────────────────────────────────────────────────────────────────────
+echo "[11] commit com texto igual a entrada manual terminada em número entre parênteses é pulado"
+R11="$T/r11"; mkdir -p "$R11"
+git -C "$R11" init -q -b main
+git -C "$R11" config user.email t@t; git -C "$R11" config user.name t; git -C "$R11" config commit.gpgsign false
+printf '# Changelog\n\n## [Unreleased]\n' > "$R11/CHANGELOG.md"
+git -C "$R11" add -A >/dev/null 2>&1; git -C "$R11" commit -qm 'chore: init' >/dev/null 2>&1
+git -C "$R11" checkout -qb feature >/dev/null 2>&1
+printf '1\n' > "$R11/a"; git -C "$R11" add -A >/dev/null 2>&1; git -C "$R11" commit -qm 'fix: lote (2024999)' >/dev/null 2>&1
+node "$ENGINE" --root "$R11" --subject 'fix: lote (2024999)' >/dev/null 2>&1 || { echo "FAIL [11]: --subject saiu com erro"; exit 1; }
+git -C "$R11" commit -qam 'docs: changelog' >/dev/null 2>&1
+git -C "$R11" checkout -q main >/dev/null 2>&1
+git -C "$R11" merge -q --no-ff feature -m 'merge feature' >/dev/null 2>&1
+node "$ENGINE" --root "$R11" --merge-range >/dev/null 2>&1 || { echo "FAIL [11]: --merge-range saiu com erro"; exit 1; }
+[ "$(grep -c 'lote (2024999)' "$R11/CHANGELOG.md")" -eq 1 ] || { echo "FAIL [11]: mudança registrada duas vezes"; cat "$R11/CHANGELOG.md"; exit 1; }
+echo "OK [11]"
+
+# ── [12] ─────────────────────────────────────────────────────────────────────────────────────
+echo "[12] hook com CHANGELOG.md symlink para fora do repositório -> FAIL, alvo externo intocado"
+R12="$T/r12"; mkdir -p "$R12" "$T/fora12"
+printf '# externo\n\n## [Unreleased]\n' > "$T/fora12/rc"
+git -C "$R12" init -q -b main
+git -C "$R12" config user.email t@t; git -C "$R12" config user.name t; git -C "$R12" config commit.gpgsign false
+ln -s ../fora12/rc "$R12/CHANGELOG.md"
+git -C "$R12" add -A >/dev/null 2>&1; git -C "$R12" commit -qm 'chore: init' >/dev/null 2>&1
+git -C "$R12" checkout -qb feature >/dev/null 2>&1
+printf '1\n' > "$R12/a"; git -C "$R12" add -A >/dev/null 2>&1; git -C "$R12" commit -qm 'feat: $(touch marcador)' >/dev/null 2>&1
+git -C "$R12" checkout -q main >/dev/null 2>&1
+git -C "$R12" merge -q --no-ff feature -m 'merge feature' >/dev/null 2>&1
+before="$(cat "$T/fora12/rc")"
+out="$(node "$ENGINE" --root "$R12" --merge-range 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] || { echo "FAIL [12]: rc 0 gravando fora do repositório (saída: $out)"; exit 1; }
+[ "$(cat "$T/fora12/rc")" = "$before" ] || { echo "FAIL [12]: arquivo fora do repositório alterado"; exit 1; }
+echo "OK [12]"
 
 echo "PASS w298-changelog-engine-merge-range"

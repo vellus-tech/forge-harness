@@ -12,6 +12,9 @@
 #   [8] deduplicação por seção + texto.
 #   [9] "## [unreleased]" minúsculo reconhecido.
 #   [10] falha de escrita sai por FAIL e sem temporário residual
+#   [11] symlink para fora da raiz -> FAIL, alvo externo intocado.
+#   [12] symlink pendente -> FAIL, link preservado.
+#   [13] hash só de dígitos no sufixo do hook é reconhecido na deduplicação.
 set -uo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
@@ -132,5 +135,32 @@ chmod 755 "$R10"
 case "$out" in *"FAIL: escrita"*) : ;; *) echo "FAIL [10]: saída fora da convenção FAIL (saída: $out)"; exit 1 ;; esac
 ls "$R10" | grep -q '\.tmp-' && { echo "FAIL [10]: temporário deixado para trás"; exit 1; }
 echo "OK [10]"
+
+# ── [11] ─────────────────────────────────────────────────────────────────────────────────────
+echo "[11] CHANGELOG.md symlink para fora da raiz -> FAIL, alvo externo intocado"
+R11="$T/r11"; mkdir -p "$R11" "$T/fora"
+printf 'conteúdo externo\n' > "$T/fora/alvo"
+ln -s ../fora/alvo "$R11/CHANGELOG.md"
+out="$(node "$ENGINE" --root "$R11" --type added --description "invasão" 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] || { echo "FAIL [11]: rc 0 escrevendo fora da raiz (saída: $out)"; exit 1; }
+[ "$(cat "$T/fora/alvo")" = "conteúdo externo" ] || { echo "FAIL [11]: arquivo fora da raiz foi alterado"; exit 1; }
+echo "OK [11]"
+
+# ── [12] ─────────────────────────────────────────────────────────────────────────────────────
+echo "[12] symlink pendente -> FAIL, o link não vira arquivo regular"
+R12="$T/r12"; mkdir -p "$R12"
+ln -s nada/CL.md "$R12/CHANGELOG.md"
+out="$(node "$ENGINE" --root "$R12" --type added --description "y" 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] || { echo "FAIL [12]: rc 0 com symlink pendente (saída: $out)"; exit 1; }
+[ -L "$R12/CHANGELOG.md" ] || { echo "FAIL [12]: symlink pendente substituído por arquivo regular"; exit 1; }
+echo "OK [12]"
+
+# ── [13] ─────────────────────────────────────────────────────────────────────────────────────
+echo "[13] entrada do hook com hash só de dígitos não é regravada pelo comando"
+R13="$T/r13"; mkdir -p "$R13"
+printf '# Changelog\n\n## [Unreleased]\n\n### Adicionado\n- adiciona exportação (7150495)\n' > "$R13/CHANGELOG.md"
+node "$ENGINE" --root "$R13" --subject 'feat: adiciona exportação' >/dev/null 2>&1 || { echo "FAIL [13]: motor saiu com erro"; exit 1; }
+[ "$(grep -c 'adiciona exportação' "$R13/CHANGELOG.md")" -eq 1 ] || { echo "FAIL [13]: entrada duplicada"; cat "$R13/CHANGELOG.md"; exit 1; }
+echo "OK [13]"
 
 echo "PASS w296-changelog-engine-explicito"

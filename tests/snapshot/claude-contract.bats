@@ -203,8 +203,11 @@ PYEOF
   grep -q 'prevent-secrets-leak.sh' "$CLAUDE_DIR/settings.json"
   ! grep -q 'check-language-policy.sh' "$CLAUDE_DIR/settings.json"
   ! grep -q 'validate-naming-conventions.sh' "$CLAUDE_DIR/settings.json"
+  # add-liaison-native-bridge: guard-cross-session-send.sh (matcher ^SendMessage$) nasce armado por
+  # padrão em hooks.manifest.default — soma ao par worktree-guard + prevent-secrets-leak.sh.
+  grep -q 'guard-cross-session-send.sh' "$CLAUDE_DIR/settings.json"
   wired=$(grep -c '"command":' "$CLAUDE_DIR/settings.json")
-  [ "$wired" -eq 2 ]
+  [ "$wired" -eq 3 ]
 }
 
 @test "C5: handoff.auto: true wires +2 Session hooks (SessionStart/SessionEnd) — consolidates w62 into C5 (LDG-0022)" {
@@ -232,9 +235,10 @@ PYEOF
   grep -q '"SessionEnd"' "$AUTO_SETTINGS"
   grep -q 'on-session-start.sh' "$AUTO_SETTINGS"
   grep -q 'on-session-end.sh' "$AUTO_SETTINGS"
-  # base (issue #125): worktree-guard + prevent-secrets-leak.sh = 2, mais SessionStart/SessionEnd = 4.
+  # base (issue #125): worktree-guard + prevent-secrets-leak.sh = 2; add-liaison-native-bridge somou
+  # guard-cross-session-send.sh (armado por padrão) = 3; mais SessionStart/SessionEnd = 5.
   wired=$(grep -c '"command":' "$AUTO_SETTINGS")
-  [ "$wired" -eq 4 ]
+  [ "$wired" -eq 5 ]
 }
 
 @test "C5: worktree-guard blocks outside the canonical worktree path (generated mode only)" {

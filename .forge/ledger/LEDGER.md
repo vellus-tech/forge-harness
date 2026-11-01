@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**38 itens ativos** · roadmap 8 · tech-debt 21 · known-bug 9 · (95 encerrados)
+**44 itens ativos** · roadmap 8 · tech-debt 23 · known-bug 9 · follow-up 4 · (101 encerrados)
 
 ## Roadmap
 
@@ -30,7 +30,7 @@
 - **LDG-0192** [open] (P3) — Recusa opt-in do handoff sem marcadores e alinhamento do /forge:handoff aos marcadores
   Lado forte descartado da DA-09 (#120, Bloco A, plano docs/plans/2026-09-15-plano-issues-abertas.md, seção da #120): o PR #164 manteve o desenho do R02 (backup byte-idêntico em <git-dir>/forge-backups, WARN nominal, rc 0) quando handoff-gen.sh regenera um HANDOFF.md sem marcadores, porque handoff-gen.sh é chamado pelo /forge:handoff e pelo hook de sessão esperando rc 0 (w62), e o backup já torna os bytes anteriores recuperáveis. Ficam de fora, para decisão de produto: (1) uma recusa opt-in — por flag ou chave de forge.yaml — que pare a regeneração quando o HANDOFF.md existente não tem marcadores reconhecidos, em vez de sobrescrever com backup; (2) alinhar o comando /forge:handoff (a prosa e o contrato que ele documenta) ao conjunto de marcadores que handoff-gen.sh realmente reconhece hoje, hoje divergentes. Onda alvo: Onda 8 (Bloco F), change SDD próprio.
 
-_Encerrados: 5 (resolved 5)_
+_Encerrados: 6 (resolved 6)_
 
 ## Ideias de feature
 
@@ -46,6 +46,8 @@ _Encerrados: 2 (resolved 2)_
   O w204 fechou a resolução de RAIZ do alocador, não a alocação concorrente. gate-ordinal.sh itera a lista REMOTE_REF (origin/develop, origin/main, origin/master) e para no primeiro que responder — nenhuma branch de trabalho entra no universo. Medido nesta sessão: com o tronco em w205 e a branch feat/strix-pentest-profile já tendo publicado tests/w206-strix-pentest-gate.sh no remoto, FORGE_ROOT=<worktree> gate-ordinal.sh next --path tests devolveu w206, o número já tomado. Foi preciso escolher w207 à mão. É a mesma classe do LDG-0167: next LÊ o máximo publicado num ref, não ALOCA contra o conjunto de refs. Fechar exige decidir o universo (todas as origin/*, ou um registro de reserva) e tem custo de contrato para adotante, porque gate-ordinal.sh viaja no tarball.
 - **LDG-0178** [open] (P2) — Dois consumidores já implementaram hooks.manifest em esquemas INCOMPATÍVEIS, e o produtor não tem nenhum — quem especificar o formato canônico chega por último
   Medido em 2026-09-08, ao conferir um bloqueador da revisão 2 do subgrupo L1 da Onda L. O produtor NÃO distribui .forge/hooks/pre-tool-use/hooks.manifest, e dois dos cinco consumidores o criaram por conta própria, com esquemas de coluna que não conversam: axis-fare-validator tem 63 linhas e 6 declarações no formato 'hook TAB matcher TAB contrato TAB universo TAB razao', em que o quarto campo é o UNIVERSO ('.cs,.java', 'comando', '*') e o quinto é prosa de justificativa; Axis.PadSimulator tem 38 linhas e 4 declarações no formato 'hook TAB matcher TAB contrato TAB estado', em que o quarto campo é ESTADO ('armado' ou 'retido:<razao>'). Os outros três (axis-go-cloud, azim-crm, axis-device-platform) não têm o arquivo. O PadSimulator, portanto, JÁ implementa o mecanismo de ativação por gancho que a especificação da Onda L estava inventando do zero, e o fez com razão escrita por gancho retido — inclusive um retido por 'portao invertido que le o disco', com 28 falsos positivos estruturais medidos. CONSEQUÊNCIA DE DESENHO, e é o que torna isto um item e não uma curiosidade: qualquer leitor que o produtor escreva para a quarta coluna interpreta mal AS DUAS árvores — leria '.cs,.java' e 'comando' como estado no axis-fare-validator, e 'retido:...' como token desconhecido no PadSimulator. Se desconhecido cair para ativo, os ganchos que o PadSimulator reteve deliberadamente voltam a ser fiados, que é exatamente o dano que a onda existe para evitar. O produtor chega por último a um contrato que o campo já escreveu duas vezes, e escolher um dos dois esquemas ou um terceiro é decisão de produto que precisa ser tomada com os dois adotantes na mesa, não por leitura de um só. Fica registrado separado da Onda L porque a onda pode entregar a ponte de despacho sem resolver o formato, e resolver o formato exige conversa com o campo pelo canal de liaison.
+- **LDG-0203** [open] (P2) — Avaliar configuração gerenciada do Claude Code para negar/isolar mensageria nativa entre sessões em repositórios PCI · via `add-liaison-native-bridge`
+  A contenção por allowed_workspaces e o gancho de saída não são fronteira contra um agente determinado rodando como o usuário do sistema (socket+token de mensageria estão no ambiente dele). A única contenção que o usuário não altera é a configuração gerenciada do Claude Code. Avaliar, para repositórios em escopo PCI, negar ou isolar a mensageria nativa entre sessões por essa política — fecha quando a avaliação (viável/inviável) estiver registrada e, se viável, a política documentada.
 - **LDG-0171** [open] (P3/MEDIUM) — Alocador de ordinais devolvia w1 no layout de dogfood — corrigido, mas o padrão SCRIPT_DIR/../.. segue em 34 sítios
   gate-ordinal.sh:34 subia dois níveis fixos a partir de SCRIPT_DIR; no layout de dogfood isso para em <repo>/template, não na raiz, e o alocador devolvia w1 tanto no modo local quanto no derivado do tronco remoto (mesma causa). Corrigido com forge_worktree_root (lib/forge-root.sh): FORGE_ROOT explícito, depois git -C SCRIPT_DIR rev-parse --show-toplevel ancorado em onde o script mora, com fallback para a subida antiga fora de git. Gate novo w204-ordinal-root-resolution-gate.sh com propriedade, contador de controle, fixture do layout instalado e prova de mutação de quatro passos. O QUE FICA ABERTO, por medição explícita: o mesmo padrão SCRIPT_DIR/../.. aparece em 38 arquivos de template/.forge/scripts/ (34 na forma exata, incluindo doctor.sh:44), e esta correção tocou só o sítio com dano medido (gate-ordinal.sh). Não foi avaliado se os outros 33 têm o mesmo dano ou se a subida fixa é correta neles por deriva de layout diferente — precisa de varredura dedicada antes de generalizar o fix.
 - **LDG-0202** [open] (P3/MEDIUM) — w239 (revisão da DH-1) custa 5,7min de PBT sozinho e empurra o CI perto do teto
@@ -82,8 +84,10 @@ _Encerrados: 2 (resolved 2)_
   Achado J-27 da revisão adversarial do plano v2 (scratchpad/judge.json), citado na nota de resolução do LDG-0163 e registrado aqui como item próprio conforme a correção do próprio achado. O caminho --repair-own-log em template/.forge/scripts/lib/transports/_common.sh:206-207 (origin/develop) publica o log próprio direto por cp/mv, sem passar por liaison-push-union.mjs — ou seja, sem a validação de um-escritor-por-arquivo que o LDG-0163 fechou para o caminho normal de push. Só roda com a flag LIAISON_PUSH_REPAIR=1 explícita e emite WARN, então o raio de exposição é menor que o defeito original, mas a mesma classe de dano (sobrescrever o hub com um log próprio corrompido) continua alcançável por esse caminho de reparo. Onda alvo: Onda 7 (Bloco E, dívida interna), junto da fusão LDG-0171/LDG-0183 e dos demais itens de robustez do liaison/ledger.
 - **LDG-0191** [open] (P3) — Lote restante de '! comando' nus sob set -e (12 linhas em 12 gates) e lacunas residuais da anti-recursão do w80 [4]
   Depois do LDG-0182 (PR #161), a varredura grep -nE '^[[:space:]]*! ' tests/*.sh | grep -v '||' ainda acha 12 linhas em 12 gates fora dos 14 revalidados pelo Bloco A: w51, w32, w211, w20, w175, w169, w163, infra-scan, gw3-data-governance, graph-deps, check-authz e changelog-merge. Cada uma precisa ser medida (mutação que deveria reprovar → rc hoje) antes de converter, porque '! ' dentro de if/while ou seguido de || na linha seguinte está vivo. Mesma frente: lacunas LOW da revisão do PR #161 no w80 [4] — zsh/dash/ksh, "$0"/${BASH_SOURCE[0]}, source/., execução direta tests/run-all.sh, e o grep com rc>1 (regex inválida) que abre o guarda em silêncio. Correção: conversão por gate com mutação e recontrole, e no [4] manter também a regex ampla de develop com filtro de comentário.
+- **LDG-0208** [open] (P3) — Merge humano com mudança de contenção em ship/yolo é regra de prompt, sem verificação determinística · via `add-liaison-native-bridge`
+  ship.md 10b, yolo-gate.md e autonomy-yolo.md trazem a regra e o gate só confere o texto; avaliar script de merge que consulte native containment antes de mesclar (gate implementation_verified, rodada 1).
 
-_Encerrados: 40 (resolved 35 · wont-fix 5)_
+_Encerrados: 45 (resolved 40 · wont-fix 5)_
 
 ## Bugs conhecidos
 
@@ -110,7 +114,14 @@ _Encerrados: 37 (resolved 36 · wont-fix 1)_
 
 ## Follow-ups
 
-_(nenhum ativo)_
+- **LDG-0204** [open] (P3) — Medir o formato de agente nomeado (Agent com input.name, agent teams) quando o recurso estiver disponível · via `add-liaison-native-bridge`
+  O gancho de saída (native-send-guard.mjs) trata nome de sessão igual a Agent nomeado como destino de sessão quando o registro local tem entrada viva única com esse nome (REQ-05, design item 2 do gate design_reviewed). O formato de chamada Agent com input.name em agent teams não foi medido em produção — a medição atual é sobre fixture sintética. Fecha quando o recurso estiver disponível e a medição real confirmar ou corrigir o payload assumido.
+- **LDG-0205** [open] (P3) — Auditar outros ganchos/scripts que leem stdin sem limite de tempo · via `add-liaison-native-bridge`
+  Medido neste change: on-session-end.sh travava com stdin nunca fechado (corrigido aqui). Auditar os demais ganchos e scripts do harness que leem stdin para confirmar se algum outro tem o mesmo defeito — fecha com a lista de pontos auditados e, se achar outro caso, com o fix correspondente ou um item novo de ledger apontando para ele.
+- **LDG-0207** [open] (P3) — Teste de injeção da fixture de controle do leitor de transcript (ramo instrumento quebrado por controle) · via `add-liaison-native-bridge`
+  A mutação que remove o ramo 'fixture de controle falhou' de readTranscript (native-transcript.mjs) sobrevive aos gates native-readers e native-coverage; acrescentar ponto de injeção da fixture no teste (gate implementation_verified, rodada 1).
+- **LDG-0209** [open] (P3) — Fixture de pre-push com o detector de contenção devolvendo rc 2 (não mediu) · via `add-liaison-native-bridge`
+  O pre-push trata rc 2 do native containment, mas nenhum gate tem fixture desse caminho (gate implementation_verified, rodada 1).
 
 _Encerrados: 11 (resolved 9 · wont-fix 2)_
 

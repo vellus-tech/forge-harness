@@ -51,3 +51,7 @@ archived:
     archived_at: "2026-08-04"
     kind: baseline_update
     path: 2026-08-04-surface-literal-endpoint
+  - change_id: add-liaison-native-bridge
+    archived_at: "2026-10-31"
+    kind: baseline_update
+    path: 2026-10-31-add-liaison-native-bridge

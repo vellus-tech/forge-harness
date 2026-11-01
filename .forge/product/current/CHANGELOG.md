@@ -2,6 +2,12 @@
 
 > One entry per archived change (newest first). Maintained by `/forge:archive` — do not edit by hand.
 
+## 2026-10-31 — add-liaison-native-bridge
+
+- **Capabilities:** forge-harness-template
+- **Operações:** 12
+- **Pasta:** `.forge/specs/archived/2026-10-31-add-liaison-native-bridge/`
+
 ## 2026-08-04 — surface-literal-endpoint
 
 - **Capabilities:** forge-harness-template

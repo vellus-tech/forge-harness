@@ -1,0 +1,70 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20261101002504-9a9d57f6",
+  "stage": "verify",
+  "status": "passed",
+  "started_at": "2026-11-01T00:25:03Z",
+  "finished_at": "2026-11-01T00:25:04.058Z",
+  "duration_ms": 1058,
+  "git": {
+    "repo": true,
+    "branch": "feat/harness/liaison-native-bridge",
+    "head_sha": "d897e96767bfc6dd267905d80a3eaa9e9da69d63",
+    "dirty": true,
+    "changed_files": [
+      ".forge/specs/active/add-liaison-native-bridge/verification.yaml"
+    ],
+    "diff_stat": "",
+    "diff_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "a0cd9d0d02237fafd92d668dc0532aff874cc20a987bff79b2ab216151927c09",
+      "bytes": 1511,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "9122622727a496cb4ca43846755039d53f492dc6cfbdb3a5bf2ee8ad014b7ee4",
+      "bytes": 23675,
+      "kind": "file"
+    },
+    {
+      "path": "traceability.yaml",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "commands": [
+    {
+      "name": "spec-verify",
+      "command": "spec-verify.sh add-liaison-native-bridge",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "be4f5c64fb6fbb35fbbebb9264fdb6eb620ac1f6d9282acd27335fb696af6c88",
+      "bytes": 219,
+      "kind": "file"
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

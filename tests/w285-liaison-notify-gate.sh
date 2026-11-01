@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ORDINAL: wNNN atribuído na hora do merge
+# ORDINAL: w285 atribuído no merge de add-liaison-native-bridge
 # Gate — subcomando `notify` (REQ-01) e fonte única de classes efêmeras/regex (design §2.2, §2.3):
 #   [1] módulo `native-classes.mjs` existe (não pode quebrar por módulo ausente — reporta FAIL
 #       nomeando o que falta, nunca um stack trace de import)

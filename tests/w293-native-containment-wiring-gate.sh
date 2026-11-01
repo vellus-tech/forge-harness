@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ORDINAL: wNNN atribuído na hora do merge
+# ORDINAL: w293 atribuído no merge de add-liaison-native-bridge
 # Gate — pontos de chamada do detector native containment (TASK-20/21, STORY-11, REQ-12, design
 # §2.7): pre-push lista as mudanças do intervalo enviado sem bloquear; doctor soma, no estado
 # atual, os tipos que o design reserva a ele, os avisos de cruzamento de participantes e os
@@ -17,7 +17,7 @@
 # ponto isolado precisa reportar os quatro sozinho. Este gate testa `allowlist-changed`,
 # `hook-unwired` e `remote-identity-mismatch` no doctor, e `allowlist-changed` via intervalo no
 # pre-push/CLI (cobertura equivalente de `hook-line-changed` já está em
-# tests/native-containment-gate.sh, que testa o detector diretamente).
+# tests/w289-native-containment-gate.sh, que testa o detector diretamente).
 set -uo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 

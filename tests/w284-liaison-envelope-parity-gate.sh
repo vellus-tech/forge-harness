@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ORDINAL: wNNN atribuído na hora do merge
+# ORDINAL: w284 atribuído no merge de add-liaison-native-bridge
 # Gate — paridade de envelope cross-session (REQ-02) e compatibilidade com peer de harness antigo
 # (design §4.1, §4.2):
 #   [1] a tag v0.18.0 existe neste clone — ausente é "não verificável", NUNCA verde por vacuidade

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ORDINAL: wNNN atribuído na hora do merge
+# ORDINAL: w294 atribuído no merge de add-liaison-native-bridge
 # Gate vermelho/verde das normas da mensageria nativa entre sessões (REQ-09, design §2.8).
 #
 #   [1] EPHEMERAL_CLASSES (scripts/lib/native-classes.mjs) e a lista de classes efêmeras

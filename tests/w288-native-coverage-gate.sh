@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ORDINAL: wNNN atribuído na hora do merge
+# ORDINAL: w288 atribuído no merge de add-liaison-native-bridge
 # Gate — diagnóstico de cobertura `native check`/`native dispose` e fiação SessionEnd/SessionStart
 # (TASK-10, STORY-06; design §2.6, REQ-08).
 #

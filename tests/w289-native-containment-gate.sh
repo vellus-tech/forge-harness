@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# ORDINAL: wNNN atribuído na hora do merge
+# ORDINAL: w289 atribuído no merge de add-liaison-native-bridge
 # Gate — cadastro `native allow|revoke|pin` e detector `native containment` (TASK-12/TASK-13,
 # STORY-07, REQ-12, design §2.7/§4.3):
 #   A lógica de escrita (allow/revoke/pin, idempotência, revogação, reativação, self_identity,
 #   formato, schema) e o detector dos quatro tipos (allowlist-changed, hook-line-changed,
 #   hook-unwired, remote-identity-mismatch), inclusive o caso sem mudança e os rc 2 (git
 #   indisponível, intervalo inválido, hooks.manifest corrompido), são exercitados pela API no
-#   driver `tests/native-containment-gate.driver.mjs` — a recusa do CLI NÃO é fronteira (achado
+#   driver `tests/w289-native-containment-gate.driver.mjs` — a recusa do CLI NÃO é fronteira (achado
 #   A-01 do /forge:analyze: qualquer gate dentro de uma sessão do Claude Code tem `claude` como
 #   ancestral, então o CLI recusaria ali por construção), então a lógica de escrita é exercitada
 #   diretamente pela API, sem passar pela recusa.
@@ -32,7 +32,7 @@ ok() { n=$((n + 1)); echo "OK [$n] $1"; }
 bad() { n=$((n + 1)); fail=$((fail + 1)); echo "FAIL [$n] $1"; }
 
 echo "[driver] lógica de escrita (allow/revoke/pin) e detector (containment) pela API"
-if node "$WS/tests/native-containment-gate.driver.mjs"; then
+if node "$WS/tests/w289-native-containment-gate.driver.mjs"; then
   ok "driver.mjs — lógica de escrita e detector pela API"
 else
   bad "driver.mjs — allow/revoke/pin/containment: driver reprovou (ver saída acima)"

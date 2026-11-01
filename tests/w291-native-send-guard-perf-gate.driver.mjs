@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// tests/native-send-guard-perf-gate.driver.mjs — driver do gate de desempenho do gancho de
+// tests/w291-native-send-guard-perf-gate.driver.mjs — driver do gate de desempenho do gancho de
 // saída (NFR-01, TASK-16/TASK-17, STORY-09): p95 ≤ 300 ms em 50 execuções POR CASO do REQ-05
 // (`main`, `agentId`, nome de sessão, `uds:`, só aviso de ociosidade), medidas com
 // `node:perf_hooks` sobre o PROCESSO REAL do gancho (`guard-cross-session-send.sh` via stdin),

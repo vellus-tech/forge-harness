@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// tests/native-send-guard-gate.driver.mjs — driver do gate `native-send-guard-gate.sh`.
+// tests/w290-native-send-guard-gate.driver.mjs — driver do gate `w290-native-send-guard-gate.sh`.
 //
 // Parte 1 (TASK-14/TASK-15, STORY-08, design §2.5 etapas 1 a 4, REQ-04, REQ-05): classificação
 // de destino (`classifyRecipient`) e varredura de segredo do gancho de saída

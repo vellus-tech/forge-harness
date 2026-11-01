@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// tests/native-containment-gate.driver.mjs — driver do gate `native-containment-gate.sh`
+// tests/w289-native-containment-gate.driver.mjs — driver do gate `w289-native-containment-gate.sh`
 // (TASK-12/TASK-13, STORY-07): exercita pela API `template/.forge/scripts/lib/native-allowlist.mjs`
 // (lógica de escrita allow/revoke/pin, leitura efetiva, schema) e
 // `template/.forge/scripts/lib/native-containment.mjs` (detector dos quatro tipos do REQ-12) —

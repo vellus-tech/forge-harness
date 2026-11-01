@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// tests/native-readers-gate.driver.mjs — driver do gate `native-readers-gate.sh` (TASK-06/
+// tests/w286-native-readers-gate.driver.mjs — driver do gate `w286-native-readers-gate.sh` (TASK-06/
 // TASK-07, STORY-04): exercita os três leitores compartilhados
 // `template/.forge/scripts/lib/native-{transcript,registry,workspace}.mjs` pela API, sem passar
 // pelo CLI (que ainda não existe nesta wave). Cada seção checa a existência do módulo antes de

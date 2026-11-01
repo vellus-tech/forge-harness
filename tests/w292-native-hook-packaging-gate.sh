@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ORDINAL: wNNN atribuído na hora do merge
+# ORDINAL: w292 atribuído no merge de add-liaison-native-bridge
 # Gate — empacotamento do gancho guard-cross-session-send.sh e passo de armar (TASK-18/19,
 # STORY-10, REQ-10, NFR-02, design §4.4, §5):
 #   [1] a linha nova de hooks.manifest.default casa, campo a campo (TAB), a linha do design §4.4;

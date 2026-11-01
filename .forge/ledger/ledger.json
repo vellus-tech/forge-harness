@@ -3471,7 +3471,7 @@
     {
       "id": "LDG-0211",
       "type": "tech-debt",
-      "title": "drift — design §9 × tasks — Resolvido: nomes sem ordinal, linhas do `native-containment-wiring-gate.sh` e do `native-readers-gate.sh`, nota de divisão.",
+      "title": "drift — design §9 × tasks — Resolvido: nomes sem ordinal, linhas do `w293-native-containment-wiring-gate.sh` e do `w286-native-readers-gate.sh`, nota de divisão.",
       "detail": "Resolvido: Colhido pelo harvest do archive a partir de achado do analyze que já estava resolvido na rodada 2 (coluna Recomendação começa com 'Resolvido'); nada a fazer.",
       "severity": "MEDIUM",
       "priority": null,

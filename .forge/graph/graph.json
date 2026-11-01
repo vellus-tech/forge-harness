@@ -2501,7 +2501,7 @@
       "summary": null
     },
     {
-      "id": "tests/liaison-cross-session-record-gate.sh",
+      "id": "tests/w287-liaison-cross-session-record-gate.sh",
       "lang": "shell",
       "loc": 360,
       "fingerprint": "0db38ff70ed7bf9395584b30cde367e5afde494c983cc5d9fd05962d9c2421da",
@@ -2509,7 +2509,7 @@
       "summary": null
     },
     {
-      "id": "tests/liaison-envelope-parity-gate.sh",
+      "id": "tests/w284-liaison-envelope-parity-gate.sh",
       "lang": "shell",
       "loc": 231,
       "fingerprint": "241bbecfd1c968c6776e6e428d3f226b3963634bdadc72e1449d24dbf91d5843",
@@ -2517,7 +2517,7 @@
       "summary": null
     },
     {
-      "id": "tests/liaison-notify-gate.sh",
+      "id": "tests/w285-liaison-notify-gate.sh",
       "lang": "shell",
       "loc": 155,
       "fingerprint": "d0b228404cb2f02243fff8eb1b740a77a2668ba517b155883fba7addb29f9a6f",
@@ -2541,7 +2541,7 @@
       "summary": null
     },
     {
-      "id": "tests/native-containment-gate.driver.mjs",
+      "id": "tests/w289-native-containment-gate.driver.mjs",
       "lang": "js",
       "loc": 373,
       "fingerprint": "9a26dcc94637f7703d1c90f8fc4ad26c422a28b29d487c79356e7c8888d48f9b",
@@ -2549,7 +2549,7 @@
       "summary": null
     },
     {
-      "id": "tests/native-containment-gate.sh",
+      "id": "tests/w289-native-containment-gate.sh",
       "lang": "shell",
       "loc": 171,
       "fingerprint": "dfd092a5203e7b6f51ee156a6848241e785544be17ef7ef56205e82fd05996e0",
@@ -2557,7 +2557,7 @@
       "summary": null
     },
     {
-      "id": "tests/native-containment-wiring-gate.sh",
+      "id": "tests/w293-native-containment-wiring-gate.sh",
       "lang": "shell",
       "loc": 429,
       "fingerprint": "625bbed7f2e6c9b10ef11aeb67350dc9a2643f7b1a08ee95578a45526b659280",
@@ -2565,7 +2565,7 @@
       "summary": null
     },
     {
-      "id": "tests/native-coverage-gate.sh",
+      "id": "tests/w288-native-coverage-gate.sh",
       "lang": "shell",
       "loc": 358,
       "fingerprint": "167760e79a776912b1e95dea373ad5b6cb9947aaba39d2f586b5024ea9c298a2",
@@ -2573,7 +2573,7 @@
       "summary": null
     },
     {
-      "id": "tests/native-docs-gate.sh",
+      "id": "tests/w295-native-docs-gate.sh",
       "lang": "shell",
       "loc": 142,
       "fingerprint": "fa2e7fa570e13fbb4f2a7dfd5225faf08d8862694994312117d2bf0a5bdf85e6",
@@ -2581,7 +2581,7 @@
       "summary": null
     },
     {
-      "id": "tests/native-hook-packaging-gate.sh",
+      "id": "tests/w292-native-hook-packaging-gate.sh",
       "lang": "shell",
       "loc": 319,
       "fingerprint": "e84866262960473c34c95706acaa498b3c28777068cf9c0a24267f3ca481a9b8",
@@ -2589,7 +2589,7 @@
       "summary": null
     },
     {
-      "id": "tests/native-readers-gate.driver.mjs",
+      "id": "tests/w286-native-readers-gate.driver.mjs",
       "lang": "js",
       "loc": 545,
       "fingerprint": "3a8998634a106386e712bdbd3be5f32555dd3797919e1e35454d960c59de98ad",
@@ -2597,7 +2597,7 @@
       "summary": null
     },
     {
-      "id": "tests/native-readers-gate.sh",
+      "id": "tests/w286-native-readers-gate.sh",
       "lang": "shell",
       "loc": 20,
       "fingerprint": "a1bcdeefced35dad7ac27835ee871d02d19767f936045647e719654a4bd853b9",
@@ -2605,7 +2605,7 @@
       "summary": null
     },
     {
-      "id": "tests/native-rules-parity-gate.sh",
+      "id": "tests/w294-native-rules-parity-gate.sh",
       "lang": "shell",
       "loc": 190,
       "fingerprint": "83b66cbc53aa84fbf9f71f385ab9ff24b360a0ee4f481bcfe63a2b736cfcfa2f",
@@ -2613,7 +2613,7 @@
       "summary": null
     },
     {
-      "id": "tests/native-send-guard-gate.driver.mjs",
+      "id": "tests/w290-native-send-guard-gate.driver.mjs",
       "lang": "js",
       "loc": 901,
       "fingerprint": "9ba66bbed487acf4f68aaaa0c26aacb1868d041a50112bfbd9ae83f751c18074",
@@ -2621,7 +2621,7 @@
       "summary": null
     },
     {
-      "id": "tests/native-send-guard-gate.sh",
+      "id": "tests/w290-native-send-guard-gate.sh",
       "lang": "shell",
       "loc": 23,
       "fingerprint": "5a73701bbf51d432a11571d4fa40f2fcbb8b97ae8ce11e1d4e330e6efed8ff09",
@@ -2629,7 +2629,7 @@
       "summary": null
     },
     {
-      "id": "tests/native-send-guard-perf-gate.driver.mjs",
+      "id": "tests/w291-native-send-guard-perf-gate.driver.mjs",
       "lang": "js",
       "loc": 218,
       "fingerprint": "5a00c81b2aa55ccfbdd2bde8a4ee749a06d031ef8f62a564aaf30e17c432f39d",
@@ -2637,7 +2637,7 @@
       "summary": null
     },
     {
-      "id": "tests/native-send-guard-perf-gate.sh",
+      "id": "tests/w291-native-send-guard-perf-gate.sh",
       "lang": "shell",
       "loc": 15,
       "fingerprint": "9aecbce979d57bfa539909c0685fbbe810c5477e45538c97473a3aae22fa8ec3",
@@ -4521,13 +4521,13 @@
       "resolved": false
     },
     {
-      "from": "tests/native-containment-gate.driver.mjs",
+      "from": "tests/w289-native-containment-gate.driver.mjs",
       "to": "template/.forge/scripts/lib/native-workspace.mjs",
       "kind": "import",
       "resolved": true
     },
     {
-      "from": "tests/native-send-guard-gate.driver.mjs",
+      "from": "tests/w290-native-send-guard-gate.driver.mjs",
       "to": "template/.forge/scripts/lib/liaison-config.mjs",
       "kind": "import",
       "resolved": true

@@ -623,7 +623,7 @@ requirements:
         when: "a checagem [10] do gate w113 roda"
         then: "nenhum deles invoca o CLI de sessão do Claude Code nem abre conexão com socket de sessão (o script não envia nada; o envio é ato do agente), e ler messagingSocketPath do registro não conta como conexão"
     tests:
-      - tests/liaison-notify-gate.sh
+      - tests/w285-liaison-notify-gate.sh
       - tests/w113-liaison-enforce-gate.sh
   - id: REQ-FHT-055
     title: "send --via cross-session --native-ref — registro de mensagem nativa recebida"
@@ -638,8 +638,8 @@ requirements:
         when: "o operador roda o mesmo comando"
         then: "recusa com rc != 0, nada é gravado, e o leitor reporta instrumento quebrado nas mesmas condições do diagnóstico de cobertura (REQ-FHT-061)"
     tests:
-      - tests/liaison-cross-session-record-gate.sh
-      - tests/liaison-envelope-parity-gate.sh
+      - tests/w287-liaison-cross-session-record-gate.sh
+      - tests/w284-liaison-envelope-parity-gate.sh
   - id: REQ-FHT-056
     title: "Peer sem canal em comum ao registrar mensagem nativa: recusar e orientar (C1)"
     normative: "SHALL"
@@ -649,7 +649,7 @@ requirements:
         when: "o operador tenta registrar a mensagem nativa recebida (REQ-FHT-055)"
         then: "recusa com rc != 0, sem gravar nada (liaison.yaml, log, blobs e cursor intactos por hash antes/depois), imprimindo os dois caminhos de resolução (incluir o peer no canal existente, ou abrir canal novo com ele)"
     tests:
-      - tests/liaison-cross-session-record-gate.sh
+      - tests/w287-liaison-cross-session-record-gate.sh
   - id: REQ-FHT-057
     title: "Gancho de saída SendMessage: varredura de segredo"
     normative: "SHALL"
@@ -659,7 +659,7 @@ requirements:
         when: "o gancho PreToolUse guard-cross-session-send.sh roda"
         then: "bloqueia com exit 2, nomeando o padrão e nunca ecoando o trecho que casou, usando a mesma função de varredura do send"
     tests:
-      - tests/native-send-guard-gate.sh
+      - tests/w290-native-send-guard-gate.sh
   - id: REQ-FHT-058
     title: "Escopo do gancho de saída: só aplica REQ-04/06/07 a destino de sessão"
     normative: "SHALL"
@@ -677,7 +677,7 @@ requirements:
         when: "o gancho de saída roda"
         then: "aplica apenas a contenção por workspace (REQ-FHT-060), porque o pedido não carrega conteúdo mas presença também é informação"
     tests:
-      - tests/native-send-guard-gate.sh
+      - tests/w290-native-send-guard-gate.sh
   - id: REQ-FHT-059
     title: "Destino declarado em toda mensagem nativa que sai para sessão (C2)"
     normative: "SHALL"
@@ -691,7 +691,7 @@ requirements:
         when: "o destino está em repositório diferente da origem (git-common-dir distinto), mesmo que do mesmo workspace"
         then: "bloqueia com exit 2 explicando que conteúdo substantivo entre repositórios é material de liaison"
     tests:
-      - tests/native-send-guard-gate.sh
+      - tests/w290-native-send-guard-gate.sh
   - id: REQ-FHT-060
     title: "Contenção por workspace com workspaces permitidos (C3)"
     normative: "SHALL"
@@ -709,8 +709,8 @@ requirements:
         when: "o gancho de saída roda"
         then: "bloqueia com exit 2 mesmo que algum workspace esteja cadastrado, pedindo o endereço uds: no caso de nome ambíguo"
     tests:
-      - tests/native-send-guard-gate.sh
-      - tests/native-send-guard-perf-gate.sh
+      - tests/w290-native-send-guard-gate.sh
+      - tests/w291-native-send-guard-perf-gate.sh
   - id: REQ-FHT-061
     title: "Diagnóstico de cobertura das mensagens nativas recebidas"
     normative: "SHALL"
@@ -724,8 +724,8 @@ requirements:
         when: "o diagnóstico roda"
         then: "reporta instrumento quebrado no primeiro caso, e exatamente duas detecções no segundo (controle a cada execução, nunca nada pendente por instrumento silenciosamente cego)"
     tests:
-      - tests/native-coverage-gate.sh
-      - tests/native-readers-gate.sh
+      - tests/w288-native-coverage-gate.sh
+      - tests/w286-native-readers-gate.sh
   - id: REQ-FHT-062
     title: "Normas escritas da mensageria nativa entre sessões"
     normative: "SHALL"
@@ -733,9 +733,9 @@ requirements:
       - id: SCN-FHT-062-A
         given: "as rules liaison-protocol.md e liaison-untrusted-input.md do template"
         when: "o change é entregue"
-        then: "trazem o critério de classes obrigatórias e das classes efêmeras (fonte única com EPHEMERAL_CLASSES, conferida por tests/native-rules-parity-gate.sh), a regra internal-coordination, a aplicação integral das regras de dado não confiável à mensagem nativa, a afirmação de from-name autodeclarado, a afirmação de allowed_workspaces como proteção contra liberação induzida (não fronteira), e a recomendação de configuração gerenciada do Claude Code para repositórios PCI; last_reviewed atualizado nas duas e itens abertos no ledger do harness com origem neste change, entre eles o de avaliar a configuração gerenciada do Claude Code nos repositórios em escopo PCI"
+        then: "trazem o critério de classes obrigatórias e das classes efêmeras (fonte única com EPHEMERAL_CLASSES, conferida por tests/w294-native-rules-parity-gate.sh), a regra internal-coordination, a aplicação integral das regras de dado não confiável à mensagem nativa, a afirmação de from-name autodeclarado, a afirmação de allowed_workspaces como proteção contra liberação induzida (não fronteira), e a recomendação de configuração gerenciada do Claude Code para repositórios PCI; last_reviewed atualizado nas duas e itens abertos no ledger do harness com origem neste change, entre eles o de avaliar a configuração gerenciada do Claude Code nos repositórios em escopo PCI"
     tests:
-      - tests/native-rules-parity-gate.sh
+      - tests/w294-native-rules-parity-gate.sh
   - id: REQ-FHT-063
     title: "Cadastro de workspaces permitidos e detecção de mudanças de contenção"
     normative: "SHALL"
@@ -749,8 +749,8 @@ requirements:
         when: "ocorre um push, uma rodada de doctor, ou a preparação de PR (/forge:prepare-pr, /forge:ship)"
         then: "o detector único (native containment) sinaliza a mudança no pre-push (sem bloquear o push) e na seção do PR, para decisão humana no merge; o doctor, que mede só o estado atual, sinaliza as três mudanças que não dependem de intervalo (cadastro, fiação ausente e remote divergente)"
     tests:
-      - tests/native-containment-gate.sh
-      - tests/native-containment-wiring-gate.sh
+      - tests/w289-native-containment-gate.sh
+      - tests/w293-native-containment-wiring-gate.sh
   - id: REQ-FHT-064
     title: "Empacotamento e propagação do gancho de saída da ponte nativa"
     normative: "SHALL"
@@ -760,7 +760,7 @@ requirements:
         when: "sync-adapters.mjs gera a fiação a partir de hooks.manifest.default (matcher ^SendMessage$, contrato stdin-json)"
         then: "uma instalação nova recebe o gancho guard-cross-session-send.sh armado; um consumidor de fixture com .claude/settings.json pré-existente recebe o gancho inativo e nomeado, sem desfiar os ganchos que já existiam fiados quando o passo de armar documentado é seguido; plugin/forge/commands/liaison.md é igual à versão do template"
     tests:
-      - tests/native-hook-packaging-gate.sh
+      - tests/w292-native-hook-packaging-gate.sh
   - id: REQ-FHT-065
     title: "Documentação operacional da ponte nativa (/forge:liaison)"
     normative: "SHALL"
@@ -770,7 +770,7 @@ requirements:
         when: "o change é entregue"
         then: "/forge:liaison (template e plugin) documenta argument-hint com os subcomandos novos, e para cada um o bloco de protocolo mostra exatamente o conjunto de flags aceitas pelo script (conferido por teste); send cross-session mostra só --native-ref/--session, sem flag de origem; docs/refer/slash-commands.md descreve os subcomandos novos; CHANGELOG.md [Unreleased] traz o passo de armar do gancho; o badge de gates do README.md bate com a contagem real"
     tests:
-      - tests/native-docs-gate.sh
+      - tests/w295-native-docs-gate.sh
       - tests/w200-readme-inventory-gate.sh
       - tests/plugin-sync-gate.sh
 history:

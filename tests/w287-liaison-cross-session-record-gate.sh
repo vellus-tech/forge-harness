@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ORDINAL: wNNN atribuído na hora do merge
+# ORDINAL: w287 atribuído no merge de add-liaison-native-bridge
 # Gate — `send --via cross-session` e recusa C1 (TASK-08, STORY-05; design §2.4, REQ-02, REQ-03).
 # Registro de mensagem nativa recebida: localização/leitura do transcript pelo leitor único
 # (native-transcript.mjs), tetos/controle/segredo nos valores extraídos e no corpo, conferência de

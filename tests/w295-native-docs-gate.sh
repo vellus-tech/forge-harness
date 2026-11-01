@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ORDINAL: wNNN atribuído na hora do merge
+# ORDINAL: w295 atribuído no merge de add-liaison-native-bridge
 # Gate vermelho/verde da documentação operacional da mensageria nativa (REQ-10, REQ-11, design §4.5, §5).
 #
 #   [1] `argument-hint` de /forge:liaison (template) lista os subcomandos novos (notify, native).

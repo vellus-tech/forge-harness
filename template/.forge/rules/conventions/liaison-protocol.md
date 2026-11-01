@@ -79,7 +79,7 @@ Uma troca por mensageria nativa **precisa** virar mensagem no liaison quando for
 
 ### Classes efêmeras
 
-Uma troca que não precisa virar registro no liaison é declarada com `ephemeral: <classe>` na primeira linha não vazia do corpo, usando uma das classes abaixo — lista FECHADA, gerada a partir de `EPHEMERAL_CLASSES` (`scripts/lib/native-classes.mjs`) e conferida pelo gate de paridade (`tests/native-rules-parity-gate.sh`): alterar a lista num lado sem alterar o outro reprova.
+Uma troca que não precisa virar registro no liaison é declarada com `ephemeral: <classe>` na primeira linha não vazia do corpo, usando uma das classes abaixo — lista FECHADA, gerada a partir de `EPHEMERAL_CLASSES` (`scripts/lib/native-classes.mjs`) e conferida pelo gate de paridade (`tests/w294-native-rules-parity-gate.sh`): alterar a lista num lado sem alterar o outro reprova.
 
 - `identification`
 - `presence`

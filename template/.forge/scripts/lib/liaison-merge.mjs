@@ -64,6 +64,17 @@ export function nextLamport(messagesForThread) {
 
 // --- Ordenação ---------------------------------------------------------------
 
+// Desempate de `sender` por CODE POINT (design §2.6.1, REQ-04), nunca por `localeCompare`: este
+// último segue colação ICU e o locale do processo, então ids que diferem só por pontuação
+// (`[a-z0-9._-]`) podem ordenar diferente em réplicas com locales diferentes. Como os ids são
+// ASCII nessa faixa, code point e bytes UTF-8 coincidem, e a ordem fica determinística entre
+// réplicas independente de LANG/LC_ALL. Exportado para ser o único lugar que decide essa ordem.
+export function compareSender(a, b) {
+  const sa = String(a);
+  const sb = String(b);
+  return sa < sb ? -1 : sa > sb ? 1 : 0;
+}
+
 // Ordem total dentro de uma thread: (lamport, sender, seq). Como (sender, seq) é único por
 // mensagem, o tie-break é total — a ordem resultante independe da ordem de entrada do array
 // (propriedade central: embaralhar a entrada não muda a saída).
@@ -71,7 +82,7 @@ export function threadOrder(messages) {
   return messages.slice().sort((a, b) => {
     const l = (Number(a.lamport) || 0) - (Number(b.lamport) || 0);
     if (l !== 0) return l;
-    const s = String(a.sender).localeCompare(String(b.sender));
+    const s = compareSender(a.sender, b.sender);
     if (s !== 0) return s;
     return (Number(a.seq) || 0) - (Number(b.seq) || 0);
   });
@@ -225,7 +236,7 @@ export function mergeLogs(messages) {
     const opens = msgs.filter((m) => m.kind === 'thread-open').sort((a, b) => {
       const l = (Number(a.lamport) || 0) - (Number(b.lamport) || 0);
       if (l !== 0) return l;
-      const s = String(a.sender).localeCompare(String(b.sender));
+      const s = compareSender(a.sender, b.sender);
       if (s !== 0) return s;
       return (Number(a.seq) || 0) - (Number(b.seq) || 0);
     });

@@ -445,13 +445,31 @@ async function readStdin() {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-async function main() {
-  const raw = await readStdin();
-  const result = runGuard(raw, {});
-  if (result.exitCode !== 0 && result.message) {
-    process.stderr.write(`${result.message}\n`);
+// Fail-closed contra exceção: o Claude Code trata exit 1 de PreToolUse como erro que NÃO bloqueia,
+// então qualquer erro não tratado (cwd com `.git` quebrado, payload sem `cwd`, registro em formato
+// inesperado) precisa virar exit 2 com a razão, nunca o exit 1 padrão do node.
+function failClosed(err) {
+  const detalhe = err && err.message ? err.message : String(err);
+  try {
+    process.stderr.write(`gancho: erro interno ao avaliar o envio (${detalhe}); bloqueado por segurança (fail-closed)\n`);
+  } finally {
+    process.exit(2);
   }
-  process.exit(result.exitCode);
+}
+
+async function main() {
+  process.on('uncaughtException', failClosed);
+  process.on('unhandledRejection', failClosed);
+  try {
+    const raw = await readStdin();
+    const result = runGuard(raw, {});
+    if (result.exitCode !== 0 && result.message) {
+      process.stderr.write(`${result.message}\n`);
+    }
+    process.exit(result.exitCode === 0 ? 0 : 2);
+  } catch (err) {
+    failClosed(err);
+  }
 }
 
 // Só roda main() quando invocado como processo (o `.sh` faz `exec node native-send-guard.mjs`);

@@ -143,6 +143,10 @@ function manifestDeclAt(root, ref, hookName) {
     }
     const decl = (lido.declaracoes || []).find((d) => d.hook === hookName);
     if (decl) return { found: true, matcher: decl.matcher, armed: (lido.ativos || []).includes(hookName) };
+    // Manifesto do consumidor presente e resolvido decide SOZINHO os ganchos do diretório (mesma
+    // regra de `sync-adapters.mjs`, ramo `consumerDecls`): gancho não declarado nele fica fora da
+    // fiação, mesmo que o default o declare armado. Não cair no default aqui.
+    if (relPath === MANIFEST_REL_PATH) return { found: false };
   }
   return { found: false };
 }

@@ -104,7 +104,8 @@ node "$ENGINE" --root "$R7" --type added --description "entrada via link" >/dev/
 [ -L "$R7/CHANGELOG.md" ] || { echo "FAIL [7]: o symlink virou arquivo regular"; exit 1; }
 grep -q 'entrada via link' "$R7/docs/CHANGELOG.md" || { echo "FAIL [7]: o alvo do link não recebeu a entrada"; exit 1; }
 [ "$(ls -l "$R7/docs/CHANGELOG.md" | cut -c1-10)" = "-rw-rw-r--" ] || { echo "FAIL [7]: modo do arquivo não preservado ($(ls -l "$R7/docs/CHANGELOG.md" | cut -c1-10))"; exit 1; }
-ls "$R7/docs" | grep -q '\.tmp-' && { echo "FAIL [7]: temporário deixado para trás"; exit 1; }
+out="$(ls "$R7/docs" 2>&1 || true)"
+grep -q '\.tmp-' <<<"$out" && { echo "FAIL [7]: temporário deixado para trás"; exit 1; }
 echo "OK [7]"
 
 # ── [8] ──────────────────────────────────────────────────────────────────────────────────────
@@ -133,7 +134,8 @@ out="$(node "$ENGINE" --root "$R10" --type added --description "x" 2>&1)"; rc=$?
 chmod 755 "$R10"
 [ "$rc" -ne 0 ] || { echo "FAIL [10]: rc 0 com diretório sem escrita (saída: $out)"; exit 1; }
 case "$out" in *"FAIL: escrita"*) : ;; *) echo "FAIL [10]: saída fora da convenção FAIL (saída: $out)"; exit 1 ;; esac
-ls "$R10" | grep -q '\.tmp-' && { echo "FAIL [10]: temporário deixado para trás"; exit 1; }
+out="$(ls "$R10" 2>&1 || true)"
+grep -q '\.tmp-' <<<"$out" && { echo "FAIL [10]: temporário deixado para trás"; exit 1; }
 echo "OK [10]"
 
 # ── [11] ─────────────────────────────────────────────────────────────────────────────────────

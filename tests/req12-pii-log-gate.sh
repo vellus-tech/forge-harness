@@ -6,6 +6,11 @@
 #   [2] PAN mascarado (sem corrida bruta de dígitos, ou via mask()) → PASS
 #   [3] campo `// forge:sensitive-field="x"` sem entrada em data-classification.json → CONFLICT
 #   [4] mesmo campo, COM entrada correspondente em data-classification.json → PASS
+#   [6] REQ-06: campo `-- forge:sensitive-field="x"` (.sql) sem data-classification.json → CONFLICT
+#   [7] REQ-06: mesmo campo em .sql, COM entrada correspondente → PASS
+#   [8] REQ-06: PAN em chamada de log embutida em comentário .sql → CONFLICT
+#   [9] REQ-06: .sql limpo (DDL comum, sem marcador nem log) → PASS, sem falso positivo
+#   [10] REQ-06: `--forge:sensitive-field=` fora de .sql (docstring .py) não é marcador → PASS
 #   [5] retrocompat: gw3-data-governance-gate.sh continua verde (NFR-04)
 set -euo pipefail
 
@@ -43,6 +48,43 @@ echo "[4] campo sensível COM classificação correspondente → PASS"
 out="$(node "$CHK" "$FIX/sensitive-field-pass")"
 grep -q '^OK ' <<<"$out" || { echo "FAIL [4]: esperava OK, obteve: $out"; exit 1; }
 echo "OK [4] — $out"
+
+echo "[6] REQ-06: .sql com marcador sem data-classification.json → CONFLICT"
+set +e
+out="$(node "$CHK" "$FIX/sql-sensitive-field-fail")"; rc=$?
+set -e
+[ "$rc" -ne 0 ] || { echo "FAIL [6]: esperava CONFLICT, obteve exit 0: $out"; exit 1; }
+grep -q 'CONFLICT' <<<"$out" || { echo "FAIL [6]: saída sem CONFLICT: $out"; exit 1; }
+grep -q 'cpf' <<<"$out" || { echo "FAIL [6]: saída não nomeia o campo: $out"; exit 1; }
+grep -q 'REQ-12b' <<<"$out" || { echo "FAIL [6]: saída não referencia REQ-12b: $out"; exit 1; }
+echo "OK [6] — $out"
+
+echo "[7] REQ-06: .sql com marcador COM data-classification.json correspondente → PASS"
+out="$(node "$CHK" "$FIX/sql-sensitive-field-pass")"
+grep -q '^OK ' <<<"$out" || { echo "FAIL [7]: esperava OK, obteve: $out"; exit 1; }
+echo "OK [7] — $out"
+
+echo "[8] REQ-06: PAN em chamada de log embutida em comentário .sql → CONFLICT"
+set +e
+out="$(node "$CHK" "$FIX/sql-log-pan-fail")"; rc=$?
+set -e
+[ "$rc" -ne 0 ] || { echo "FAIL [8]: esperava CONFLICT, obteve exit 0: $out"; exit 1; }
+grep -q 'CONFLICT' <<<"$out" || { echo "FAIL [8]: saída sem CONFLICT: $out"; exit 1; }
+grep -q 'service.sql' <<<"$out" || { echo "FAIL [8]: saída não nomeia o arquivo: $out"; exit 1; }
+grep -q 'REQ-12a' <<<"$out" || { echo "FAIL [8]: saída não referencia REQ-12a: $out"; exit 1; }
+echo "OK [8] — $out"
+
+echo "[9] REQ-06: .sql limpo (DDL comum) → PASS, sem falso positivo"
+out="$(node "$CHK" "$FIX/sql-clean-pass")"
+grep -q '^OK ' <<<"$out" || { echo "FAIL [9]: esperava OK, obteve: $out"; exit 1; }
+echo "OK [9] — $out"
+
+echo "[10] REQ-06: '--' só é comentário em .sql — '--forge:sensitive-field=' numa docstring .py → PASS"
+set +e
+out="$(node "$CHK" "$FIX/py-double-dash-pass")"; rc=$?
+set -e
+[ "$rc" -eq 0 ] && grep -q '^OK ' <<<"$out" || { echo "FAIL [10]: '--' fora de .sql virou marcador (rc=$rc): $out"; exit 1; }
+echo "OK [10] — $out"
 
 echo "[5] retrocompat: gw3-data-governance-gate.sh continua verde (NFR-04)"
 bash "$WS/tests/gw3-data-governance-gate.sh" >/dev/null

@@ -257,14 +257,17 @@ _settings_hooks_is_derived() { # _settings_hooks_is_derived <root>
     // se um comando owned novo for esquecido nesta lista, o pior efeito é "no" (recomenda sync sem
     // necessidade), nunca "yes" escondendo perda real de hook de terceiro. Desde a #125 o universo
     // de PreToolUse não é mais fixo (deriva de `.forge/hooks/pre-tool-use/`), então esta lista
-    // cobre hoje os quatro ganchos distribuídos pelo template, nas duas formas de comando que o
+    // cobre hoje os cinco ganchos distribuídos pelo template (achado desta correção: TASK-19/#214
+    // armou `guard-cross-session-send.sh` em `hooks.manifest.default` sem atualizar esta lista
+    // duplicada, fazendo a projeção owned do doctor divergir de `preToolUseWiring(root)` mesmo sem
+    // nenhum drift real — [1]/[6]/[6b] do w238 mediram o efeito), nas duas formas de comando que o
     // gerador pode emitir (direta e via `lib/argv-bridge.sh`) — um gancho de consumidor adicionado
     // depois cai no "no" conservador, nunca escondido. As formas COM ASPAS em `$CLAUDE_PROJECT_DIR`
     // e as formas *Legacy* SEM aspas convivem aqui (achado de correção MEDIUM, iteração 3 do modo
     // correção — mesma migração sem duplicar de `hookCommandDirect`/`hookCommandDirectLegacy` na
     // lib): um consumidor recém-migrado tem a forma nova fiada, um ainda não sincronizado tem a
     // legada, e as duas são igualmente owned para efeito deste diagnóstico.
-    const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "check-language-policy.sh", "validate-naming-conventions.sh"];
+    const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "check-language-policy.sh", "validate-naming-conventions.sh", "guard-cross-session-send.sh"];
     const OWNED = new Set([
       "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-start.sh",
       "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-end.sh",
@@ -490,6 +493,164 @@ EOF_CHG
         info "harness: liaison — $conflicts conflito(s) registrado(s) em conflicts/ (decisão humana; ver /forge:liaison)"
       fi
     fi
+  fi
+
+  # mudanças de contenção da mensageria nativa (REQ-12, design §2.7): mesma postura da seção
+  # liaison acima — INFORMATIVO, nunca MISSING_DIAG. O detector único mora em
+  # native-containment.mjs (consumido também por pre-push, prepare-pr e ship, nunca duplicado
+  # aqui); este bloco só soma os avisos que o design reserva ao doctor (fora da lista fechada de
+  # mudanças de contenção): cruzamento de participantes de canal e as notas de convergência
+  # (gancho inativo, self_identity ausente, sobreposição de settings, edição não commitada,
+  # cadastro do HEAD divergente do upstream). `FORGE_CLAUDE_USER_SETTINGS` sobrepõe
+  # `~/.claude/settings.json` só para fixtures de gate (simétrico a FORGE_CLAUDE_SESSIONS_DIR/
+  # FORGE_CLAUDE_PROJECTS_DIR dos leitores nativos) — nunca HOME redirecionado.
+  if [ -f "$ROOT/.forge/scripts/lib/native-containment.mjs" ]; then
+    containment_out="$(node - "$ROOT" <<'NODEEOF'
+const { existsSync, readFileSync } = require('fs');
+const { pathToFileURL } = require('url');
+const { join } = require('path');
+const { homedir } = require('os');
+const { execFileSync } = require('child_process');
+
+const root = process.argv[2];
+const libDir = join(root, '.forge', 'scripts', 'lib');
+
+function emit(kind, a, b) {
+  if (b === undefined) console.log(`${kind}\t${a}`);
+  else console.log(`${kind}\t${a}\t${b}`);
+}
+
+(async () => {
+  let C, AL, CFG, WS, HM, SA;
+  try {
+    C = await import(pathToFileURL(join(libDir, 'native-containment.mjs')).href);
+    AL = await import(pathToFileURL(join(libDir, 'native-allowlist.mjs')).href);
+    CFG = await import(pathToFileURL(join(libDir, 'liaison-config.mjs')).href);
+    WS = await import(pathToFileURL(join(libDir, 'native-workspace.mjs')).href);
+    HM = await import(pathToFileURL(join(libDir, 'hooks-manifest.mjs')).href);
+    SA = await import(pathToFileURL(join(libDir, 'sync-adapters.mjs')).href);
+  } catch (err) {
+    emit('ERROR', err.message);
+    return;
+  }
+
+  const result = C.detectContainment({ root });
+  if (!result.ok) {
+    emit('ERROR', result.reason);
+  } else {
+    for (const f of result.findings) emit('FINDING', f.type, f.detail);
+  }
+
+  const { doc: effective } = AL.readEffectiveAllowlist({ root });
+
+  if (!effective.self_identity) {
+    emit('EXTRAWARN', "self_identity não cadastrado (rode 'liaison-ops.sh native pin') — troca de remote fica indetectável até então");
+  }
+
+  try {
+    const derived = SA.preToolUseWiring(root);
+    const derivedFiacao = HM.derivarFiacao(derived.PreToolUse || []);
+    const armedByDefault = derivedFiacao.legivel && derivedFiacao.ganchos.includes('guard-cross-session-send.sh');
+    const settingsPath = join(root, '.claude', 'settings.json');
+    let actuallyArmed = false;
+    if (existsSync(settingsPath)) {
+      const j = JSON.parse(readFileSync(settingsPath, 'utf8'));
+      const groups = j && j.hooks && Array.isArray(j.hooks.PreToolUse) ? j.hooks.PreToolUse : [];
+      const f = HM.derivarFiacao(groups);
+      actuallyArmed = f.legivel && f.ganchos.includes('guard-cross-session-send.sh');
+    }
+    if (!actuallyArmed) {
+      emit('EXTRAWARN', `gancho de saída guard-cross-session-send.sh inativo (${armedByDefault ? 'semeado inativo, aguardando o passo de armar do consumidor' : 'retido no manifesto do consumidor'}) — mensageria nativa sai sem guarda (design §5)`);
+    }
+  } catch (err) {
+    emit('EXTRAWARN', `não foi possível verificar o estado do gancho de saída: ${err.message}`);
+  }
+
+  const userSettingsPath = process.env.FORGE_CLAUDE_USER_SETTINGS || join(homedir(), '.claude', 'settings.json');
+  const overlays = [join(root, '.claude', 'settings.local.json'), userSettingsPath];
+  for (const p of overlays) {
+    if (!existsSync(p)) continue;
+    let j;
+    try { j = JSON.parse(readFileSync(p, 'utf8')); } catch { continue; }
+    if (j && j.disableAllHooks === true) {
+      emit('EXTRAWARN', `disableAllHooks=true em ${p} desativa todos os ganchos, inclusive a guarda de saída nativa`);
+      continue;
+    }
+    const groups = j && j.hooks && Array.isArray(j.hooks.PreToolUse) ? j.hooks.PreToolUse : [];
+    if (groups.length > 0) {
+      const f = HM.derivarFiacao(groups);
+      if (!(f.legivel && f.ganchos.includes('guard-cross-session-send.sh'))) {
+        emit('EXTRAWARN', `${p} sobrepõe PreToolUse sem incluir guard-cross-session-send.sh`);
+      }
+    }
+  }
+
+  const work = AL.readWorkingAllowlist({ root });
+  if (!work.error && JSON.stringify(work.doc) !== JSON.stringify(effective)) {
+    emit('EXTRAWARN', 'allowed-workspaces.json tem edição não commitada — só a versão no HEAD do tronco vale');
+  }
+
+  try {
+    const upstream = execFileSync('git', ['-C', root, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    if (upstream) {
+      let headText = null, upstreamText = null;
+      try { headText = execFileSync('git', ['-C', root, 'show', 'HEAD:.forge/liaison/allowed-workspaces.json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }); } catch { /* ausente */ }
+      try { upstreamText = execFileSync('git', ['-C', root, 'show', `${upstream}:.forge/liaison/allowed-workspaces.json`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }); } catch { /* ausente */ }
+      if (headText !== upstreamText) {
+        emit('EXTRAWARN', `allowed-workspaces.json no HEAD do tronco difere de ${upstream} — cadastro commitado e ainda não publicado`);
+      }
+    }
+  } catch { /* sem upstream configurado — nada a comparar */ }
+
+  try {
+    const cfgPath = join(root, '.forge', 'liaison', 'liaison.yaml');
+    if (existsSync(cfgPath)) {
+      const cfgDoc = CFG.readConfig(cfgPath);
+      const selfIdentity = WS.workspaceIdentity(root);
+      const activeIds = new Set((effective.allowed_workspaces || []).filter((e) => !e.revoked_at).map((e) => e.id));
+      const matchedIds = new Set();
+      for (const channel of Object.keys(cfgDoc.channels || {})) {
+        const ch = cfgDoc.channels[channel];
+        for (const participant of (ch.participants || [])) {
+          const peerPath = CFG.getPeerPath(cfgDoc, channel, participant);
+          if (!peerPath) {
+            emit('PARTWARN', `canal '${channel}': participante '${participant}' sem peer-path configurado — não verificável`);
+            continue;
+          }
+          let peerIdentity = null;
+          try { peerIdentity = WS.workspaceIdentity(peerPath); } catch { peerIdentity = null; }
+          if (!peerIdentity) {
+            emit('PARTWARN', `canal '${channel}': participante '${participant}' com peer-path '${peerPath}' não resolveu identidade — não verificável`);
+            continue;
+          }
+          if (peerIdentity === selfIdentity) continue;
+          matchedIds.add(peerIdentity);
+          if (!activeIds.has(peerIdentity)) {
+            emit('PARTWARN', `canal '${channel}': participante '${participant}' resolve para '${peerIdentity}', não cadastrado em allowed-workspaces.json`);
+          }
+        }
+      }
+      for (const id of activeIds) {
+        if (!matchedIds.has(id)) {
+          emit('PARTWARN', `workspace cadastrado ativo '${id}' não corresponde a nenhum participante de canal`);
+        }
+      }
+    }
+  } catch (err) {
+    emit('PARTWARN', `cruzamento de participantes indisponível: ${err.message}`);
+  }
+})();
+NODEEOF
+)"
+    while IFS=$'\t' read -r _nc_kind _nc_a _nc_b; do
+      [ -n "$_nc_kind" ] || continue
+      case "$_nc_kind" in
+        FINDING) info "harness: CONTENÇÃO: $_nc_a — $_nc_b" ;;
+        EXTRAWARN) info "harness: CONTENÇÃO: $_nc_a" ;;
+        PARTWARN) info "harness: CONTENÇÃO (participante): $_nc_a" ;;
+        ERROR) miss "harness: CONTENÇÃO: detector indisponível — $_nc_a" ;;
+      esac
+    done <<< "$containment_out"
   fi
 
   # changes órfãos (§ lifecycle-reconcile): change implementado/mergeado cujo manifest nunca

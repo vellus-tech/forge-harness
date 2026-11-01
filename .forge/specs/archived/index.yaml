@@ -55,3 +55,15 @@ archived:
     archived_at: "2026-10-30"
     kind: baseline_update
     path: 2026-10-30-add-ledger-evidence-aging
+  - change_id: add-liaison-native-bridge
+    archived_at: "2026-10-31"
+    kind: baseline_update
+    path: 2026-10-31-add-liaison-native-bridge
+  - change_id: add-migration-review-rule
+    archived_at: "2026-11-01"
+    kind: baseline_update
+    path: 2026-11-01-add-migration-review-rule
+  - change_id: add-unify-changelog-skill
+    archived_at: "2026-11-01"
+    kind: baseline_update
+    path: 2026-11-01-add-unify-changelog-skill

@@ -1,0 +1,143 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20261101005928-9d4f39a5",
+  "stage": "archive",
+  "status": "passed",
+  "started_at": "2026-11-01T00:59:26Z",
+  "finished_at": "2026-11-01T00:59:28.256Z",
+  "duration_ms": 2256,
+  "git": {
+    "repo": true,
+    "branch": "feat/harness/liaison-native-bridge",
+    "head_sha": "cb937f32a0aff4930910448754d9fb14fca53251",
+    "dirty": true,
+    "changed_files": [
+      ".forge/ledger/LEDGER.md",
+      ".forge/ledger/ledger.json",
+      ".forge/product/current/CHANGELOG.md",
+      ".forge/product/current/capabilities/forge-harness-template/spec.yaml",
+      ".forge/specs/active/add-liaison-native-bridge/analysis.md",
+      ".forge/specs/active/add-liaison-native-bridge/approvals.yaml",
+      ".forge/specs/active/add-liaison-native-bridge/design-inputs.md",
+      ".forge/specs/active/add-liaison-native-bridge/design.md",
+      ".forge/specs/active/add-liaison-native-bridge/epic_context.md",
+      ".forge/specs/active/add-liaison-native-bridge/evidence/a-sendmessage-pretooluse-payload.md",
+      ".forge/specs/active/add-liaison-native-bridge/evidence/b-transcript-cross-session-message.md",
+      ".forge/specs/active/add-liaison-native-bridge/evidence/c-session-registry.md",
+      ".forge/specs/active/add-liaison-native-bridge/evidence/d-environment.md",
+      ".forge/specs/active/add-liaison-native-bridge/evidence/runs/20261101002504-9a9d57f6/run-manifest.json",
+      ".forge/specs/active/add-liaison-native-bridge/impact.json",
+      ".forge/specs/active/add-liaison-native-bridge/manifest.yaml",
+      ".forge/specs/active/add-liaison-native-bridge/proposal.md",
+      ".forge/specs/active/add-liaison-native-bridge/requirements.md",
+      ".forge/specs/active/add-liaison-native-bridge/spec-delta.yaml",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-01.md",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-01.verification.yaml",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-02.md",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-02.verification.yaml",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-03.md",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-03.verification.yaml",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-04.md",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-04.verification.yaml",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-05.md",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-05.verification.yaml",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-06.md",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-06.verification.yaml",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-07.md",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-07.verification.yaml",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-08.md",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-08.verification.yaml",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-09.md",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-09.verification.yaml",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-10.md",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-10.verification.yaml",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-11.md",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-11.verification.yaml",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-12.md",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-12.verification.yaml",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-13.md",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-13.verification.yaml",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-14.md",
+      ".forge/specs/active/add-liaison-native-bridge/stories/STORY-14.verification.yaml",
+      ".forge/specs/active/add-liaison-native-bridge/tasks.md",
+      ".forge/specs/active/add-liaison-native-bridge/verification.md",
+      ".forge/specs/active/add-liaison-native-bridge/verification.yaml",
+      ".forge/specs/archived/2026-10-31-add-liaison-native-bridge/",
+      ".forge/specs/archived/index.yaml"
+    ],
+    "diff_stat": ".forge/ledger/LEDGER.md                            |   7 +-\n .forge/ledger/ledger.json                          | 130 +++\n .forge/product/current/CHANGELOG.md                |   6 +\n .../capabilities/forge-harness-template/spec.yaml  | 205 ++++-\n .../active/add-liaison-native-bridge/analysis.md   |  31 -\n .../add-liaison-native-bridge/approvals.yaml       |  91 --\n .../add-liaison-native-bridge/design-inputs.md     |  24 -\n .../active/add-liaison-native-bridge/design.md     | 373 --------\n .../add-liaison-native-bridge/epic_context.md      |  11 -\n .../evidence/a-sendmessage-pretooluse-payload.md   | 244 ------\n .../evidence/b-transcript-cross-session-message.md |  60 --\n .../evidence/c-session-registry.md                 |  20 -\n .../evidence/d-environment.md                      |  20 -\n .../runs/20261101002504-9a9d57f6/run-manifest.json |  70 --\n .../active/add-liaison-native-bridge/impact.json   | 963 ---------------------\n .../active/add-liaison-native-bridge/manifest.yaml |  57 --\n .../active/add-liaison-native-bridge/proposal.md   |  49 --\n .../add-liaison-native-bridge/requirements.md      | 198 -----\n .../add-liaison-native-bridge/spec-delta.yaml      | 246 ------\n .../add-liaison-native-bridge/stories/STORY-01.md  |  46 -\n .../stories/STORY-01.verification.yaml             |   1 -\n .../add-liaison-native-bridge/stories/STORY-02.md  |  44 -\n .../stories/STORY-02.verification.yaml             |   1 -\n .../add-liaison-native-bridge/stories/STORY-03.md  |  47 -\n .../stories/STORY-03.verification.yaml             |   1 -\n .../add-liaison-native-bridge/stories/STORY-04.md  |  48 -\n .../stories/STORY-04.verification.yaml             |   1 -\n .../add-liaison-native-bridge/stories/STORY-05.md  |  47 -\n .../stories/STORY-05.verification.yaml             |   1 -\n .../add-liaison-native-bridge/stories/STORY-06.md  |  46 -\n .../stories/STORY-06.verification.yaml             |   1 -\n .../add-liaison-native-bridge/stories/STORY-07.md  |  46 -\n .../stories/STORY-07.verification.yaml             |   1 -\n .../add-liaison-native-bridge/stories/STORY-08.md  |  48 -\n .../stories/STORY-08.verification.yaml             |   1 -\n .../add-liaison-native-bridge/stories/STORY-09.md  |  48 -\n .../stories/STORY-09.verification.yaml             |   1 -\n .../add-liaison-native-bridge/stories/STORY-10.md  |  47 -\n .../stories/STORY-10.verification.yaml             |   1 -\n .../add-liaison-native-bridge/stories/STORY-11.md  |  57 --\n .../stories/STORY-11.verification.yaml             |   1 -\n .../add-liaison-native-bridge/stories/STORY-12.md  |  48 -\n .../stories/STORY-12.verification.yaml             |   1 -\n .../add-liaison-native-bridge/stories/STORY-13.md  |  47 -\n .../stories/STORY-13.verification.yaml             |   1 -\n .../add-liaison-native-bridge/stories/STORY-14.md  |  46 -\n .../stories/STORY-14.verification.yaml             |   1 -\n .../active/add-liaison-native-bridge/tasks.md      | 145 ----\n .../add-liaison-native-bridge/verification.md      |  51 --\n .../add-liaison-native-bridge/verification.yaml    |   9 -\n .forge/specs/archived/index.yaml                   |   4 +\n 51 files changed, 333 insertions(+), 3360 deletions(-)",
+    "diff_sha256": "00813bf0660bec75d6d2a773aef6b27a3c5fa646a09c66837f24d925c12bc529"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "0f5a1c8432de6c97b5c0148b8f16e7ef3f921e2a259bc23f5f66ac5b998b65e7",
+      "bytes": 1548,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "9122622727a496cb4ca43846755039d53f492dc6cfbdb3a5bf2ee8ad014b7ee4",
+      "bytes": 23675,
+      "kind": "file"
+    },
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "be4f5c64fb6fbb35fbbebb9264fdb6eb620ac1f6d9282acd27335fb696af6c88",
+      "bytes": 219,
+      "kind": "file"
+    },
+    {
+      "path": "spec-delta.yaml",
+      "exists": true,
+      "sha256": "bdb445455de2b22b5b2209c1fcf28f7eec6b5ed2e14179c3a2a4b36e1059dc4f",
+      "bytes": 15413,
+      "kind": "file"
+    },
+    {
+      "path": "impact.json",
+      "exists": true,
+      "sha256": "fd6772fbe20583cf170cd690e3f4ebda8be1a4633e2bb6e3e542f2868f28bcaf",
+      "bytes": 49940,
+      "kind": "file"
+    }
+  ],
+  "commands": [
+    {
+      "name": "archive-spec",
+      "command": "archive-spec.sh add-liaison-native-bridge",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "0f5a1c8432de6c97b5c0148b8f16e7ef3f921e2a259bc23f5f66ac5b998b65e7",
+      "bytes": 1548,
+      "kind": "file"
+    },
+    {
+      "path": "evidence/runs",
+      "exists": true,
+      "sha256": "4ab425d68b12cc8453f48a36974a2ed4c6dd5a2ae05d902d94b036330a16e84a",
+      "bytes": null,
+      "kind": "directory"
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

@@ -1,0 +1,100 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: review
+    reason: "Revisor adversarial delegado pelo dono (opus) decidiu REVIEW: BLOCKER REQ-07/12 (agente contido consegue liberar a contencao via native allow no mesmo turno, com granted_by humano); MAJOR REQ-08 (diagnostico de fim de sessao sem fiacao nem leitor), REQ-02/03 (authored_by falso contorna C1), REQ-11 (CHANGELOG e slash-commands ausentes)"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T18:17:40-03:00"
+    iteration: 1
+    commit: "34f9d2c1"
+    scope: "requirements.md"
+    notes: "Decisao delegada pelo dono em 2026-10-30: APPROVE do revisor vale como aceite formal; REVIEW volta ao builder"
+  - gate: requirements_reviewed
+    decision: review
+    reason: "Revisor delegado (opus) rodada 2: REVIEW por MAJOR REQ-04/06 (SendMessage so com notify_when_idle, sem corpo, seria bloqueado). Rodada 1 resolvida. Nota de convergencia de causa raiz devolvida ao dono: a contencao do cadastro mora em estado alteravel pelo proprio agente (manifesto/settings, remote, git checkout); opcoes (a) simplificar para recusa do CLI + deteccao deterministica em pre-push/doctor, ou (b) managed settings fora do escopo"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T18:22:26-03:00"
+    iteration: 2
+    commit: "34f9d2c1"
+    scope: "requirements.md"
+    notes: "Delegacao do dono vigente; escalada de causa raiz ao dono conforme regra de convergencia"
+  - gate: requirements_reviewed
+    decision: approve
+    reason: "Revisor adversarial delegado pelo dono (opus), rodada 3: APPROVE sem BLOCKER nem MAJOR; 10 MINOR e notas de convergencia (causa raiz ja decidida pelo dono: contencao nao e fronteira de seguranca; envio direto pelo socket com CLAUDE_CODE_MESSAGING_TOKEN contorna o gancho inteiro) levadas ao design"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T18:37:42-03:00"
+    iteration: 3
+    commit: "34f9d2c1"
+    scope: "requirements.md"
+    notes: "Aceite formal: o dono declarou em 2026-10-30 que o APPROVE do revisor delegado vale como seu aceite formal"
+  - gate: design_reviewed
+    decision: review
+    reason: "Revisor adversarial delegado (opus) rodada 1: REVIEW por 3 MAJOR - passo de armar do par. 5 desfia os ganchos existentes (manifesto canonico decide todos); ship em yolo faria merge de mudanca de contencao sem humano; hook-unwired sem definicao gera falso positivo em todo consumidor existente. Par. 4.2 conferido no codigo; decisoes do par. 11: pin aceita, string literal e bloqueio de nome aceitas com ajuste"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:06:33-03:00"
+    iteration: 1
+    commit: "bbbc27ab"
+    scope: "design.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: design_reviewed
+    decision: review
+    reason: "Revisor delegado (opus) rodada 2: MAJOR 1-3 e MINOR 4-10 da rodada 1 fechados. MAJOR novo medido em 60 transcripts reais: candidata com origin de qualquer kind acusaria instrumento quebrado em toda sessao, origin.kind peer inclui agent-message de subagente, 63 recepcoes sem origin.body; corrigir pela tag e por from uds:. MINOR: hold->block no yolo-gate, export de derivePreToolUseHooks, matcher efetivo no passo de armar"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:11:17-03:00"
+    iteration: 2
+    commit: "bbbc27ab"
+    scope: "design.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: design_reviewed
+    decision: approve
+    reason: "Revisor adversarial delegado (opus) rodada 3: APPROVE. MAJOR da rodada 2 fechado e conferido em 60 transcripts reais (5146 de 5157 candidatas extraidas, zero instrumento quebrado); MINOR 2-4 fechados; MINOR residual (candidata por tag exige isMeta ou promptSource system, controle de turno humano citando a tag) incorporado ao design e as tasks"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:14:14-03:00"
+    iteration: 3
+    commit: "bbbc27ab"
+    scope: "design.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: tasks_reviewed
+    decision: review
+    reason: "Revisor adversarial delegado (opus) rodada 1: grafo valido e REQs cobertos; 4 MAJOR - par TASK-03/04 so em tests/ nao e provavel pelo red-evidence (vermelho-vazio), padroes FAIL genericos nas tasks pares sem regras de operacao do par, export de derivePreToolUseHooks sem path nem w215, cruzamento de origem por session_id sem fixture; 6 MINOR"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:25:50-03:00"
+    iteration: 1
+    commit: "a31fcbba"
+    scope: "tasks.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: tasks_reviewed
+    decision: approve
+    reason: "Revisor adversarial delegado (opus) rodada 2: APPROVE. 4 MAJOR e 6 MINOR da rodada 1 corrigidos; validate-spec OK e grafo sem achados; padroes FAIL [n] especificos repetidos no verde; MINOR residual (casos da TASK-14 nao dependem das etapas 5-6; estado intermediario da TASK-15 nunca fiado) incorporado"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:28:25-03:00"
+    iteration: 2
+    commit: "a31fcbba"
+    scope: "tasks.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: implementation_verified
+    decision: review
+    reason: "Revisor adversarial delegado (opus) rodada 1 decidiu BLOCK por achado corrigivel, registrado como review: BLOCKER gancho sai 1 (nao bloqueia) em excecao do node (cwd com .git quebrado, payload sem cwd); MAJOR remover a linha do gancho so do hooks.manifest do consumidor desarma sem achado de contencao; 3 MINOR. Mutacoes M1-M3 mortas"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-31T21:46:15-03:00"
+    iteration: 1
+    commit: "7bc20e93"
+    scope: "verification.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30; BLOCK do revisor nao depende de decisao do dono, e defeito corrigivel"
+  - gate: implementation_verified
+    decision: approve
+    reason: "Revisor adversarial delegado (opus) rodada 2: APPROVE. BLOCKER corrigido (gancho sai 2 em excecao, .git quebrado e sem cwd reproduzidos pelo processo real); MAJOR corrigido (remocao da linha so no manifesto do consumidor vira hook-line-changed); testes novos matam a reversao de cada fix; MINOR no ledger (LDG-0207..0209)"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-31T21:56:48-03:00"
+    iteration: 2
+    commit: "e00cc5ed"
+    scope: "verification.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "Revisor adversarial delegado (opus): APPROVE. validate-spec OK, dry-run OK (REQ-FHT-054..065, 12 add, sem colisao no baseline), validate-archive falha so no gate HITL; 4 gates em approve; 27 tasks [X], 14 stories done. 7 MINOR de texto do delta; 1 a 6 aplicados antes do archive, 7 (colisao futura de ids com changes paralelos) fica para o rebase"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-31T21:59:26-03:00"
+    iteration: 1
+    commit: "cb937f32"
+    scope: "spec-delta.yaml"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"

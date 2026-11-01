@@ -1,0 +1,107 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20261101151533-640244a3",
+  "stage": "archive",
+  "status": "passed",
+  "started_at": "2026-11-01T15:15:31Z",
+  "finished_at": "2026-11-01T15:15:33.095Z",
+  "duration_ms": 2095,
+  "git": {
+    "repo": true,
+    "branch": "feat/harness/unify-changelog-command",
+    "head_sha": "578a381c54e4e79223303da0ceb9e6428a056b09",
+    "dirty": true,
+    "changed_files": [
+      ".forge/product/current/CHANGELOG.md",
+      ".forge/product/current/capabilities/changelog-authoring/",
+      ".forge/product/current/capabilities/post-merge-automation/",
+      ".forge/specs/active/add-unify-changelog-skill/approvals.yaml",
+      ".forge/specs/active/add-unify-changelog-skill/design.md",
+      ".forge/specs/active/add-unify-changelog-skill/evidence/runs/20261101030609-1d34c40d/run-manifest.json",
+      ".forge/specs/active/add-unify-changelog-skill/impact.json",
+      ".forge/specs/active/add-unify-changelog-skill/manifest.yaml",
+      ".forge/specs/active/add-unify-changelog-skill/proposal.md",
+      ".forge/specs/active/add-unify-changelog-skill/refactor.md",
+      ".forge/specs/active/add-unify-changelog-skill/spec-delta.yaml",
+      ".forge/specs/active/add-unify-changelog-skill/tasks.md",
+      ".forge/specs/active/add-unify-changelog-skill/verification.md",
+      ".forge/specs/active/add-unify-changelog-skill/verification.yaml",
+      ".forge/specs/archived/2026-11-01-add-unify-changelog-skill/",
+      ".forge/specs/archived/index.yaml"
+    ],
+    "diff_stat": ".forge/product/current/CHANGELOG.md                |   6 +\n .../add-unify-changelog-skill/approvals.yaml       |  42 ---\n .../active/add-unify-changelog-skill/design.md     | 111 --------\n .../runs/20261101030609-1d34c40d/run-manifest.json |  70 -----\n .../active/add-unify-changelog-skill/impact.json   |  25 --\n .../active/add-unify-changelog-skill/manifest.yaml |  46 ----\n .../active/add-unify-changelog-skill/proposal.md   |  38 ---\n .../active/add-unify-changelog-skill/refactor.md   |  82 ------\n .../add-unify-changelog-skill/spec-delta.yaml      | 295 ---------------------\n .../active/add-unify-changelog-skill/tasks.md      | 106 --------\n .../add-unify-changelog-skill/verification.md      |  68 -----\n .../add-unify-changelog-skill/verification.yaml    |   9 -\n .forge/specs/archived/index.yaml                   |   4 +\n 13 files changed, 10 insertions(+), 892 deletions(-)",
+    "diff_sha256": "6b2dae726fe6cd1578c75a6c21bb9e3d06b8f1896102d8f8b6c3c218cd77cf89"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "c4274933c225845f1408397a208892b9751e8e8963bedbd5fe56ac392dd577d3",
+      "bytes": 1225,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "fa019905ab6946c098a535ee678ae5c132d4c066ebc43b2e3e833bd5badc69aa",
+      "bytes": 14633,
+      "kind": "file"
+    },
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "3b29844e3470e66f83256998b727e1b3364f79cb97415d8b3b0d13a1a457c53c",
+      "bytes": 219,
+      "kind": "file"
+    },
+    {
+      "path": "spec-delta.yaml",
+      "exists": true,
+      "sha256": "a740afad01a7597f7d076e67669e04c74d7cdd3b4743b4651e827a80475298af",
+      "bytes": 14801,
+      "kind": "file"
+    },
+    {
+      "path": "impact.json",
+      "exists": true,
+      "sha256": "21a9f680d57f067ae7d37b2d641b2090f39aedb418c0996d2b17ba54ff961a73",
+      "bytes": 1160,
+      "kind": "file"
+    }
+  ],
+  "commands": [
+    {
+      "name": "archive-spec",
+      "command": "archive-spec.sh add-unify-changelog-skill",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "c4274933c225845f1408397a208892b9751e8e8963bedbd5fe56ac392dd577d3",
+      "bytes": 1225,
+      "kind": "file"
+    },
+    {
+      "path": "evidence/runs",
+      "exists": true,
+      "sha256": "a6e1dda21780992d55dca8039ab757c4ce5e8dd5bbabfe9542712e99111385c0",
+      "bytes": null,
+      "kind": "directory"
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

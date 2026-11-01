@@ -607,61 +607,290 @@ requirements:
     tests:
       - tests/w130-tasks-graph-gate.sh
   - id: REQ-FHT-054
-    title: "Reverificação de item do ledger com evidência de conteúdo mínimo"
+    title: "liaison-ops.sh notify — ponteiro canônico para mensagem publicada"
     normative: "SHALL"
     scenarios:
       - id: SCN-FHT-054-A
+        given: "uma mensagem própria já publicada por um sync com push bem-sucedido"
+        when: "o operador roda liaison-ops.sh notify <channel> <msg_id> --to <destino>"
+        then: "imprime no stdout o ponteiro canônico (primeira linha liaison:<channel>/<msg_id>, seguida de thread_id, content_sha e subject) idênticos aos do log"
+      - id: SCN-FHT-054-B
+        given: "um msg_id inexistente, de peer, ou de mensagem própria ainda não publicada"
+        when: "o operador roda notify sobre essa condição"
+        then: "recusa com rc != 0 nomeando a condição que falhou (não existe / não é mensagem própria / não publicada, com o comando sync que falta)"
+      - id: SCN-FHT-054-C
+        given: "os scripts e ganchos do template"
+        when: "a checagem [10] do gate w113 roda"
+        then: "nenhum deles invoca o CLI de sessão do Claude Code nem abre conexão com socket de sessão (o script não envia nada; o envio é ato do agente), e ler messagingSocketPath do registro não conta como conexão"
+    tests:
+      - tests/w285-liaison-notify-gate.sh
+      - tests/w113-liaison-enforce-gate.sh
+  - id: REQ-FHT-055
+    title: "send --via cross-session --native-ref — registro de mensagem nativa recebida"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-055-A
+        given: "uma recepção nativa (cross-session-message) presente no transcript da sessão, identificada por fingerprint"
+        when: "o operador roda send <channel> --via cross-session --native-ref <fingerprint> [--session <id>] --authored-by <repo-do-peer> ..."
+        then: "localiza a mensagem pelo fingerprint, extrai from/from-name/from-mode, e grava no log próprio uma mensagem com trust untrusted-peer, via cross-session e o objeto cross_session com os cinco subcampos obrigatórios, sem flag de origem informada pelo operador"
+      - id: SCN-FHT-055-B
+        given: "fingerprint não encontrado no transcript, transcript ilegível ou sessão não identificável"
+        when: "o operador roda o mesmo comando"
+        then: "recusa com rc != 0, nada é gravado, e o leitor reporta instrumento quebrado nas mesmas condições do diagnóstico de cobertura (REQ-FHT-061)"
+    tests:
+      - tests/w287-liaison-cross-session-record-gate.sh
+      - tests/w284-liaison-envelope-parity-gate.sh
+  - id: REQ-FHT-056
+    title: "Peer sem canal em comum ao registrar mensagem nativa: recusar e orientar (C1)"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-056-A
+        given: "um --authored-by que não está em channels.<channel>.participants do liaison.yaml"
+        when: "o operador tenta registrar a mensagem nativa recebida (REQ-FHT-055)"
+        then: "recusa com rc != 0, sem gravar nada (liaison.yaml, log, blobs e cursor intactos por hash antes/depois), imprimindo os dois caminhos de resolução (incluir o peer no canal existente, ou abrir canal novo com ele)"
+    tests:
+      - tests/w287-liaison-cross-session-record-gate.sh
+  - id: REQ-FHT-057
+    title: "Gancho de saída SendMessage: varredura de segredo"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-057-A
+        given: "um SendMessage com texto para destino de sessão cujo corpo (ou outro campo string de tool_input) casa um padrão de secret-scan.mjs"
+        when: "o gancho PreToolUse guard-cross-session-send.sh roda"
+        then: "bloqueia com exit 2, nomeando o padrão e nunca ecoando o trecho que casou, usando a mesma função de varredura do send"
+    tests:
+      - tests/w290-native-send-guard-gate.sh
+  - id: REQ-FHT-058
+    title: "Escopo do gancho de saída: só aplica REQ-04/06/07 a destino de sessão"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-058-A
+        given: "um SendMessage endereçando um subagente provado interno, ou o main da própria sessão"
+        when: "o gancho de saída roda"
+        then: "deixa passar com exit 0, sem aplicar varredura de segredo, destino declarado ou contenção"
+      - id: SCN-FHT-058-B
+        given: "um SendMessage endereçando destino de sessão (nome resolvido com unicidade local, ou endereço uds:)"
+        when: "o gancho de saída roda"
+        then: "aplica varredura de segredo (REQ-FHT-057), destino declarado (REQ-FHT-059) e contenção por workspace (REQ-FHT-060); destino ambíguo ou não classificável é tratado como destino de sessão (fail-closed) com mensagem explicando o motivo"
+      - id: SCN-FHT-058-C
+        given: "um SendMessage que é só pedido de aviso de ociosidade (notify_when_idle) sem texto, para destino de sessão"
+        when: "o gancho de saída roda"
+        then: "aplica apenas a contenção por workspace (REQ-FHT-060), porque o pedido não carrega conteúdo mas presença também é informação"
+    tests:
+      - tests/w290-native-send-guard-gate.sh
+  - id: REQ-FHT-059
+    title: "Destino declarado em toda mensagem nativa que sai para sessão (C2)"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-059-A
+        given: "um SendMessage com texto para destino de sessão"
+        when: "o corpo não carrega, na primeira linha não vazia, um ponteiro liaison:<channel>/<msg_id> válido nem uma declaração ephemeral: <class> de classe efêmera válida"
+        then: "bloqueia com exit 2 explicando as duas formas de declarar"
+      - id: SCN-FHT-059-B
+        given: "uma declaração ephemeral: internal-coordination"
+        when: "o destino está em repositório diferente da origem (git-common-dir distinto), mesmo que do mesmo workspace"
+        then: "bloqueia com exit 2 explicando que conteúdo substantivo entre repositórios é material de liaison"
+    tests:
+      - tests/w290-native-send-guard-gate.sh
+  - id: REQ-FHT-060
+    title: "Contenção por workspace com workspaces permitidos (C3)"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-060-A
+        given: "um destino de sessão resolvido no registro local cujo workspace difere do workspace da origem, e sem entrada ativa correspondente em allowed_workspaces do repositório principal da origem"
+        when: "o gancho de saída roda"
+        then: "bloqueia com exit 2 nomeando as duas identidades, dizendo que liberar é decisão humana fora da sessão (REQ-FHT-063), sem imprimir comando pronto para copiar"
+      - id: SCN-FHT-060-B
+        given: "o mesmo cenário, mas com a identidade do workspace de destino cadastrada ativa em allowed_workspaces"
+        when: "o gancho de saída roda"
+        then: "deixa passar com exit 0"
+      - id: SCN-FHT-060-C
+        given: "um destino sem registro local (Remote Control, nuvem ou sessão encerrada), ou um nome que casa com mais de uma sessão viva"
+        when: "o gancho de saída roda"
+        then: "bloqueia com exit 2 mesmo que algum workspace esteja cadastrado, pedindo o endereço uds: no caso de nome ambíguo"
+    tests:
+      - tests/w290-native-send-guard-gate.sh
+      - tests/w291-native-send-guard-perf-gate.sh
+  - id: REQ-FHT-061
+    title: "Diagnóstico de cobertura das mensagens nativas recebidas"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-061-A
+        given: "o fim de uma sessão (SessionEnd) com mensagens nativas recebidas sem destinação (sem registro no liaison com o mesmo fingerprint em cross_session, nem native dispose)"
+        when: "o diagnóstico roda (SessionEnd, ou liaison-ops.sh native check [--session <id>])"
+        then: "lista as recepções pendentes (sinalizando à parte as de outro workspace e as de workspace desconhecido), em modo aviso (rc 0 sempre), persiste o relatório fora do repositório e o exibe uma única vez no bloco do liaison do SessionStart seguinte do mesmo repositório"
+      - id: SCN-FHT-061-B
+        given: "um transcript real que contém a string literal cross-session-message mas do qual o parser extrai zero recepções, ou um transcript de controle com duas mensagens nativas"
+        when: "o diagnóstico roda"
+        then: "reporta instrumento quebrado no primeiro caso, e exatamente duas detecções no segundo (controle a cada execução, nunca nada pendente por instrumento silenciosamente cego)"
+    tests:
+      - tests/w288-native-coverage-gate.sh
+      - tests/w286-native-readers-gate.sh
+  - id: REQ-FHT-062
+    title: "Normas escritas da mensageria nativa entre sessões"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-062-A
+        given: "as rules liaison-protocol.md e liaison-untrusted-input.md do template"
+        when: "o change é entregue"
+        then: "trazem o critério de classes obrigatórias e das classes efêmeras (fonte única com EPHEMERAL_CLASSES, conferida por tests/w294-native-rules-parity-gate.sh), a regra internal-coordination, a aplicação integral das regras de dado não confiável à mensagem nativa, a afirmação de from-name autodeclarado, a afirmação de allowed_workspaces como proteção contra liberação induzida (não fronteira), e a recomendação de configuração gerenciada do Claude Code para repositórios PCI; last_reviewed atualizado nas duas e itens abertos no ledger do harness com origem neste change, entre eles o de avaliar a configuração gerenciada do Claude Code nos repositórios em escopo PCI"
+    tests:
+      - tests/w294-native-rules-parity-gate.sh
+  - id: REQ-FHT-063
+    title: "Cadastro de workspaces permitidos e detecção de mudanças de contenção"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-063-A
+        given: "um terminal do operador humano fora de qualquer sessão do Claude Code"
+        when: "o operador roda native allow <identidade> --reason \\\"<motivo>\\\" (ou native revoke/native pin)"
+        then: "grava a entrada em allowed_workspaces de .forge/liaison/allowed-workspaces.json (validado por schema), com id/reason/granted_by/granted_at, e self_identity no primeiro cadastro; rodado de dentro de uma sessão de agente (qualquer marcador CLAUDECODE/CLAUDE_CODE_SESSION_ID/CLAUDE_PID), recusa com rc != 0 sem tocar o arquivo"
+      - id: SCN-FHT-063-B
+        given: "uma mudança de contenção (cadastro alterado, linha do gancho de SendMessage removida/trocada em hooks.manifest, gancho ausente da fiação quando o manifesto o declara armado, ou identidade do remote origin diferente de self_identity)"
+        when: "ocorre um push, uma rodada de doctor, ou a preparação de PR (/forge:prepare-pr, /forge:ship)"
+        then: "o detector único (native containment) sinaliza a mudança no pre-push (sem bloquear o push) e na seção do PR, para decisão humana no merge; o doctor, que mede só o estado atual, sinaliza as três mudanças que não dependem de intervalo (cadastro, fiação ausente e remote divergente)"
+    tests:
+      - tests/w289-native-containment-gate.sh
+      - tests/w293-native-containment-wiring-gate.sh
+  - id: REQ-FHT-064
+    title: "Empacotamento e propagação do gancho de saída da ponte nativa"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-064-A
+        given: "o harness instalado ou atualizado num consumidor"
+        when: "sync-adapters.mjs gera a fiação a partir de hooks.manifest.default (matcher ^SendMessage$, contrato stdin-json)"
+        then: "uma instalação nova recebe o gancho guard-cross-session-send.sh armado; um consumidor de fixture com .claude/settings.json pré-existente recebe o gancho inativo e nomeado, sem desfiar os ganchos que já existiam fiados quando o passo de armar documentado é seguido; plugin/forge/commands/liaison.md é igual à versão do template"
+    tests:
+      - tests/w292-native-hook-packaging-gate.sh
+  - id: REQ-FHT-065
+    title: "Documentação operacional da ponte nativa (/forge:liaison)"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-065-A
+        given: "os subcomandos novos (notify, native check/dispose/allow/revoke/pin/containment) e send --via cross-session"
+        when: "o change é entregue"
+        then: "/forge:liaison (template e plugin) documenta argument-hint com os subcomandos novos, e para cada um o bloco de protocolo mostra exatamente o conjunto de flags aceitas pelo script (conferido por teste); send cross-session mostra só --native-ref/--session, sem flag de origem; docs/refer/slash-commands.md descreve os subcomandos novos; CHANGELOG.md [Unreleased] traz o passo de armar do gancho; o badge de gates do README.md bate com a contagem real"
+    tests:
+      - tests/w295-native-docs-gate.sh
+      - tests/w200-readme-inventory-gate.sh
+      - tests/plugin-sync-gate.sh
+  - id: REQ-FHT-066
+    title: "Rule `migration-review.md` segue a convenção do template"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-066-A
+        given: "o repositório tem `template/.forge/rules/data/migration-review.md` criado com frontmatter e as 5 seções (quando se aplica, quem revisa, checklist, exceção, gate mecânico)"
+        when: "o template for consumido por `/forge:sync-adapters` ou `validate-rules.sh`"
+        then: "reconhecer `template/.forge/rules/data/migration-review.md` como rule válida: frontmatter com `title`, `applies_to` (incluindo `relational-database`, `migrations`), `priority`, `last_reviewed` e `based_on: []`"
+    tests:
+      - tests/migration-review-gate.sh#[1]
+      - tests/migration-review-gate.sh#[2]
+  - id: REQ-FHT-067
+    title: "Exigência de revisão especializada antes do merge"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-067-A
+        given: "a rule `migration-review.md` documenta a seção \"Quem revisa\" com a responsabilidade do orquestrador de clonar a head do PR"
+        when: "um PR tocar arquivo de migration"
+        then: "(via rule, norma aplicada por quem conduz o change/PR) exigir revisão do agente `data-engineer` ou do especialista `data-relational`, executada sobre um clone da head do PR, adicional à revisão geral de código"
+    tests:
+      - tests/migration-review-gate.sh#[2]
+  - id: REQ-FHT-068
+    title: "Checklist de 13 itens, objetivo e verificável"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-068-A
+        given: "a rule `migration-review.md` tem a seção \"Checklist (13 itens)\" com os 13 itens literais da issue #241"
+        when: "a revisão especializada for executada"
+        then: "fornecer um checklist de exatamente 13 itens, enumerados literalmente abaixo (fonte: issue #241, sem fusão nem split), cada um redigido como condição verificável"
+    tests:
+      - tests/migration-review-gate.sh#[2]
+  - id: REQ-FHT-069
+    title: "Exceção por item, só com registro explícito e backlog associado"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-069-A
+        given: "o `migration-review.md` (arquivo de evidência) existe no commit em avaliação, com uma linha `- [exception] <path> item=<N> backlog=<ref> [adr=<ref>]`"
+        when: "um item do checklist não puder ser atendido"
+        then: "exigir que a exceção seja registrada por item, no arquivo de evidência (REQ-05), com o id/link do backlog que resolve a pendência — nunca uma exceção genérica para o PR todo. Para o item 2 (RLS), a exceção exige também o ADR/registro formal que `data-config-sql.md` já cobra (REQ-03 item 2); os outros 12 itens exigem só o registro no arquivo de evidência com backlog"
+    tests:
+      - tests/migration-review-gate.sh#[6]
+      - tests/migration-review-gate.sh#[7]
+  - id: REQ-FHT-070
+    title: "Gate mecânico de detecção de migration em push/PR"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-070-A
+        given: "o `pre-push` tem o bloco `MIGRATION_REVIEW_CHECK` (após `AI_CHECK`) chamando `check-migration-review.sh range \"$range\"` por ref do push; `check-migration-review.sh`/`lib/check-migration-review.mjs` existem em `.forge/scripts/`"
+        when: "um `git push` incluir commit(s) que tocam arquivo de migration por convenção de path"
+        then: "reportar via script (`check-migration-review.sh`) a ausência de evidência de parecer de revisão com saída não-zero e mensagem clara, sem depender de rede/`gh` (NFR-01)"
+    tests:
+      - tests/migration-review-gate.sh#[3]-[14]
+  - id: REQ-FHT-071
+    title: "`check-data-governance.sh` passa a ler `.sql` (revisão da decisão 3)"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-071-A
+        given: "`check-data-governance.mjs` tem `.sql` em `CODE_EXTS` e `--` em `SENSITIVE_MARKER_RE`"
+        when: "um arquivo `.sql` contiver o marcador `-- forge:sensitive-field=\"<campo>\"` sem entrada correspondente em `data-classification.json`, ou PAN/CPF/e-mail em chamada de log na mesma linha"
+        then: "reportar `CONFLICT` (mesmo contrato do REQ-12a/REQ-12b já existente para `.go/.kt/.ts/.rego/.py`), sem alterar o comportamento para as demais extensões já cobertas"
+    tests:
+      - tests/req12-pii-log-gate.sh#[6]-[9]
+  - id: REQ-FHT-072
+    title: "Reverificação de item do ledger com evidência de conteúdo mínimo"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-072-A
         given: "um ledger.json existente sem nenhum dos campos last_verified, evidence, supersedes ou links.superseded_by"
         when: "o schema do ledger é aplicado e as portas add, update, note, resolve e promote são usadas"
         then: "todas as entradas continuam válidas sem migração, os quatro campos são opcionais, required da entrada não muda, e nenhuma porta existente passa a gravá-los"
-      - id: SCN-FHT-054-B
+      - id: SCN-FHT-072-B
         given: "uma entrada ativa e uma evidência válida de kind file (caminho relativo existente dentro da raiz e linha dentro do arquivo), commit (resolvível), test (arquivo existente com o nome citado) ou command"
         when: "o operador roda ledger-ops.sh verify com --kind, --ref, --observed (20+ caracteres, diferente do ref e do título) e --verdict"
         then: "um registro {at, kind, ref, observed, verdict} é acrescentado a evidence com a data do commit HEAD, last_verified e updated_at recebem a mesma data, o commit é gravado como SHA completo, o ref de command nunca é executado, e o veredito changed acrescenta CORREÇÃO DE REGISTRO ao detail preservando o texto anterior"
-      - id: SCN-FHT-054-C
+      - id: SCN-FHT-072-C
         given: "uma evidência que não pode ser conferida (formato inválido, arquivo inexistente ou fora da raiz inclusive por link simbólico, linha zero ou além do fim, intervalo invertido, commit inexistente, nome de teste ausente, observed curto ou repetido) ou uma entrada em status encerrado"
         when: "o operador roda ledger-ops.sh verify"
         then: "o comando reprova nomeando o kind e a regra violada e o ledger.json fica byte-a-byte intacto; note --kind measurement continua gravando, mas avisa que não conta como reverificação e aponta o verify"
     contracts:
       - template/.forge/schemas/ledger.schema.json
     tests:
-      - tests/ledger-evidence-aging-gate.sh
-  - id: REQ-FHT-055
+      - tests/w309-ledger-evidence-aging-gate.sh
+  - id: REQ-FHT-073
     title: "Sinal determinístico de idade de item do ledger, advisory e fiado no ciclo de vida"
     normative: "SHALL"
     scenarios:
-      - id: SCN-FHT-055-A
+      - id: SCN-FHT-073-A
         given: "entradas ativas com referência last_verified (ou created_at, se nunca reverificadas) e um limiar vindo de --days, de forge.yaml ledger.stale_days ou do default 30"
         when: "o operador roda ledger-ops.sh stale"
         then: "a primeira linha declara K de A ativos envelhecidos, a data de referência (commit HEAD ou --as-of) e a origem do limiar, cada item envelhecido sai ordenado por idade e id, inconsistências saem numa seção própria, a saída é byte-idêntica para a mesma entrada, o rc é 0 sem --strict e 1 com --strict quando há item envelhecido ou inconsistência, e limiar inválido, --as-of ilegível ou falta de HEAD sem --as-of saem com rc 2"
-      - id: SCN-FHT-055-B
+      - id: SCN-FHT-073-B
         given: "o mesmo ledger com itens envelhecidos"
         when: "o operador consulta ledger-ops.sh status, ledger-ops.sh list (lido pelo /forge:resume e pelo SessionStart) e /forge:doctor"
         then: "o status ganha o sufixo com a contagem, o list marca cada item ativo envelhecido com a idade, o doctor imprime uma linha informativa delegando ao stale sem alterar o próprio código de saída e sem criar ledger.json onde não há, e sem HEAD ou com limiar inválido as três superfícies degradam com aviso em vez de falhar"
     contracts:
       - template/.forge/schemas/forge.schema.json
     tests:
-      - tests/ledger-evidence-aging-gate.sh
-  - id: REQ-FHT-056
+      - tests/w309-ledger-evidence-aging-gate.sh
+  - id: REQ-FHT-074
     title: "Supersessão de item do ledger com elo bidirecional e cadeia consultável"
     normative: "SHALL"
     scenarios:
-      - id: SCN-FHT-056-A
+      - id: SCN-FHT-074-A
         given: "uma entrada ativa LDG-B"
         when: "o operador roda ledger-ops.sh add com --supersedes LDG-B"
         then: "a entrada nova nasce com supersedes LDG-B e, na mesma escrita, LDG-B vai a superseded com resolved_at, links.superseded_by e um bloco SUBSTITUÍDO no detail; alvo inexistente, não ativo ou com id inválido reprova sem gravar"
-      - id: SCN-FHT-056-B
+      - id: SCN-FHT-074-B
         given: "uma entrada em superseded"
         when: "alguém tenta add ou update --status superseded, update --status em qualquer valor, promote, resolve ou spec new --from-ledger sobre ela"
         then: "as portas de status recusam nomeando o sucessor, a correção de título continua permitida sem reabrir, e spec new cria o change sem ledger_origin e aponta o sucessor"
-      - id: SCN-FHT-056-C
+      - id: SCN-FHT-074-C
         given: "uma cadeia A substitui B substitui C, e um ledger corrompido à mão com ciclo ou elo quebrado"
         when: "o operador roda ledger-ops.sh show sobre qualquer elo"
         then: "a cadeia completa aparece nas duas direções com a entrada consultada marcada, o comando termina nomeando ciclo ou elo quebrado, e superseded conta como encerrado no LEDGER.md, no status, no note e no placar de tools/plan-progress.mjs"
     contracts:
       - template/.forge/schemas/ledger.schema.json
     tests:
-      - tests/ledger-evidence-aging-gate.sh
+      - tests/w309-ledger-evidence-aging-gate.sh
 history:
   - change_id: security-observability-gates
     archived_at: "2026-07-20"
@@ -689,3 +918,7 @@ history:
     archived_at: "2026-08-04"
   - change_id: add-ledger-evidence-aging
     archived_at: "2026-10-31"
+  - change_id: add-liaison-native-bridge
+    archived_at: "2026-10-31"
+  - change_id: add-migration-review-rule
+    archived_at: "2026-11-01"

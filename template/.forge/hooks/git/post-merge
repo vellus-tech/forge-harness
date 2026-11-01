@@ -64,15 +64,24 @@ git worktree prune 2>/dev/null || true
 # changelog (§20.4): acumula commits convencionais do merge no CHANGELOG.md raiz.
 # Determinista/idempotente; no-op sem CHANGELOG.md raiz ou se HEAD não for um merge.
 #
+# Motor único (add-unify-changelog-skill, TASK-10): o hook deixou de chamar
+# scripts/lib/changelog-from-merge.mjs e passa a delegar para o mesmo motor usado pelo comando
+# /forge:update-changelog — skills/readme-generator/scripts/changelog-engine.mjs, modo
+# --merge-range, sem gates (o hook é informacional; gates de bloqueio só fazem sentido no
+# comando, que roda antes do merge). O hook NUNCA usa resolve-skill.sh (REQ-07/REQ-12/REQ-13):
+# esse resolvedor é mecanismo do COMANDO, que procura também skill de usuário/FORGE_SKILL_DIR_*;
+# o hook resolve só dentro de .forge/skills/readme-generator/ do próprio projeto (ou do tronco,
+# via resolve_delegated), igual a qualquer outro alvo delegado.
+#
 # Regra de delegação (issue #49, instância 4): chamar algo que não existe é ERRO, não no-op.
 # O no-op só é legítimo quando o harness NÃO está instalado — aí não há maquinaria a impor. Se o
 # DIRETÓRIO que hospeda o alvo existe, a ausência do alvo significa harness atualizado pela
 # metade, script apagado ou instalação corrompida, e isso não pode terminar no mesmo desfecho de
 # uma execução bem-sucedida.
-CHANGELOG_GEN="$(resolve_delegated changelog-from-merge.mjs scripts/lib/changelog-from-merge.mjs)"; _rc=$?
+CHANGELOG_GEN="$(resolve_delegated changelog-engine skills/readme-generator/scripts/changelog-engine.mjs)"; _rc=$?
 delegation_failed=0
 if [ "$_rc" -eq 1 ]; then
-  echo "post-merge FALHOU: .forge/scripts/lib/ existe mas changelog-from-merge.mjs não —" >&2
+  echo "post-merge FALHOU: .forge/skills/readme-generator/scripts/ existe mas changelog-engine.mjs não —" >&2
   echo "  a delegação aponta para um alvo ausente, e isso não pode sair como sucesso." >&2
   delegation_failed=1
   CHANGELOG_GEN=""
@@ -81,8 +90,8 @@ if [ -n "$CHANGELOG_GEN" ] && [ -f "$CHANGELOG_GEN" ]; then
   if command -v node >/dev/null 2>&1; then
     # A saída de erro deixou de ir para /dev/null: `2>/dev/null || true` fazia uma falha do
     # gerador sair idêntica a um no-op bem-sucedido — o mesmo colapso de estados, um nível abaixo.
-    if ! gen_out="$(node "$CHANGELOG_GEN" "$ROOT" 2>&1)"; then
-      echo "post-merge FALHOU: changelog-from-merge.mjs terminou com erro:" >&2
+    if ! gen_out="$(node "$CHANGELOG_GEN" --root "$ROOT" --merge-range 2>&1)"; then
+      echo "post-merge FALHOU: changelog-engine.mjs terminou com erro:" >&2
       printf '%s\n' "$gen_out" | sed 's/^/  /' >&2
       delegation_failed=1
     fi

@@ -9,7 +9,8 @@
 # A regra que os hooks passam a seguir: o no-op só é legítimo quando o harness NÃO está instalado.
 # Se o diretório que hospeda o alvo existe, a ausência do alvo é falha.
 #
-#   [1] post-merge: .forge/scripts/lib/ presente e changelog-from-merge.mjs ausente → ERRO visível
+#   [1] post-merge: .forge/skills/readme-generator/scripts/ presente e changelog-engine.mjs
+#       ausente → ERRO visível
 #   [2] post-merge: alvo presente porém FALHANDO → o hook não reporta sucesso
 #   [3] commit-msg: .forge/scripts/ presente e check-ai-attribution.sh ausente → BLOQUEIA
 #   [4] pre-push: gate declarado em runtime.gates cujo script não existe → BLOQUEIA (era "skip")
@@ -46,23 +47,23 @@ mkrepo() { # mkrepo <dir> — repo com harness completo instalado
 }
 
 # ── [1] ──────────────────────────────────────────────────────────────────────────────────────
-echo "[1] post-merge: alvo de delegação ausente com .forge/scripts/lib/ presente → ERRO visível"
+echo "[1] post-merge: alvo de delegação ausente com .forge/skills/readme-generator/scripts/ presente → ERRO visível"
 R1="$T/r1"; mkrepo "$R1"
-rm -f "$R1/.forge/scripts/lib/changelog-from-merge.mjs"
+rm -f "$R1/.forge/skills/readme-generator/scripts/changelog-engine.mjs"
 out="$(cd "$R1" && bash "$R1/.forge/hooks/git/post-merge" 2>&1)"; rc=$?
 if [ "$rc" -eq 0 ]; then
   echo "FAIL [1]: post-merge concluiu com sucesso delegando para um alvo que não existe (saída: '$out')"
   exit 1
 fi
 case "$out" in
-  *changelog-from-merge.mjs*) : ;;
+  *changelog-engine.mjs*) : ;;
   *) echo "FAIL [1]: falhou sem nomear o alvo ausente (saída: '$out')"; exit 1 ;;
 esac
 echo "OK [1]"
 
 # ── [2] ──────────────────────────────────────────────────────────────────────────────────────
 echo "[2] post-merge: alvo presente porém FALHANDO → o hook não reporta sucesso"
-printf 'process.exit(3);\n' > "$R1/.forge/scripts/lib/changelog-from-merge.mjs"
+printf 'process.exit(3);\n' > "$R1/.forge/skills/readme-generator/scripts/changelog-engine.mjs"
 out="$(cd "$R1" && bash "$R1/.forge/hooks/git/post-merge" 2>&1)"; rc=$?
 if [ "$rc" -eq 0 ]; then
   echo "FAIL [2]: post-merge reportou sucesso com a delegação falhando (saída: '$out')"

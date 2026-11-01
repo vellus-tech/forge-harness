@@ -702,6 +702,7 @@ cp "$CHK" "$L/wt/.forge/scripts/check-push-ahead.sh"
 # espírito do shim de git do [17]: isolar o canal que está sob teste, não simular o harness inteiro.
 printf '#!/bin/sh\nexit 0\n' > "$L/wt/.forge/scripts/check-ai-attribution.sh"
 printf '#!/bin/sh\nexit 0\n' > "$L/wt/.forge/scripts/check-liaison-acks.sh"
+printf '#!/bin/sh\nexit 0\n' > "$L/wt/.forge/scripts/check-migration-review.sh"
 chmod +x "$L/wt/.forge/scripts/"*.sh
 mkdir -p "$L/wt/.git/hooks"
 cp "$HOOK" "$L/wt/.git/hooks/pre-push"

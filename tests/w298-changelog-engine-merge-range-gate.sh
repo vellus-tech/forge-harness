@@ -10,6 +10,8 @@
 #   [6] CHANGELOG sem [Unreleased] ganha a secao criada antes da primeira versao numerada
 #   [7] subject com $' no hook fica literal (String.replace com função).
 #   [8] comando (--subject) na branch + hook no merge não duplicam a mudança.
+#   [9] commits distintos com o mesmo subject: uma entrada por hash.
+#   [10] --merge-range fora de repositório git -> erro observável
 set -uo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
@@ -156,5 +158,32 @@ git -C "$R8" merge -q --no-ff feature -m 'merge feature' >/dev/null 2>&1
 node "$ENGINE" --root "$R8" --merge-range >/dev/null 2>&1 || { echo "FAIL [8]: --merge-range saiu com erro"; exit 1; }
 [ "$(grep -c 'adiciona exportação' "$R8/CHANGELOG.md")" -eq 1 ] || { echo "FAIL [8]: mudança registrada duas vezes"; cat "$R8/CHANGELOG.md"; exit 1; }
 echo "OK [8]"
+
+# ── [9] ──────────────────────────────────────────────────────────────────────────────────────
+echo "[9] dois commits distintos com o mesmo subject geram duas entradas (hash é a chave por commit)"
+R9="$T/r9"; mkdir -p "$R9"
+git -C "$R9" init -q -b main
+git -C "$R9" config user.email t@t; git -C "$R9" config user.name t; git -C "$R9" config commit.gpgsign false
+printf '# Changelog\n\n## [Unreleased]\n\n### Corrigido\n- corrige teste instável (abc1234)\n' > "$R9/CHANGELOG.md"
+git -C "$R9" add -A >/dev/null 2>&1; git -C "$R9" commit -qm 'chore: init' >/dev/null 2>&1
+git -C "$R9" checkout -qb feature >/dev/null 2>&1
+printf '1\n' > "$R9/a"; git -C "$R9" add -A >/dev/null 2>&1; git -C "$R9" commit -qm 'fix: corrige teste instável' >/dev/null 2>&1
+printf '2\n' > "$R9/b"; git -C "$R9" add -A >/dev/null 2>&1; git -C "$R9" commit -qm 'feat: novo relatório' >/dev/null 2>&1
+printf '3\n' > "$R9/c"; git -C "$R9" add -A >/dev/null 2>&1; git -C "$R9" commit -qm 'feat: novo relatório' >/dev/null 2>&1
+git -C "$R9" checkout -q main >/dev/null 2>&1
+git -C "$R9" merge -q --no-ff feature -m 'merge feature' >/dev/null 2>&1
+node "$ENGINE" --root "$R9" --merge-range >/dev/null 2>&1 || { echo "FAIL [9]: motor saiu com erro"; exit 1; }
+[ "$(grep -c 'novo relatório (' "$R9/CHANGELOG.md")" -eq 2 ] || { echo "FAIL [9]: commits distintos colapsados"; cat "$R9/CHANGELOG.md"; exit 1; }
+[ "$(grep -c 'corrige teste instável (' "$R9/CHANGELOG.md")" -eq 2 ] || { echo "FAIL [9]: commit novo suprimido por entrada antiga com outro hash"; cat "$R9/CHANGELOG.md"; exit 1; }
+echo "OK [9]"
+
+# ── [10] ─────────────────────────────────────────────────────────────────────────────────────
+echo "[10] --merge-range fora de repositório git -> erro observável (não no-op silencioso)"
+R10="$T/r10"; mkdir -p "$R10"
+printf '# Changelog\n\n## [Unreleased]\n' > "$R10/CHANGELOG.md"
+out="$(GIT_CEILING_DIRECTORIES="$T" node "$ENGINE" --root "$R10" --merge-range 2>&1)"; rc=$?
+[ "$rc" -ne 0 ] || { echo "FAIL [10]: rc 0 fora de repositório (saída: $out)"; exit 1; }
+case "$out" in *FAIL*) : ;; *) echo "FAIL [10]: saída sem FAIL (saída: $out)"; exit 1 ;; esac
+echo "OK [10]"
 
 echo "PASS w298-changelog-engine-merge-range"

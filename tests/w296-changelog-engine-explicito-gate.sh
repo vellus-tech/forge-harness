@@ -8,6 +8,10 @@
 #   [4] padrões $' $& $1 do texto ficam literais (String.replace com função).
 #   [5] rodar duas vezes não duplica (deduplicação em [Unreleased]).
 #   [6] CRLF preservado, seção publicada intacta.
+#   [7] symlink preservado, alvo recebe a entrada, modo preservado, sem temporário residual.
+#   [8] deduplicação por seção + texto.
+#   [9] "## [unreleased]" minúsculo reconhecido.
+#   [10] falha de escrita sai por FAIL e sem temporário residual
 set -uo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
@@ -87,5 +91,46 @@ node "$ENGINE" --root "$R6" --type added --description "nova" >/dev/null 2>&1 ||
 if LC_ALL=C grep -q "$(printf '[^\r]$')" "$R6/CHANGELOG.md"; then echo "FAIL [6]: linha sem CR no arquivo CRLF"; od -c "$R6/CHANGELOG.md" | head; exit 1; fi
 tail -c 40 "$T/r6-antes.md" | cmp -s - <(tail -c 40 "$R6/CHANGELOG.md") || { echo "FAIL [6]: seção publicada alterada"; exit 1; }
 echo "OK [6]"
+
+# ── [7] ──────────────────────────────────────────────────────────────────────────────────────
+echo "[7] CHANGELOG.md symlink continua symlink, o alvo recebe a entrada e o modo é preservado"
+R7="$T/r7"; mkdir -p "$R7/docs"
+printf '# Changelog\n\n## [Unreleased]\n' > "$R7/docs/CHANGELOG.md"; chmod 664 "$R7/docs/CHANGELOG.md"
+ln -s docs/CHANGELOG.md "$R7/CHANGELOG.md"
+node "$ENGINE" --root "$R7" --type added --description "entrada via link" >/dev/null 2>&1 || { echo "FAIL [7]: motor saiu com erro"; exit 1; }
+[ -L "$R7/CHANGELOG.md" ] || { echo "FAIL [7]: o symlink virou arquivo regular"; exit 1; }
+grep -q 'entrada via link' "$R7/docs/CHANGELOG.md" || { echo "FAIL [7]: o alvo do link não recebeu a entrada"; exit 1; }
+[ "$(ls -l "$R7/docs/CHANGELOG.md" | cut -c1-10)" = "-rw-rw-r--" ] || { echo "FAIL [7]: modo do arquivo não preservado ($(ls -l "$R7/docs/CHANGELOG.md" | cut -c1-10))"; exit 1; }
+ls "$R7/docs" | grep -q '\.tmp-' && { echo "FAIL [7]: temporário deixado para trás"; exit 1; }
+echo "OK [7]"
+
+# ── [8] ──────────────────────────────────────────────────────────────────────────────────────
+echo "[8] deduplicação considera a seção: mesmo texto em outra seção é gravado"
+R8="$T/r8"; mkdir -p "$R8"
+printf '# Changelog\n\n## [Unreleased]\n\n### Adicionado\n- suporte a PIX\n' > "$R8/CHANGELOG.md"
+node "$ENGINE" --root "$R8" --type removed --description "suporte a PIX" >/dev/null 2>&1 || { echo "FAIL [8]: motor saiu com erro"; exit 1; }
+grep -q '### Removido' "$R8/CHANGELOG.md" && [ "$(grep -c -- '- suporte a PIX' "$R8/CHANGELOG.md")" -eq 2 ] \
+  || { echo "FAIL [8]: entrada em outra seção suprimida pela deduplicação"; cat "$R8/CHANGELOG.md"; exit 1; }
+echo "OK [8]"
+
+# ── [9] ──────────────────────────────────────────────────────────────────────────────────────
+echo "[9] '## [unreleased]' em minúscula é reconhecido: nenhum segundo bloco é criado"
+R9="$T/r9"; mkdir -p "$R9"
+printf '# Changelog\n\n## [unreleased]\n\n### Adicionado\n- pendente\n' > "$R9/CHANGELOG.md"
+node "$ENGINE" --root "$R9" --type added --description "nova" >/dev/null 2>&1 || { echo "FAIL [9]: motor saiu com erro"; exit 1; }
+[ "$(grep -ci '^## \[unreleased\]' "$R9/CHANGELOG.md")" -eq 1 ] || { echo "FAIL [9]: segundo bloco Unreleased criado"; cat "$R9/CHANGELOG.md"; exit 1; }
+echo "OK [9]"
+
+# ── [10] ─────────────────────────────────────────────────────────────────────────────────────
+echo "[10] falha na escrita sai por FAIL (sem stack trace) e não deixa temporário"
+R10="$T/r10"; mkdir -p "$R10"
+printf '# Changelog\n\n## [Unreleased]\n' > "$R10/CHANGELOG.md"
+chmod 555 "$R10"
+out="$(node "$ENGINE" --root "$R10" --type added --description "x" 2>&1)"; rc=$?
+chmod 755 "$R10"
+[ "$rc" -ne 0 ] || { echo "FAIL [10]: rc 0 com diretório sem escrita (saída: $out)"; exit 1; }
+case "$out" in *"FAIL: escrita"*) : ;; *) echo "FAIL [10]: saída fora da convenção FAIL (saída: $out)"; exit 1 ;; esac
+ls "$R10" | grep -q '\.tmp-' && { echo "FAIL [10]: temporário deixado para trás"; exit 1; }
+echo "OK [10]"
 
 echo "PASS w296-changelog-engine-explicito"

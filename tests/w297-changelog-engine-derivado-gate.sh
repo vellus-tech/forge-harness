@@ -10,6 +10,7 @@
 #   [6] --path não traz commits que já estavam na base
 #   [7] rodar --path de novo não duplica
 #   [8] --path fora de repositório git -> rc 2, sem criar arquivo
+#   [9] base padrão = a de merge-base mais próximo (develop defasada não arrasta histórico).
 set -uo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
@@ -91,5 +92,21 @@ out="$(node "$ENGINE" --root "$R8" --path comp 2>&1)"; rc=$?
 [ "$rc" -eq 2 ] || { echo "FAIL [8]: rc esperado 2, obtido $rc (saida: $out)"; exit 1; }
 [ ! -e "$R8/CHANGELOG.md" ] || { echo "FAIL [8]: CHANGELOG criado mesmo com o git falhando"; exit 1; }
 echo "OK [8]"
+
+# ── [9] ──────────────────────────────────────────────────────────────────────────────────────
+echo "[9] develop defasada não arrasta para [Unreleased] o que já saiu por main (base mais próxima)"
+R9="$T/r9"; mkdir -p "$R9/comp"
+git -C "$R9" init -q -b main
+git -C "$R9" config user.email t@t; git -C "$R9" config user.name t; git -C "$R9" config commit.gpgsign false
+printf '0\n' > "$R9/comp/z.txt"; git -C "$R9" add -A >/dev/null 2>&1; git -C "$R9" commit -qm 'chore: init' >/dev/null 2>&1
+git -C "$R9" branch develop >/dev/null 2>&1
+printf '1\n' > "$R9/comp/p.txt"; git -C "$R9" add -A >/dev/null 2>&1; git -C "$R9" commit -qm 'feat(comp): recurso publicado em 1.0.0' >/dev/null 2>&1
+git -C "$R9" checkout -qb feat/y >/dev/null 2>&1
+printf '2\n' > "$R9/comp/q.txt"; git -C "$R9" add -A >/dev/null 2>&1; git -C "$R9" commit -qm 'fix(comp): corrige o novo' >/dev/null 2>&1
+out="$(node "$ENGINE" --root "$R9" --path comp 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] || { echo "FAIL [9]: rc=$rc saida: $out"; exit 1; }
+grep -q 'corrige o novo' "$R9/CHANGELOG.md" || { echo "FAIL [9]: entrada da branch ausente (saida: $out)"; exit 1; }
+grep -q 'recurso publicado' "$R9/CHANGELOG.md" && { echo "FAIL [9]: commit já publicado por main reinserido (saida: $out)"; exit 1; }
+echo "OK [9]"
 
 echo "PASS w297-changelog-engine-derivado"

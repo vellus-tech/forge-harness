@@ -15,8 +15,8 @@ requirements:
         when: "o motor roda em modo explícito"
         then: "cria o arquivo com cabeçalho Keep a Changelog padrão antes de gravar a entrada (REQ-14)"
     tests:
-      - tests/w284-changelog-engine-explicito-gate.sh
-      - tests/w292-update-changelog-comando-gate.sh
+      - tests/w296-changelog-engine-explicito-gate.sh
+      - tests/w304-update-changelog-comando-gate.sh
   - id: REQ-CA-002
     title: "Modo derivado deriva entradas de Conventional Commits por subject ou path"
     normative: "SHALL"
@@ -30,7 +30,7 @@ requirements:
         when: "o comando roda em modo derivado por path"
         then: "sai com rc=2 e não grava 'nada a registrar' por vacuidade"
     tests:
-      - tests/w285-changelog-engine-derivado-gate.sh
+      - tests/w297-changelog-engine-derivado-gate.sh
   - id: REQ-CA-003
     title: "Comando para sem editar nada em branch protegida"
     normative: "SHALL"
@@ -40,7 +40,7 @@ requirements:
         when: "/forge:update-changelog roda em qualquer modo (explícito ou derivado)"
         then: "o comando para antes de editar qualquer CHANGELOG.md e informa que não roda em branch protegida"
     tests:
-      - tests/w292-update-changelog-comando-gate.sh
+      - tests/w304-update-changelog-comando-gate.sh
   - id: REQ-CA-004
     title: "Comando recusa editar CHANGELOG quando o componente tem release-please-config.json"
     normative: "SHALL"
@@ -50,8 +50,8 @@ requirements:
         when: "/forge:update-changelog roda em modo explícito ou derivado"
         then: "o CHANGELOG.md permanece intocado e a saída aponta o título do PR atual como fonte da entrada de release"
     tests:
-      - tests/w287-changelog-engine-release-please-gate.sh
-      - tests/w292-update-changelog-comando-gate.sh
+      - tests/w299-changelog-engine-release-please-gate.sh
+      - tests/w304-update-changelog-comando-gate.sh
   - id: REQ-CA-005
     title: "Comando só conclui se os quatro gates pós-escrita passarem"
     normative: "SHALL"
@@ -69,10 +69,10 @@ requirements:
         when: "o gate lint roda sobre o arquivo novo"
         then: "reprova com FAIL lint, nomeando a violação"
     tests:
-      - tests/w288-changelog-gate-released-gate.sh
-      - tests/w289-changelog-gate-preserve-gate.sh
-      - tests/w290-changelog-gate-lint-gate.sh
-      - tests/w294-changelog-gates-regressao-gate.sh
+      - tests/w300-changelog-gate-released-gate.sh
+      - tests/w301-changelog-gate-preserve-gate.sh
+      - tests/w302-changelog-gate-lint-gate.sh
+      - tests/w306-changelog-gates-regressao-gate.sh
   - id: REQ-CA-006
     title: "resolve-skill.sh resolve o motor só para o comando, com precedência e falha explícita"
     normative: "SHALL"
@@ -86,7 +86,7 @@ requirements:
         when: "resolve-skill.sh readme-generator scripts/changelog-engine.mjs roda"
         then: "sai com 'FAIL skill readme-generator ausente' e rc 1, nunca em silêncio"
     tests:
-      - tests/w291-resolve-skill-gate.sh
+      - tests/w303-resolve-skill-gate.sh
   - id: REQ-CA-007
     title: "Formato Keep a Changelog preservado e motor aceita CHANGELOG ausente nos modos do comando"
     normative: "SHALL"
@@ -100,8 +100,8 @@ requirements:
         when: "o motor grava uma entrada nova"
         then: "cria a seção [Unreleased] antes da primeira versão numerada, preservando ## [X.Y.Z] - lista '- ' do Keep a Changelog"
     tests:
-      - tests/w284-changelog-engine-explicito-gate.sh
-      - tests/w286-changelog-engine-merge-range-gate.sh
+      - tests/w296-changelog-engine-explicito-gate.sh
+      - tests/w298-changelog-engine-merge-range-gate.sh
   - id: REQ-CA-008
     title: "Mapeamento pt-BR de Conventional Commits trata perf como Corrigido, nunca Alterado"
     normative: "SHALL"
@@ -115,7 +115,7 @@ requirements:
         when: "o motor deriva a seção"
         then: "não gera entrada nenhuma (DIV-02)"
     tests:
-      - tests/w285-changelog-engine-derivado-gate.sh
+      - tests/w297-changelog-engine-derivado-gate.sh
 history:
   - change_id: add-unify-changelog-skill
     archived_at: "2026-11-01"

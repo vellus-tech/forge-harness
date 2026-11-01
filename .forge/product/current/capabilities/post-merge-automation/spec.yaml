@@ -15,7 +15,7 @@ requirements:
         when: "o hook post-merge executa"
         then: "o passo de changelog é no-op sem erro observável"
     tests:
-      - tests/w293-post-merge-changelog-engine-gate.sh
+      - tests/w305-post-merge-changelog-engine-gate.sh
   - id: REQ-PMA-002
     title: "Modo --merge-range é idempotente por sufixo de hash e marca BREAKING"
     normative: "SHALL"
@@ -29,8 +29,8 @@ requirements:
         when: "o motor deriva a entrada"
         then: "grava o marcador **[BREAKING]** na linha"
     tests:
-      - tests/w286-changelog-engine-merge-range-gate.sh
-      - tests/w295-changelog-merge-engine-gate.sh
+      - tests/w298-changelog-engine-merge-range-gate.sh
+      - tests/w307-changelog-merge-engine-gate.sh
   - id: REQ-PMA-003
     title: "Delegação do hook ao motor segue a regra estrita de resolve_delegated"
     normative: "SHALL"
@@ -50,7 +50,7 @@ requirements:
     tests:
       - tests/w147-hook-delegation-gate.sh
       - tests/w223-delegacao-arvore-do-hook-gate.sh
-      - tests/w293-post-merge-changelog-engine-gate.sh
+      - tests/w305-post-merge-changelog-engine-gate.sh
   - id: REQ-PMA-004
     title: "Hook resolve só a cópia do motor no projeto, nunca a skill de escopo de usuário"
     normative: "SHALL"
@@ -60,7 +60,7 @@ requirements:
         when: "o hook post-merge executa"
         then: "a variável não é consultada — o hook resolve exclusivamente .forge/skills/readme-generator/ do próprio projeto (ou do tronco, via resolve_delegated), nunca via resolve-skill.sh"
     tests:
-      - tests/w293-post-merge-changelog-engine-gate.sh
+      - tests/w305-post-merge-changelog-engine-gate.sh
   - id: REQ-PMA-005
     title: "Hook escreve seções pt-BR restritas a feat/fix/perf e não edita CHANGELOG com release-please na raiz"
     normative: "SHALL"
@@ -78,8 +78,8 @@ requirements:
         when: "o hook post-merge executa em --merge-range"
         then: "o CHANGELOG.md raiz permanece intocado, sem erro — checagem avaliada antes da guarda de ausência de CHANGELOG do REQ-02"
     tests:
-      - tests/w287-changelog-engine-release-please-gate.sh
-      - tests/w295-changelog-merge-engine-gate.sh
+      - tests/w299-changelog-engine-release-please-gate.sh
+      - tests/w307-changelog-merge-engine-gate.sh
 history:
   - change_id: add-unify-changelog-skill
     archived_at: "2026-11-01"

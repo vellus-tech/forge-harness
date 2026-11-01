@@ -3605,7 +3605,7 @@
       "summary": null
     },
     {
-      "id": "tests/w284-changelog-engine-explicito-gate.sh",
+      "id": "tests/w296-changelog-engine-explicito-gate.sh",
       "lang": "shell",
       "loc": 61,
       "fingerprint": "f0518e24dbec0341abb0e7d0cfeabcc33d1f91c4f3b06e5811ced36b575e68cd",
@@ -3613,7 +3613,7 @@
       "summary": null
     },
     {
-      "id": "tests/w285-changelog-engine-derivado-gate.sh",
+      "id": "tests/w297-changelog-engine-derivado-gate.sh",
       "lang": "shell",
       "loc": 70,
       "fingerprint": "6ce2668511840becf7d800011cd1e56d789df5930f703b06e719c22fef8914f1",
@@ -3621,7 +3621,7 @@
       "summary": null
     },
     {
-      "id": "tests/w286-changelog-engine-merge-range-gate.sh",
+      "id": "tests/w298-changelog-engine-merge-range-gate.sh",
       "lang": "shell",
       "loc": 124,
       "fingerprint": "0a5093d9c6a6fed1eaae88b40c5087a56794b2b95e9f952b59b02064b1eb1463",
@@ -3629,7 +3629,7 @@
       "summary": null
     },
     {
-      "id": "tests/w287-changelog-engine-release-please-gate.sh",
+      "id": "tests/w299-changelog-engine-release-please-gate.sh",
       "lang": "shell",
       "loc": 53,
       "fingerprint": "a42217e343b5bd54387775cb10d58ad42d6795d8e1d1e850b30d0acf006c3e7b",
@@ -3637,7 +3637,7 @@
       "summary": null
     },
     {
-      "id": "tests/w288-changelog-gate-released-gate.sh",
+      "id": "tests/w300-changelog-gate-released-gate.sh",
       "lang": "shell",
       "loc": 56,
       "fingerprint": "10b86f4cb9ba78976729126d4956d1e9a2fb38f03a3a6e247a4989661e8272f7",
@@ -3645,7 +3645,7 @@
       "summary": null
     },
     {
-      "id": "tests/w289-changelog-gate-preserve-gate.sh",
+      "id": "tests/w301-changelog-gate-preserve-gate.sh",
       "lang": "shell",
       "loc": 68,
       "fingerprint": "6e47c17399dfe6076f35bb2b22c999f025db3276c5a39f2732be6fa9c732c00b",
@@ -3653,7 +3653,7 @@
       "summary": null
     },
     {
-      "id": "tests/w290-changelog-gate-lint-gate.sh",
+      "id": "tests/w302-changelog-gate-lint-gate.sh",
       "lang": "shell",
       "loc": 72,
       "fingerprint": "c930b9ead60a3400718b0c9bb5a9456197cefaa19facd0615b7752bb1a2489e2",
@@ -3661,7 +3661,7 @@
       "summary": null
     },
     {
-      "id": "tests/w291-resolve-skill-gate.sh",
+      "id": "tests/w303-resolve-skill-gate.sh",
       "lang": "shell",
       "loc": 57,
       "fingerprint": "0352f60fcd1a30491096fc943df21005a174db2d85040f8f18104f10e210cea0",
@@ -3669,7 +3669,7 @@
       "summary": null
     },
     {
-      "id": "tests/w292-update-changelog-comando-gate.sh",
+      "id": "tests/w304-update-changelog-comando-gate.sh",
       "lang": "shell",
       "loc": 57,
       "fingerprint": "452a642fd9d6949d0b60bd5d3e4db794a84d312bb070739f42c6f76c290dc504",
@@ -3677,7 +3677,7 @@
       "summary": null
     },
     {
-      "id": "tests/w293-post-merge-changelog-engine-gate.sh",
+      "id": "tests/w305-post-merge-changelog-engine-gate.sh",
       "lang": "shell",
       "loc": 114,
       "fingerprint": "f60031813b456aaede6aec34aeffd24de1c106df7120abd05871ee916cbdb482",
@@ -3685,7 +3685,7 @@
       "summary": null
     },
     {
-      "id": "tests/w294-changelog-gates-regressao-gate.sh",
+      "id": "tests/w306-changelog-gates-regressao-gate.sh",
       "lang": "shell",
       "loc": 116,
       "fingerprint": "db95a90c08b07499c81fa6ac714b1341c72fb54aea31ca9a716d3e3b5c64cf7c",
@@ -3693,7 +3693,7 @@
       "summary": null
     },
     {
-      "id": "tests/w295-changelog-merge-engine-gate.sh",
+      "id": "tests/w307-changelog-merge-engine-gate.sh",
       "lang": "shell",
       "loc": 160,
       "fingerprint": "2df5ec70e7c809f7393b2a4a3eafcb7b4dd69e99d6b87adfc2045914255da622",
@@ -3701,7 +3701,7 @@
       "summary": null
     },
     {
-      "id": "tests/w296-skill-readme-generator-escopo-gate.sh",
+      "id": "tests/w308-skill-readme-generator-escopo-gate.sh",
       "lang": "shell",
       "loc": 76,
       "fingerprint": "715a19794b91b6e611ad24d06a204c97a58afd0327b23e21356e4373f3dbe461",

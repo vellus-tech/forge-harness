@@ -153,10 +153,13 @@ function resolveRangeFiles(r, rangeArg) {
 }
 
 // Linhas do arquivo de evidência ADICIONADAS (ou alteradas) no range — o texto que vale como
-// evidência no modo range. Arquivo ausente no range ⇒ string vazia.
+// evidência no modo range. Arquivo ausente no range ⇒ string vazia. `git diff` é porcelain e
+// obedece à config do usuário: sem --no-color/--no-ext-diff/--no-textconv, color.ui=always punha
+// escape ANSI antes do '+' (evidência lida como vazia ⇒ bloqueio de push válido) e diff.external
+// trocava a saída inteira.
 function readEvidenceAdded(r, rangeArg, evidencePath) {
   const res = r.twoPoint
-    ? run('git', [...GIT, 'diff', '--no-renames', '-U0', rangeArg, '--', evidencePath])
+    ? run('git', [...GIT, 'diff', '--no-color', '--no-ext-diff', '--no-textconv', '--no-renames', '-U0', rangeArg, '--', evidencePath])
     : run('git', [...GIT, 'diff-tree', '-p', '-U0', '--root', '--no-renames', '--no-commit-id', rangeArg, '--', evidencePath]);
   if (res.error || res.status !== 0) return '';
   return res.stdout.split('\n')

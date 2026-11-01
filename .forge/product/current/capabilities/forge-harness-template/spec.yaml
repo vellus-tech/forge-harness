@@ -622,7 +622,7 @@ requirements:
     normative: "SHALL"
     scenarios:
       - id: SCN-FHT-055-A
-        given: "a rule `migration-review.md` documenta a seção \\\"Quem revisa\\\" com a responsabilidade do orquestrador de clonar a head do PR"
+        given: "a rule `migration-review.md` documenta a seção \"Quem revisa\" com a responsabilidade do orquestrador de clonar a head do PR"
         when: "um PR tocar arquivo de migration"
         then: "(via rule, norma aplicada por quem conduz o change/PR) exigir revisão do agente `data-engineer` ou do especialista `data-relational`, executada sobre um clone da head do PR, adicional à revisão geral de código"
     tests:
@@ -632,7 +632,7 @@ requirements:
     normative: "SHALL"
     scenarios:
       - id: SCN-FHT-056-A
-        given: "a rule `migration-review.md` tem a seção \\\"Checklist (13 itens)\\\" com os 13 itens literais da issue #241"
+        given: "a rule `migration-review.md` tem a seção \"Checklist (13 itens)\" com os 13 itens literais da issue #241"
         when: "a revisão especializada for executada"
         then: "fornecer um checklist de exatamente 13 itens, enumerados literalmente abaixo (fonte: issue #241, sem fusão nem split), cada um redigido como condição verificável"
     tests:
@@ -653,7 +653,7 @@ requirements:
     normative: "SHALL"
     scenarios:
       - id: SCN-FHT-058-A
-        given: "o `pre-push` tem o bloco `MIGRATION_REVIEW_CHECK` (após `AI_CHECK`) chamando `check-migration-review.sh range \\\"$range\\\"` por ref do push; `check-migration-review.sh`/`lib/check-migration-review.mjs` existem em `.forge/scripts/`"
+        given: "o `pre-push` tem o bloco `MIGRATION_REVIEW_CHECK` (após `AI_CHECK`) chamando `check-migration-review.sh range \"$range\"` por ref do push; `check-migration-review.sh`/`lib/check-migration-review.mjs` existem em `.forge/scripts/`"
         when: "um `git push` incluir commit(s) que tocam arquivo de migration por convenção de path"
         then: "reportar via script (`check-migration-review.sh`) a ausência de evidência de parecer de revisão com saída não-zero e mensagem clara, sem depender de rede/`gh` (NFR-01)"
     tests:
@@ -664,7 +664,7 @@ requirements:
     scenarios:
       - id: SCN-FHT-059-A
         given: "`check-data-governance.mjs` tem `.sql` em `CODE_EXTS` e `--` em `SENSITIVE_MARKER_RE`"
-        when: "um arquivo `.sql` contiver o marcador `-- forge:sensitive-field=\\\"<campo>\\\"` sem entrada correspondente em `data-classification.json`, ou PAN/CPF/e-mail em chamada de log na mesma linha"
+        when: "um arquivo `.sql` contiver o marcador `-- forge:sensitive-field=\"<campo>\"` sem entrada correspondente em `data-classification.json`, ou PAN/CPF/e-mail em chamada de log na mesma linha"
         then: "reportar `CONFLICT` (mesmo contrato do REQ-12a/REQ-12b já existente para `.go/.kt/.ts/.rego/.py`), sem alterar o comportamento para as demais extensões já cobertas"
     tests:
       - tests/req12-pii-log-gate.sh#[6]-[9]

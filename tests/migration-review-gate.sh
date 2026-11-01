@@ -23,6 +23,7 @@
 #   [19] migration movida para fora do diretório de migrations exige evidência (--no-renames)
 #   [20] exceção inválida não fica mascarada por outra linha do mesmo path
 #   [21] range começando com '-' → FAIL, nunca vira opção do git
+#   [22] color.ui=always / diff.external do usuário não esvaziam a evidência adicionada
 set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -436,5 +437,18 @@ out="$(cd "$R17" && node "$MJS" range "--stdin" </dev/null)"; rc=$?
 set -e
 [ "$rc" -ne 0 ] || { echo "FAIL [21]: range '--stdin' passou: $out"; exit 1; }
 echo "OK [21]"
+
+echo "[22] color.ui=always / diff.external na config do usuário não esvaziam a evidência adicionada → PASS"
+# Regressão do round 2 do code-evaluator (PR #246): `git diff` porcelain com cor punha escape ANSI
+# antes do '+' e a linha de evidência recém-adicionada era lida como vazia.
+b22="$(git -C "$R17" rev-parse HEAD)"
+echo "CREATE TABLE v (id int);" > "$R17/db/migrate/004_v.sql"
+printf -- '- [x] db/migrate/004_v.sql\n' >> "$R17/migration-review.md"
+git -C "$R17" add -A
+git -C "$R17" commit -qm "feat: migration revisada, config de cor agressiva"
+printf '#!/bin/sh\necho externo\n' > "$T/ext-diff.sh"; chmod +x "$T/ext-diff.sh"
+out="$(cd "$R17" && GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=color.ui GIT_CONFIG_VALUE_0=always GIT_CONFIG_KEY_1=diff.external GIT_CONFIG_VALUE_1="$T/ext-diff.sh" node "$MJS" range "$b22..HEAD")" || true
+echo "$out" | grep -q "^PASS" || { echo "FAIL [22]: config de cor/diff externo do usuário bloqueou evidência válida: $out"; exit 1; }
+echo "OK [22]"
 
 echo "PASS migration-review-gate"

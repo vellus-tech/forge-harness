@@ -40,7 +40,7 @@ A revisão de código geral (code review padrão do PR) **não substitui** esta 
 
 ## Evidência
 
-O parecer é registrado em `migration-review.md` na raiz do repositório (ou `--evidence <path>` quando ad-hoc), uma linha por migration: `- [x] <path-da-migration>` (revisada, com texto livre opcional depois do path, ex.: o sha revisado) ou a linha de exceção descrita abaixo. A evidência vale para o conteúdo revisado, não para o path para sempre: o gate só aceita a linha que foi **adicionada ou alterada no próprio push** que toca a migration. Uma linha deixada por um PR anterior não cobre uma edição nova da mesma migration — migration alterada exige parecer novo, registrado atualizando a linha (por exemplo, trocando o sha revisado).
+O parecer é registrado em `migration-review.md` na raiz do repositório (ou `--evidence <path>` quando ad-hoc), uma linha por migration: `- [x] <path-da-migration>` (revisada, com texto livre opcional depois do path, ex.: o sha revisado) ou a linha de exceção descrita abaixo. A evidência vale para o conteúdo revisado, não para o path para sempre: o gate só aceita a linha que foi **adicionada ou alterada no próprio push** que toca a migration. Uma linha deixada por um PR anterior não cobre uma edição nova da mesma migration — migration alterada exige parecer novo, registrado atualizando a linha (por exemplo, trocando o sha revisado). Remoção, rename ou revert de migration também conta como toque: o push que remove ou move a migration traz uma linha adicionada para o path antigo (ex.: `- [x] <path> removida, revisada`).
 
 ## Exceção
 

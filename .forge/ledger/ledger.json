@@ -3649,6 +3649,32 @@
       "updated_at": "2026-11-01T13:52:41-03:00",
       "resolved_at": null,
       "dedup_key": "add-migration-review-rule:PR #246 (LDG-0217)"
+    },
+    {
+      "id": "LDG-0218",
+      "type": "tech-debt",
+      "title": "run-all.sh classifica morte por sinal (pressão de memória) como FAIL em corrida completa sob carga",
+      "detail": "Duas corridas completas de npm test nesta worktree reportaram ~40 gates FAIL, lista quase idêntica entre as duas, espalhada por áreas não relacionadas entre si (specs, archive, publish, init, adapters, secrets, enforcement). Todos os gates testados isoladamente passam, inclusive um subconjunto de 9 gates + 2 suítes bats rodado em sequência real idêntica à ordem do run-all.sh (PASS=11 FAIL=0 em 131s). Paralelismo interno e vazamento de env var entre gates foram eliminados como causa (run-all.sh roda sequencial, cada gate em processo filho novo, unset explícito das vars GIT_DIR/GIT_WORK_TREE/etc). Máquina com 16 sessões de usuário simultâneas e ~125MB de RAM livre durante a corrida; run-all.sh já documenta nas linhas 140-208 (comentário LDG-0179/LDG-0180) um caso conhecido de gate morto por SIGKILL sob pressão de memória sendo promovido a FAIL por narração ambígua, em vez de UNVERIFIED. Evidência: tests/run-all.sh linhas 140-208; subconjunto w12/w13/w14/w20/w21/w22/w31/w32/w33+bats isolado PASS=11 FAIL=0 em 131s. Recomendação: medir RSS pico por gate numa corrida completa isolada (ex. /usr/bin/time -l) antes de decidir entre ampliar a tolerância do classificador para UNVERIFIED ou reduzir a pegada de memória dos gates mais pesados. Não bloqueante para nenhum change individual; pré-existente no harness de testes, não introduzido por add-unify-changelog-skill.\n\nCORREÇÃO DE REGISTRO (2026-10-31): Mecanismo mais preciso confirmado por reprodução: a contaminação não é herdada só de rodada anterior, reproduz 3 vezes mesmo começando de árvore limpa. Pelo menos um gate (candidatos: w100-spec-delta-pipeline, w42-impact, w50-story-shard, w90-run-manifest, w193-tree-derived-state) escreve fixtures diretamente em .forge/specs/active/ E em .forge/ledger/LEDGER.md e ledger.json REAIS desta worktree, em vez de um FORGE_ROOT isolado em /tmp. Confirmado por evidência direta: LEDGER.md ganhou entradas fictícias (item-do-worktree, item-w193, controle do 19) durante a corrida, revertidas manualmente via git checkout. Quando esse gate é interrompido por SIGKILL (pressão de memória) antes do teardown, ou mesmo sem interrupção, o resíduo contamina todo gate subsequente que varre specs ativas ou o ledger real. Recomendação revisada: migrar esses gates para sandbox FORGE_ROOT isolado (padrão mktemp -d já usado por outros gates) é a correção estrutural; medir RSS por gate é secundário.",
+      "severity": "LOW",
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "add-unify-changelog-skill",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-unify-changelog-skill"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T20:27:09-03:00",
+      "updated_at": "2026-10-31T23:24:57-03:00",
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0218"
     }
   ]
 }

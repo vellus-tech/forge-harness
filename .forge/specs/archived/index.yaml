@@ -59,3 +59,7 @@ archived:
     archived_at: "2026-11-01"
     kind: baseline_update
     path: 2026-11-01-add-migration-review-rule
+  - change_id: add-unify-changelog-skill
+    archived_at: "2026-11-01"
+    kind: baseline_update
+    path: 2026-11-01-add-unify-changelog-skill

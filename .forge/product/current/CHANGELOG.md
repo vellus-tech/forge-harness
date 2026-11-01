@@ -2,6 +2,12 @@
 
 > One entry per archived change (newest first). Maintained by `/forge:archive` — do not edit by hand.
 
+## 2026-11-01 — add-unify-changelog-skill
+
+- **Capabilities:** changelog-authoring post-merge-automation
+- **Operações:** 13
+- **Pasta:** `.forge/specs/archived/2026-11-01-add-unify-changelog-skill/`
+
 ## 2026-08-04 — surface-literal-endpoint
 
 - **Capabilities:** forge-harness-template

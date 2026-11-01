@@ -1,0 +1,85 @@
+capability_id: post-merge-automation
+version: 0.1.0
+status: current
+requirements:
+  - id: REQ-PMA-001
+    title: "Hook post-merge roda automaticamente, sem gates de bloqueio e nunca commita"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-PMA-001-A
+        given: "um merge real em qualquer branch, com CHANGELOG.md na raiz e node disponível no PATH"
+        when: "o hook post-merge executa"
+        then: "chama o motor em modo --merge-range sem rodar nenhum dos quatro gates do comando, e não executa git commit em nenhum momento"
+      - id: SCN-PMA-001-B
+        given: "node ausente do PATH"
+        when: "o hook post-merge executa"
+        then: "o passo de changelog é no-op sem erro observável"
+    tests:
+      - tests/w293-post-merge-changelog-engine-gate.sh
+  - id: REQ-PMA-002
+    title: "Modo --merge-range é idempotente por sufixo de hash e marca BREAKING"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-PMA-002-A
+        given: "um merge com commits feat e fix, e o motor já rodou uma vez sobre ele"
+        when: "o hook/motor roda novamente sobre o mesmo merge (--merge-range)"
+        then: "a contagem de entradas não muda — a dedup usa o sufixo (<hash>) ao final da linha como chave"
+      - id: SCN-PMA-002-B
+        given: "um commit feat(auth)!: ... no intervalo do merge"
+        when: "o motor deriva a entrada"
+        then: "grava o marcador **[BREAKING]** na linha"
+    tests:
+      - tests/w286-changelog-engine-merge-range-gate.sh
+      - tests/w295-changelog-merge-engine-gate.sh
+  - id: REQ-PMA-003
+    title: "Delegação do hook ao motor segue a regra estrita de resolve_delegated"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-PMA-003-A
+        given: "a worktree tem .forge/skills/readme-generator/ mas scripts/changelog-engine.mjs está ausente"
+        when: "o hook post-merge executa"
+        then: "sai com delegation_failed=1 e uma linha própria citando scripts/changelog-engine.mjs, nunca como 'post-merge OK' silencioso"
+      - id: SCN-PMA-003-B
+        given: "a worktree que executa o hook não tem .forge/ nenhum instalado"
+        when: "o hook post-merge executa"
+        then: "o passo de changelog é no-op silencioso (rc 2 de resolve_delegated), sem consultar o tronco"
+      - id: SCN-PMA-003-C
+        given: "a worktree tem .forge/ desatualizado (alvo ausente) e o tronco (hooksPath absoluto) tem o alvo"
+        when: "o hook post-merge executa"
+        then: "delega para a cópia do tronco, nomeando-a numa linha própria em stderr"
+    tests:
+      - tests/w147-hook-delegation-gate.sh
+      - tests/w223-delegacao-arvore-do-hook-gate.sh
+      - tests/w293-post-merge-changelog-engine-gate.sh
+  - id: REQ-PMA-004
+    title: "Hook resolve só a cópia do motor no projeto, nunca a skill de escopo de usuário"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-PMA-004-A
+        given: "FORGE_SKILL_DIR_README_GENERATOR definido no ambiente apontando para outra skill (ex.: readme-generator Python de outro consumidor)"
+        when: "o hook post-merge executa"
+        then: "a variável não é consultada — o hook resolve exclusivamente .forge/skills/readme-generator/ do próprio projeto (ou do tronco, via resolve_delegated), nunca via resolve-skill.sh"
+    tests:
+      - tests/w293-post-merge-changelog-engine-gate.sh
+  - id: REQ-PMA-005
+    title: "Hook escreve seções pt-BR restritas a feat/fix/perf e não edita CHANGELOG com release-please na raiz"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-PMA-005-A
+        given: "um merge cujo intervalo só contém commits refactor e revert, nenhum feat/fix/perf"
+        when: "o hook post-merge executa em --merge-range"
+        then: "nenhuma entrada é gravada no CHANGELOG.md raiz (DIV-02) — no-op onde antes gerava entrada"
+      - id: SCN-PMA-005-B
+        given: "um merge com um commit perf(x): ..."
+        when: "o hook post-merge executa"
+        then: "a entrada é gravada em ### Corrigido, nunca em ### Changed/Alterado (DIV-01)"
+      - id: SCN-PMA-005-C
+        given: "release-please-config.json presente na raiz do repositório"
+        when: "o hook post-merge executa em --merge-range"
+        then: "o CHANGELOG.md raiz permanece intocado, sem erro — checagem avaliada antes da guarda de ausência de CHANGELOG do REQ-02"
+    tests:
+      - tests/w287-changelog-engine-release-please-gate.sh
+      - tests/w295-changelog-merge-engine-gate.sh
+history:
+  - change_id: add-unify-changelog-skill
+    archived_at: "2026-11-01"

@@ -47,8 +47,10 @@ _check_required_files() { # _check_required_files <dir> <arquivo...> -> rc 0 se 
 }
 
 # Indireção de variável (sem eval): o sufixo já foi reduzido a [A-Z0-9_].
-env_val="${!env_var:-}"
-if [ -n "$env_val" ]; then
+# Definida (mesmo vazia) = override declarado: vale como única fonte, e vazio é inválido.
+if [ -n "${!env_var+x}" ]; then
+  env_val="${!env_var}"
+  [ -n "$env_val" ] || { echo "FAIL override $env_var definido e vazio" >&2; exit 1; }
   if [ -d "$env_val" ] && { [ "$#" -eq 0 ] || _check_required_files "$env_val" "$@"; }; then
     printf '%s\n' "$env_val"
     exit 0

@@ -10,6 +10,7 @@
 #   [3] nenhuma das tres -> FAIL skill <nome> ausente, rc 1
 #   [4] override definido mas inválido -> rc 1, sem queda silenciosa
 #   [5] nome com travessia de caminho -> rc 2
+#   [6] override definido e vazio -> rc 1
 set -uo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
@@ -72,5 +73,11 @@ echo "[5] nome com travessia de caminho -> rc 2"
 out="$(cd "$R2" && FORGE_ROOT="$R2" bash "$SCRIPT" ../../tmp 2>&1)"; rc=$?
 [ "$rc" -eq 2 ] || { echo "FAIL [5]: rc esperado 2, obtido $rc (saída: $out)"; exit 1; }
 echo "OK [5]"
+
+# ── [6] ──────────────────────────────────────────────────────────────────────────────────────
+echo "[6] override definido e vazio -> rc 1, sem cair para a cópia do projeto"
+out="$(cd "$R2" && FORGE_ROOT="$R2" FORGE_SKILL_DIR_MINHASKILL= bash "$SCRIPT" minhaskill 2>&1)"; rc=$?
+[ "$rc" -eq 1 ] || { echo "FAIL [6]: rc esperado 1, obtido $rc (saída: $out)"; exit 1; }
+echo "OK [6]"
 
 echo "PASS w303-resolve-skill"

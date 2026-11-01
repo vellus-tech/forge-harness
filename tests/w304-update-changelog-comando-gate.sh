@@ -9,6 +9,7 @@
 #   [5] resolve-skill.sh citado (REQ-12)
 #   [6] resolve-skill.sh pelo caminho do consumidor (.forge/scripts/)
 #   [7] versão anterior guardada antes do motor, usada pelos gates e restaurada em falha
+#   [8] awk de extração das linhas novas: anterior vazio e multiconjunto
 set -uo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -67,11 +68,24 @@ echo "$body" | grep -q 'cp "\$CL" "\$ANTERIOR"' || { echo "FAIL [7]: comando nã
 echo "$body" | grep -q 'released.mjs" "\$ANTERIOR" "\$CL"' || { echo "FAIL [7]: released não compara com a versão anterior"; exit 1; }
 echo "$body" | grep -q 'lint.mjs" "\$CL" --since "\$ANTERIOR"' || { echo "FAIL [7]: lint não restrito às entradas novas"; exit 1; }
 echo "$body" | grep -q 'cp "\$ANTERIOR" "\$CL"' || { echo "FAIL [7]: comando não restaura o arquivo quando um gate falha"; exit 1; }
-echo "$body" | grep -qF "!(\$0 in velha)' \"\$ANTERIOR\" \"\$CL\" > \"\$NOVAS\"" || { echo "FAIL [7]: check-ai-attribution não restrito às linhas novas"; exit 1; }
+echo "$body" | grep -qF "velha[\$0]-- <= 0' \"\$ANTERIOR\" \"\$CL\" > \"\$NOVAS\"" || { echo "FAIL [7]: check-ai-attribution não restrito às linhas novas"; exit 1; }
 echo "$body" | grep -q 'check-ai-attribution.sh text "\$NOVAS"' || { echo "FAIL [7]: check-ai-attribution não roda sobre as linhas novas"; exit 1; }
 snap=$(echo "$body" | grep -n 'cp "\$CL" "\$ANTERIOR"' | head -1 | cut -d: -f1)
 eng=$(echo "$body" | grep -n 'changelog-engine.mjs" --root' | head -1 | cut -d: -f1)
 [ -n "$snap" ] && [ -n "$eng" ] && [ "$snap" -lt "$eng" ] || { echo "FAIL [7]: a cópia da versão anterior não vem antes da chamada ao motor"; exit 1; }
 echo "OK [7]"
+
+# ── [8] ──────────────────────────────────────────────────────────────────────────────────────
+echo "[8] extração das linhas novas (awk do comando) com arquivo anterior vazio e com linha repetida"
+T="$(mktemp -d /tmp/forge-w304.XXXXXX)"
+trap 'rm -rf "$T"' EXIT
+prog="$(echo "$body" | grep -o "awk '[^']*'" | head -1 | sed "s/^awk '//; s/'\$//")"
+[ -n "$prog" ] || { echo "FAIL [8]: comando não traz o awk de extração das linhas novas"; exit 1; }
+: > "$T/ant-vazio"; printf '# Changelog\n- entrada nova\n' > "$T/cl-novo"
+n="$(awk "$prog" "$T/ant-vazio" "$T/cl-novo" | grep -c 'entrada nova')"
+[ "$n" -eq 1 ] || { echo "FAIL [8]: com anterior vazio, a linha nova não foi extraída (CHANGELOG criado agora sairia sem verificação)"; exit 1; }
+printf 'a\nb\n' > "$T/ant"; printf 'a\nb\na\nc\n' > "$T/cl"
+[ "$(awk "$prog" "$T/ant" "$T/cl" | tr '\n' ' ')" = "a c " ] || { echo "FAIL [8]: linha nova idêntica a uma antiga não foi extraída (multiconjunto)"; exit 1; }
+echo "OK [8]"
 
 echo "PASS w304-update-changelog-comando"

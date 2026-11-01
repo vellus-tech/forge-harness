@@ -20,9 +20,9 @@ Atualiza o `CHANGELOG.md` do componente especificado (ou da raiz, se `component`
 ## Modos
 
 - **Explícito** — `type` e `description` informados: grava `- <description>` na seção pt-BR mapeada de `type`.
-- **Derivado** — `type`/`description` omitidos: deriva entrada(s) de Conventional Commits, usando `--subject "<título>"` quando a invocação é de um squash merge (ex.: o título do PR), ou `--path <component>` para varrer os commits do componente que a branch atual trouxe desde a base (`merge-base` com `origin/develop`, `develop`, `origin/main`, `main`, `origin/master` ou `master`, na primeira que existir; `--base <ref>` força outra). `--path` apontando para um componente inexistente, fora de um repositório git ou sem base resolvível é erro (rc 2), nunca "nada a registrar" por vacuidade (REQ-08).
+- **Derivado** — `type`/`description` omitidos: deriva entrada(s) de Conventional Commits, usando `--subject "<título>"` quando a invocação é de um squash merge (ex.: o título do PR), ou `--path <component>` para varrer os commits do componente que a branch atual trouxe desde a base (`merge-base` com a referência mais próxima entre `origin/develop`, `develop`, `origin/main`, `main`, `origin/master` e `master`; `--base <ref>` força outra). `--path` apontando para um componente inexistente, fora de um repositório git ou sem base resolvível é erro (rc 2), nunca "nada a registrar" por vacuidade (REQ-08).
 
-Em todos os modos o motor deduplica: uma entrada cujo texto já está em `[Unreleased]` não é gravada de novo, então rodar o comando duas vezes, ou rodá-lo na branch e depois deixar o `post-merge` agir no merge, não duplica a mudança.
+Em todos os modos o motor deduplica por seção e texto dentro de `[Unreleased]`: rodar o comando duas vezes não duplica a entrada, e o `post-merge` pula o commit cuja entrada o comando já gravou com o mesmo texto (caso do `--path` e do `--subject` com o subject do próprio commit). Quando a entrada da branch tem texto diferente dos commits (ex.: `--subject` com o título do PR, ou modo explícito), o `post-merge` de um merge com commit de merge ainda grava as entradas por commit: nesse fluxo, escolha um dos dois caminhos para a mesma mudança.
 
 ## Passos a Executar
 
@@ -55,7 +55,7 @@ Em todos os modos o motor deduplica: uma entrada cujo texto já está em `[Unrel
    - `node "$SKILL_DIR/scripts/gates/released.mjs" "$ANTERIOR" "$CL"` — nenhuma seção `## [X.Y.Z]` já publicada pode ter mudado ou sumido.
    - `node "$SKILL_DIR/scripts/gates/preserve.mjs" "$ANTERIOR" "$CL"` — nenhum bloco antigo pode ter sido removido sem substituto.
    - `node "$SKILL_DIR/scripts/gates/lint.mjs" "$CL" --since "$ANTERIOR"` — travessão, quebra de linha dentro de parágrafo, acentuação ausente, placeholder e link quebrado reprovam, verificados só nas entradas novas (o histórico publicado não pode ser corrigido, então não pode travar o comando).
-   - `NOVAS="$(mktemp)"; awk 'NR==FNR{velha[$0]=1; next} !($0 in velha)' "$ANTERIOR" "$CL" > "$NOVAS"; .forge/scripts/check-ai-attribution.sh text "$NOVAS"` — nenhuma assinatura de IA nas linhas gravadas agora (o histórico publicado pode citar marcadores ao documentar a própria regra, e não pode travar o comando).
+   - `NOVAS="$(mktemp)"; awk 'FILENAME==ARGV[1]{velha[$0]++; next} velha[$0]-- <= 0' "$ANTERIOR" "$CL" > "$NOVAS"; .forge/scripts/check-ai-attribution.sh text "$NOVAS"` — nenhuma assinatura de IA nas linhas gravadas agora (o histórico publicado pode citar marcadores ao documentar a própria regra, e não pode travar o comando).
    - **Se qualquer gate falhar, desfazer a escrita antes de reportar:** `cp "$ANTERIOR" "$CL"` (ou `rm "$CL"` se `CRIADO=1`). O comando nunca termina com o CHANGELOG editado e um gate vermelho.
 
 7. **Nunca commitar**

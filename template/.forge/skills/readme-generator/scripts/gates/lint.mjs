@@ -73,14 +73,17 @@ for (let i = 0; i < lines.length; i++) {
     inNewBullet = fresh;
     if (!fresh) continue;
     const text = bullet[1];
+    // Código e URL não são prosa: `src/codigo/validacao.ts`, `ja-JP` ou um link não reprovam por
+    // acentuação nem por placeholder.
+    const prose = text.replace(/`[^`]*`/g, ' ').replace(/\]\([^)]*\)/g, '] ');
     if (/[—–]/.test(text)) {
       failures.push(`linha ${i + 1}: travessão encontrado — "${text.trim()}"`);
     }
-    const m = text.match(ASCII_RE);
+    const m = prose.match(ASCII_RE);
     if (m) {
       failures.push(`linha ${i + 1}: acentuação ausente ("${m[0]}") — "${text.trim()}"`);
     }
-    if (PLACEHOLDER_RE.test(text)) {
+    if (PLACEHOLDER_RE.test(prose)) {
       failures.push(`linha ${i + 1}: placeholder encontrado — "${text.trim()}"`);
     }
     if (BROKEN_LINK_RE.test(text)) {

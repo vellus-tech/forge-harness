@@ -9,6 +9,7 @@
 #   [4] grafias corretas (exemplo, esta, estação, paginação, todo, sub-item) passam
 #   [5] --since: só entradas novas são verificadas
 #   [6] CRLF não esconde violação
+#   [7] código entre crases e URL de link não são verificados como prosa
 set -uo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
@@ -107,5 +108,20 @@ printf '# Changelog\r\n\r\n## [Unreleased]\r\n\r\n### Adicionado\r\n\r\n- nova �
 out="$(node "$GATE" "$T/crlf.md" 2>&1)"; rc=$?
 [ "$rc" -eq 1 ] || { echo "FAIL [6]: CRLF aprovou violação (saída: $out)"; exit 1; }
 echo "OK [6]"
+
+# ── [7] ──────────────────────────────────────────────────────────────────────────────────────
+echo "[7] código entre crases e URL não são prosa (ja-JP, src/codigo/validacao.ts, TODO em link)"
+cat > "$T/codigo.md" <<'EOF'
+# Changelog
+
+## [Unreleased]
+
+### Adicionado
+
+- Suporte ao locale `ja-JP` e ao arquivo `src/codigo/validacao.ts`, ver [guia](https://x.test/TODO)
+EOF
+out="$(node "$GATE" "$T/codigo.md" 2>&1)"; rc=$?
+[ "$rc" -eq 0 ] || { echo "FAIL [7]: falso positivo em código/URL (saída: $out)"; exit 1; }
+echo "OK [7]"
 
 echo "PASS w302-changelog-gate-lint"

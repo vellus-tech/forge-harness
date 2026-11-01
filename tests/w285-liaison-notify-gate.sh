@@ -80,7 +80,7 @@ LG peer transport set "$CH" --kind fs --path "$HUB" >/dev/null
 LG me thread open "$CH" th1 --subject "thread de fixture" --participants me-repo,peer-repo >/dev/null   # me-repo-0001
 LG me send "$CH" --thread th1 --kind note --subject "nota publicada" --body "corpo publicado" >/dev/null # me-repo-0002
 LG me sync "$CH" >/dev/null                                                                               # publica 0001+0002
-LG me send "$CH" --thread th1 --kind note --subject "nota ainda nao publicada" --body "corpo novo" >/dev/null # me-repo-0003 (fica sem sync)
+LG me send "$CH" --thread th1 --kind note --subject "nota ainda não publicada" --body "corpo novo" >/dev/null # me-repo-0003 (fica sem sync)
 
 LG peer sync "$CH" >/dev/null               # pull: traz o th1 de me-repo (0001+0002); push: log vazio, no-op
 LG peer thread join "$CH" th1 >/dev/null    # peer-repo-0001

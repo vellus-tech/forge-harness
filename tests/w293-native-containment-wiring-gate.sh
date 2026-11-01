@@ -318,11 +318,15 @@ RE="$T/repo-e"
 mk_repo "$RE"
 OLDSHA_E="$(git -C "$RE" rev-parse HEAD)"
 
-echo "[E1] cenário do revisor — native allow recusa dentro desta sessão (ancestral claude real)"
-OUTE1="$(FORGE_ROOT="$RE" bash "$RE/.forge/scripts/liaison-ops.sh" native allow github.com/acme/other --reason "tentativa do agente" 2>&1)"
+# O cenário é SEMPRE o de sessão de agente, qualquer que seja quem roda o gate (terminal humano,
+# CI, run-all ou uma sessão do Claude Code): o marcador de ambiente é fixado aqui, em vez de
+# depender do ancestral `claude` real do processo que invocou o gate (code-evaluator PR #245,
+# QUAL-001 — fora de uma sessão o `allow` passava e o gate reprovava).
+echo "[E1] cenário do revisor — native allow recusa dentro de sessão de agente (marcador CLAUDECODE fixado)"
+OUTE1="$(CLAUDECODE=1 FORGE_ROOT="$RE" bash "$RE/.forge/scripts/liaison-ops.sh" native allow github.com/acme/other --reason "tentativa do agente" 2>&1)"
 RCE1=$?
 if [ "$RCE1" -eq 0 ]; then
-  bad "native allow deveria recusar dentro desta sessão do Claude Code e saiu rc 0: $OUTE1"
+  bad "native allow deveria recusar com marcador de sessão de agente e saiu rc 0: $OUTE1"
 elif [ -f "$RE/.forge/liaison/allowed-workspaces.json" ]; then
   bad "native allow recusou mas tocou o arquivo de cadastro (deveria permanecer ausente): $OUTE1"
 else

@@ -150,7 +150,7 @@ OUT3="$(env -i \
   PATH="$PSFAKE_HUMAN:$(dirname "$REALNODE"):$(dirname "$REALGIT"):$(dirname "$REALBASH"):/usr/bin:/bin" \
   HOME="$FAKEHOME" \
   FORGE_ROOT="$REPO" \
-  "$REALBASH" "$OPS" native allow github.com/acme/human-path --reason "operador fora da sessao" 2>&1)"
+  "$REALBASH" "$OPS" native allow github.com/acme/human-path --reason "operador fora da sessão" 2>&1)"
 RC3=$?
 set -e
 if [ "$RC3" -ne 0 ]; then

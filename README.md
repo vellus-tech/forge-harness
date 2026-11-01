@@ -214,6 +214,18 @@ Engine nativo (sem tree-sitter, sem deps): nós = arquivos (com camada inferida)
 referências resolvidas. Para módulos grandes, os diagramas **agregam por submódulo** (renderável e
 completo, sem virar *hairball*).
 
+## 🧠 Memórias do harness
+
+O harness não tem um único lugar de "memória" — tem vários mecanismos, cada um com uma garantia diferente, e é por isso que ela não se perde nem quando um agente esquece de registrar algo explicitamente.
+
+[**Diagrama interativo**](docs/assets/memory-architecture.html) (abra localmente no navegador; pan/zoom, busca, troca de tema e três roteiros guiados: *Busca unificada*, *Ponte nativo → liaison* e *O que se perde*).
+
+- **Efêmero** — memória nativa do Claude Code (`MEMORY.md`, por sessão/usuário, fora do harness), mensageria nativa entre sessões (`SendMessage`/`ListAgents`, sem registro próprio) e o snapshot do `/forge:handoff` (`.forge/HANDOFF.md`, sobrescrito a cada geração, sem dono). O que não vira registro durável se perde quando a sessão termina.
+- **Durável** — o canal `/forge:liaison` (append-only, ordenado por thread, auditável por `msg_id`; também recebe o que atravessa da mensageria nativa e registra o bastão de handoff que resolve disputas por CAS determinístico), o `/forge:ledger` (roadmap e dívida técnica, com `last_verified`/`evidence`/`supersedes` para não envelhecer em silêncio) e a baseline do produto (`.forge/product/current/`, a fonte da verdade que tudo o resto referencia).
+- **Busca** — `/forge:kb` consulta os três armazenamentos duráveis (lexical por padrão, zero dependência nova; camada semântica com embeddings e re-rank opcional, local). Nunca é fonte da verdade — só indexa o que já é durável em outro lugar.
+
+Gerado com [Archify](https://github.com/tt-a1i/archify).
+
 ## 🔌 Adapters multi-agente
 
 `claude` · `codex` · `gemini` · `qwen` · `cursor` · `kiro` · `forge-cli` · `agents-skills`

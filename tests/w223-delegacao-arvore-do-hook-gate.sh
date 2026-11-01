@@ -14,7 +14,7 @@
 #       [1c] com nas duas (conteúdos diferentes) → usa o da PRÓPRIA árvore, nunca o do tronco
 #       [1d] com só na worktree              → usa o próprio
 #   [2] commit-msg — sem na worktree, com no tronco → passa e nomeia o tronco
-#   [3] post-merge — os dois alvos (changelog-from-merge.mjs, check-liaison-log-integrity.sh)
+#   [3] post-merge — os dois alvos (changelog-engine.mjs, check-liaison-log-integrity.sh)
 #       ausentes na worktree e presentes no tronco → não FALHA, nomeia o tronco nos dois
 #   [4] pre-push — DOCS_LIB, RED_LIB (require_hook_lib), AI_CHECK e ACKS ausentes na worktree e
 #       presentes no tronco (stubs) → "pre-push OK", quatro linhas nomeando o tronco
@@ -79,7 +79,7 @@
 #       com `.forge/` presente e só o alvo ausente, a delegação ao tronco continua rodando de
 #       verdade
 #   [14b] post-merge — a mesma árvore sem `.forge/` nenhum, com um CHANGELOG.md versionado: o
-#       merge não delega changelog-from-merge.mjs ao tronco, e `git status` fica LIMPO depois —
+#       merge não delega changelog-engine.mjs ao tronco, e `git status` fica LIMPO depois —
 #       nenhuma escrita no CHANGELOG.md de uma árvore que nunca adotou o harness (MEDIUM); o
 #       contrafactual é o próprio [3]: com `.forge/` presente, o tronco escreve de verdade
 #   [14c] pre-commit — a mesma árvore sem `.forge/` nenhum: nenhum check do tronco roda (nem
@@ -123,6 +123,11 @@ mktrunk() {
     > "$1/.forge/scripts/lib/heavy-mutex.sh"
   printf '#!/usr/bin/env bash\nexit 0\n' > "$1/.forge/scripts/tests/run-all.sh"
   chmod +x "$1/.forge/scripts/tests/run-all.sh"
+  # check-migration-review.sh (bloco MIGRATION_REVIEW_CHECK, issue #241) sempre presente (stub)
+  # no tronco: nenhum cenário deste arquivo é SOBRE esse alvo, e sem o stub cada repositório que
+  # cria .forge/scripts/ passaria a bloquear por um alvo alheio ao que o cenário testa.
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$1/.forge/scripts/check-migration-review.sh"
+  chmod +x "$1/.forge/scripts/check-migration-review.sh"
 }
 
 # mkrepo <dir> <hooksPath-dir> — repositório git mínimo com hooksPath apontando para
@@ -225,19 +230,20 @@ esac
 echo "OK [2]"
 
 # ── [3] post-merge — os dois alvos ───────────────────────────────────────────────────────────
-echo "[3] post-merge — changelog-from-merge.mjs e check-liaison-log-integrity.sh via tronco"
+echo "[3] post-merge — changelog-engine.mjs e check-liaison-log-integrity.sh via tronco"
 R3="$T/r3"; TR3="$T/tr3"
 mktrunk "$TR3"
 cp "$HOOKS/post-merge" "$TR3/.forge/hooks/git/post-merge"; chmod +x "$TR3/.forge/hooks/git/post-merge"
-printf 'process.exit(0);\n' > "$TR3/.forge/scripts/lib/changelog-from-merge.mjs"
+mkdir -p "$TR3/.forge/skills/readme-generator/scripts"
+printf 'process.exit(0);\n' > "$TR3/.forge/skills/readme-generator/scripts/changelog-engine.mjs"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TR3/.forge/scripts/check-liaison-log-integrity.sh"; chmod +x "$TR3/.forge/scripts/check-liaison-log-integrity.sh"
 mkrepo "$R3" "$TR3/.forge/hooks/git"
-mkdir -p "$R3/.forge/scripts/lib"
+mkdir -p "$R3/.forge/skills/readme-generator/scripts"
 out="$(cd "$R3" && bash "$TR3/.forge/hooks/git/post-merge" 2>&1)"; rc=$?
 [ "$rc" -eq 0 ] || { echo "FAIL [3]: post-merge falhou com os alvos presentes no tronco (saída: '$out')"; exit 1; }
 case "$out" in
-  *"usando o do tronco"*"changelog-from-merge.mjs"*) : ;;
-  *) echo "FAIL [3]: não nomeou o tronco para changelog-from-merge.mjs (saída: '$out')"; exit 1 ;;
+  *"usando o do tronco"*"changelog-engine.mjs"*) : ;;
+  *) echo "FAIL [3]: não nomeou o tronco para changelog-engine.mjs (saída: '$out')"; exit 1 ;;
 esac
 case "$out" in
   *"usando o do tronco"*"check-liaison-log-integrity.sh"*) : ;;
@@ -245,8 +251,8 @@ case "$out" in
 esac
 echo "OK [3]"
 
-# ── [4] pre-push — DOCS_LIB, RED_LIB, AI_CHECK, ACKS ────────────────────────────────────────
-echo "[4] pre-push — DOCS_LIB, RED_LIB, AI_CHECK, ACKS ausentes na worktree, presentes no tronco"
+# ── [4] pre-push — DOCS_LIB, RED_LIB, AI_CHECK, ACKS, MIGRATION_REVIEW_CHECK ────────────────
+echo "[4] pre-push — DOCS_LIB, RED_LIB, AI_CHECK, ACKS, MIGRATION_REVIEW_CHECK ausentes na worktree, presentes no tronco"
 R4="$T/r4"; TR4="$T/tr4"
 mktrunk "$TR4"
 cp "$HOOKS/pre-push" "$TR4/.forge/hooks/git/pre-push"; chmod +x "$TR4/.forge/hooks/git/pre-push"
@@ -255,14 +261,14 @@ printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR4/.forge/h
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TR4/.forge/scripts/check-ai-attribution.sh"; chmod +x "$TR4/.forge/scripts/check-ai-attribution.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TR4/.forge/scripts/check-liaison-acks.sh"; chmod +x "$TR4/.forge/scripts/check-liaison-acks.sh"
 mkrepo "$R4" "$TR4/.forge/hooks/git"
-mkdir -p "$R4/.forge/hooks/git/lib" "$R4/.forge/scripts"   # os diretórios existem; os 4 alvos, não
+mkdir -p "$R4/.forge/hooks/git/lib" "$R4/.forge/scripts"   # os diretórios existem; os 5 alvos, não
 SHA4="$(git -C "$R4" rev-parse HEAD)"
 out="$(cd "$R4" && printf 'refs/heads/main %s refs/heads/main %s\n' "$SHA4" "$ZERO" | bash "$TR4/.forge/hooks/git/pre-push" origin "file://$R4" 2>&1)"; rc=$?
-[ "$rc" -eq 0 ] || { echo "FAIL [4]: pre-push bloqueou com os quatro alvos presentes no tronco (saída: '$out')"; exit 1; }
+[ "$rc" -eq 0 ] || { echo "FAIL [4]: pre-push bloqueou com os cinco alvos presentes no tronco (saída: '$out')"; exit 1; }
 case "$out" in *"pre-push OK"*) : ;; *) echo "FAIL [4]: não terminou 'pre-push OK' (saída: '$out')"; exit 1 ;; esac
 n_warn="$(grep -c "usando o do tronco" <<<"$out")"
-[ "$n_warn" -eq 4 ] || { echo "FAIL [4]: esperava 4 linhas nomeando o tronco (DOCS_LIB, RED_LIB, AI_CHECK, ACKS), veio $n_warn (saída: '$out')"; exit 1; }
-echo "OK [4] — 4 alvos resolvidos via tronco"
+[ "$n_warn" -eq 5 ] || { echo "FAIL [4]: esperava 5 linhas nomeando o tronco (DOCS_LIB, RED_LIB, AI_CHECK, ACKS, MIGRATION_REVIEW_CHECK), veio $n_warn (saída: '$out')"; exit 1; }
+echo "OK [4] — 5 alvos resolvidos via tronco"
 
 # ── [5] pre-push — HARNESS_SUITE ─────────────────────────────────────────────────────────────
 echo "[5] pre-push — run-all.sh ausente na worktree, presente no tronco"
@@ -475,10 +481,10 @@ echo "OK [8b]"
 # ── [9] AUTO-IRONIA ──────────────────────────────────────────────────────────────────────────
 # Sem `declare -A`: o bash 3.2 do macOS (issue de portabilidade irmã do w97) não tem array
 # associativo. Pares "hook:esperado" numa lista simples, um por linha.
-echo "[9] os 16 sítios (12 de L3 §0 + RUNTIME_LIB + gate-phase.mjs + os 2 sítios de aviso, achados"
-echo "    do adendo de revisão do w223) chamam o mesmo resolvedor — contagem + corpo"
+echo "[9] os 17 sítios (12 de L3 §0 + RUNTIME_LIB + gate-phase.mjs + os 2 sítios de aviso, achados"
+echo "    do adendo de revisão do w223, + MIGRATION_REVIEW_CHECK da issue #241) chamam o mesmo resolvedor — contagem + corpo"
 total=0
-for par in "pre-commit:1" "commit-msg:1" "post-merge:2" "pre-push:10"; do
+for par in "pre-commit:1" "commit-msg:1" "post-merge:2" "pre-push:11"; do
   h="${par%%:*}"; esperado="${par##*:}"
   # `\$\(resolve_delegated ` — só a INVOCAÇÃO real (substituição de comando), nunca a linha da
   # definição nem o comentário que a documenta (que também contém o nome da função de propósito).
@@ -491,8 +497,8 @@ n_rf="$(grep -cE '\$\(_redfirst_resolve_delegated ' "$HOOKS/lib/check-red-first.
 n_rf="${n_rf:-0}"
 total=$((total + n_rf))
 [ "$n_rf" -eq 2 ] || { echo "FAIL [9]: lib/check-red-first.sh — esperava 2 chamadas ao resolvedor interno, achei $n_rf"; exit 1; }
-[ "$total" -eq 16 ] || { echo "FAIL [9]/vacuidade — total de sítios contados foi $total, esperado 16 (L3 §0: pre-push 10 [6 + RUNTIME_LIB + gate-phase.mjs + log-integrity + worktree-prereqs], pre-commit 1, commit-msg 1, post-merge 2, check-red-first.sh 2)"; exit 1; }
-echo "OK [9] — 16 sítios cobertos ($total)"
+[ "$total" -eq 17 ] || { echo "FAIL [9]/vacuidade — total de sítios contados foi $total, esperado 17 (L3 §0: pre-push 11 [6 + RUNTIME_LIB + gate-phase.mjs + log-integrity + worktree-prereqs + MIGRATION_REVIEW_CHECK], pre-commit 1, commit-msg 1, post-merge 2, check-red-first.sh 2)"; exit 1; }
+echo "OK [9] — 17 sítios cobertos ($total)"
 
 # Identidade byte a byte do CORPO da função entre as 4 cópias (pre-commit, commit-msg, post-merge,
 # pre-push): a contagem acima só prova que cada arquivo CHAMA o resolvedor o número certo de vezes,
@@ -908,8 +914,9 @@ mktrunk "$TR14B"
 cp "$HOOKS/post-merge" "$TR14B/.forge/hooks/git/post-merge"; chmod +x "$TR14B/.forge/hooks/git/post-merge"
 MARK_CL14B="$T/marker-changelog-14b"
 rm -f "$MARK_CL14B"
-printf 'import { writeFileSync } from "fs";\nwriteFileSync(process.argv[2] + "/CHANGELOG.md", "mutated-by-trunk\\n", {flag:"a"});\n' \
-  > "$TR14B/.forge/scripts/lib/changelog-from-merge.mjs"
+mkdir -p "$TR14B/.forge/skills/readme-generator/scripts"
+printf 'import { writeFileSync } from "fs";\nconst root = process.argv[process.argv.indexOf("--root") + 1];\nwriteFileSync(root + "/CHANGELOG.md", "mutated-by-trunk\\n", {flag:"a"});\n' \
+  > "$TR14B/.forge/skills/readme-generator/scripts/changelog-engine.mjs"
 printf '#!/usr/bin/env bash\ntouch "%s"\nexit 0\n' "$MARK_CL14B" > "$TR14B/.forge/scripts/check-liaison-log-integrity.sh"
 chmod +x "$TR14B/.forge/scripts/check-liaison-log-integrity.sh"
 mkrepo "$R14B" "$TR14B/.forge/hooks/git"
@@ -930,15 +937,15 @@ status="$(git -C "$R14B" status --porcelain)"
 [ ! -d "$R14B/.forge" ] || { echo "FAIL [14b]/setup: a worktree não deveria ter .forge/ neste cenário"; exit 1; }
 echo "OK [14b]"
 
-# [14b-cf] contrafactual do [14b]: MESMA árvore, mas com .forge/scripts/lib/ presente (só o
-# diretório, sem changelog-from-merge.mjs próprio) → volta a delegar ao tronco de verdade, e o
-# CHANGELOG.md RECEBE a escrita (prova que [14b] não é "o merge nunca escreve", é "árvore sem
-# .forge/ nenhum nunca delega").
-echo "[14b-cf] post-merge — contrafactual do [14b]: .forge/scripts/lib/ presente (só o diretório)"
+# [14b-cf] contrafactual do [14b]: MESMA árvore, mas com .forge/skills/readme-generator/scripts/
+# presente (só o diretório, sem changelog-engine.mjs próprio) → volta a delegar ao tronco de
+# verdade, e o CHANGELOG.md RECEBE a escrita (prova que [14b] não é "o merge nunca escreve", é
+# "árvore sem .forge/ nenhum nunca delega").
+echo "[14b-cf] post-merge — contrafactual do [14b]: .forge/skills/readme-generator/scripts/ presente (só o diretório)"
 echo "         → delega ao tronco de verdade, CHANGELOG.md recebe a escrita"
 R14BCF="$T/r14bcf"
 mkrepo "$R14BCF" "$TR14B/.forge/hooks/git"
-mkdir -p "$R14BCF/.forge/scripts/lib"
+mkdir -p "$R14BCF/.forge/skills/readme-generator/scripts"
 printf '# Changelog\n\n## [Unreleased]\n' > "$R14BCF/CHANGELOG.md"
 git -C "$R14BCF" add CHANGELOG.md >/dev/null 2>&1
 git -C "$R14BCF" commit -qm "chore: changelog" >/dev/null 2>&1

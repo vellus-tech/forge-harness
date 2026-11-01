@@ -1,20 +1,20 @@
 # Code Graph — report
 
 - Engine: native (zero-dep)
-- Nodes: 386 · Edges: 62
+- Nodes: 547 · Edges: 90
 - Languages: csharp, go, java, js, kotlin, python, shell, ts
-- Summaries stale (need LLM curation): 386
+- Summaries stale (need LLM curation): 547
 
 ## Nodes per layer
 
-- test: 213
-- unknown: 173
+- test: 344
+- unknown: 203
 
 ## Layer coverage
 
-- Classified: 213 of 386 node(s) in taxonomy scope (55.2%)
+- Classified: 344 of 547 node(s) in taxonomy scope (62.9%)
 - Out of taxonomy (declared in codegraph.layers as `unknown`): 0 — excluded from the denominator, NOT a gap
-- Unclassified (heuristic found no layer): 173 — declare the layout in `codegraph.layers` (FORGE.md) if these are backend code
+- Unclassified (heuristic found no layer): 203 — declare the layout in `codegraph.layers` (FORGE.md) if these are backend code
 
 ## Unresolved edges (external deps or unknown targets)
 

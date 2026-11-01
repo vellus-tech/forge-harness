@@ -6,7 +6,7 @@
 #       .forge/kb/ no gitignore.patch e no .gitignore da raiz; plugin sincronizado
 #   [2] doctor informa o estado da busca unificada como info, não cria .forge/kb/semantic, e numa
 #       worktree real sem FORGE_ROOT acha a instalação do checkout principal
-#   [3] ADR 0004 no baseline: indexada, emenda explicitamente a 0001, registra o padrão opt-in (pins
+#   [3] ADR 0005 no baseline: indexada, emenda explicitamente a 0001, registra o padrão opt-in (pins
 #       na maquinaria, sem binário nativo, degradação) e a dúvida de licença dos dados de treino
 set -euo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
@@ -49,11 +49,11 @@ git -C "$M" worktree remove --force "$T/wt" >/dev/null 2>&1 || true
 ok 2
 
 # [3]
-ADR="$WS/.forge/product/current/adr/0004-opt-in-runtime-layer.md"
-[ -f "$ADR" ] || fail 3 "ADR 0004 ausente"
-grep -q '0004' "$WS/.forge/product/current/adr/README.md" || fail 3 "ADR 0004 fora do índice"
-grep -q '0001' "$ADR" || fail 3 "ADR 0004 não cita a 0001 que emenda"
-for want in 'opt-in' 'kb-pins' 'nativo' 'MS MARCO' 'Status:\*\* accepted'; do grep -qE "$want" "$ADR" || fail 3 "ADR 0004 sem: $want"; done
+ADR="$WS/.forge/product/current/adr/0005-opt-in-runtime-layer.md"
+[ -f "$ADR" ] || fail 3 "ADR 0005 ausente"
+grep -q '0005-opt-in-runtime-layer' "$WS/.forge/product/current/adr/README.md" || fail 3 "ADR 0005 fora do índice"
+grep -q '0001' "$ADR" || fail 3 "ADR 0005 não cita a 0001 que emenda"
+for want in 'opt-in' 'kb-pins' 'nativo' 'MS MARCO' 'Status:\*\* accepted'; do grep -qE "$want" "$ADR" || fail 3 "ADR 0005 sem: $want"; done
 ok 3
 
 echo "PASS w319-kb-surface (3 casos)"

@@ -3263,6 +3263,422 @@
     {
       "id": "LDG-0203",
       "type": "tech-debt",
+      "title": "Avaliar configuração gerenciada do Claude Code para negar/isolar mensageria nativa entre sessões em repositórios PCI",
+      "detail": "A contenção por allowed_workspaces e o gancho de saída não são fronteira contra um agente determinado rodando como o usuário do sistema (socket+token de mensageria estão no ambiente dele). A única contenção que o usuário não altera é a configuração gerenciada do Claude Code. Avaliar, para repositórios em escopo PCI, negar ou isolar a mensageria nativa entre sessões por essa política — fecha quando a avaliação (viável/inviável) estiver registrada e, se viável, a política documentada.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T17:08:13-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0203"
+    },
+    {
+      "id": "LDG-0204",
+      "type": "follow-up",
+      "title": "Medir o formato de agente nomeado (Agent com input.name, agent teams) quando o recurso estiver disponível",
+      "detail": "O gancho de saída (native-send-guard.mjs) trata nome de sessão igual a Agent nomeado como destino de sessão quando o registro local tem entrada viva única com esse nome (REQ-05, design item 2 do gate design_reviewed). O formato de chamada Agent com input.name em agent teams não foi medido em produção — a medição atual é sobre fixture sintética. Fecha quando o recurso estiver disponível e a medição real confirmar ou corrigir o payload assumido.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T17:08:13-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0204"
+    },
+    {
+      "id": "LDG-0205",
+      "type": "follow-up",
+      "title": "Auditar outros ganchos/scripts que leem stdin sem limite de tempo",
+      "detail": "Medido neste change: on-session-end.sh travava com stdin nunca fechado (corrigido aqui). Auditar os demais ganchos e scripts do harness que leem stdin para confirmar se algum outro tem o mesmo defeito — fecha com a lista de pontos auditados e, se achar outro caso, com o fix correspondente ou um item novo de ledger apontando para ele.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T17:08:13-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0205"
+    },
+    {
+      "id": "LDG-0206",
+      "type": "roadmap",
+      "title": "ADR: Mensageria nativa entre sessões é sinalização; o registro durável é o liaison",
+      "detail": "Decisão transversal sugerida no design §10 deste change: corpo canônico sempre no liaison, ponteiro liaison:<channel>/<msg_id>, declaração efêmera com classes fechadas, contenção por workspace com cadastro humano e detecção, configuração gerenciada como única fronteira real. Fecha quando o ADR for criado no baseline (/forge:adr) com status accepted. — Resolvido: ADR 0004 criado no baseline (.forge/product/current/adr/0004-mensageria-nativa-e-sinalizacao.md), status accepted, índice atualizado.",
+      "severity": null,
+      "priority": "P2",
+      "status": "resolved",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T17:08:13-03:00",
+      "updated_at": "2026-10-31T17:12:36-03:00",
+      "resolved_at": "2026-10-31T17:12:36-03:00",
+      "dedup_key": "manual:LDG-0206"
+    },
+    {
+      "id": "LDG-0207",
+      "type": "follow-up",
+      "title": "Teste de injeção da fixture de controle do leitor de transcript (ramo instrumento quebrado por controle)",
+      "detail": "A mutação que remove o ramo 'fixture de controle falhou' de readTranscript (native-transcript.mjs) sobrevive aos gates native-readers e native-coverage; acrescentar ponto de injeção da fixture no teste (gate implementation_verified, rodada 1).",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "verify",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:49:43-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0207"
+    },
+    {
+      "id": "LDG-0208",
+      "type": "tech-debt",
+      "title": "Merge humano com mudança de contenção em ship/yolo é regra de prompt, sem verificação determinística",
+      "detail": "ship.md 10b, yolo-gate.md e autonomy-yolo.md trazem a regra e o gate só confere o texto; avaliar script de merge que consulte native containment antes de mesclar (gate implementation_verified, rodada 1).",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "verify",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:49:43-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0208"
+    },
+    {
+      "id": "LDG-0209",
+      "type": "follow-up",
+      "title": "Fixture de pre-push com o detector de contenção devolvendo rc 2 (não mediu)",
+      "detail": "O pre-push trata rc 2 do native containment, mas nenhum gate tem fixture desse caminho (gate implementation_verified, rodada 1).",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "verify",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:49:43-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0209"
+    },
+    {
+      "id": "LDG-0210",
+      "type": "tech-debt",
+      "title": "coverage — REQ-11 e checklist de superfície — Resolvido: `pin` e `containment` no REQ-11 e na tabela; linha do REQ-11 acrescentada.",
+      "detail": "Resolvido: Colhido pelo harvest do archive a partir de achado do analyze que já estava resolvido na rodada 2 (coluna Recomendação começa com 'Resolvido'); nada a fazer.",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "resolved",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "archive",
+        "ref": "A-05"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:59:26-03:00",
+      "updated_at": "2026-10-31T21:59:26-03:00",
+      "resolved_at": "2026-10-31T21:59:26-03:00",
+      "dedup_key": "add-liaison-native-bridge:A-05"
+    },
+    {
+      "id": "LDG-0211",
+      "type": "tech-debt",
+      "title": "drift — design §9 × tasks — Resolvido: nomes sem ordinal, linhas do `w293-native-containment-wiring-gate.sh` e do `w286-native-readers-gate.sh`, nota de divisão.",
+      "detail": "Resolvido: Colhido pelo harvest do archive a partir de achado do analyze que já estava resolvido na rodada 2 (coluna Recomendação começa com 'Resolvido'); nada a fazer.",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "resolved",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "archive",
+        "ref": "A-06"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:59:26-03:00",
+      "updated_at": "2026-10-31T21:59:26-03:00",
+      "resolved_at": "2026-10-31T21:59:26-03:00",
+      "dedup_key": "add-liaison-native-bridge:A-06"
+    },
+    {
+      "id": "LDG-0212",
+      "type": "tech-debt",
+      "title": "drift — design §2.7 (`hook-unwired`) — Resolvido: detector usa o wrapper exportado `preToolUseWiring`; derivação `unresolved` (manifesto corrompido) vira rc 2 (TASK-12).",
+      "detail": "Resolvido: Colhido pelo harvest do archive a partir de achado do analyze que já estava resolvido na rodada 2 (coluna Recomendação começa com 'Resolvido'); nada a fazer.",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "resolved",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "archive",
+        "ref": "A-07"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:59:26-03:00",
+      "updated_at": "2026-10-31T21:59:26-03:00",
+      "resolved_at": "2026-10-31T21:59:26-03:00",
+      "dedup_key": "add-liaison-native-bridge:A-07"
+    },
+    {
+      "id": "LDG-0213",
+      "type": "tech-debt",
+      "title": "risk — design §2.4 passo 3 — Resolvido: `FORGE_CLAUDE_PROJECTS_DIR` para fixtures, sem redirecionar `HOME`.",
+      "detail": "Resolvido: Colhido pelo harvest do archive a partir de achado do analyze que já estava resolvido na rodada 2 (coluna Recomendação começa com 'Resolvido'); nada a fazer.",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "resolved",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "archive",
+        "ref": "A-08"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:59:26-03:00",
+      "updated_at": "2026-10-31T21:59:26-03:00",
+      "resolved_at": "2026-10-31T21:59:26-03:00",
+      "dedup_key": "add-liaison-native-bridge:A-08"
+    },
+    {
+      "id": "LDG-0214",
+      "type": "tech-debt",
+      "title": "risk — preâmbulo das tasks — Resolvido: execução estritamente sequencial; vermelho esperado do `w200` até a TASK-25 declarado.",
+      "detail": "Resolvido: Colhido pelo harvest do archive a partir de achado do analyze que já estava resolvido na rodada 2 (coluna Recomendação começa com 'Resolvido'); nada a fazer.",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "resolved",
+      "source": {
+        "change_id": "add-liaison-native-bridge",
+        "origin": "archive",
+        "ref": "A-09"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-native-bridge"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T21:59:26-03:00",
+      "updated_at": "2026-10-31T21:59:26-03:00",
+      "resolved_at": "2026-10-31T21:59:26-03:00",
+      "dedup_key": "add-liaison-native-bridge:A-09"
+    },
+    {
+      "id": "LDG-0215",
+      "type": "known-bug",
+      "title": "Archive dobra barras invertidas de cenários pré-existentes do baseline (round-trip de escape no load/dump)",
+      "detail": "Cada /forge:archive re-escapa valores já escapados de spec.yaml: em origin/develop o given de SCN-FHT-004-A já tinha 16.382 barras (2^14-2, ~13 archives); o archive do add-migration-review-rule levou a 32.766 e o arquivo de 272 KB para 505 KB, afetando 17 cenários não tocados pela delta. Mitigado no PR #246 reconstruindo spec.yaml (develop + REQs novos). Causa provável na assimetria escape/unescape entre yaml-lite.mjs (parse) e o dump do delta-apply; falta teste de round-trip load-dump-load com campo contendo barra/aspas.\n\nMEDIÇÃO (2026-11-01): Round 2 do code-evaluator: os REQs recém-aplicados também saem do archive com uma rodada de escape a mais em relação ao spec-delta (\\\" em vez de \"); corrigido à mão nos 4 given/when de REQ-FHT-055/056/058/059 no PR #246.",
+      "severity": "HIGH",
+      "priority": "P1",
+      "status": "open",
+      "source": {
+        "change_id": "add-migration-review-rule",
+        "origin": "manual",
+        "ref": "PR #246"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-migration-review-rule"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-01T13:50:30-03:00",
+      "updated_at": "2026-11-01T13:52:41-03:00",
+      "resolved_at": null,
+      "dedup_key": "add-migration-review-rule:PR #246 (LDG-0215)"
+    },
+    {
+      "id": "LDG-0216",
+      "type": "tech-debt",
+      "title": "check-data-governance aplica LOG_TAINT de linguagem de aplicação a .sql",
+      "detail": "LOG_CALL (log.x( / logger.x() casa INSERT INTO log.events (...) e PAN/CPF casam epoch-ms (13 dígitos) e celular (11 dígitos): falso positivo não rebaixável em seed/migration de schema log. E o log real em SQL (RAISE NOTICE/LOG/EXCEPTION com PAN/CPF/e-mail) não é detectado; a fixture sql-log-pan-fail só reprova por ter uma linha Go dentro de comentário. Proposta: matriz própria para .sql sobre RAISE, sem LOG_CALL. Achados LOGIC-005/SEC-006 do code-evaluator.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": "add-migration-review-rule",
+        "origin": "manual",
+        "ref": "PR #246"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-migration-review-rule"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-01T13:50:30-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "add-migration-review-rule:PR #246 (LDG-0216)"
+    },
+    {
+      "id": "LDG-0217",
+      "type": "tech-debt",
+      "title": "migration-review: diff de árvore rsha..lsha cobra migrations de outros PRs trazidas por merge/rebase; endurecimento da rule",
+      "detail": "Em ref existente o gate usa git diff rsha..lsha (semântica de árvore). Atualizar a feature com develop traz migrations de outros PRs para o diff; sem linha de evidência adicionada no range, o push é bloqueado (janela de adoção, --no-verify). Proposta: listar arquivos dos commits novos (git log --no-merges --name-only -z lsha --not --remotes). Também: endurecer a rule (adr= nos itens 3/4/12, role de runtime distinta da dona, SAD/PAN ilegível no item 9) e pular spawn de node quando nenhuma ref toca migration. Achados LOGIC-003, SEC-003/004/005, PLAT-001.\n\nMEDIÇÃO (2026-11-01): Round 2 do code-evaluator: path de migration com espaço não pode ser satisfeito por linha de evidência (regex captura \\S+; aceitar path entre crases/aspas); range <sha> num merge commit lista zero arquivos e passa no uso manual/CI (no pre-push não é alcançável); evidência em NFD não casa arquivo em NFC.",
+      "severity": null,
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": "add-migration-review-rule",
+        "origin": "manual",
+        "ref": "PR #246"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-migration-review-rule"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-01T13:50:30-03:00",
+      "updated_at": "2026-11-01T13:52:41-03:00",
+      "resolved_at": null,
+      "dedup_key": "add-migration-review-rule:PR #246 (LDG-0217)"
+    },
+    {
+      "id": "LDG-0218",
+      "type": "tech-debt",
+      "title": "run-all.sh classifica morte por sinal (pressão de memória) como FAIL em corrida completa sob carga",
+      "detail": "Duas corridas completas de npm test nesta worktree reportaram ~40 gates FAIL, lista quase idêntica entre as duas, espalhada por áreas não relacionadas entre si (specs, archive, publish, init, adapters, secrets, enforcement). Todos os gates testados isoladamente passam, inclusive um subconjunto de 9 gates + 2 suítes bats rodado em sequência real idêntica à ordem do run-all.sh (PASS=11 FAIL=0 em 131s). Paralelismo interno e vazamento de env var entre gates foram eliminados como causa (run-all.sh roda sequencial, cada gate em processo filho novo, unset explícito das vars GIT_DIR/GIT_WORK_TREE/etc). Máquina com 16 sessões de usuário simultâneas e ~125MB de RAM livre durante a corrida; run-all.sh já documenta nas linhas 140-208 (comentário LDG-0179/LDG-0180) um caso conhecido de gate morto por SIGKILL sob pressão de memória sendo promovido a FAIL por narração ambígua, em vez de UNVERIFIED. Evidência: tests/run-all.sh linhas 140-208; subconjunto w12/w13/w14/w20/w21/w22/w31/w32/w33+bats isolado PASS=11 FAIL=0 em 131s. Recomendação: medir RSS pico por gate numa corrida completa isolada (ex. /usr/bin/time -l) antes de decidir entre ampliar a tolerância do classificador para UNVERIFIED ou reduzir a pegada de memória dos gates mais pesados. Não bloqueante para nenhum change individual; pré-existente no harness de testes, não introduzido por add-unify-changelog-skill.\n\nCORREÇÃO DE REGISTRO (2026-10-31): Mecanismo mais preciso confirmado por reprodução: a contaminação não é herdada só de rodada anterior, reproduz 3 vezes mesmo começando de árvore limpa. Pelo menos um gate (candidatos: w100-spec-delta-pipeline, w42-impact, w50-story-shard, w90-run-manifest, w193-tree-derived-state) escreve fixtures diretamente em .forge/specs/active/ E em .forge/ledger/LEDGER.md e ledger.json REAIS desta worktree, em vez de um FORGE_ROOT isolado em /tmp. Confirmado por evidência direta: LEDGER.md ganhou entradas fictícias (item-do-worktree, item-w193, controle do 19) durante a corrida, revertidas manualmente via git checkout. Quando esse gate é interrompido por SIGKILL (pressão de memória) antes do teardown, ou mesmo sem interrupção, o resíduo contamina todo gate subsequente que varre specs ativas ou o ledger real. Recomendação revisada: migrar esses gates para sandbox FORGE_ROOT isolado (padrão mktemp -d já usado por outros gates) é a correção estrutural; medir RSS por gate é secundário.",
+      "severity": "LOW",
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "add-unify-changelog-skill",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-unify-changelog-skill"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-31T20:27:09-03:00",
+      "updated_at": "2026-10-31T23:24:57-03:00",
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0218"
+    },
+    {
+      "id": "LDG-0219",
+      "type": "tech-debt",
       "title": "conflict — REQ-11 (3º critério) × tasks TASK-03/TASK-05 — O REQ-11 situa o conjunto em `tests/fixtures/kb/eval/` e exige o `holdout.json` no git antes do commit que introduz as constantes de `lib/kb-f",
       "detail": "Resolvido: Tratado no próprio change add-unified-knowledge-search antes do implement (analysis.md, seção Tratamento); captura do harvest é narrativa histórica (classe do LDG-0140).",
       "severity": "MEDIUM",
@@ -3287,9 +3703,9 @@
       "dedup_key": "add-unified-knowledge-search:A-03"
     },
     {
-      "id": "LDG-0204",
+      "id": "LDG-0220",
       "type": "tech-debt",
-      "title": "conflict — design §2.9 / TASK-09 × ADR 0001 (baseline) — A ADR 0004, que emenda a 0001, só nasce na TASK-09, depois que as TASK-06..08 materializam a camada opt-in. Recomendação: antecipar a ADR para ",
+      "title": "conflict — design §2.9 / TASK-09 × ADR 0001 (baseline) — A ADR 0005, que emenda a 0001, só nasce na TASK-09, depois que as TASK-06..08 materializam a camada opt-in. Recomendação: antecipar a ADR para ",
       "detail": "Resolvido: Tratado no próprio change add-unified-knowledge-search antes do implement (analysis.md, seção Tratamento); captura do harvest é narrativa histórica (classe do LDG-0140).",
       "severity": "MEDIUM",
       "priority": null,
@@ -3313,7 +3729,7 @@
       "dedup_key": "add-unified-knowledge-search:A-04"
     },
     {
-      "id": "LDG-0205",
+      "id": "LDG-0221",
       "type": "tech-debt",
       "title": "drift — design §2.2 (tabela de módulos) × §2.3 / §2.2.1; proposal §4 — A tabela da §2.2 diz que `kb-corpus.mjs` importa só `node:*`, mas a §2.3 o faz usar `lib/yaml-lite.mjs` e `expectedTrust` de `lib",
       "detail": "Resolvido: Tratado no próprio change add-unified-knowledge-search antes do implement (analysis.md, seção Tratamento); captura do harvest é narrativa histórica (classe do LDG-0140).",
@@ -3339,7 +3755,7 @@
       "dedup_key": "add-unified-knowledge-search:A-05"
     },
     {
-      "id": "LDG-0206",
+      "id": "LDG-0222",
       "type": "tech-debt",
       "title": "coverage — requirements \"Checklist de cobertura de superfície\" × design §2.11 × tasks.md \"Medições\" item 1 — (1) Nenhuma linha do checklist define as flags do `eval` (`--json`, `--lexical`) usadas na ",
       "detail": "Resolvido: Tratado no próprio change add-unified-knowledge-search antes do implement (analysis.md, seção Tratamento); captura do harvest é narrativa histórica (classe do LDG-0140).",
@@ -3365,7 +3781,7 @@
       "dedup_key": "add-unified-knowledge-search:A-06"
     },
     {
-      "id": "LDG-0207",
+      "id": "LDG-0223",
       "type": "tech-debt",
       "title": "coverage — tasks.md tabela de Rastreabilidade × cabeçalhos das tasks — A tabela liga REQ-10 → TASK-04 e REQ-02 → TASK-05, mas os cabeçalhos dessas tasks não rastreiam esses REQs. Recomendação: sincron",
       "detail": "Resolvido: Tratado no próprio change add-unified-knowledge-search antes do implement (analysis.md, seção Tratamento); captura do harvest é narrativa histórica (classe do LDG-0140).",
@@ -3391,7 +3807,7 @@
       "dedup_key": "add-unified-knowledge-search:A-07"
     },
     {
-      "id": "LDG-0208",
+      "id": "LDG-0224",
       "type": "tech-debt",
       "title": "risk — design §2.2.1 (instalação na raiz de estado, compartilhada) × rule `conventions/machinery-propagation.md` — Pins são maquinaria por branch; uma worktree com pins diferentes vê \"pins mudaram\" e,",
       "detail": "Resolvido: Tratado no próprio change add-unified-knowledge-search antes do implement (analysis.md, seção Tratamento); captura do harvest é narrativa histórica (classe do LDG-0140).",
@@ -3417,7 +3833,7 @@
       "dedup_key": "add-unified-knowledge-search:A-08"
     },
     {
-      "id": "LDG-0209",
+      "id": "LDG-0225",
       "type": "tech-debt",
       "title": "risk — NFR-01 × semantic-feasibility.md §4.1 × design §6 — O processo inteiro de `query --lexical` mediu 0,34 s contra a meta de 200 ms; a margem das correções do §2.4 é estreita e o plano B não tem t",
       "detail": "Resolvido: Tratado no próprio change add-unified-knowledge-search antes do implement (analysis.md, seção Tratamento); captura do harvest é narrativa histórica (classe do LDG-0140).",
@@ -3443,7 +3859,7 @@
       "dedup_key": "add-unified-knowledge-search:A-09"
     },
     {
-      "id": "LDG-0210",
+      "id": "LDG-0226",
       "type": "tech-debt",
       "title": "risk — design §2.10/§2.12 (devDependencies) × `.github/workflows/ci.yml` (`npm ci \\ — \\ — npm install`) — `--ignore-scripts` só cobre o consumidor; no CI e no `npm ci` da worktree o `postinstall` de `",
       "detail": "",
@@ -3469,7 +3885,7 @@
       "dedup_key": "add-unified-knowledge-search:A-10"
     },
     {
-      "id": "LDG-0211",
+      "id": "LDG-0227",
       "type": "known-bug",
       "title": "delta-apply dobra as barras invertidas de cenários já escapados a cada archive",
       "detail": "Medido no archive de add-unified-knowledge-search (2026-10-31): o spec.yaml da capability forge-harness-template foi de 272.103 para 509.347 bytes, com 229.216 barras invertidas viradas 458.480, em 17 linhas de cenários antigos (ex.: REQ-FHT-004). A emissão (yamlQuote) escapa a barra e a leitura (parseYamlSubset) não a desescapa, então cada archive dobra. Neste archive as 17 linhas foram restauradas byte a byte do baseline anterior antes do commit; o defeito continua no delta-apply e o baseline já carrega barras acumuladas de archives anteriores.",

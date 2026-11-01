@@ -40,8 +40,8 @@ if (idx.chunks[r[0][0]].doc !== 'alvo.md') process.exit(1);
 ok 2
 
 js "
-const e = X.entities('ver LDG-0012, gate w283, script spec-new.sh, comando /forge:kb, ADR 0004, REQ-03 e TASK-07');
-for (const want of ['ldg-0012', 'w283', 'spec-new.sh', '/forge:kb', 'adr-0004', 'req-03', 'task-07']) if (!e.includes(want)) { console.log(e); process.exit(1); }
+const e = X.entities('ver LDG-0012, gate w283, script spec-new.sh, comando /forge:kb, ADR 0005, REQ-03 e TASK-07');
+for (const want of ['ldg-0012', 'w283', 'spec-new.sh', '/forge:kb', 'adr-0005', 'req-03', 'task-07']) if (!e.includes(want)) { console.log(e); process.exit(1); }
 // siglas genéricas não são entidade (emenda do REQ-03, 2026-10-31): eram a causa medida da perda do lexical
 const g = X.entities('README TDD MVP GIT_DIR API CLI PCI DSS');
 if (g.length) { console.log('siglas viraram entidade:', g); process.exit(1); }

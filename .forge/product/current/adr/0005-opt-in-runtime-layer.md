@@ -1,4 +1,4 @@
-# 0004. Camada opt-in com dependência de execução instalada sob demanda
+# 0005. Camada opt-in com dependência de execução instalada sob demanda
 
 - **Status:** accepted
 - **Data:** 2026-10-30

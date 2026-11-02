@@ -2048,8 +2048,301 @@ NODEEOF
     exit "$claim_rc"
     ;;
 
-  renew|release|complete|withdraw|status|list)
-    echo "FAIL: 'baton $baton_verb' ainda não implementado nesta revisão (ver tasks.md TASK-21 em diante)" >&2
+  renew)
+    channel="${1:-}"; shift || true
+    baton_id="${1:-}"; shift || true
+    [ -n "$channel" ] && [ -n "$baton_id" ] || { echo "FAIL: uso: baton renew <channel> <baton_id> [--lease <s>] [--session <id>]" >&2; exit 1; }
+    ch_dir="$LIAISON_DIR/$channel"
+    [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado (rode 'open' primeiro)" >&2; exit 1; }
+    self="$(_read_self)"
+    [ -n "$self" ] || { echo "FAIL: self não configurado (rode 'open' primeiro)" >&2; exit 1; }
+
+    lease_arg=""; session_arg=""
+    RENEW_FLAGS="$(_baton_flags renew)"
+    while [ $# -gt 0 ]; do case "$1" in
+      --lease) forge_reject_flag_as_value "baton renew" --lease "${2-}" "$RENEW_FLAGS"; lease_arg="$2"; shift 2 ;;
+      --session) forge_reject_flag_as_value "baton renew" --session "${2-}" "$RENEW_FLAGS"; session_arg="$2"; shift 2 ;;
+      *) _reject_unknown "baton renew" "$RENEW_FLAGS" "$1" ;;
+    esac; done
+    session="$(_baton_resolve_session "$session_arg")" || exit 1
+    if [ -n "$lease_arg" ]; then
+      printf '%s' "$lease_arg" | grep -Eq '^[0-9]+$' || { echo "FAIL: --lease precisa ser inteiro positivo: '$lease_arg'" >&2; exit 1; }
+    fi
+    transport_line="$(_read_transport "$channel" 2>/dev/null || true)"
+
+    set +e
+    renew_out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$self" "$channel" "$baton_id" "$session" "${lease_arg:-}" \
+      "$(_git_date)" "${FORGE_BATON_RENEW_IF_DUE:-}" "${transport_line:+1}" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, chDir, self, channel, batonId, session, leaseArg, now, ifDue, hasTransport] = process.argv;
+  const { appendOwnDecided, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
+  const { foldBatons, validateBaton } = await import(pathToFileURL(join(lib, 'liaison-baton.mjs')).href);
+  const { recordWon } = await import(pathToFileURL(join(lib, 'liaison-baton-local.mjs')).href);
+  const { mergeLogs } = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
+  function nowWall() { return new Date().toISOString().replace(/\.\d+Z$/, 'Z'); }
+  let wonLeaseSeconds = null;
+  let wonLeaseUntil = null;
+  try {
+    const result = await appendOwnDecided({
+      root, chDir, channel, self,
+      decide: (all) => {
+        const offerMsg = all.find((m) => m.msg_id === batonId && m.baton && m.baton.op === 'offer');
+        if (!offerMsg) return { refuse: true, rc: 1, reason: `oferta '${batonId}' desconhecida localmente` };
+        const { batons } = foldBatons(all);
+        const baton = batons.get(batonId);
+        const isHolder = baton && baton.state === 'held' && baton.holder && baton.holder.sender === self && baton.holder.session === session;
+        if (!isHolder) {
+          const holderTxt = baton && baton.holder ? `${baton.holder.sender}/${baton.holder.session}` : 'nenhuma';
+          return { refuse: true, rc: 1, reason: `não é a titular corrente (titular: ${holderTxt})` };
+        }
+        const T = Date.parse(baton.leaseUntil);
+        if (Date.now() > T) {
+          return { refuse: true, rc: 1, reason: `lease venceu em ${baton.leaseUntil} — a retomada é 'baton claim'` };
+        }
+        let leaseSeconds;
+        if (leaseArg) {
+          leaseSeconds = Number(leaseArg);
+          if (!Number.isInteger(leaseSeconds) || leaseSeconds < 60 || leaseSeconds > offerMsg.baton.max_lease_seconds) {
+            return { refuse: true, rc: 1, reason: `--lease fora de [60, ${offerMsg.baton.max_lease_seconds}]: ${leaseArg}` };
+          }
+        } else {
+          leaseSeconds = baton.leaseSeconds;
+        }
+        if (ifDue === '1') {
+          const half = T - (baton.leaseSeconds * 1000) / 2;
+          if (Date.now() < half) {
+            return { refuse: true, rc: 1, reason: `ainda não é hora de renovar (metade do prazo em ${new Date(half).toISOString().replace(/\.\d+Z$/, 'Z')})` };
+          }
+        }
+        const stampedAt = nowWall();
+        const leaseUntil = new Date(Date.parse(stampedAt) + leaseSeconds * 1000).toISOString().replace(/\.\d+Z$/, 'Z');
+        const envelope = {
+          channel, thread_id: offerMsg.thread_id, kind: 'note', requires_ack: false,
+          in_reply_to: batonId, subject: `baton renew: ${offerMsg.subject}`.slice(0, 200),
+          created_at: now, trust: 'self',
+          baton: { op: 'renew', session, stamped_at: stampedAt, lease_seconds: leaseSeconds, lease_until: leaseUntil },
+        };
+        const verrs = validateBaton(envelope);
+        if (verrs.length) return { refuse: true, rc: 1, reason: verrs.join('; ') };
+        wonLeaseSeconds = leaseSeconds;
+        wonLeaseUntil = leaseUntil;
+        return { envelope, afterWrite: (allWithNew) => ({ fold: foldBatons(allWithNew), threads: mergeLogs(allWithNew).threads }) };
+      },
+    });
+    if (result.refused) {
+      console.error('FAIL: ' + result.reason);
+      process.exit(typeof result.rc === 'number' ? result.rc : 1);
+    }
+    await recordWon({
+      root, channel, chDir, self, batonId, msgId: result.msg.msg_id, session,
+      leaseSeconds: wonLeaseSeconds, leaseUntil: wonLeaseUntil,
+    });
+    const offerMsgAfter = result.all.find((m) => m.msg_id === batonId);
+    const thread = result.fold.threads[offerMsgAfter.thread_id];
+    const externalParticipant = thread && thread.participants.some((p) => p !== self);
+    console.log(`OK baton renew — ${result.msg.msg_id} novo lease_until ${wonLeaseUntil}`);
+    if (externalParticipant && hasTransport === '1') {
+      console.log(`liaison-ops.sh sync ${channel} --push-only`);
+      console.error('sem publicar, outro repositório pode considerar o lease vencido');
+    }
+    process.exit(0);
+  } catch (err) {
+    if (err instanceof AppendValidationError) console.error('FAIL: envelope inválido: ' + err.errors.join('; '));
+    else if (err instanceof LockLostError) console.error('FAIL: ' + err.message);
+    else console.error('FAIL: ' + (err && err.message ? err.message : String(err)));
+    process.exit(1);
+  }
+})();
+NODEEOF
+)"
+    renew_rc=$?
+    set -e
+    _render "$channel" >/dev/null 2>&1 || true
+    echo "$renew_out"
+    exit "$renew_rc"
+    ;;
+
+  release|complete)
+    baton_op="$baton_verb"
+    channel="${1:-}"; shift || true
+    baton_id="${1:-}"; shift || true
+    [ -n "$channel" ] && [ -n "$baton_id" ] || { echo "FAIL: uso: baton $baton_op <channel> <baton_id> [--session <id>] [--body <txt>|--body-file <path>]" >&2; exit 1; }
+    ch_dir="$LIAISON_DIR/$channel"
+    [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado (rode 'open' primeiro)" >&2; exit 1; }
+    self="$(_read_self)"
+    [ -n "$self" ] || { echo "FAIL: self não configurado (rode 'open' primeiro)" >&2; exit 1; }
+
+    session_arg=""; body=""; body_file=""
+    VERB_FLAGS="$(_baton_flags "$baton_op")"
+    while [ $# -gt 0 ]; do case "$1" in
+      --session) forge_reject_flag_as_value "baton $baton_op" --session "${2-}" "$VERB_FLAGS"; session_arg="$2"; shift 2 ;;
+      --body) forge_reject_flag_as_value "baton $baton_op" --body "${2-}" "$VERB_FLAGS"; body="$2"; shift 2 ;;
+      --body-file) forge_reject_flag_as_value "baton $baton_op" --body-file "${2-}" "$VERB_FLAGS"; body_file="$2"; shift 2 ;;
+      *) _reject_unknown "baton $baton_op" "$VERB_FLAGS" "$1" ;;
+    esac; done
+    session="$(_baton_resolve_session "$session_arg")" || exit 1
+    if [ -n "$body" ] && [ -n "$body_file" ]; then echo "FAIL: use --body OU --body-file, não os dois" >&2; exit 1; fi
+    _scan_secret_or_fail "$body" "$body_file" || exit 1
+    body_ref=""
+    if [ -n "$body_file" ]; then
+      body_ref="$(_write_body_blob "$ch_dir" "$body_file")" || exit 1
+      body=""
+    fi
+
+    set +e
+    rc_out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$self" "$channel" "$baton_id" "$session" "$baton_op" "$body" "$body_ref" "$(_git_date)" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, chDir, self, channel, batonId, session, op, body, bodyRef, now] = process.argv;
+  const { appendOwnDecided, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
+  const { foldBatons, validateBaton } = await import(pathToFileURL(join(lib, 'liaison-baton.mjs')).href);
+  const { removeHolder } = await import(pathToFileURL(join(lib, 'liaison-baton-local.mjs')).href);
+  function nowWall() { return new Date().toISOString().replace(/\.\d+Z$/, 'Z'); }
+  try {
+    const result = await appendOwnDecided({
+      root, chDir, channel, self,
+      decide: (all) => {
+        const offerMsg = all.find((m) => m.msg_id === batonId && m.baton && m.baton.op === 'offer');
+        if (!offerMsg) return { refuse: true, rc: 1, reason: `oferta '${batonId}' desconhecida localmente` };
+        const { batons } = foldBatons(all);
+        const baton = batons.get(batonId);
+        const isHolder = baton && baton.state === 'held' && baton.holder && baton.holder.sender === self && baton.holder.session === session;
+        if (!isHolder) {
+          const holderTxt = baton && baton.holder ? `${baton.holder.sender}/${baton.holder.session}` : 'nenhuma';
+          return { refuse: true, rc: 1, reason: `não é a titular corrente (titular: ${holderTxt})` };
+        }
+        const envelope = {
+          channel, thread_id: offerMsg.thread_id, kind: 'note', requires_ack: false,
+          in_reply_to: batonId, subject: `baton ${op}: ${offerMsg.subject}`.slice(0, 200),
+          ...(body ? { body } : {}), ...(bodyRef ? { body_ref: bodyRef } : {}),
+          created_at: now, trust: 'self',
+          baton: { op, session, stamped_at: nowWall() },
+        };
+        const verrs = validateBaton(envelope);
+        if (verrs.length) return { refuse: true, rc: 1, reason: verrs.join('; ') };
+        return { envelope, afterWrite: (allWithNew) => foldBatons(allWithNew) };
+      },
+    });
+    if (result.refused) {
+      console.error('FAIL: ' + result.reason);
+      process.exit(typeof result.rc === 'number' ? result.rc : 1);
+    }
+    await removeHolder({ root, channel, self, batonId });
+    console.log(`OK baton ${op} — ${result.msg.msg_id}`);
+    process.exit(0);
+  } catch (err) {
+    if (err instanceof AppendValidationError) console.error('FAIL: envelope inválido: ' + err.errors.join('; '));
+    else if (err instanceof LockLostError) console.error('FAIL: ' + err.message);
+    else console.error('FAIL: ' + (err && err.message ? err.message : String(err)));
+    process.exit(1);
+  }
+})();
+NODEEOF
+)"
+    rc_rc=$?
+    set -e
+    _render "$channel" >/dev/null 2>&1 || true
+    echo "$rc_out"
+    exit "$rc_rc"
+    ;;
+
+  withdraw)
+    channel="${1:-}"; shift || true
+    baton_id="${1:-}"; shift || true
+    [ -n "$channel" ] && [ -n "$baton_id" ] || { echo "FAIL: uso: baton withdraw <channel> <baton_id> [--session <id>] [--body <txt>|--body-file <path>]" >&2; exit 1; }
+    ch_dir="$LIAISON_DIR/$channel"
+    [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado (rode 'open' primeiro)" >&2; exit 1; }
+    self="$(_read_self)"
+    [ -n "$self" ] || { echo "FAIL: self não configurado (rode 'open' primeiro)" >&2; exit 1; }
+
+    session_arg=""; body=""; body_file=""
+    WITHDRAW_FLAGS="$(_baton_flags withdraw)"
+    while [ $# -gt 0 ]; do case "$1" in
+      --session) forge_reject_flag_as_value "baton withdraw" --session "${2-}" "$WITHDRAW_FLAGS"; session_arg="$2"; shift 2 ;;
+      --body) forge_reject_flag_as_value "baton withdraw" --body "${2-}" "$WITHDRAW_FLAGS"; body="$2"; shift 2 ;;
+      --body-file) forge_reject_flag_as_value "baton withdraw" --body-file "${2-}" "$WITHDRAW_FLAGS"; body_file="$2"; shift 2 ;;
+      *) _reject_unknown "baton withdraw" "$WITHDRAW_FLAGS" "$1" ;;
+    esac; done
+    session="$(_baton_resolve_session "$session_arg")" || exit 1
+    if [ -n "$body" ] && [ -n "$body_file" ]; then echo "FAIL: use --body OU --body-file, não os dois" >&2; exit 1; fi
+    _scan_secret_or_fail "$body" "$body_file" || exit 1
+    body_ref=""
+    if [ -n "$body_file" ]; then
+      body_ref="$(_write_body_blob "$ch_dir" "$body_file")" || exit 1
+      body=""
+    fi
+
+    set +e
+    wd_out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$self" "$channel" "$baton_id" "$session" "$body" "$body_ref" "$(_git_date)" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, chDir, self, channel, batonId, session, body, bodyRef, now] = process.argv;
+  const { appendOwnDecided, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
+  const { foldBatons, validateBaton } = await import(pathToFileURL(join(lib, 'liaison-baton.mjs')).href);
+  const { removeHolder } = await import(pathToFileURL(join(lib, 'liaison-baton-local.mjs')).href);
+  function nowWall() { return new Date().toISOString().replace(/\.\d+Z$/, 'Z'); }
+  try {
+    const result = await appendOwnDecided({
+      root, chDir, channel, self,
+      decide: (all) => {
+        const offerMsg = all.find((m) => m.msg_id === batonId && m.baton && m.baton.op === 'offer');
+        if (!offerMsg) return { refuse: true, rc: 1, reason: `oferta '${batonId}' desconhecida localmente` };
+        if (self !== offerMsg.sender) {
+          return { refuse: true, rc: 1, reason: `apenas o ofertante '${offerMsg.sender}' pode retirar` };
+        }
+        const { batons } = foldBatons(all);
+        const baton = batons.get(batonId);
+        if (baton.state === 'completed' || baton.state === 'withdrawn') {
+          return { refuse: true, rc: 1, reason: `bastão já ${baton.state}` };
+        }
+        const skew = (offerMsg.baton.skew_tolerance_seconds || 0) * 1000;
+        const T = baton.leaseUntil ? Date.parse(baton.leaseUntil) : null;
+        const expiredEnough = baton.state === 'available' || (baton.state === 'held' && T !== null && Date.now() >= T + skew);
+        if (!expiredEnough) {
+          const holderTxt = baton.holder ? `${baton.holder.sender}/${baton.holder.session}` : 'nenhuma';
+          return { refuse: true, rc: 1, reason: `titular corrente (${holderTxt}) ainda dentro do lease ou da folga (lease_until ${baton.leaseUntil})` };
+        }
+        const envelope = {
+          channel, thread_id: offerMsg.thread_id, kind: 'note', requires_ack: false,
+          in_reply_to: batonId, subject: `baton withdraw: ${offerMsg.subject}`.slice(0, 200),
+          ...(body ? { body } : {}), ...(bodyRef ? { body_ref: bodyRef } : {}),
+          created_at: now, trust: 'self',
+          baton: { op: 'withdraw', session, stamped_at: nowWall() },
+        };
+        const verrs = validateBaton(envelope);
+        if (verrs.length) return { refuse: true, rc: 1, reason: verrs.join('; ') };
+        return { envelope, afterWrite: (allWithNew) => foldBatons(allWithNew) };
+      },
+    });
+    if (result.refused) {
+      console.error('FAIL: ' + result.reason);
+      process.exit(typeof result.rc === 'number' ? result.rc : 1);
+    }
+    await removeHolder({ root, channel, self, batonId });
+    console.log(`OK baton withdraw — ${result.msg.msg_id}`);
+    process.exit(0);
+  } catch (err) {
+    if (err instanceof AppendValidationError) console.error('FAIL: envelope inválido: ' + err.errors.join('; '));
+    else if (err instanceof LockLostError) console.error('FAIL: ' + err.message);
+    else console.error('FAIL: ' + (err && err.message ? err.message : String(err)));
+    process.exit(1);
+  }
+})();
+NODEEOF
+)"
+    wd_rc=$?
+    set -e
+    _render "$channel" >/dev/null 2>&1 || true
+    echo "$wd_out"
+    exit "$wd_rc"
+    ;;
+
+  status|list)
+    echo "FAIL: 'baton $baton_verb' ainda não implementado nesta revisão (ver tasks.md TASK-23 em diante)" >&2
     exit 1
     ;;
 

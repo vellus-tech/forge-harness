@@ -245,8 +245,10 @@ function truncateReason(holder) {
 
 // foldBatons(channelMessages) -> { batons: Map<baton_id, BatonState>, orphans: Array }
 //
-// BatonState: { state, offer, holder: {sender, session, claimMsgId, leaseUntil} | null,
-//               lastOp, history: [{ msgId, sender, session, op, stampedAt, verdict, reason }] }
+// BatonState: { state, offer, holder: {sender, session} | null, holderClaimMsgId, leaseUntil,
+//               leaseSeconds (lease_seconds do claim/renew que produziu o leaseUntil vigente —
+//               TASK-21: 'renew' sem --lease repete este valor, design §2.6), lastOp,
+//               history: [{ msgId, sender, session, op, stampedAt, verdict, reason }] }
 //
 // Pura: só dados gravados nas mensagens. Chamada do zero a cada vez — não há estado
 // incremental, então uma `pending-offer` é reavaliada naturalmente quando a oferta chega
@@ -315,6 +317,7 @@ export function foldBatons(channelMessages) {
           holder: null,
           holderClaimMsgId: null,
           leaseUntil: null,
+          leaseSeconds: null,
           lastOp: 'offer',
           history: [{ ...entry, verdict: 'offered', reason: '' }],
         });
@@ -411,6 +414,7 @@ export function foldBatons(channelMessages) {
           continue;
         }
         baton.leaseUntil = m.baton.lease_until;
+        baton.leaseSeconds = m.baton.lease_seconds;
         baton.holderClaimMsgId = baton.holderClaimMsgId; // mantém C (a claim original) — renovação não muda C
         baton.lastOp = 'renew';
         baton.history.push({ ...entry, verdict: 'renewed', reason: '' });
@@ -472,6 +476,7 @@ function applyWon(baton, entry, msg, { expiredHolder } = {}) {
   baton.holder = { sender: msg.sender, session: msg.baton.session };
   baton.holderClaimMsgId = msg.msg_id;
   baton.leaseUntil = msg.baton.lease_until;
+  baton.leaseSeconds = msg.baton.lease_seconds;
   baton.lastOp = 'claim';
   baton.history.push({ ...entry, verdict: 'won', reason: '' });
 }

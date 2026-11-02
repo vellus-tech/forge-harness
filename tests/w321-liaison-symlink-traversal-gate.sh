@@ -419,7 +419,7 @@ c_A10() {
   [ "$rc" -ne 0 ] || { falha "[A10]: push com o nome final ocupado por diretório terminou rc=0"; return 0; }
   [ -z "$(find "$HC/log" -maxdepth 2 -name '.liaison-publica.*' -print)" ] \
     || { falha "[A10]: o caminho de erro deixou temporário no hub: $(find "$HC/log" -maxdepth 2 -name '.liaison-publica.*' -print | tr '\n' ' ')"; return 0; }
-  [ -z "$(ls -A "$HC/log/v.jsonl" | grep -v '^x$' || true)" ] || { falha "[A10]: algo foi movido para DENTRO do diretório plantado"; return 0; }
+  [ -z "$(find "$HC/log/v.jsonl" -mindepth 1 ! -name x -print)" ] || { falha "[A10]: algo foi movido para DENTRO do diretório plantado"; return 0; }
   neutralizado; echo "OK [A10] — recusado, nada movido para dentro do diretório, nenhum temporário órfão"
 }
 c_A10
@@ -970,9 +970,9 @@ c_R1() {
   prepara R1 fs
   rm -f "$HC/log/v.jsonl"; mkfifo "$HC/log/v.jsonl"
   LG "$R" send "$CH" --thread t1 --kind note --subject "segunda" --body "segunda" >/dev/null
-  local saida="$T/R1/push.out" rcf="$T/R1/push.rc" pid i
+  local saida="$T/R1/push.out" rcf="$T/R1/push.rc" pid
   ( set +e; LG "$R" sync "$CH" --push-only >"$saida" 2>&1; echo $? > "$rcf" ) & pid=$!
-  for i in $(seq 1 40); do kill -0 "$pid" 2>/dev/null || break; perl -e 'select(undef,undef,undef,0.5)'; done
+  for _ in $(seq 1 40); do kill -0 "$pid" 2>/dev/null || break; perl -e 'select(undef,undef,undef,0.5)'; done
   if kill -0 "$pid" 2>/dev/null; then
     pkill -f "$T/R1/" 2>/dev/null || true; destrava_fifo "$HC/log/v.jsonl"; wait "$pid" 2>/dev/null || true
     falha "[R1]: o push TRAVOU por 20 s lendo o FIFO plantado no log próprio do hub"; return 0

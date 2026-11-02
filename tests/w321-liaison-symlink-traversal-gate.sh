@@ -848,6 +848,51 @@ c_H4() {
 c_H4
 
 # ───────────────────────────────────────────────────────────────────────────────────────────────
+# Cluster E — `export` publica no diretório de saída pelos mesmos helpers do push (ARCH-201).
+# O diretório de `--out` tem o mesmo layout do transporte `manual` e costuma ser compartilhado
+# (pendrive, diretório de VPN); o `export` fazia `mkdir -p` + `cp` em `log/` e `blobs/` seguindo link.
+
+echo "[E1] export — blobs/ e log/ do diretório de saída plantados como symlink: RECUSADO, nada sai"
+c_E1() {
+  local sub ok=1
+  for sub in blobs log; do
+    ataque
+    local id="E1-$sub"; mk_repo "$id/a"
+    LG "$id/a" open "$CH" --self a --participants a,b >/dev/null
+    LG "$id/a" thread open "$CH" t1 --subject x --participants a,b --body x >/dev/null
+    printf 'corpo\n' > "$T/$id/corpo.md"
+    LG "$id/a" send "$CH" --thread t1 --kind note --subject s --body-file "$T/$id/corpo.md" >/dev/null
+    local out_dir="$T/$id/compartilhado" fora="$T/$id/fora" out rc
+    mkdir -p "$out_dir" "$fora"; ln -s "$fora" "$out_dir/$sub"
+    set +e; out="$(LG "$id/a" export "$CH" --out "$out_dir" 2>&1)"; rc=$?; set -e
+    [ -z "$(ls -A "$fora")" ] || { falha "[E1]: export seguiu o symlink em $sub/ e escreveu fora: $(ls -A "$fora" | tr '\n' ' ')"; ok=0; continue; }
+    [ "$rc" -ne 0 ] || { falha "[E1]: export com $sub/ symlink terminou rc=0"; ok=0; continue; }
+    grep -qF 'é um link simbólico — recusado (SEC-001)' <<<"$out" || { falha "[E1]: export recusou sem a causa ($sub). Saída: $(head -3 <<<"$out")"; ok=0; continue; }
+    neutralizado
+  done
+  [ "$ok" -eq 0 ] || echo "OK [E1] — export recusa log/ e blobs/ symlink sem escrever fora"
+}
+c_E1
+
+echo "[E2] controle — export legítimo publica log e blob, sem bit de execução, e import do bundle funciona"
+c_E2() {
+  mk_repo E2/a; mk_repo E2/b
+  LG E2/a open "$CH" --self a --participants a,b >/dev/null
+  LG E2/b open "$CH" --self b --participants a,b >/dev/null
+  LG E2/a thread open "$CH" t1 --subject x --participants a,b --body x >/dev/null
+  printf '#!/bin/sh\necho corpo\n' > "$T/E2/corpo.sh"
+  LG E2/a send "$CH" --thread t1 --kind note --subject s --body-file "$T/E2/corpo.sh" >/dev/null
+  chmod 0755 "$T/E2/a/.forge/liaison/$CH/blobs/"*
+  LG E2/a export "$CH" --out "$T/E2/bundle" >/dev/null || { falha "[E2]: export legítimo reprovou"; return 0; }
+  [ -f "$T/E2/bundle/log/a.jsonl" ] && [ -n "$(ls "$T/E2/bundle/blobs")" ] || { falha "[E2]: bundle sem log ou blob"; return 0; }
+  if tem_bit_x "$T/E2/bundle/blobs"/*; then falha "[E2]: blob exportado com bit de execução"; return 0; fi
+  LG E2/b import "$CH" --from "$T/E2/bundle" >/dev/null || { falha "[E2]: import do bundle exportado reprovou"; return 0; }
+  [ -n "$(ls "$T/E2/b/.forge/liaison/$CH/blobs")" ] || { falha "[E2]: o import não trouxe o blob"; return 0; }
+  echo "OK [E2] — export legítimo publica e o bundle é importável"
+}
+c_E2
+
+# ───────────────────────────────────────────────────────────────────────────────────────────────
 echo "[M1] mutação — sem a guarda de topo de _dir_push sobre blobs/, a recusa perde a causa dela"
 # Pelo transporte `manual`, cujo probe não confere o hub: a primeira camada a ver o `blobs/` symlink
 # é a guarda de topo de `_dir_push`, e a causa dela traz o caminho do hub por extenso. Sem ela, a

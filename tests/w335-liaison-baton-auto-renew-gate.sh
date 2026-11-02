@@ -302,9 +302,30 @@ LGS a sess-4 baton claim "$CH" "$bat4" --lease 280 >/dev/null 2>&1
 lease_until4="$(rewrite_claim_due a "$CH" 280 100)"
 sync_cache_after_rewrite a "$CH" "$bat4" sess-4 "$lease_until4"
 for i in $(seq 1 10); do
-  ( run_hook a sess-4 >/dev/null 2>&1 ) &
+  ( run_hook a sess-4 >"$T/conc-$i.out" 2>/dev/null ) &
 done
 wait
+# ARCH-001/LGC-001/NODE-004: os eventos que perdem a corrida (trava ocupada, "ainda não é hora"
+# depois da renovação da primeira) NÃO são perda de titularidade — nenhum pode avisar perda nem
+# tirar a entrada do cache, ou a renovação automática para e o lease vence.
+conc_ctx="$(cat "$T"/conc-*.out 2>/dev/null)"
+if grep -q "additionalContext" <<<"$conc_ctx"; then
+  echo "FAIL [renova-concorrencia-sem-aviso]: $(grep -c additionalContext <<<"$conc_ctx") evento(s) concorrente(s) da própria titular emitiram additionalContext: $(tr '\n' ' ' <<<"$conc_ctx" | cut -c1-300)"
+  fail=1
+else
+  echo "OK [renova-concorrencia-sem-aviso]: nenhum dos 10 eventos concorrentes avisou perda"
+fi
+conc_holder="$(node -e '
+const fs = require("fs");
+const state = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+console.log(state.holders[process.argv[2]] ? "presente" : "ausente");
+' "$T/a/.forge/cache/liaison-baton/$CH/baton-local.json" "$bat4")"
+if [ "$conc_holder" = "presente" ]; then
+  echo "OK [renova-concorrencia-cache]: a entrada da titular continua no cache depois dos 10 eventos"
+else
+  echo "FAIL [renova-concorrencia-cache]: a entrada de $bat4 sumiu do cache (renovação automática parou) enquanto a sessão continua titular"
+  fail=1
+fi
 renew_count="$(node -e '
 const fs = require("fs");
 const lines = fs.readFileSync(process.argv[1], "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
@@ -315,6 +336,129 @@ if [ "$renew_count" = "1" ]; then
   echo "OK [renova-concorrencia]: 10 eventos concorrentes da titular -> exatamente 1 renovação gravada"
 else
   echo "FAIL [renova-concorrencia]: esperava exatamente 1 renovação, achou $renew_count"
+  fail=1
+fi
+
+# === ARCH-001/LGC-001/NODE-004: códigos de saída distintos do `baton renew` e o gancho só trata
+# como perda o rc de perda real ===
+holder_state() { # holder_state <repo> <baton_id> -> presente|ausente
+  node -e '
+const fs = require("fs");
+let state = { holders: {} };
+try { state = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); } catch {}
+console.log(state.holders && state.holders[process.argv[2]] ? "presente" : "ausente");
+' "$T/$1/.forge/cache/liaison-baton/$CH/baton-local.json" "$2"
+}
+fresh_claim() { # fresh_claim <repo> <sessão> <lease> -> baton_id (repo já aberto com thread t1)
+  local repo="$1" sess="$2" lease="$3" o
+  o="$(LGS "$repo" "off-$sess" baton offer "$CH" --thread t1 --subject "tarefa $sess" --max-lease "$lease" 2>&1)"
+  o="$(offer_id "$o")"
+  LGS "$repo" "$sess" baton claim "$CH" "$o" --lease "$lease" >/dev/null 2>&1
+  printf '%s' "$o"
+}
+mk_repo rcs true false
+LG rcs open "$CH" --self repo-a --participants repo-a,repo-b >/dev/null
+LG rcs thread open "$CH" t1 --subject "rc" --participants repo-a,repo-b --body "x" >/dev/null
+
+# [renew-rc-distintos] não titular -> 4; lease vencido -> 4; IF_DUE fora da hora -> 5
+bat_rc="$(fresh_claim rcs sess-rc 280)"
+LGS rcs outra-sessao baton renew "$CH" "$bat_rc" >/dev/null 2>&1; rc_nh=$?
+FORGE_BATON_RENEW_IF_DUE=1 LGS rcs sess-rc baton renew "$CH" "$bat_rc" >/dev/null 2>&1; rc_cedo=$?
+rewrite_claim_due rcs "$CH" 280 -5 >/dev/null
+LGS rcs sess-rc baton renew "$CH" "$bat_rc" >/dev/null 2>&1; rc_venc=$?
+if [ "$rc_nh" -eq 4 ] && [ "$rc_venc" -eq 4 ] && [ "$rc_cedo" -eq 5 ]; then
+  echo "OK [renew-rc-distintos]: não titular rc 4, lease vencido rc 4, ainda não é hora rc 5"
+else
+  echo "FAIL [renew-rc-distintos]: esperava não titular=4, vencido=4, cedo=5; achou não titular=$rc_nh, vencido=$rc_venc, cedo=$rc_cedo"
+  fail=1
+fi
+
+# [nao-e-hora-nao-e-perda] cache diz "devido" mas o renew diz "ainda não é hora" (rc 5): o gancho
+# não avisa perda e mantém a entrada (o cache é regravado com a dobra).
+bat_cedo="$(fresh_claim rcs sess-cedo 280)"
+lu_cedo="$(node -e 'const s=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(s.holders[process.argv[2]].leaseUntil)' "$T/rcs/.forge/cache/liaison-baton/$CH/baton-local.json" "$bat_cedo")"
+sync_cache_after_rewrite rcs "$CH" "$bat_cedo" sess-cedo "$lu_cedo"
+ctx_cedo="$(run_hook rcs sess-cedo 2>/dev/null)"
+if grep -q "additionalContext" <<<"$ctx_cedo" || [ "$(holder_state rcs "$bat_cedo")" != "presente" ]; then
+  echo "FAIL [nao-e-hora-nao-e-perda]: 'ainda não é hora' virou perda — ctx=$(tr '\n' ' ' <<<"$ctx_cedo" | cut -c1-200) entrada=$(holder_state rcs "$bat_cedo")"
+  fail=1
+else
+  echo "OK [nao-e-hora-nao-e-perda]: 'ainda não é hora' não avisa perda e mantém a entrada"
+fi
+
+# [trava-ocupada-nao-e-perda] renew devido, mas a trava do log próprio está ocupada (o gancho
+# espera 300 ms): erro transitório, rc 1 — nada de aviso, entrada mantida.
+bat_trava="$(fresh_claim rcs sess-trava 280)"
+lu_trava="$(rewrite_claim_due rcs "$CH" 280 100)"
+sync_cache_after_rewrite rcs "$CH" "$bat_trava" sess-trava "$lu_trava"
+node -e '
+const { join } = require("path");
+const { pathToFileURL } = require("url");
+(async () => {
+  const fs = require("fs");
+  const [, lib, root, channel, ready] = process.argv;
+  const { withOwnLogLock } = await import(pathToFileURL(join(lib, "liaison-lock.mjs")).href);
+  await withOwnLogLock({ root, channel, self: "repo-a" }, async () => {
+    fs.writeFileSync(ready, "1");
+    await new Promise((r) => setTimeout(r, 4000));
+  });
+})();
+' "$LIB" "$T/rcs" "$CH" "$T/trava.ready" &
+trava_pid=$!
+for _ in $(seq 1 50); do [ -f "$T/trava.ready" ] && break; node -e 'setTimeout(()=>{},100)'; done
+ctx_trava="$(run_hook rcs sess-trava 2>/dev/null)"
+estado_trava="$(holder_state rcs "$bat_trava")"
+wait "$trava_pid" 2>/dev/null
+if [ ! -f "$T/trava.ready" ]; then
+  echo "FAIL [trava-ocupada-nao-e-perda]: fixture — a trava do log próprio não foi tomada a tempo"
+  fail=1
+elif grep -q "additionalContext" <<<"$ctx_trava" || [ "$estado_trava" != "presente" ]; then
+  echo "FAIL [trava-ocupada-nao-e-perda]: trava ocupada virou perda — ctx=$(tr '\n' ' ' <<<"$ctx_trava" | cut -c1-200) entrada=$estado_trava"
+  fail=1
+else
+  echo "OK [trava-ocupada-nao-e-perda]: trava ocupada não avisa perda e mantém a entrada"
+fi
+
+# [perda-real-avisa] não titular de verdade (lease vencido) continua avisando e limpando (rc 4)
+bat_venc="$(fresh_claim rcs sess-venc 280)"
+lu_venc="$(rewrite_claim_due rcs "$CH" 280 -5)"
+sync_cache_after_rewrite rcs "$CH" "$bat_venc" sess-venc "$lu_venc"
+ctx_venc="$(run_hook rcs sess-venc 2>/dev/null)"
+if grep -q "additionalContext" <<<"$ctx_venc" && [ "$(holder_state rcs "$bat_venc")" = "ausente" ]; then
+  echo "OK [perda-real-avisa]: lease vencido (rc 4) avisa e tira a entrada do cache"
+else
+  echo "FAIL [perda-real-avisa]: perda real não avisou ou não limpou — ctx=$(tr '\n' ' ' <<<"$ctx_venc" | cut -c1-200) entrada=$(holder_state rcs "$bat_venc")"
+  fail=1
+fi
+
+# [lease-impar] com lease_seconds ímpar, o next_renew_at do cache nunca fica ANTES da metade que o
+# renew usa (arredondado para cima por segundo), na claim (recordWon) e no caminho frio
+# (rebuildHolders).
+bat_impar="$(fresh_claim rcs sess-impar 281)"
+check_impar() { # check_impar <rótulo>
+  node -e '
+const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+const h = s.holders[process.argv[2]];
+if (!h) { console.log("ausente"); process.exit(0); }
+const half = Date.parse(h.leaseUntil) - 281 * 1000 / 2;
+console.log(Date.parse(h.nextRenewAt) >= half ? "ok" : `antes da metade: nextRenewAt=${h.nextRenewAt} metade=${new Date(half).toISOString()}`);
+' "$T/rcs/.forge/cache/liaison-baton/$CH/baton-local.json" "$bat_impar"
+}
+impar_claim="$(check_impar)"
+rm -f "$T/rcs/.forge/cache/liaison-baton/$CH/baton-local.json"
+node -e '
+const { join } = require("path");
+const { pathToFileURL } = require("url");
+(async () => {
+  const { rebuildHolders } = await import(pathToFileURL(join(process.argv[1], "liaison-baton-local.mjs")).href);
+  await rebuildHolders({ root: process.argv[2], channel: process.argv[3], chDir: process.argv[4], self: "repo-a" });
+})();
+' "$LIB" "$T/rcs" "$CH" "$T/rcs/.forge/liaison/$CH"
+impar_frio="$(check_impar)"
+if [ "$impar_claim" = "ok" ] && [ "$impar_frio" = "ok" ]; then
+  echo "OK [lease-impar]: next_renew_at arredondado para cima na claim e no caminho frio"
+else
+  echo "FAIL [lease-impar]: claim=$impar_claim; caminho frio=$impar_frio"
   fail=1
 fi
 

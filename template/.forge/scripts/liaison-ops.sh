@@ -830,62 +830,64 @@ send)
   fi
 
   IFS=',' read -ra cfiles <<< "${contract_files:-}"
-  out="$(node - "$LIBDIR" "$ch_dir" "$self" "$channel" "$thread_id" "$kind" "$subject" "$body" "$body_ref" \
+  out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$self" "$channel" "$thread_id" "$kind" "$subject" "$body" "$body_ref" \
     "$requires_ack" "${in_reply_to:-}" "${change:-}" "${cfiles[*]:-}" "${commit:-}" "$(_git_date)" \
     "${authored_by:-}" "${via:-}" "${cs_from:-}" "${cs_from_name:-}" "${cs_from_mode:-}" \
     "${native_ref:-}" "${cs_origin_verified:-}" <<'NODEEOF'
-const { readFileSync, writeFileSync, readdirSync, existsSync, renameSync } = require('fs');
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, chDir, self, channel, threadId, kind, subject, body, bodyRef,
+  const [, , lib, root, chDir, self, channel, threadId, kind, subject, body, bodyRef,
     requiresAck, inReplyTo, change, cfilesRaw, commit, now, authoredBy, via,
     csFrom, csFromName, csFromMode, csNativeRef, csOriginVerified] = process.argv;
-  const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
-  const logDir = join(chDir, 'log');
-  const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
-  const all = [];
-  for (const f of files) {
-    const text = readFileSync(join(logDir, f), 'utf8');
-    for (const line of text.split('\n')) { const t = line.trim(); if (t) all.push(JSON.parse(t)); }
-  }
-  const threadMsgs = all.filter((m) => m.thread_id === threadId);
-  if (!threadMsgs.some((m) => m.kind === 'thread-open')) {
-    console.error(`thread '${threadId}' desconhecida localmente (abra ou aguarde o thread-open chegar)`); process.exit(1);
-  }
-  const own = all.filter((m) => m.sender === self);
-  const seq = M.nextSeq(own);
-  const lamport = M.nextLamport(threadMsgs);
-  const msgId = `${self}-${String(seq).padStart(4, '0')}`;
+  const { appendOwn, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
   const cfiles = cfilesRaw ? cfilesRaw.split(' ').filter(Boolean) : [];
-  const msg = {
-    msg_id: msgId, channel, thread_id: threadId, sender: self, seq, lamport,
-    kind, in_reply_to: inReplyTo || null, requires_ack: requiresAck === 'true',
-    subject, ...(body ? { body } : {}), ...(bodyRef ? { body_ref: bodyRef } : {}),
-    refs: { change_id: change || null, contract_files: cfiles, commit: commit || null },
-    ...(authoredBy ? { authored_by: authoredBy } : {}),
-    ...(via ? { via } : {}),
-    // REQ-02/design §2.4 passo 8 — cross_session só quando via=cross-session; os cinco subcampos
-    // já vieram calculados e validados por _resolve_cross_session (origem, tetos, segredo).
-    ...(via === 'cross-session' ? {
-      cross_session: {
-        from_addr: csFrom, from_name: csFromName, from_mode: csFromMode,
-        native_ref: csNativeRef, origin_verified: csOriginVerified === 'true',
+  try {
+    const { msg } = await appendOwn({
+      root, chDir, channel, self,
+      build: (all) => {
+        const threadMsgs = all.filter((m) => m.thread_id === threadId);
+        if (!threadMsgs.some((m) => m.kind === 'thread-open')) {
+          throw new Error(`thread '${threadId}' desconhecida localmente (abra ou aguarde o thread-open chegar)`);
+        }
+        return {
+          channel, thread_id: threadId, kind, in_reply_to: inReplyTo || null,
+          requires_ack: requiresAck === 'true', subject,
+          ...(body ? { body } : {}), ...(bodyRef ? { body_ref: bodyRef } : {}),
+          refs: { change_id: change || null, contract_files: cfiles, commit: commit || null },
+          ...(authoredBy ? { authored_by: authoredBy } : {}),
+          ...(via ? { via } : {}),
+          // REQ-02/design §2.4 passo 8 — cross_session só quando via=cross-session; os cinco
+          // subcampos já vieram calculados e validados por _resolve_cross_session (origem,
+          // tetos, segredo).
+          ...(via === 'cross-session' ? {
+            cross_session: {
+              from_addr: csFrom, from_name: csFromName, from_mode: csFromMode,
+              native_ref: csNativeRef, origin_verified: csOriginVerified === 'true',
+            },
+          } : {}),
+          created_at: now,
+          // Conteúdo cuja autoria é de outro repositório NUNCA é 'self', mesmo tendo sido
+          // escrito no nosso arquivo: quem lê precisa saber que a procedência é externa antes
+          // de agir sobre ele.
+          trust: authoredBy ? 'untrusted-peer' : 'self',
+        };
       },
-    } : {}),
-    created_at: now,
-    // Conteúdo cuja autoria é de outro repositório NUNCA é 'self', mesmo tendo sido escrito no
-    // nosso arquivo: quem lê precisa saber que a procedência é externa antes de agir sobre ele.
-    trust: authoredBy ? 'untrusted-peer' : 'self',
-  };
-  msg.content_sha = M.computeContentSha(msg);
-  const errs = M.validateEnvelope(msg);
-  if (errs.length) { console.error('envelope inválido: ' + errs.join('; ')); process.exit(1); }
-  const target = join(logDir, `${self}.jsonl`);
-  const senderMsgs = own.concat([msg]).sort((a, b) => a.seq - b.seq);
-  writeFileSync(target + '.tmp', senderMsgs.map((m) => JSON.stringify(m)).join('\n') + '\n');
-  renameSync(target + '.tmp', target);
-  process.stdout.write(msgId);
+    });
+    process.stdout.write(msg.msg_id);
+  } catch (err) {
+    // Parâmetro de catch deliberadamente diferente de "e": o gate w258 muta textualmente o
+    // PRIMEIRO catch do arquivo que use esse nome de parâmetro específico, que é o do verbo
+    // ack. Nomear o catch daqui com a mesma letra seria casado primeiro pela mutação e
+    // corromperia o mutante — regressão real, observada nesta mesma rodada, não hipotética.
+    // NUNCA usar parênteses dentro deste comentário: bash 3.2 conta parênteses através do
+    // heredoc inteiro para achar o fechamento do $(...) externo, e um comentário com parênteses
+    // desbalanceados entre linhas quebra esse cálculo (mesma causa raiz, achada por biseção).
+    if (err instanceof AppendValidationError) console.error('envelope inválido: ' + err.errors.join('; '));
+    else if (err instanceof LockLostError) console.error(err.message);
+    else console.error(err && err.message ? err.message : String(err));
+    process.exit(1);
+  }
 })();
 NODEEOF
 )"

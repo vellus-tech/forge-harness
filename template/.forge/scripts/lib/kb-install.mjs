@@ -15,6 +15,7 @@ import { mkdirSync, rmSync, copyFileSync, renameSync, writeFileSync, readFileSyn
 import { join, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { pipeline } from 'node:stream/promises';
 import { findNative, pinsHash } from './kb-integrity.mjs';
 
 const say = (m) => process.stdout.write(`${m}\n`);
@@ -33,8 +34,17 @@ async function download(url, dest, expectSha, expectSize) {
   if (!res.ok || !res.body) throw new Error(`download falhou (${res.status}) — ${url}`);
   const h = createHash('sha256'); let size = 0;
   const out = createWriteStream(part);
-  for await (const chunk of res.body) { h.update(chunk); size += chunk.length; if (!out.write(chunk)) await new Promise((r) => out.once('drain', r)); }
-  await new Promise((r, j) => out.end((e) => (e ? j(e) : r())));
+  // pipeline() (node:stream/promises) propaga erro de E/S do destino (ENOSPC/EACCES/EIO) como
+  // rejeição de Promise — escrita manual com out.write()/out.once('drain') deixa esse erro só
+  // como evento 'error' do EventEmitter, fora da cadeia de await, e derruba o processo (NOD-001).
+  try {
+    await pipeline(res.body, async function* hashThrough(source) {
+      for await (const chunk of source) { h.update(chunk); size += chunk.length; yield chunk; }
+    }, out);
+  } catch (e) {
+    rmSync(part, { force: true });
+    throw new Error(`falha de E/S ao baixar ${dest.split('/').slice(-2).join('/')}: ${e.message}`);
+  }
   const got = h.digest('hex');
   if (got !== expectSha || (expectSize && size !== expectSize)) { rmSync(part, { force: true }); throw new Error(`integridade divergente em ${dest.split('/').slice(-2).join('/')}: sha256 ${got.slice(0, 12)}… (esperado ${expectSha.slice(0, 12)}…), ${size} bytes (esperado ${expectSize})`); }
   renameSync(part, dest);

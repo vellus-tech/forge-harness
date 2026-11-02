@@ -1325,9 +1325,29 @@ NODEEOF
       done <<< "$_status_hub_conf"
       case "$_status_hub_kind" in
         fs|fs-union|manual)
-          if [ -n "$_status_hub_path" ]; then
-            _status_hubf="$_status_hub_path/$channel/log/$self.jsonl"
-            [ -f "$_status_hubf" ] || _status_hubf=""
+          # PLAT-204 (checklist SEC-001): o log próprio do hub é escrito por terceiros. Ele era
+          # conferido com `[ -f ]` (que segue link) e lido por caminho pelo markPublished — um link
+          # para um arquivo da vítima virava observação, e um FIFO podia travar. Agora a releitura é
+          # a mesma do push (`_dir_read_hub_own_log`: dentro de `_dir_anchor`, O_NOFOLLOW|O_NONBLOCK,
+          # arquivo regular de um vínculo, teto) para um diretório PRIVADO, e só a cópia vai ao
+          # markPublished. Leitura recusada não rebaixa nada: o markPublished nem roda.
+          _status_obsdir=""; _status_hubf=""; _status_read_ok=1
+          if [ -n "$_status_hub_path" ] && _status_obsdir="$(mktemp -d "${TMPDIR:-/tmp}/liaison-status-obs.XXXXXX")"; then
+            if ! _status_read_err="$(
+              # shellcheck source=lib/transports/_common.sh
+              . "$LIBDIR/transports/_common.sh"
+              LIAISON_SELF="$self"
+              _status_raiz="$(CDPATH='' cd -P -- "$_status_hub_path" 2>/dev/null && pwd -P)" || exit 0
+              # canal ainda sem `log/` no hub (nunca publicado): mesma ausência de antes, sem recusa.
+              [ -e "$_status_raiz/$channel/log" ] || [ -L "$_status_raiz/$channel/log" ] || exit 0
+              _dir_read_hub_own_log "$_status_raiz/$channel" "$_status_obsdir/hub-$self.jsonl" 2>&1 >/dev/null
+            )"; then
+              _status_read_ok=0
+              echo "  ! log próprio no hub recusado pelo leitor seguro (SEC-001) — marca de publicação não alterada: ${_status_read_err%%$'\n'*}"
+            fi
+            if [ -f "$_status_obsdir/hub-$self.jsonl" ]; then _status_hubf="$_status_obsdir/hub-$self.jsonl"; fi
+          fi
+          if [ -n "$_status_hub_path" ] && [ "$_status_read_ok" -eq 1 ]; then
             node - "$LIBDIR" "$ROOT" "$ch_dir" "$channel" "$self" "$now_wall" "$_status_hubf" <<'NODEEOF2' 2>/dev/null || true
 const { join } = require('path');
 const { pathToFileURL } = require('url');
@@ -1345,6 +1365,7 @@ const { pathToFileURL } = require('url');
 })();
 NODEEOF2
           fi
+          if [ -n "$_status_obsdir" ]; then rm -rf -- "$_status_obsdir"; fi
           ;;
         *) : ;;
       esac

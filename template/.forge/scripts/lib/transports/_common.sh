@@ -39,8 +39,9 @@
 # RISCO RESIDUAL, declarado: depois de `cd -P`, o processo está preso ao inode do diretório. Quem
 # renomeia esse diretório para outro lugar no meio do sync só consegue movê-lo para onde ele mesmo
 # já tem escrita (rename exige escrita nos dois pais, no mesmo filesystem) — não alcança arquivo da
-# vítima. O que ainda segue caminho é o `import --from <bundle>` manual, cujo diretório é escolhido
-# pelo operador (follow-up NODE-002 no ledger). Em hub `fs` compartilhado entre usuários, aplique
+# vítima. O `import --from <bundle>` manual, que seguia caminho, passou a puxar o bundle por este
+# mesmo `_dir_pull` para um staging privado antes de aplicar, e `applyBundle` lê cada blob sem
+# seguir link (NODE-201, LDG-0233; w321 [I1], [I2], [M7]–[M9]). Em hub `fs` compartilhado entre usuários, aplique
 # sticky bit (`chmod +t`) — ver `fs.sh`.
 
 # _dir_reject_symlink <path> — recusa se <path> EXISTIR como link simbólico (arquivo ou

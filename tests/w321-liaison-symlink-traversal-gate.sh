@@ -1280,8 +1280,8 @@ CAUSA_B='não é(são) arquivo regular de um vínculo'
 # leitura de blob ao `readFileSync` por caminho. Cada uma tem de ALTERAR o arquivo (cmp), senão a
 # âncora do perl não casou e a prova não prova nada.
 muta_A() { perl -pi -e 's/_apply_bundle "\$channel" "\$staging" "import"/_apply_bundle "\$channel" "\$from_dir" "import"/' "$1"; }
-muta_B_novo() { perl -pi -e 's/const buf = leBlobSeguro\(join\(fromBlobs, blobName\)\);/const buf = readFileSync(join(fromBlobs, blobName));/' "$1"; }
-muta_B_rec() { perl -pi -e 's/const buf = leBlobSeguro\(src\);/const buf = readFileSync(src);/' "$1"; }
+muta_B_novo() { perl -pi -e 's/buf = leBlobSeguro\(join\(fromBlobs, blobName\)\);/buf = readFileSync(join(fromBlobs, blobName));/' "$1"; }
+muta_B_rec() { perl -pi -e 's/buf = leBlobSeguro\(src\);/buf = readFileSync(src);/' "$1"; }
 muta() { # muta <função> <arquivo> <rótulo> — aplica e confere que o arquivo mudou
   local f="$2" antes="$2.antes-da-mutacao"
   cp "$f" "$antes"; "$1" "$f"

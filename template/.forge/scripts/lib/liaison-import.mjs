@@ -34,10 +34,61 @@
 // do teto nunca mais alcançaria o hub.
 //
 // `trust` é carimbado aqui como 'untrusted-peer', nunca aceito do remetente.
-import { readFileSync, writeFileSync, readdirSync, existsSync, renameSync, copyFileSync, statSync, mkdirSync, unlinkSync } from 'node:fs';
+import {
+  readFileSync, writeFileSync, readdirSync, existsSync, renameSync, statSync, mkdirSync, unlinkSync,
+  openSync, closeSync, fstatSync, readSync, constants,
+} from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, basename } from 'node:path';
 import * as M from './liaison-merge.mjs';
+
+// Leitura de blob do bundle SEM seguir link (NODE-201, LDG-0233). Mesmo padrão de `abreSeguro` +
+// `copiaDoFd` em `liaison-hub-io.mjs` (que é um CLI com `main` no topo e por isso não é importável
+// daqui): `open(O_RDONLY|O_NOFOLLOW|O_NONBLOCK)` e conferência NO DESCRITOR — arquivo regular, um
+// único vínculo, teto de tamanho —, com os bytes lidos do mesmo fd conferido. O_NONBLOCK impede que
+// um FIFO plantado trave o import. É a segunda camada: o `import --from` já passa o bundle pelo
+// staging seguro do módulo, como o `sync`; esta guarda vale para qualquer `fromDir` que chegue aqui.
+const RO_FLAGS = constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK;
+
+class BlobRecusado extends Error {
+  constructor(kind, message) { super(message); this.kind = kind; }
+}
+
+function leBlobSeguro(caminho) {
+  let fd;
+  try {
+    fd = openSync(caminho, RO_FLAGS);
+  } catch (e) {
+    if (e.code === 'ELOOP' || e.code === 'EMLINK') throw new BlobRecusado('unsafe', 'é link simbólico (SEC-001)');
+    throw e;
+  }
+  try {
+    const st = fstatSync(fd);
+    if (!st.isFile()) throw new BlobRecusado('unsafe', 'não é arquivo regular (FIFO, diretório ou dispositivo) — SEC-001');
+    if (st.nlink !== 1) throw new BlobRecusado('unsafe', 'tem mais de um vínculo (hardlink) e pode ser um arquivo de fora do bundle (SEC-001)');
+    if (st.size > M.BLOB_MAX_BYTES) throw new BlobRecusado('oversize', `blob do hub excede ${M.BLOB_MAX_BYTES} bytes (${st.size})`);
+    // O teto é reconferido durante a leitura: o arquivo pode crescer depois do fstat.
+    const partes = [];
+    const buf = Buffer.allocUnsafe(65536);
+    let total = 0;
+    for (;;) {
+      const n = readSync(fd, buf, 0, buf.length, null);
+      if (n === 0) break;
+      total += n;
+      if (total > M.BLOB_MAX_BYTES) throw new BlobRecusado('oversize', `blob do hub cresceu além de ${M.BLOB_MAX_BYTES} bytes durante a leitura`);
+      partes.push(Buffer.from(buf.subarray(0, n)));
+    }
+    return Buffer.concat(partes, total);
+  } finally {
+    closeSync(fd);
+  }
+}
+
+// Classifica a falha de `leBlobSeguro` no mesmo formato de `blobsRejected`.
+function rejeicaoDeLeitura(msgId, e) {
+  if (e instanceof BlobRecusado) return { msg_id: msgId, kind: e.kind, reason: e.message };
+  return { msg_id: msgId, kind: 'io-error', reason: `falha de E/S ao ler o blob do hub: ${e.code || e.message}` };
+}
 
 function readJsonl(path) {
   let text;
@@ -264,8 +315,16 @@ export function applyBundle({ chDir, fromDir, self }) {
         // `<sha256>-<base>` é o compromisso que a mensagem carrega sobre o corpo. Antes, só a
         // passada de recuperação conferia esse compromisso; a mensagem NOVA instalava o que
         // estivesse no bundle com aquele nome — inclusive o conteúdo de um link trocado no meio do
-        // pull. Os bytes são lidos UMA vez, conferidos e escritos a partir do mesmo buffer.
-        const buf = readFileSync(join(fromBlobs, blobName));
+        // pull. Os bytes são lidos UMA vez, conferidos e escritos a partir do mesmo buffer — e lidos
+        // sem seguir link (NODE-201): um blob sem prefixo sha256 não passa pela conferência acima,
+        // e um symlink no lugar dele instalaria o arquivo para onde aponta.
+        let buf;
+        try {
+          buf = leBlobSeguro(join(fromBlobs, blobName));
+        } catch (e) {
+          blobsRejected.push(rejeicaoDeLeitura(m.msg_id, e));
+          continue;
+        }
         const veredito = conferirShaDoNome(blobName, buf);
         if (veredito) {
           blobsRejected.push({ msg_id: m.msg_id, kind: 'sha-mismatch', reason: veredito });
@@ -328,17 +387,22 @@ export function applyBundle({ chDir, fromDir, self }) {
         blobsMissingBoth.push(m.msg_id);
         continue;
       }
-      const size = statSync(src).size;
-      if (size > M.BLOB_MAX_BYTES) {
-        // Mesmo teto da regra 5 (passada 1), aplicado aqui: sem ele, o teto que existe para
-        // conter bundle malicioso ou corrompido ficava contornável exatamente no caminho de
-        // recuperação — o cenário de campo desta issue (réplica com ponteiro morto, candidata a
-        // receber qualquer conteúdo do hub).
-        blobsRejected.push({ msg_id: m.msg_id, kind: 'oversize', reason: `blob do hub excede ${M.BLOB_MAX_BYTES} bytes (${size})` });
+      // Leitura ÚNICA, sem seguir link (NODE-201): antes eram `statSync`, `readFileSync` e
+      // `copyFileSync` por caminho — os três seguiam um symlink plantado no bundle, e o arquivo da
+      // vítima entrava na réplica como "recuperado"; um FIFO travava o import. O teto da regra 5
+      // (passada 1) vale aqui também, conferido no descritor por `leBlobSeguro` (kind `oversize`):
+      // sem ele, o teto que existe para conter bundle malicioso ou corrompido ficava contornável
+      // exatamente no caminho de recuperação. A conferência do sha e a instalação usam os MESMOS
+      // bytes lidos.
+      let buf;
+      try {
+        buf = leBlobSeguro(src);
+      } catch (e) {
+        blobsRejected.push(rejeicaoDeLeitura(m.msg_id, e));
         continue;
       }
       if (/^[0-9a-f]{64}-/.test(blobName)) {
-        const veredito = conferirShaDoNome(blobName, readFileSync(src));
+        const veredito = conferirShaDoNome(blobName, buf);
         if (veredito) {
           blobsRejected.push({ msg_id: m.msg_id, kind: 'sha-mismatch', reason: veredito });
           continue;
@@ -362,7 +426,7 @@ export function applyBundle({ chDir, fromDir, self }) {
       // o restante da recuperação continua.
       const tmp = join(blobsDir, `.recover-${process.pid}-${blobsRecovered + blobsRejected.length}.tmp`);
       try {
-        copyFileSync(src, tmp);
+        writeFileSync(tmp, buf);
         renameSync(tmp, dest);
         blobsRecovered++;
       } catch (err) {

@@ -45,6 +45,8 @@
 #        sem `_dir_reject_symlink` (tronco anterior a SEC-001)
 #   [G1] pull: entrada do hub com hardlink (nlink>1) para um segredo da vítima é ignorada com aviso
 #   [5]  contador de controle medido — ataques exercitados = ataques neutralizados, e > 0
+#   [M1] mutação pelo canal real (transporte `manual`) — sem a guarda de topo de `_dir_push` sobre
+#        `blobs/`, a causa exclusiva dela some (a camada ancorada ainda recusa); restaurada, volta
 #   [M2] mutação pelo canal real — o helper de publicação volta a escrever num temporário
 #        previsível sem O_EXCL: [A1] passa a contaminar a sentinela; restaurado, volta a segurar
 #   [M5] mutação pelo canal real — a âncora deixa de conferir `pwd -P`: a corrida de [B3] volta a
@@ -671,6 +673,35 @@ c_G1() {
 c_G1
 
 # ───────────────────────────────────────────────────────────────────────────────────────────────
+echo "[M1] mutação — sem a guarda de topo de _dir_push sobre blobs/, a recusa perde a causa dela"
+# Pelo transporte `manual`, cujo probe não confere o hub: a primeira camada a ver o `blobs/` symlink
+# é a guarda de topo de `_dir_push`, e a causa dela traz o caminho do hub por extenso. Sem ela, a
+# camada ancorada (`_dir_ensure_subdir`) ainda recusa — defesa em profundidade —, mas com causa
+# própria; é essa diferença que prova que a guarda de topo está viva.
+c_M1() {
+  prepara M1 manual
+  local fora="$T/M1/fora-blobs"; mkdir -p "$fora"
+  rm -rf "$HC/blobs"; ln -s "$fora" "$HC/blobs"
+  printf 'anexo legítimo\n' > "$T/M1/anexo.md"
+  LG "$R" send "$CH" --thread t1 --kind note --subject anexo --body-file "$T/M1/anexo.md" >/dev/null
+  local common="$T/M1/v/.forge/scripts/lib/transports/_common.sh" ancora="'$HC/blobs' é um link simbólico — recusado (SEC-001)" out rc
+  cp "$common" "$T/M1/common.orig"
+  set +e; out="$(LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
+  [ "$rc" -ne 0 ] && grep -qF "$ancora" <<<"$out" || { falha "[M1]: controle — a guarda de topo não recusou com a causa dela. Saída: $(head -3 <<<"$out")"; return 0; }
+  perl -0pi -e 's/  _dir_reject_symlink "\$hub\/blobs" \|\| return 1\n(  hub="\$\(_dir_phys_expected "\$hub"\)" \|\| return 1\n  _dir_ensure_subdir )/$1/' "$common"
+  if cmp -s "$common" "$T/M1/common.orig"; then falha "[M1]: a mutação não alterou _common.sh — âncora do perl não casou"; return 0; fi
+  set +e; out="$(LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
+  if grep -qF "$ancora" <<<"$out"; then falha "[M1]: sem a guarda de topo a causa dela continuou aparecendo — [2] não mede a guarda"; return 0; fi
+  [ "$rc" -ne 0 ] && [ -z "$(ls -A "$fora")" ] \
+    || { falha "[M1]: sem a guarda de topo a camada ancorada não segurou (rc=$rc)"; return 0; }
+  cp "$T/M1/common.orig" "$common"
+  cmp -s "$common" "$T/M1/common.orig" || { falha "[M1]: restauração não bateu byte a byte"; return 0; }
+  set +e; out="$(LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
+  [ "$rc" -ne 0 ] && grep -qF "$ancora" <<<"$out" || { falha "[M1]: recontrole — restaurada, a guarda de topo não recusou com a causa dela"; return 0; }
+  echo "OK [M1] — sem a guarda de topo a causa some (a camada ancorada ainda segura); restaurada, volta"
+}
+c_M1
+
 echo "[M2] mutação — publicação volta a usar temporário previsível sem O_EXCL: [A1] contamina"
 c_M2() {
   prepara M2 fs

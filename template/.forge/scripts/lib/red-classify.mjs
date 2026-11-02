@@ -64,6 +64,16 @@ export const BEHAVIORAL_SIGNATURES = [
   { framework: 'rspec', label: 'RSpec Failure/Error', re: /^\s*Failure\/Error:/m },
   // PHPUnit
   { framework: 'phpunit', label: 'PHPUnit Failed asserting', re: /Failed asserting that/ },
+  // LDG-0021 — FsCheck sob o Microsoft Testing Platform (xunit.v3 + MTP, pacote
+  // FsCheck.Xunit.v3): o adapter embrulha a falha comportamental em
+  // Xunit.MicrosoftTestingPlatform.XunitException, sem "Xunit.Sdk." nem "Assert.X() Failure"
+  // em lugar nenhum da saída (reproduzido com FsCheck.Xunit.v3 3.4.0 + xunit.v3 4.0.1) — sem
+  // assinatura própria caía em 'unknown', e o replay (regression-red-first.md) classificava
+  // como "falha de build/compilação" em vez de comportamental. "Falsifiable, after" é a âncora
+  // estável — o tipo embrulhado no prefixo varia (FsCheck.Xunit.PropertyFailedException ou o
+  // tipo da exceção original, ex. System.Exception), mas essa frase é a mensagem do próprio
+  // FsCheck, sempre presente numa falsificação.
+  { framework: 'fscheck', label: 'FsCheck Falsifiable (MTP ou runner clássico)', re: /\bFsCheck\.Xunit\.PropertyFailedException\b|\bFalsifiable, after \d+ test/ },
   // Gate shell (convenção deste harness e de qualquer suíte feita de scripts): a falha é uma
   // linha `FAIL [n] (motivo)` emitida pelo próprio teste ao ver o comportamento errado — é
   // asserção, não erro de build. Sem esta assinatura, um repositório cujos testes são gates

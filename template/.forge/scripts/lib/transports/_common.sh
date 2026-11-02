@@ -60,7 +60,7 @@ _dir_push_cleanup_own_tmp() {
   cutoff=$(( now - 600 ))
   while IFS= read -r f; do
     [ -n "$f" ] || continue
-    mtime="$(stat -f %m "$f" 2>/dev/null || stat -c %Y "$f" 2>/dev/null || echo "$now")"
+    mtime="$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f" 2>/dev/null || echo "$now")"
     [ "$mtime" -lt "$cutoff" ] && rm -f "$f" 2>/dev/null || true
   done < <(find "$hub/log" -maxdepth 1 -type f -name ".${LIAISON_SELF}.jsonl.tmp.*" 2>/dev/null)
 }

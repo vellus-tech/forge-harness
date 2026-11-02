@@ -67,10 +67,10 @@ fi
 self="$(awk '/^self:/{f=1;next} f && /^[ ]+id:/{sub(/^[ ]+id:[ ]*/,"");print;exit}' "$LIAISON_YAML" 2>/dev/null)"
 [ -n "$self" ] || exit 0
 
-_stat_size() { stat -f %z "$1" 2>/dev/null || stat -c %s "$1" 2>/dev/null || echo 0; }
+_stat_size() { stat -c %s "$1" 2>/dev/null || stat -f %z "$1" 2>/dev/null || echo 0; }
 _stat_mtime_ms() {
   local s
-  s="$(stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null || echo 0)"
+  s="$(stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0)"
   printf '%s000\n' "$s"
 }
 

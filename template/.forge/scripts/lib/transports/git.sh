@@ -42,7 +42,7 @@ _git_cleanup_orphans() {
   now="$(date +%s)"; cutoff=$(( now - 3600 ))
   for d in "$base/$LIAISON_CHANNEL"@*; do
     [ -d "$d" ] || continue
-    mtime="$(stat -f %m "$d" 2>/dev/null || stat -c %Y "$d" 2>/dev/null || echo "$now")"
+    mtime="$(stat -c %Y "$d" 2>/dev/null || stat -f %m "$d" 2>/dev/null || echo "$now")"
     [ "$mtime" -lt "$cutoff" ] && rm -rf "$d" 2>/dev/null || true
   done
 }

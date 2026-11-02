@@ -234,16 +234,19 @@ const { pathToFileURL } = require('url');
   const rejectedOversize = r.blobsRejected.filter((x) => x.kind === 'oversize').map((x) => x.msg_id).join(',');
   const rejectedShaMismatch = r.blobsRejected.filter((x) => x.kind === 'sha-mismatch').map((x) => x.msg_id).join(',');
   const rejectedIoError = r.blobsRejected.filter((x) => x.kind === 'io-error').map((x) => x.msg_id).join(',');
+  // Deduplicado: a mensagem NOVA cujo blob é recusado entra no log sem corpo, e a passada de
+  // recuperação a revisita na mesma chamada e recusa o mesmo blob de novo — um blob, uma linha.
+  const rejectedUnsafe = [...new Set(r.blobsRejected.filter((x) => x.kind === 'unsafe').map((x) => x.msg_id))].join(',');
   // Separador \x1f (US, não-espaço): um campo vazio no MEIO da lista (`div` sem divergência,
   // `missingBoth` sem perda) não pode colapsar com o vizinho. TAB é "IFS whitespace" para o `read`
   // do bash mesmo quando é o único caractere em IFS — sequências dele se fundem e campo vazio some,
   // desalinhando todos os campos depois. \x1f nunca aparece em sender, msg_id ou texto livre.
-  process.stdout.write([r.accepted, r.dup, r.conflicts, r.quarantined, r.remaining, M.IMPORT_MAX_MESSAGES, div, r.blobsRecovered, missingBoth, rejectedOversize, rejectedShaMismatch, rejectedIoError].join('\x1f'));
+  process.stdout.write([r.accepted, r.dup, r.conflicts, r.quarantined, r.remaining, M.IMPORT_MAX_MESSAGES, div, r.blobsRecovered, missingBoth, rejectedOversize, rejectedShaMismatch, rejectedIoError, rejectedUnsafe].join('\x1f'));
 })();
 NODEEOF
 )" || return 1
-  local n_new n_dup n_conf n_quar n_rest n_max div n_recovered missing_both rejected_oversize rejected_sha rejected_io
-  IFS=$'\x1f' read -r n_new n_dup n_conf n_quar n_rest n_max div n_recovered missing_both rejected_oversize rejected_sha rejected_io <<< "$out"
+  local n_new n_dup n_conf n_quar n_rest n_max div n_recovered missing_both rejected_oversize rejected_sha rejected_io rejected_unsafe
+  IFS=$'\x1f' read -r n_new n_dup n_conf n_quar n_rest n_max div n_recovered missing_both rejected_oversize rejected_sha rejected_io rejected_unsafe <<< "$out"
   _render "$channel"
   if [ -n "$div" ]; then
     # Fail-loud continua: reescrita de história exige ação humana na ORIGEM. O que mudou é o
@@ -282,6 +285,13 @@ NODEEOF
   if [ -n "${rejected_io:-}" ]; then
     local n_rio; n_rio="$(tr ',' '\n' <<< "$rejected_io" | grep -c .)"
     echo "WARN: $n_rio blob(s) do $src_word falharam ao instalar por erro de E/S (rejeitado(s), mensagem mantida sem corpo local): $rejected_io" >&2
+  fi
+  # Blob que não é arquivo regular de um vínculo — link simbólico, FIFO, dispositivo ou hardlink
+  # (NODE-201): lido sem seguir link, conferido no descritor, e recusado. Aviso com a causa, porque
+  # é sinal de bundle ou hub adulterado — um blob legítimo nunca é link.
+  if [ -n "${rejected_unsafe:-}" ]; then
+    local n_ru; n_ru="$(tr ',' '\n' <<< "$rejected_unsafe" | grep -c .)"
+    echo "WARN: $n_ru blob(s) do $src_word não é(são) arquivo regular de um vínculo (link simbólico, FIFO ou hardlink) — recusado(s) sem seguir o link (SEC-001), mensagem mantida sem corpo local: $rejected_unsafe" >&2
   fi
   # Blob ausente nos DOIS lados (local e hub/bundle desta chamada): aviso, não recusa — o resto do
   # import continua íntegro —, mas é perda real que merece nome e contagem, nunca rc 0 calado.
@@ -1340,7 +1350,32 @@ import)
   [ -n "$from_dir" ] || { echo "FAIL: --from <dir> obrigatório" >&2; exit 1; }
   [ -d "$from_dir/log" ] || { echo "FAIL: '$from_dir/log' não encontrado" >&2; exit 1; }
   [ -n "$(_read_self)" ] || { echo "FAIL: self não configurado" >&2; exit 1; }
-  _apply_bundle "$channel" "$from_dir" "import"
+  # NODE-201 (LDG-0233): o bundle de `--from` é escrito por terceiros tanto quanto o hub — chega por
+  # pendrive, diretório compartilhado ou anexo de outro participante. Aplicá-lo cru fazia
+  # `applyBundle` seguir um symlink em `blobs/` para um arquivo da vítima (`~/.ssh/id_rsa`): o
+  # conteúdo entrava na réplica e o próximo `sync` o publicava no hub; um FIFO travava o comando.
+  # Agora o bundle é PUXADO como um hub, pelo mesmo `_dir_pull` do `sync` (leitor seguro de
+  # `liaison-hub-io.mjs`: `readdirSync`, nome por regex estrita, O_NOFOLLOW|O_NONBLOCK, arquivo
+  # regular de um vínculo conferido no descritor, cópia do mesmo fd) para um staging PRIVADO, e só
+  # o staging chega a `_apply_bundle`.
+  #
+  # A RAIZ do `--from` segue o mesmo contrato do hub (`_dir_phys_expected`): o caminho até o PAI é escolha do operador e é resolvido por `cd -P` (pode conter symlink legítimo); o ÚLTIMO componente é conteúdo entregue por terceiros (a pasta extraída do anexo, do pendrive ou do diretório compartilhado) e nunca é seguido. Resolvê-lo por `cd -P` inteiro, como na versão do PR #261, deixava o autor do bundle entregar um link para `.forge/liaison/<outro-canal>` da vítima: a guarda `_dir_reject_symlink` do `_dir_pull` via a raiz já resolvida, o anexo confidencial do outro canal entrava no canal importado e o próximo `sync` o publicava (w321 [I3], [M10]). Com o último componente literal, `_dir_pull` recusa a raiz que é link e ancora `log/` e `blobs/` por `pwd -P`, o que fecha também a troca da raiz por link entre a conferência e a leitura. Barras finais saem antes (`bundle/` não pode virar basename vazio); `.`, `..` e `/` não nomeiam entrada que um terceiro possa plantar como link, e por isso só eles são resolvidos por `cd -P` inteiro.
+  # shellcheck source=lib/transports/_common.sh
+  . "$LIBDIR/transports/_common.sh"
+  from_trim="$from_dir"
+  while [ "${#from_trim}" -gt 1 ] && [ "${from_trim%/}" != "$from_trim" ]; do from_trim="${from_trim%/}"; done
+  case "$(basename -- "$from_trim")" in
+    .|..|/) from_phys="$(CDPATH='' cd -P -- "$from_trim" 2>/dev/null && pwd -P)" || from_phys="" ;;
+    *)      from_phys="$(_dir_phys_expected "$from_trim")" || from_phys="" ;;
+  esac
+  [ -n "$from_phys" ] || { echo "FAIL: diretório do bundle inacessível: $from_dir" >&2; exit 1; }
+  LIAISON_SELF="$(_read_self)"; export LIAISON_SELF
+  staging="$(mktemp -d "${TMPDIR:-/tmp}/forge-liaison-import.XXXXXX")"
+  # shellcheck disable=SC2064
+  trap "rm -rf '$staging'" EXIT
+  _dir_pull "$from_phys" "$staging" \
+    || { echo "FAIL: import do canal $channel RECUSADO — o bundle em $from_dir não pôde ser lido pelo leitor seguro; nada foi aplicado" >&2; exit 1; }
+  _apply_bundle "$channel" "$staging" "import"
   ;;
 
 # ---------------------------------------------------------------------------------------------

@@ -46,6 +46,8 @@ printf 'CONTEUDO_DO_BLOB_PEER\n' > "$R/.forge/liaison/canal/blobs/abc-corpo.md"
   echo '{"msg_id":"eu-0004","sender":"eu","subject":"INJECAO_SEM_TRUST"}'
   echo '{"msg_id":"eu-0005","sender":"eu","trust":"weird","subject":"INJECAO_TRUST_DESCONHECIDO"}'
   echo '{"msg_id":"eu-0006","sender":"eu","trust":"self","authored_by":"peer","subject":"INJECAO_AUTHORED_BY"}'
+  echo '{"msg_id":"eu-0007","sender":"peer","trust":"self","subject":"INJECAO_SENDER_SPOOFADO"}'
+  echo '{"msg_id":"eu-0008","sender":"eu","trust":"self","authored_by":"","subject":"INJECAO_AUTHORED_BY_VAZIO"}'
   echo 'isto nao e json'
 } > "$R/.forge/liaison/canal/log/eu.jsonl"
 echo '{"msg_id":"peer-0001","sender":"peer","trust":"self","subject":"INJECAO_LOG_DO_PEER"}' > "$R/.forge/liaison/canal/log/peer.jsonl"
@@ -74,7 +76,7 @@ grep -q 'CONTEUDO_DO_BLOB_PEER' <<<"$OUT" && fail 2 "conteúdo de blob entrou no
 ok 2
 
 # [3]
-for bad in INJECAO_UNTRUSTED INJECAO_SEM_TRUST INJECAO_TRUST_DESCONHECIDO INJECAO_AUTHORED_BY INJECAO_LOG_DO_PEER; do
+for bad in INJECAO_UNTRUSTED INJECAO_SEM_TRUST INJECAO_TRUST_DESCONHECIDO INJECAO_AUTHORED_BY INJECAO_LOG_DO_PEER INJECAO_SENDER_SPOOFADO INJECAO_AUTHORED_BY_VAZIO; do
   grep -q "$bad" <<<"$OUT" && fail 3 "mensagem não confiável entrou no corpus: $bad"
 done
 ok 3

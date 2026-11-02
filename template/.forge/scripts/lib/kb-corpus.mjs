@@ -96,9 +96,14 @@ export function collect({ docRoot, stateRoot = docRoot }) {
           if (!line.trim()) continue;
           let m;
           try { m = JSON.parse(line); } catch { skip('liaison'); continue; }
-          // Duas checagens: a regra canônica de procedência (lib/liaison-trust.mjs) e o campo gravado.
-          // Uma mudança futura na regra não diverge em silêncio, e um log corrompido também não passa.
-          if (!m || typeof m.msg_id !== 'string' || m.trust !== 'self' || expectedTrust(m, self, self) !== 'self') continue;
+          // Quatro checagens, nenhuma dispensável (SEC-001/LOG-009, code-evaluator PR #252): a regra
+          // canônica de procedência (lib/liaison-trust.mjs — uma mudança futura nela não diverge em
+          // silêncio), o campo `trust` gravado, a invariante "um escritor por arquivo" (`sender` tem
+          // de ser o próprio dono do log — sem isso, uma linha de peer com `trust` reescrito para
+          // 'self', ou copiada para o arquivo errado por restauração/merge, entraria no índice como
+          // conteúdo próprio) e a AUSÊNCIA literal de `authored_by` (checagem de propriedade, não de
+          // veracidade — `authored_by: ''`/`null` não deixa de ser presença de autoria externa).
+          if (!m || typeof m.msg_id !== 'string' || m.trust !== 'self' || m.sender !== self || Object.prototype.hasOwnProperty.call(m, 'authored_by') || expectedTrust(m, self, self) !== 'self') continue;
           const body = typeof m.body === 'string' ? m.body : '';
           const text = `${m.subject ?? ''}\n${body}`.trim();
           docs.push({ id: `liaison:${m.msg_id}`, kind: 'liaison', text, sha256: sha(text) });

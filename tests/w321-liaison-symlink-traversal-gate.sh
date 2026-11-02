@@ -32,11 +32,24 @@
 #   [B3] TOCTOU tornado determinístico: `log/` vira symlink entre as guardas e a escrita (um shim
 #        de `node` troca o diretório na chamada da união) — a âncora física recusa, nada sai
 #   [B4] `transport probe` de fs e fs-union recusa canal symlink ANTES de criar diretório
+#   [C1] git: symlink aninhado `<canal>/blobs/sub/x` — pull e push RECUSADOS, cache sem link
+#   [C2] git: submódulo (gitlink 160000) dentro do canal — idem
+#   [C3] git: variante de caixa `CH/blobs` (o pathspec diferencia maiúsculas; APFS/NTFS não) — idem
+#   [C4] git: symlink seguido de 12000 entradas, pelo `liaison-ops.sh` que roda sob
+#        `set -euo pipefail` — a varredura não é pulada por SIGPIPE
+#   [C5] git: cache contaminado por versão vulnerável — (a) branch envenenada com o link já
+#        materializado: recusa e limpa; (b) branch limpa com link não rastreado herdado: a árvore
+#        herdada é descartada e o push publica sem link
+#   [C6] git: recusa do `_dir_push` (divergência) propaga — rc≠0 e nenhuma marca d'água falsa
 #   [5]  contador de controle medido — ataques exercitados = ataques neutralizados, e > 0
 #   [M2] mutação pelo canal real — o helper de publicação volta a escrever num temporário
 #        previsível sem O_EXCL: [A1] passa a contaminar a sentinela; restaurado, volta a segurar
 #   [M5] mutação pelo canal real — a âncora deixa de conferir `pwd -P`: a corrida de [B3] volta a
 #        escrever fora da árvore; restaurada, volta a segurar
+#   [M3] mutação pelo canal real — varredura `ls-tree` desligada: a causa exclusiva dela some (cenário
+#        igual ao [4]) e `core.symlinks=false` ainda materializa o link como arquivo regular
+#   [M4] mutação — além disso `core.symlinks=true`: o link materializa e só a checagem
+#        pós-checkout o recusa (causa própria), limpando o cache; restaurado, a varredura volta
 set -euo pipefail
 # Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo obedecerem
 # ao repositório de quem invocou o gate, e não aos repositórios sintéticos criados aqui.
@@ -391,6 +404,212 @@ c_B4() {
   [ "$ok" -eq 0 ] || echo "OK [B4] — probe recusa antes do mkdir (fs e fs-union)"
 }
 c_B4
+
+
+# ───────────────────────────────────────────────────────────────────────────────────────────────
+# Cluster C — transporte git (SEC-104, PLAT-001/002/003, LOG-002/003).
+
+# git_atacante <id> — remoto nu em $T/<id>/hub.git e índice do atacante em $T/<id>/att, numa branch
+# órfã. As entradas entram por `update-index --cacheinfo`, sem depender do filesystem do atacante
+# (é assim que se commita `CH/blobs` ao lado de `ch/` mesmo num disco que não diferencia caixa).
+git_atacante() {
+  local att="$T/$1/att"
+  git init -q --bare "$T/$1/hub.git"
+  git init -q "$att"
+  git -C "$att" config user.email a@test; git -C "$att" config user.name a
+  git -C "$att" config commit.gpgsign false
+  git -C "$att" checkout -q --orphan "liaison/$CH"
+}
+entrada() { # entrada <id> <modo> <conteúdo-ou-sha> <caminho>
+  local att="$T/$1/att" h
+  if [ "$2" = 160000 ]; then h="$3"; else h="$(printf '%s' "$3" | git -C "$att" hash-object -w --stdin)"; fi
+  git -C "$att" update-index --add --cacheinfo "$2,$h,$4"
+}
+publica() { # publica <id> — commit do índice atual do atacante, forçado na branch do canal
+  local att="$T/$1/att" tree c
+  tree="$(git -C "$att" write-tree)"
+  c="$(git -C "$att" commit-tree -m "chore: ataque" "$tree")"
+  git -C "$att" push -q -f "$T/$1/hub.git" "$c:refs/heads/liaison/$CH"
+}
+vitima_git() { # vitima_git <id> — réplica "v" com transporte git apontando para o remoto do cenário
+  R="$1/v"; LOC="$T/$1/v/.forge/liaison/$CH"; VC="$T/$1/v/.forge/cache/liaison/$CH"
+  mk_repo "$R"
+  LG "$R" open "$CH" --self v --participants v,a >/dev/null
+  LG "$R" transport set "$CH" --kind git --remote "$T/$1/hub.git" --branch "liaison/$CH" >/dev/null
+}
+links_no_cache() { # lista links simbólicos na árvore de trabalho do cache (fora de .git)
+  [ -d "$1" ] || return 0
+  find "$1" -path "$1/.git" -prune -o -type l -print
+}
+
+# c_git_recusa <id> <rótulo> — a branch já publicada pelo cenário tem de ser recusada pela
+# varredura da árvore, tanto no pull quanto no push, sem nada fora e sem link no cache.
+c_git_recusa() {
+  local id="$1" rot="$2" fora="$T/$1/fora"
+  local out rc
+  set +e; out="$(LG "$R" sync "$CH" --pull-only 2>&1)"; rc=$?; set -e
+  [ "$rc" -ne 0 ] || { falha "[$id]: pull aceitou a branch com $rot"; return 0; }
+  grep -qF 'contém symlink ou submódulo' <<<"$out" \
+    || { falha "[$id]: pull recusou sem a causa da varredura ($rot). Saída: $(head -3 <<<"$out")"; return 0; }
+  LG "$R" thread open "$CH" t1 --subject abertura --participants v,a --body abertura >/dev/null
+  set +e; out="$(LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
+  [ "$rc" -ne 0 ] || { falha "[$id]: push aceitou a branch com $rot"; return 0; }
+  grep -qF 'contém symlink ou submódulo' <<<"$out" \
+    || { falha "[$id]: push recusou sem a causa da varredura ($rot). Saída: $(head -3 <<<"$out")"; return 0; }
+  [ -z "$(links_no_cache "$VC")" ] || { falha "[$id]: link simbólico no cache: $(links_no_cache "$VC" | tr '\n' ' ')"; return 0; }
+  [ -z "$(ls -A "$fora" 2>/dev/null)" ] || { falha "[$id]: algo foi escrito fora do cache"; return 0; }
+  neutralizado; echo "OK [$id] — $rot recusado no pull e no push, cache sem link"
+}
+
+echo "[C1] git — symlink aninhado ch/blobs/sub/x"
+c_C1() {
+  ataque; git_atacante C1; mkdir -p "$T/C1/fora"
+  entrada C1 100644 "" "$CH/log/.keep"
+  entrada C1 120000 "$T/C1/fora/x" "$CH/blobs/sub/x"
+  publica C1
+  vitima_git C1
+  c_git_recusa C1 "symlink aninhado"
+}
+c_C1
+
+echo "[C2] git — submódulo (gitlink 160000) dentro do canal"
+c_C2() {
+  ataque; git_atacante C2
+  entrada C2 100644 "" "$CH/log/.keep"
+  entrada C2 160000 "$(printf '%040d' 7)" "$CH/sub"
+  publica C2
+  vitima_git C2
+  c_git_recusa C2 "gitlink 160000"
+}
+c_C2
+
+echo "[C3] git — variante de caixa CH/blobs (o pathspec diferencia maiúsculas; APFS/NTFS não)"
+c_C3() {
+  ataque; git_atacante C3; mkdir -p "$T/C3/fora"
+  entrada C3 100644 "" "$CH/log/.keep"
+  entrada C3 120000 "$T/C3/fora" "CH/blobs"
+  publica C3
+  vitima_git C3
+  c_git_recusa C3 "variante de caixa CH/blobs"
+}
+c_C3
+
+echo "[C4] git — árvore grande (≥ 10k entradas depois do symlink) sob set -euo pipefail"
+c_C4() {
+  ataque; git_atacante C4; mkdir -p "$T/C4/fora"
+  entrada C4 100644 "" "$CH/log/.keep"
+  entrada C4 120000 "$T/C4/fora" "$CH/blobs"
+  local h; h="$(printf '' | git -C "$T/C4/att" hash-object -w --stdin)"
+  awk -v h="$h" -v ch="$CH" 'BEGIN { for (i = 0; i < 12000; i++) printf "100644 %s\t%s/zz/%05d\n", h, ch, i }' \
+    > "$T/C4/index-info"
+  git -C "$T/C4/att" update-index --index-info < "$T/C4/index-info"
+  publica C4
+  vitima_git C4
+  c_git_recusa C4 "symlink seguido de 12000 entradas"
+}
+c_C4
+
+echo "[C5] git — cache pré-existente contaminado por versão vulnerável"
+c_C5() {
+  # (a) a branch continua envenenada e o cache já tem o link materializado (core.symlinks=true,
+  #     como a versão sem a correção fazia): recusa E limpa — nada pode sobrar no cache.
+  ataque; git_atacante C5a; mkdir -p "$T/C5a/fora"
+  entrada C5a 100644 "" "$CH/log/.keep"
+  entrada C5a 120000 "$T/C5a/fora" "$CH/blobs"
+  publica C5a
+  vitima_git C5a
+  mkdir -p "$VC"; git -C "$VC" init -q; git -C "$VC" remote add origin "$T/C5a/hub.git"
+  git -C "$VC" config core.symlinks true; git -C "$VC" fetch -q origin "liaison/$CH"
+  git -C "$VC" checkout -q -B "liaison/$CH" FETCH_HEAD
+  [ -L "$VC/$CH/blobs" ] || { falha "[C5a]: pré-condição — o cache não materializou o link"; return 0; }
+  c_git_recusa C5a "cache contaminado"
+
+  # (b) a branch está LIMPA, mas o cache traz um link não rastreado deixado pela versão antiga:
+  #     o checkout não o remove; o sync tem de descartar a árvore herdada e seguir publicando.
+  ataque; git_atacante C5b; mkdir -p "$T/C5b/fora"
+  entrada C5b 100644 "" "$CH/log/.keep"
+  publica C5b
+  vitima_git C5b
+  mkdir -p "$VC"; git -C "$VC" init -q; git -C "$VC" remote add origin "$T/C5b/hub.git"
+  git -C "$VC" fetch -q origin "liaison/$CH"; git -C "$VC" checkout -q -B "liaison/$CH" FETCH_HEAD
+  ln -s "$T/C5b/fora" "$VC/$CH/blobs"
+  LG "$R" thread open "$CH" t1 --subject abertura --participants v,a --body abertura >/dev/null
+  printf 'anexo legítimo\n' > "$T/C5b/anexo.md"
+  LG "$R" send "$CH" --thread t1 --kind note --subject anexo --body-file "$T/C5b/anexo.md" >/dev/null
+  local out rc
+  set +e; out="$(LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
+  [ -z "$(ls -A "$T/C5b/fora")" ] || { falha "[C5b]: o blob saiu do cache pelo link herdado"; return 0; }
+  [ "$rc" -eq 0 ] || { falha "[C5b]: push contra branch limpa reprovou por causa do link herdado (rc=$rc): $(head -3 <<<"$out")"; return 0; }
+  local modos; modos="$(git -C "$T/C5b/hub.git" ls-tree -r "liaison/$CH")"
+  case "$modos" in *120000*|*160000*) falha "[C5b]: o push publicou um link na branch do canal"; return 0 ;; esac
+  case "$modos" in *"$CH/blobs/"*) : ;; *) falha "[C5b]: o blob não chegou à branch"; return 0 ;; esac
+  neutralizado; echo "OK [C5b] — árvore herdada descartada, push publica sem link"
+}
+c_C5
+
+echo "[C6] git — recusa do _dir_push propaga: rc≠0 e nenhuma marca d'água de publicação"
+c_C6() {
+  ataque
+  vitima_git C6
+  git init -q --bare "$T/C6/hub.git"
+  LG "$R" thread open "$CH" t1 --subject abertura --participants v,a --body abertura >/dev/null
+  LG "$R" sync "$CH" --push-only >/dev/null || { falha "[C6]: pré-condição — primeiro push reprovou"; return 0; }
+  # Um terceiro reescreve a história da vítima na branch: content_sha divergente no msg_id v-0001.
+  local att="$T/C6/att"
+  git clone -q -b "liaison/$CH" "$T/C6/hub.git" "$att"
+  git -C "$att" config user.email a@test; git -C "$att" config user.name a; git -C "$att" config commit.gpgsign false
+  perl -pi -e 's/("content_sha":")[0-9a-f]/${1}z/ if $. == 1' "$att/$CH/log/v.jsonl"
+  git -C "$att" commit -qam "chore: reescrita" >/dev/null; git -C "$att" push -q origin "liaison/$CH"
+  LG "$R" send "$CH" --thread t1 --kind note --subject "segunda" --body "segunda" >/dev/null
+  local out rc
+  set +e; out="$(LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
+  [ "$rc" -ne 0 ] || { falha "[C6]: push com divergência no hub git terminou rc=0 — a recusa foi engolida"; return 0; }
+  grep -qF 'DIVERGÊNCIA' <<<"$out" || { falha "[C6]: recusou sem a causa. Saída: $(head -3 <<<"$out")"; return 0; }
+  case "$(cat "$LOC/state.json" 2>/dev/null)" in
+    *'"v": "v-0002"'*) falha "[C6]: marca d'água de publicação gravada para uma mensagem que não foi publicada"; return 0 ;;
+  esac
+  neutralizado; echo "OK [C6] — recusa propagada, sem marca d'água falsa"
+}
+c_C6
+
+echo "[M3] mutação — varredura da árvore desligada: [4] perde a causa; [M4] + core.symlinks=true: o link materializa"
+c_M34() {
+  git_atacante M3; mkdir -p "$T/M3/fora"
+  entrada M3 100644 "" "$CH/log/.keep"
+  entrada M3 120000 "$T/M3/fora" "$CH/blobs"
+  publica M3
+  vitima_git M3
+  local gitsh="$T/M3/v/.forge/scripts/lib/transports/git.sh" out
+  cp "$gitsh" "$T/M3/git.orig"
+  # CONTROLE: a varredura recusa com a causa própria dela.
+  set +e; out="$(LG "$R" sync "$CH" --pull-only 2>&1)"; set -e
+  grep -qF 'contém symlink ou submódulo' <<<"$out" || { falha "[M3]: controle — a varredura não recusou"; return 0; }
+  # MUTANTE (iii): a varredura nunca acha nada.
+  perl -0pi -e 's/END\{exit !f\}/END{exit 1}/' "$gitsh"
+  if cmp -s "$gitsh" "$T/M3/git.orig"; then falha "[M3]: a mutação (iii) não alterou git.sh — âncora do perl não casou"; return 0; fi
+  set +e; out="$(LG "$R" sync "$CH" --pull-only 2>&1)"; set -e
+  if grep -qF 'contém symlink ou submódulo' <<<"$out"; then falha "[M3]: sem a varredura a causa dela continuou aparecendo — a âncora não distingue a camada"; return 0; fi
+  # Com a varredura desligada, `core.symlinks=false` ainda segura: o link vira arquivo de texto.
+  [ -f "$VC/$CH/blobs" ] && [ ! -L "$VC/$CH/blobs" ] \
+    || { falha "[M3]: sem a varredura, core.symlinks=false não materializou o link como arquivo regular"; return 0; }
+  [ -z "$(ls -A "$T/M3/fora")" ] || { falha "[M3]: algo saiu do cache sob o mutante (iii)"; return 0; }
+  echo "OK [M3] — sem a varredura a causa some; core.symlinks=false ainda segura (arquivo regular)"
+  # MUTANTE (iv): além disso, core.symlinks=true — a checagem pós-checkout é a última camada.
+  perl -0pi -e 's/config core\.symlinks false/config core.symlinks true/' "$gitsh"
+  set +e; out="$(LG "$R" sync "$CH" --pull-only 2>&1)"; set -e
+  if [ -f "$VC/$CH/blobs" ] && [ ! -L "$VC/$CH/blobs" ]; then falha "[M4]: com core.symlinks=true o checkout ainda deu arquivo regular — [M3] não mede core.symlinks"; return 0; fi
+  grep -qF 'materializou link simbólico no cache' <<<"$out" \
+    || { falha "[M4]: o link materializado não foi recusado pela checagem pós-checkout. Saída: $(head -3 <<<"$out")"; return 0; }
+  [ -z "$(links_no_cache "$VC")" ] || { falha "[M4]: a checagem pós-checkout recusou mas deixou o link no cache"; return 0; }
+  [ -z "$(ls -A "$T/M3/fora")" ] || { falha "[M4]: algo saiu do cache sob o mutante (iv)"; return 0; }
+  # RECONTROLE: restaurado, a varredura volta a recusar com a causa própria.
+  cp "$T/M3/git.orig" "$gitsh"
+  cmp -s "$gitsh" "$T/M3/git.orig" || { falha "[M4]: restauração não bateu byte a byte"; return 0; }
+  set +e; out="$(LG "$R" sync "$CH" --pull-only 2>&1)"; set -e
+  grep -qF 'contém symlink ou submódulo' <<<"$out" || { falha "[M4]: recontrole — restaurado, a varredura não recusou"; return 0; }
+  echo "OK [M4] — com core.symlinks=true o link materializa e só a checagem pós-checkout o pega; restaurado, a varredura volta"
+}
+c_M34
 
 # ───────────────────────────────────────────────────────────────────────────────────────────────
 echo "[M2] mutação — publicação volta a usar temporário previsível sem O_EXCL: [A1] contamina"

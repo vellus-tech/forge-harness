@@ -76,6 +76,15 @@ _stat_mtime_ms() {
 
 now_iso="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
+# PLAT-205: TODA trava tomada pelo gancho (a do log próprio no `baton renew` e a local do canal em
+# _rebuild_cold, _remove_holder_entry, _mark_warned_once e _consume_publish_results) espera no
+# máximo 300 ms (liaison-protocol.md), nunca o default de 10 s do withLocalLock: o gancho roda em
+# todo evento e não pode prender a sessão competindo com um `sync` em segundo plano.
+HOOK_LOCK_WAIT_MS=300
+# PLAT-202: teto do laço de conferência do push no processo DESTACADO (liaison-protocol.md: 25 s);
+# sem ele vale o default de 300 s do `sync` manual, e o vigia de 30 s viraria o caminho normal.
+HOOK_PUSH_DEADLINE_S=25
+
 _extract_holders() { # _extract_holders <cachefile> <session_id> -> linhas TSV: baton_id\tleaseUntil\tnextRenewAt\townLogSize\townLogMtimeMs
   local cachefile="$1" sid="$2"
   if command -v jq >/dev/null 2>&1; then
@@ -104,7 +113,7 @@ for k, v in (d.get("holders") or {}).items():
 _rebuild_cold() { # _rebuild_cold <channel> <chdir> -- roda a dobra via node e regrava holders
   local channel="$1" chdir="$2"
   local libdir="$LIAISON_ROOT/.forge/scripts/lib"
-  node - "$LIAISON_ROOT" "$channel" "$chdir" "$self" "$libdir" <<'NODEEOF' >/dev/null 2>&1
+  FORGE_LIAISON_LOCK_WAIT_MS="$HOOK_LOCK_WAIT_MS" node - "$LIAISON_ROOT" "$channel" "$chdir" "$self" "$libdir" <<'NODEEOF' >/dev/null 2>&1
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
@@ -124,7 +133,7 @@ _remove_holder_entry() { # _remove_holder_entry <channel> <baton_id> -- design �
   # gancho parar de tentar renovar uma lease perdida a cada evento.
   local channel="$1" baton_id="$2"
   local libdir="$LIAISON_ROOT/.forge/scripts/lib"
-  node - "$LIAISON_ROOT" "$channel" "$self" "$baton_id" "$libdir" <<'NODEEOF' >/dev/null 2>&1
+  FORGE_LIAISON_LOCK_WAIT_MS="$HOOK_LOCK_WAIT_MS" node - "$LIAISON_ROOT" "$channel" "$self" "$baton_id" "$libdir" <<'NODEEOF' >/dev/null 2>&1
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
@@ -144,7 +153,7 @@ _mark_warned_once() { # _mark_warned_once <channel> <chave> -> rc 0 se é a PRIM
   local warnfile="$LIAISON_ROOT/.forge/cache/liaison-baton/$channel/warned.json"
   local libdir="$LIAISON_ROOT/.forge/scripts/lib"
   mkdir -p "$(dirname "$warnfile")" 2>/dev/null
-  node - "$LIAISON_ROOT" "$channel" "$self" "$warnfile" "$chave" "$libdir" <<'NODEEOF' >/dev/null 2>&1
+  FORGE_LIAISON_LOCK_WAIT_MS="$HOOK_LOCK_WAIT_MS" node - "$LIAISON_ROOT" "$channel" "$self" "$warnfile" "$chave" "$libdir" <<'NODEEOF' >/dev/null 2>&1
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
@@ -166,8 +175,30 @@ const { pathToFileURL } = require('url');
 NODEEOF
 }
 
-_emit_context() { # _emit_context <texto>
-  node -e 'console.log(JSON.stringify({hookSpecificOutput:{hookEventName:"PostToolUse",additionalContext:process.argv[1]}}))' "$1" 2>/dev/null
+# PLAT-203: os avisos do evento são ACUMULADOS e emitidos uma única vez, no fim (`_flush_context`).
+# Um objeto JSON por aviso dentro dos laços punha dois documentos no stdout quando dois avisos
+# caíam no mesmo evento — e o Claude Code descarta o additionalContext de um stdout que não é UM
+# documento JSON.
+HOOK_CONTEXT=""
+_emit_context() { # _emit_context <texto> — acumula; a emissão é de _flush_context
+  if [ -n "$HOOK_CONTEXT" ]; then HOOK_CONTEXT="$HOOK_CONTEXT"$'\n'"$1"; else HOOK_CONTEXT="$1"; fi
+}
+_flush_context() { # um único objeto hookSpecificOutput, com os avisos concatenados
+  [ -n "$HOOK_CONTEXT" ] || return 0
+  node -e 'console.log(JSON.stringify({hookSpecificOutput:{hookEventName:"PostToolUse",additionalContext:process.argv[1]}}))' "$HOOK_CONTEXT" 2>/dev/null
+}
+
+# _claim_msgid <cachefile> <baton_id> — msg_id da claim que deu a posse deste bastão
+# (`claims[batonId].msgId` do baton-local.json); vazio se não houver. Lido ANTES de
+# `_remove_holder_entry` para compor a chave do aviso de perda (LGC-202).
+_claim_msgid() {
+  node -e '
+try {
+  const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+  const c = (s.claims || {})[process.argv[2]];
+  process.stdout.write(c && typeof c.msgId === "string" ? c.msgId : "");
+} catch { /* ausente ou ilegível: chave sem claim */ }
+' "$1" "$2" 2>/dev/null
 }
 
 _consume_publish_results() { # _consume_publish_results <channel> -- design S2.4/S2.8: o
@@ -178,7 +209,7 @@ _consume_publish_results() { # _consume_publish_results <channel> -- design S2.4
   local resultdir="$LIAISON_ROOT/.forge/cache/liaison-baton/$channel"
   ls "$resultdir"/publish-result-*.json >/dev/null 2>&1 || return 0
   local libdir="$LIAISON_ROOT/.forge/scripts/lib"
-  node - "$LIAISON_ROOT" "$channel" "$resultdir" "$libdir" <<'NODEEOF' 2>/dev/null
+  FORGE_LIAISON_LOCK_WAIT_MS="$HOOK_LOCK_WAIT_MS" node - "$LIAISON_ROOT" "$channel" "$resultdir" "$libdir" <<'NODEEOF' 2>/dev/null
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
@@ -258,7 +289,7 @@ const { pathToFileURL } = require("url");
       echo "[HOOK] on-post-tool-use: liaison.baton inválido ($cfg_errors) — não renova '$baton_id' em '$channel'" >&2
       continue
     fi
-    renew_out="$(FORGE_BATON_RENEW_IF_DUE=1 FORGE_LIAISON_LOCK_WAIT_MS=300 FORGE_ROOT="$LIAISON_ROOT" bash "$OPS" baton renew "$channel" "$baton_id" --session "$session_id" 2>&1)"
+    renew_out="$(FORGE_BATON_RENEW_IF_DUE=1 FORGE_LIAISON_LOCK_WAIT_MS="$HOOK_LOCK_WAIT_MS" FORGE_ROOT="$LIAISON_ROOT" bash "$OPS" baton renew "$channel" "$baton_id" --session "$session_id" 2>&1)"
     renew_rc=$?
     if [ "$renew_rc" -eq 0 ]; then
       sync_line="$(printf '%s\n' "$renew_out" | grep -E '^liaison-ops\.sh sync .* --push-only$' || true)"
@@ -271,19 +302,22 @@ const { pathToFileURL } = require("url");
         resultfile="$LIAISON_ROOT/.forge/cache/liaison-baton/$channel/publish-result-$$"
         nohup bash -c '
           set -m
-          FORGE_ROOT="$1" bash "$2" sync "$3" --push-only > "$4.out" 2>&1 &
+          FORGE_LIAISON_PUSH_DEADLINE_S="$5" FORGE_ROOT="$1" bash "$2" sync "$3" --push-only > "$4.out" 2>&1 &
           child=$!
           ( sleep 30; kill -TERM -"$child" 2>/dev/null; sleep 5; kill -KILL -"$child" 2>/dev/null ) &
           wait "$child"
-        ' _ "$LIAISON_ROOT" "$OPS" "$channel" "$resultfile" >/dev/null 2>&1 &
+        ' _ "$LIAISON_ROOT" "$OPS" "$channel" "$resultfile" "$HOOK_PUSH_DEADLINE_S" >/dev/null 2>&1 &
         disown 2>/dev/null || true
       fi
     elif [ "$renew_rc" -eq 4 ]; then
       # PERDA REAL (rc 4 do renew: não é a titular corrente, ou o lease venceu) -- apaga a entrada
       # do cache e avisa uma vez por ocorrência (design §2.8). Só este rc: os demais têm remédio
       # oposto (ARCH-001), e tratá-los como perda parava a renovação automática da titular.
+      # LGC-202: a chave inclui a claim que deu a posse (lida ANTES de tirar a entrada). Só com o
+      # bastão, a segunda perda (perde, reivindica de novo, perde) caía na chave já gravada e calava.
+      claim_msg="$(_claim_msgid "$cachefile" "$baton_id")"
       _remove_holder_entry "$channel" "$baton_id"
-      key="lost:$channel:$baton_id"
+      key="lost:$channel:$baton_id:${claim_msg:-?}"
       if _mark_warned_once "$channel" "$key"; then
         _emit_context "LIAISON baton: perdeu a titularidade de '$baton_id' no canal '$channel' (rode 'baton status $channel $baton_id' para ver quem detém agora)."
       fi
@@ -299,4 +333,5 @@ const { pathToFileURL } = require("url");
   done < <(_extract_holders "$cachefile" "$session_id")
 done
 
+_flush_context
 exit 0

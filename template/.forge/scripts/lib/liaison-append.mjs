@@ -88,6 +88,67 @@ function writeOwnLog(logDir, self, messages, stillOwned) {
   renameSync(tmp, target);
 }
 
+const JOURNAL_MAX_ENTRIES = 500;
+
+// appendJournal({ root, channel, msg }) — registra seq/content_sha da mensagem recém-gravada em
+// `<root>/.forge/cache/liaison-baton/<channel>/append-journal.json` (design §2.4, "escritor de
+// versão antiga"). Chamado SÓ DEPOIS do `renameSync` bem-sucedido (para que uma gravação abortada
+// por `stillOwned()` nunca gere aviso falso) e AINDA sob a trava do log que `appendOwn` já detém
+// — por isso não precisa de trava própria. Mantém só as últimas `JOURNAL_MAX_ENTRIES`. Melhor
+// esforço: uma falha aqui nunca desfaz a gravação real (ela já aconteceu).
+function appendJournal({ root, channel, msg }) {
+  if (!root || !channel || !msg) return;
+  try {
+    const dir = join(root, '.forge', 'cache', 'liaison-baton', channel);
+    mkdirSync(dir, { recursive: true });
+    const file = join(dir, 'append-journal.json');
+    let entries = [];
+    if (existsSync(file)) {
+      try {
+        entries = JSON.parse(readFileSync(file, 'utf8'));
+        if (!Array.isArray(entries)) entries = [];
+      } catch {
+        entries = [];
+      }
+    }
+    entries.push({ msg_id: msg.msg_id, seq: msg.seq, content_sha: msg.content_sha, at: new Date().toISOString() });
+    if (entries.length > JOURNAL_MAX_ENTRIES) entries = entries.slice(entries.length - JOURNAL_MAX_ENTRIES);
+    const tmp = `${file}.tmp.${process.pid}.${Math.random().toString(36).slice(2, 8)}`;
+    writeFileSync(tmp, JSON.stringify(entries));
+    renameSync(tmp, file);
+  } catch {
+    /* best-effort — a gravação real já aconteceu; o diário é diagnóstico, não autoridade */
+  }
+}
+
+// readJournal(root, channel) -> array de entradas (ou []).
+export function readJournal(root, channel) {
+  try {
+    const file = join(root, '.forge', 'cache', 'liaison-baton', channel, 'append-journal.json');
+    if (!existsSync(file)) return [];
+    const entries = JSON.parse(readFileSync(file, 'utf8'));
+    return Array.isArray(entries) ? entries : [];
+  } catch {
+    return [];
+  }
+}
+
+// checkJournalIntegrity({ root, channel, chDir, self }) -> [{ msg_id, reason }] — entradas do
+// diário cujo msg_id não está mais no log próprio com o MESMO content_sha (reescrito por um
+// escritor sem trava — design §2.4, limite declarado do "escritor de versão antiga").
+export function checkJournalIntegrity({ root, channel, chDir, self }) {
+  const entries = readJournal(root, channel);
+  if (!entries.length) return [];
+  const logDir = join(chDir, 'log');
+  const current = new Map(readAllMessages(logDir).filter((m) => m.sender === self).map((m) => [m.msg_id, m.content_sha]));
+  const bad = [];
+  for (const e of entries) {
+    const sha = current.get(e.msg_id);
+    if (sha === undefined || sha !== e.content_sha) bad.push({ msg_id: e.msg_id, seq: e.seq });
+  }
+  return bad;
+}
+
 // appendOwn({ root, chDir, channel, self, build, waitMs }) -> { msg, all }
 export async function appendOwn({ root, chDir, channel, self, build, waitMs } = {}) {
   if (!root || !chDir || !channel || !self || typeof build !== 'function') {
@@ -100,6 +161,7 @@ export async function appendOwn({ root, chDir, channel, self, build, waitMs } = 
     const { msg, own } = await finishEnvelope(partial, all, self);
     const senderMsgs = own.concat([msg]).sort((a, b) => a.seq - b.seq);
     writeOwnLog(logDir, self, senderMsgs, stillOwned);
+    appendJournal({ root, channel, msg });
     return { msg, all: all.concat([msg]) };
   });
 }
@@ -122,6 +184,7 @@ export async function appendOwnDecided({ root, chDir, channel, self, decide, wai
     const { msg, own } = await finishEnvelope(decision.envelope, all, self);
     const senderMsgs = own.concat([msg]).sort((a, b) => a.seq - b.seq);
     writeOwnLog(logDir, self, senderMsgs, stillOwned);
+    appendJournal({ root, channel, msg });
     const allWithNew = all.concat([msg]);
     const fold = typeof decision.afterWrite === 'function' ? await decision.afterWrite(allWithNew) : null;
     return { msg, all: allWithNew, fold };

@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
+# forge-liaison: own-log-lock v1
 # liaison-ops.sh — operações deterministas do subsistema liaison: canal de mensagens ORDENADAS
 # entre agentes de repositórios distintos (ex.: dono do .proto/gRPC e app cliente), sem drift de
 # handoff manual. Onda 2: transporte plugável (`transport` + `sync`) sobre o núcleo da Onda 1 —
 # export/import continuam sendo a primitiva manual, e o transporte `manual` é literalmente ela.
+#
+# A sentinela acima (literal, conferida por `doctor.sh`) marca que esta cópia de liaison-ops.sh
+# grava o log próprio sob trava (appendOwn/liaison-lock.mjs, design §2.4). Uma worktree criada de
+# branch ANTERIOR a este change não tem a linha e continua gravando sem trava — limite declarado
+# ("escritor de versão antiga"), detectável por `doctor.sh` listando `git worktree list` e
+# avisando quando a cópia de alguma delas não contém esta sentinela.
 #
 # Modelo (ver rationale completo em lib/liaison-merge.mjs):
 #   - Store: um JSONL append-only POR REMETENTE — .forge/liaison/<channel>/log/<sender>.jsonl,
@@ -1133,15 +1140,16 @@ status)
     [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado" >&2; exit 1; }
     self="$(_read_self)"
     now_wall="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    node - "$LIBDIR" "$ch_dir" "$channel" "$self" "$now_wall" <<'NODEEOF'
+    node - "$LIBDIR" "$ROOT" "$ch_dir" "$channel" "$self" "$now_wall" <<'NODEEOF'
 const { readFileSync, readdirSync, existsSync } = require('fs');
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, chDir, channel, self, nowWall] = process.argv;
+  const [, , lib, root, chDir, channel, self, nowWall] = process.argv;
   const { mergeLogs, formatSkew } = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
   const { readQuarantinedPositions, findMissingLocalBlobs } = await import(pathToFileURL(join(lib, 'liaison-import.mjs')).href);
   const { unpublishedCount } = await import(pathToFileURL(join(lib, 'liaison-publish.mjs')).href);
+  const { checkJournalIntegrity } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
   const logDir = join(chDir, 'log');
   const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
   const all = [];
@@ -1195,6 +1203,14 @@ const { pathToFileURL } = require('url');
   for (const p of pos) console.log(`  ! quarentena por divergência: ${p.sender}@seq=${p.seq} — recebida ${p.msg_id || '?'}/${sh(p.content_sha)}, conhecida ${p.known_msg_id || '?'}/${sh(p.known_content_sha)} (conflicts/${p.file})`);
   for (const c of clockSkews) console.log(`  ! created_at incoerente: ${c.msg_id} (${c.sender}, thread ${c.thread_id}) tem created_at ${c.created_at}, ${formatSkew(c.behind_ms)} ANTES de ${c.in_reply_to} (${c.ref_created_at}) que ela responde — relógio de parede da origem, ou duas cópias do mesmo log escrevendo em paralelo`);
   for (const m of missingBlobs) console.log(`  ! body_ref sem blob local: ${m.sender}/${m.msg_id} (${m.body_ref}) — rode 'sync' ou 'import' para tentar recuperar`);
+  // Escritor de versão antiga (design §2.4, limite declarado): diário de appendOwn conferido
+  // contra o log próprio atual — uma entrada cujo content_sha mudou foi reescrita por uma cópia
+  // de liaison-ops.sh sem a trava do log (worktree de branch anterior a este change).
+  if (self) {
+    for (const bad of checkJournalIntegrity({ root, channel, chDir, self })) {
+      console.log(`  ! log próprio reescrito por escritor sem trava: ${bad.msg_id}`);
+    }
+  }
 })();
 NODEEOF
     # Rebaixamento da marca de publicação nos transportes de diretório (design §2.4, resíduo da

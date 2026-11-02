@@ -475,6 +475,20 @@ EOF_CHG
         info "harness: liaison — $conflicts conflito(s) registrado(s) em conflicts/ (decisão humana; ver /forge:liaison)"
       fi
     fi
+
+    # Escritor de versão antiga (design §2.4, add-liaison-handoff-baton): worktree criada de
+    # branch ANTERIOR a este change continua gravando no log próprio SEM a trava do log
+    # (appendOwn/liaison-lock.mjs) — limite declarado, não bloqueante (MISSING_DIAG é reservado
+    # à maquinaria do harness em si, nunca ao estado do canal). Detecção: a cópia de
+    # `liaison-ops.sh` de cada worktree tem a sentinela literal `# forge-liaison: own-log-lock
+    # v1`? `git worktree list --porcelain` é a fonte — nunca adivinha caminho.
+    while IFS= read -r wt_path; do
+      [ -n "$wt_path" ] || continue
+      wt_ops="$wt_path/.forge/scripts/liaison-ops.sh"
+      [ -f "$wt_ops" ] || continue
+      grep -q '^# forge-liaison: own-log-lock v1$' "$wt_ops" 2>/dev/null \
+        || info "harness: liaison — worktree sem a trava do log próprio (versão anterior a add-liaison-handoff-baton): $wt_path — atualize a branch antes de usar o liaison nela"
+    done < <(git -C "$ROOT" worktree list --porcelain 2>/dev/null | awk -F' ' '/^worktree /{print substr($0, 10)}')
   fi
 
   # mudanças de contenção da mensageria nativa (REQ-12, design §2.7): mesma postura da seção

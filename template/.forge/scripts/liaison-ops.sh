@@ -1069,12 +1069,13 @@ inbox)
     *) _reject_unknown "inbox" "--thread, --show, --titles-only" "$1" ;;
   esac; done
 
-  node - "$LIBDIR" "$ch_dir" "$filter_thread" "$show_body" "$titles_only" <<'NODEEOF'
+  self="$(_read_self)"
+  node - "$LIBDIR" "$ch_dir" "$filter_thread" "$show_body" "$titles_only" "$self" <<'NODEEOF'
 const { readFileSync, readdirSync, existsSync } = require('fs');
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib2, chDir, filterThread, showBody, titlesOnly] = process.argv;
+  const [, , lib2, chDir, filterThread, showBody, titlesOnly, self] = process.argv;
   const M = await import(pathToFileURL(join(lib2, 'liaison-merge.mjs')).href);
   // untrusted-render, não liaison-render: aquele é um SCRIPT (roda o render inteiro ao ser
   // carregado), então importá-lo só pela função quebraria justamente este caminho.
@@ -1099,7 +1100,22 @@ const { pathToFileURL } = require('url');
     const unread = t.messages.slice(cursorIdx + 1);
     if (titlesOnly === 'true' && !unread.length) continue;
     console.log(`${id} — ${t.subject || '(sem assunto)'}: ${unread.length} não lida(s)`);
+    // Condensação de renovações de bastão de PEER (design S2.9): avançam o cursor como qualquer
+    // mensagem, mas a listagem as agrupa numa linha por bastão em vez de uma por renovação — sem
+    // isso, 30 renovações de um bastão calado inundam a inbox e escondem as mensagens que
+    // realmente precisam de atenção.
+    const renewByBaton = new Map();
+    const other = [];
     for (const m of unread) {
+      if (m.baton && m.baton.op === 'renew' && m.sender !== self) {
+        const list = renewByBaton.get(m.in_reply_to) || [];
+        list.push(m);
+        renewByBaton.set(m.in_reply_to, list);
+      } else {
+        other.push(m);
+      }
+    }
+    for (const m of other) {
       console.log(`  ${m.msg_id} [${m.kind}] \`${m.sender}\` — ${m.subject || '(sem assunto)'}`);
       // O corpo só sai com --show, e nunca cru: vai dentro do banner UNTRUSTED, em fence, com
       // `/forge:` neutralizado. Assunto e metadados são gerados por nós a partir do envelope;
@@ -1128,6 +1144,11 @@ const { pathToFileURL } = require('url');
           for (const line of R.renderUntrusted(extra.join('\n'), m.sender).split('\n')) console.log(`  ${line}`);
         }
       }
+    }
+    for (const [batonId, msgs] of renewByBaton) {
+      const offerMsg = all.find((x) => x.msg_id === batonId);
+      const subject = offerMsg ? (offerMsg.subject || '(sem assunto)') : '(oferta desconhecida)';
+      console.log(`  ${msgs.length} renovação(ões) de ${batonId}: ${subject}`);
     }
   }
 })();
@@ -1194,6 +1215,7 @@ const { pathToFileURL } = require('url');
   const { readQuarantinedPositions, findMissingLocalBlobs } = await import(pathToFileURL(join(lib, 'liaison-import.mjs')).href);
   const { unpublishedCount } = await import(pathToFileURL(join(lib, 'liaison-publish.mjs')).href);
   const { checkJournalIntegrity } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
+  const { foldBatons } = await import(pathToFileURL(join(lib, 'liaison-baton.mjs')).href);
   const logDir = join(chDir, 'log');
   const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
   const all = [];
@@ -1202,6 +1224,20 @@ const { pathToFileURL } = require('url');
     for (const line of text.split('\n')) { const t = line.trim(); if (t) all.push(JSON.parse(t)); }
   }
   const { threads, quarantined, gaps, forks, clockSkews } = mergeLogs(all);
+  // Bastões (design S2.7): "· bastões: N disponível(is), M nosso(s), K perdido(s)" na linha do
+  // canal. "nosso(s)" = detidos por este repositório agora; "perdido(s)" = alguma claim PRÓPRIA
+  // perdeu (lost-held) em algum momento, independente do estado atual.
+  let batonBit = '';
+  if (self) {
+    const { batons: batonFold } = foldBatons(all);
+    let avail = 0, ours = 0, lost = 0;
+    for (const [, b] of batonFold) {
+      if (b.state === 'available') avail++;
+      if (b.state === 'held' && b.holder && b.holder.sender === self) ours++;
+      if (b.history.some((h) => h.sender === self && h.op === 'claim' && h.verdict === 'lost-held')) lost++;
+    }
+    if (batonFold.size) batonBit = ` · bastões: ${avail} disponível(is), ${ours} nosso(s), ${lost} perdido(s)`;
+  }
   const state = existsSync(join(chDir, 'state.json')) ? JSON.parse(readFileSync(join(chDir, 'state.json'), 'utf8')) : { cursors: {} };
   const cursors = state.cursors || {};
   let unread = 0;
@@ -1242,7 +1278,7 @@ const { pathToFileURL } = require('url');
       pubBit = ` · ${count} própria(s) não publicada(s)${timeBit}`;
     }
   }
-  console.log(`LIAISON/${channel}: ${Object.keys(threads).length} thread(s) · ${unread} não lida(s) · ${quarantined.length} em quarentena${posBit}${skewBit}${diag}${missingBlobsBit}${pubBit}`);
+  console.log(`LIAISON/${channel}: ${Object.keys(threads).length} thread(s) · ${unread} não lida(s) · ${quarantined.length} em quarentena${posBit}${skewBit}${diag}${missingBlobsBit}${pubBit}${batonBit}`);
   const sh = (v) => (v ? String(v).slice(0, 12) : '?');
   for (const p of pos) console.log(`  ! quarentena por divergência: ${p.sender}@seq=${p.seq} — recebida ${p.msg_id || '?'}/${sh(p.content_sha)}, conhecida ${p.known_msg_id || '?'}/${sh(p.known_content_sha)} (conflicts/${p.file})`);
   for (const c of clockSkews) console.log(`  ! created_at incoerente: ${c.msg_id} (${c.sender}, thread ${c.thread_id}) tem created_at ${c.created_at}, ${formatSkew(c.behind_ms)} ANTES de ${c.in_reply_to} (${c.ref_created_at}) que ela responde — relógio de parede da origem, ou duas cópias do mesmo log escrevendo em paralelo`);
@@ -2342,8 +2378,146 @@ NODEEOF
     ;;
 
   status|list)
-    echo "FAIL: 'baton $baton_verb' ainda não implementado nesta revisão (ver tasks.md TASK-23 em diante)" >&2
-    exit 1
+    channel="${1:-}"; shift || true
+    baton_id_filter=""
+    json_flag="false"
+    QL_FLAGS="$(_baton_flags "$baton_verb")"
+    # status aceita <baton_id> opcional como argumento posicional (não é flag).
+    if [ "$baton_verb" = "status" ] && [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then
+      baton_id_filter="$1"; shift
+    fi
+    while [ $# -gt 0 ]; do case "$1" in
+      --json) json_flag="true"; shift ;;
+      *) _reject_unknown "baton $baton_verb" "$QL_FLAGS" "$1" ;;
+    esac; done
+    [ -n "$channel" ] || { echo "FAIL: <channel> obrigatório" >&2; exit 1; }
+    ch_dir="$LIAISON_DIR/$channel"
+    [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado (rode 'open' primeiro)" >&2; exit 1; }
+    self="$(_read_self)"
+    now_wall="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+    node - "$LIBDIR" "$ROOT" "$ch_dir" "$channel" "$self" "$baton_verb" "$baton_id_filter" "$([ "$json_flag" = "true" ] && echo 1 || echo 0)" "$now_wall" <<'NODEEOF'
+const { readFileSync, readdirSync, existsSync } = require('fs');
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, chDir, channel, self, mode, batonIdFilter, jsonFlag, nowWall] = process.argv;
+  const { foldBatons, stability } = await import(pathToFileURL(join(lib, 'liaison-baton.mjs')).href);
+  const { renderUntrusted } = await import(pathToFileURL(join(lib, 'untrusted-render.mjs')).href);
+  const { checkJournalIntegrity } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
+  const { readBatonLocal } = await import(pathToFileURL(join(lib, 'liaison-baton-local.mjs')).href);
+
+  const logDir = join(chDir, 'log');
+  const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
+  const all = [];
+  for (const f of files) {
+    const text = readFileSync(join(logDir, f), 'utf8');
+    for (const line of text.split('\n')) { const t = line.trim(); if (t) all.push(JSON.parse(t)); }
+  }
+  const { batons } = foldBatons(all);
+  const nowMs = Date.parse(nowWall);
+
+  function describe(batonId, b) {
+    const stab = b.state === 'held' ? stability(b, all) : null;
+    const expired = b.state === 'held' && b.leaseUntil ? nowMs > Date.parse(b.leaseUntil) : false;
+    const subjectText = b.offer.subject || '';
+    const subjectOut = b.offer.sender !== self ? renderUntrusted(subjectText, b.offer.sender) : subjectText;
+    return {
+      baton_id: batonId,
+      state: b.state,
+      subject: subjectOut,
+      offerer: b.offer.sender,
+      holder: b.holder,
+      lease_until: b.leaseUntil,
+      lease_seconds: b.leaseSeconds,
+      expired,
+      stable: stab ? stab.stable : null,
+      missing: stab ? stab.missing : [],
+      history: b.history.map((h) => ({
+        msg_id: h.msgId, sender: h.sender,
+        session: h.sender !== self ? renderUntrusted(String(h.session), h.sender) : h.session,
+        op: h.op, stamped_at: h.stampedAt, verdict: h.verdict, reason: h.reason,
+      })),
+    };
+  }
+
+  let ids = [...batons.keys()];
+  if (mode === 'list') ids = ids.filter((id) => { const st = batons.get(id).state; return st !== 'completed' && st !== 'withdrawn'; });
+  if (batonIdFilter) {
+    if (!batons.has(batonIdFilter)) {
+      console.error(`FAIL: bastão '${batonIdFilter}' desconhecido localmente`);
+      process.exit(1);
+    }
+    ids = ids.filter((id) => id === batonIdFilter);
+  }
+  ids.sort();
+  const descs = ids.map((id) => describe(id, batons.get(id)));
+
+  // Perda tardia (REQ-05): claim PRÓPRIA com rc 0 cujo msg_id já não é a titular corrente —
+  // venceu localmente e perdeu depois de importar mais réplicas.
+  const local = readBatonLocal(root, channel);
+  const lateLosses = [];
+  if (self) {
+    for (const [batonId, claim] of Object.entries(local.claims || {})) {
+      const b = batons.get(batonId);
+      if (!b) continue;
+      if (!b.holder || b.holderClaimMsgId !== claim.msgId) {
+        const winnerTxt = b.holder ? `${b.holder.sender}/${b.holder.session}` : 'nenhuma';
+        lateLosses.push({ baton_id: batonId, our_msg_id: claim.msgId, winner: winnerTxt });
+      }
+    }
+  }
+
+  // Carimbo no futuro (REQ-06): stamped_at de uma mensagem de bastão mais de
+  // skew_tolerance_seconds (da oferta dela) à frente do relógio de quem lê. Nunca no CHANNEL.md
+  // (que não pode depender do relógio de quem gera) — só aqui.
+  const futureStamps = [];
+  for (const [batonId, b] of batons) {
+    const skewMs = (b.offer.baton.skew_tolerance_seconds || 0) * 1000;
+    for (const h of b.history) {
+      if (!h.stampedAt) continue;
+      const diff = Date.parse(h.stampedAt) - nowMs;
+      if (Number.isFinite(diff) && diff > skewMs) futureStamps.push({ baton_id: batonId, msg_id: h.msgId, stamped_at: h.stampedAt });
+    }
+  }
+
+  // Escritor de versão antiga (design S2.4): mesma checagem do status geral do canal, mas
+  // nomeando o bastão quando a mensagem reescrita é a claim vencedora de algum bastão.
+  const rewritten = self ? checkJournalIntegrity({ root, channel, chDir, self }) : [];
+  const rewrittenOut = rewritten.map((r) => {
+    const affected = [...batons.entries()].find(([, b]) => b.holderClaimMsgId === r.msg_id);
+    return { msg_id: r.msg_id, baton_id: affected ? affected[0] : null };
+  });
+
+  if (jsonFlag === '1') {
+    console.log(JSON.stringify({ channel, self, mode, batons: descs, late_losses: lateLosses, future_stamps: futureStamps, rewritten: rewrittenOut }, null, 2));
+    return;
+  }
+
+  if (!descs.length) {
+    console.log(mode === 'list' ? '(nenhum bastão não terminal)' : '(nenhum bastão)');
+  }
+  for (const d of descs) {
+    const holderTxt = d.holder ? `${d.holder.sender}/${d.holder.session}` : 'nenhuma';
+    const stabTxt = d.stable === null ? '' : d.stable ? ' · stable' : ` · provisional (faltam: ${d.missing.join(', ')})`;
+    const expTxt = d.expired ? ' · expired' : '';
+    console.log(`bastão ${d.baton_id} — ${d.state}${expTxt}${stabTxt}`);
+    console.log('  assunto:');
+    for (const line of String(d.subject).split('\n')) console.log(`    ${line}`);
+    console.log(`  titular: ${holderTxt}${d.lease_until ? ` (lease até ${d.lease_until})` : ''}`);
+    if (mode === 'status') {
+      console.log('  histórico:');
+      for (const h of d.history) {
+        console.log(`    ${h.msg_id} ${h.sender} ${h.op} ${h.stamped_at || '?'} -> ${h.verdict}${h.reason ? ` (${h.reason})` : ''}`);
+        if (String(h.session).includes('\n')) for (const l of String(h.session).split('\n')) console.log(`      ${l}`);
+      }
+    }
+  }
+  for (const l of lateLosses) console.log(`! perda tardia: ${l.baton_id} (nossa claim ${l.our_msg_id}), titular agora: ${l.winner}`);
+  for (const f of futureStamps) console.log(`! carimbo de bastão no futuro: ${f.msg_id} (${f.stamped_at})`);
+  for (const r of rewrittenOut) console.log(`! log próprio reescrito por escritor sem trava: ${r.msg_id}${r.baton_id ? ` (bastão ${r.baton_id})` : ''}`);
+})();
+NODEEOF
     ;;
 
   "")

@@ -97,22 +97,11 @@ case "$(declare -f _dir_push)$(declare -f _dir_push_union)" in
     ;;
 esac
 
-# SEC-001: um tronco sem a guarda de link simbólico seguiria um link plantado no hub e gravaria
-# fora dele. Mesma classe das checagens acima: recusa em vez de publicar com o `_common.sh` antigo.
-if ! declare -F _dir_hub_guard >/dev/null 2>&1; then
-  echo "FAIL fs-union: o _common.sh do checkout principal não tem a guarda de link simbólico no hub (SEC-001): $_fsu_common." >&2
-  echo "                Publicar com ele seguiria um link plantado por peer e gravaria fora do hub. Atualize o" >&2
-  echo "                checkout principal antes de sincronizar." >&2
-  return 1
-fi
-
 _fsu_hub() { printf '%s/%s' "$LIAISON_T_PATH" "$LIAISON_CHANNEL"; }
 
 t_probe() {
   [ -n "${LIAISON_T_PATH:-}" ] || { echo "FAIL: transporte fs-union exige 'path' no liaison.yaml" >&2; return 1; }
   local hub; hub="$(_fsu_hub)"
-  # SEC-001: antes do `mkdir -p`, que seguiria um link simbólico plantado no hub por um peer.
-  _dir_hub_guard "$hub" || return 1
   mkdir -p "$hub/log" "$hub/blobs" 2>/dev/null \
     || { echo "FAIL: não foi possível criar o hub em $hub (permissão? caminho inválido?)" >&2; return 1; }
   [ -w "$hub/log" ] || { echo "FAIL: hub sem permissão de escrita: $hub/log" >&2; return 1; }

@@ -185,6 +185,74 @@ rm -rf "$old_cache"
 out_oldclone="$(LG "$T/a" sync "$CH" --push-only 2>&1)"; rc_oldclone=$?
 [ "$rc_oldclone" -eq 0 ] && echo "OK [git-clone-antigo]: push funcionou mesmo com o clone antigo ausente/removido" || { echo "FAIL [git-clone-antigo]: push falhou com o clone antigo ausente: $out_oldclone"; fail=1; }
 
+# === [git-reparo-proprio] LGC-003: `sync --push-only --repair-own-log` com a branch divergindo
+# do log próprio (terceiro reescreveu a última linha no remoto) repara: o remoto passa a ter
+# exatamente o log desta árvore, sem force (o laço de recusa não-ff continua valendo) ===
+git init -q --bare "$T/hub-repair.git"
+mk_repo rp
+LG "$T/rp" open "$CH" --self repo-a --participants repo-a,repo-b >/dev/null
+LG "$T/rp" transport set "$CH" --kind git --remote "$T/hub-repair.git" --branch "liaison/$CH" >/dev/null
+LG "$T/rp" thread open "$CH" t1 --subject gate --participants repo-a,repo-b --body open >/dev/null
+LG "$T/rp" send "$CH" --thread t1 --kind note --subject original --body x >/dev/null
+LG "$T/rp" sync "$CH" --push-only >/dev/null 2>&1 || { echo "FAIL [git-reparo-proprio]: fixture — primeiro push falhou"; fail=1; }
+atk="$T/rp-atk"
+git clone -q --branch "liaison/$CH" "$T/hub-repair.git" "$atk" 2>/dev/null
+git -C "$atk" config user.email atk@test; git -C "$atk" config user.name atk; git -C "$atk" config commit.gpgsign false
+node -e '
+const { join } = require("path");
+const { pathToFileURL } = require("url");
+(async () => {
+  const fs = require("fs");
+  const [, path, lib] = process.argv;
+  const { computeContentSha } = await import(pathToFileURL(join(lib, "liaison-merge.mjs")).href);
+  const lines = fs.readFileSync(path, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+  const last = lines[lines.length - 1];
+  last.subject = "reescrito por terceiro";
+  last.content_sha = computeContentSha(last);
+  fs.writeFileSync(path, lines.map((m) => JSON.stringify(m)).join("\n") + "\n");
+})();
+' "$atk/$CH/log/repo-a.jsonl" "$WS/template/.forge/scripts/lib"
+git -C "$atk" commit -q -am "reescrita" && git -C "$atk" push -q origin "HEAD:refs/heads/liaison/$CH" 2>/dev/null
+out_rp="$(LG "$T/rp" sync "$CH" --push-only --repair-own-log 2>&1)"; rc_rp=$?
+remote_rp="$(git -C "$T/hub-repair.git" show "liaison/$CH:$CH/log/repo-a.jsonl" 2>/dev/null)"
+local_rp="$(cat "$T/rp/.forge/liaison/$CH/log/repo-a.jsonl")"
+if [ "$rc_rp" -ne 0 ]; then
+  echo "FAIL [git-reparo-proprio]: sync --push-only --repair-own-log reprovou (rc $rc_rp): $(tr '\n' ' ' <<<"$out_rp" | cut -c1-300)"
+  fail=1
+elif [ "$remote_rp" != "$local_rp" ]; then
+  echo "FAIL [git-reparo-proprio]: rc 0, mas o remoto não ficou com o log desta árvore"
+  fail=1
+elif grep -q "reescrito por terceiro" <<<"$remote_rp"; then
+  echo "FAIL [git-reparo-proprio]: a versão reescrita pelo terceiro sobreviveu no remoto"
+  fail=1
+else
+  echo "OK [git-reparo-proprio]: --repair-own-log republicou o log desta árvore sobre a reescrita do terceiro"
+fi
+# controle: sem --repair-own-log, a mesma divergência continua recusada
+git -C "$atk" pull -q --rebase origin "liaison/$CH" 2>/dev/null
+node -e '
+const { join } = require("path");
+const { pathToFileURL } = require("url");
+(async () => {
+  const fs = require("fs");
+  const [, path, lib] = process.argv;
+  const { computeContentSha } = await import(pathToFileURL(join(lib, "liaison-merge.mjs")).href);
+  const lines = fs.readFileSync(path, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+  const last = lines[lines.length - 1];
+  last.subject = "reescrito de novo";
+  last.content_sha = computeContentSha(last);
+  fs.writeFileSync(path, lines.map((m) => JSON.stringify(m)).join("\n") + "\n");
+})();
+' "$atk/$CH/log/repo-a.jsonl" "$WS/template/.forge/scripts/lib"
+git -C "$atk" commit -q -am "reescrita 2" && git -C "$atk" push -q origin "HEAD:refs/heads/liaison/$CH" 2>/dev/null
+out_rp2="$(LG "$T/rp" sync "$CH" --push-only 2>&1)"; rc_rp2=$?
+if [ "$rc_rp2" -ne 0 ] && grep -q "DIVERGÊNCIA" <<<"$out_rp2"; then
+  echo "OK [git-reparo-controle]: sem --repair-own-log a divergência continua recusada"
+else
+  echo "FAIL [git-reparo-controle]: sem --repair-own-log esperava recusa por DIVERGÊNCIA, achou rc=$rc_rp2: $(tr '\n' ' ' <<<"$out_rp2" | cut -c1-200)"
+  fail=1
+fi
+
 if [ "$fail" -ne 0 ]; then
   exit 1
 fi

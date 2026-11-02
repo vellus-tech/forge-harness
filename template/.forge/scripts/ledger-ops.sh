@@ -15,10 +15,14 @@
 #                         --verdict confirmed|changed   # única porta que grava last_verified
 #   ledger-ops.sh resolve <LDG-NNNN> --note "<txt>" [--status resolved|wont-fix]   # default: resolved
 #   ledger-ops.sh promote <LDG-NNNN> --to <change-id>
+#   ledger-ops.sh assign  <LDG-NNNN> --to <sessão>              # fila de priorização entre sessões
+#   ledger-ops.sh pause   <LDG-NNNN> --by <LDG-NNNN-emergencial> --checkpoint "<txt>"
+#                         # --by precisa ter priority EMERGENCIAL; não toca status
+#   ledger-ops.sh resume  <LDG-NNNN>                             # limpa paused_by/paused_at/checkpoint
 #   ledger-ops.sh harvest <change-id> --origin close|archive   # colhe deferrals/findings antes do mv
 #   ledger-ops.sh render                                        # regenera LEDGER.md
 #   ledger-ops.sh status                                        # one-line (para /forge:status)
-#   ledger-ops.sh list    [--status S] [--type T] [--top N] [--by-priority]
+#   ledger-ops.sh list    [--status S] [--type T] [--top N] [--by-priority] [--assigned]
 #   ledger-ops.sh show    <LDG-NNNN>                    # entrada + evidência + cadeia de supersessão
 #   ledger-ops.sh stale   [--days N] [--as-of <ISO>] [--strict]   # ativos sem reverificação há > N dias
 #
@@ -120,9 +124,9 @@ OUT="$LEDGER_DIR/LEDGER.md"
 
 cmd="${1:-}"; shift || true
 case "$cmd" in
-  -h|--help|help) echo "Usage: ledger-ops.sh add|update|note|verify|resolve|promote|harvest|render|status|list|show|stale [args...]"; exit 0 ;;
+  -h|--help|help) echo "Usage: ledger-ops.sh add|update|note|verify|resolve|promote|assign|pause|resume|harvest|render|status|list|show|stale [args...]"; exit 0 ;;
 esac
-[ -n "$cmd" ] || { echo "Usage: ledger-ops.sh add|update|note|verify|resolve|promote|harvest|render|status|list|show|stale [args...]" >&2; exit 1; }
+[ -n "$cmd" ] || { echo "Usage: ledger-ops.sh add|update|note|verify|resolve|promote|assign|pause|resume|harvest|render|status|list|show|stale [args...]" >&2; exit 1; }
 
 _git_date() { git -C "$ROOT" log -1 --format=%cI 2>/dev/null || echo ""; }
 # _require_git_date — busca a data e RECUSA no caller se vier vazia (fora de git, ou git sem
@@ -241,7 +245,7 @@ _asof_valid() {
 # aviso. O operador lia `OK` e não tinha como saber que gravou fora da árvore em que trabalhava.
 # Coberto por `tests/w207-ledger-render-write-port-gate.sh`.
 case "$cmd" in
-  add|update|note|verify|resolve|promote|harvest|render)
+  add|update|note|verify|resolve|promote|assign|pause|resume|harvest|render)
     forge_warn_root_divergence "$ROOT" "ledger" "ledger-ops" ;;
 esac
 
@@ -703,6 +707,108 @@ NODEEOF
   echo "OK promote — $id -> $to (status: promoted)"
   ;;
 
+# assign/pause/resume — fila de priorização entre sessões do squad (pedido do Milton). Dimensão
+# ORTOGONAL a `status`: nenhuma das três toca `status`/`resolved_at` (ledger-consultation.md já é
+# estrito sobre status não virar veículo de progresso informal — a mesma disciplina vale aqui).
+# `assigned_to`/`assigned_at`/`paused_by`/`paused_at`/`checkpoint` são metadados de quem está
+# trabalhando em quê agora, não o ciclo de vida do item.
+
+assign)
+  id="${1:-}"; shift || true
+  [ -n "$id" ] || { echo "FAIL: LDG-id obrigatório" >&2; exit 1; }
+  to=""
+  ASSIGN_FLAGS="--to"
+  while [ $# -gt 0 ]; do case "$1" in
+    --to) _require_value "assign" --to "${2-}" "$ASSIGN_FLAGS"; to="$2"; shift 2 ;;
+    *) _reject_unknown "assign" "$ASSIGN_FLAGS" "$1" ;;
+  esac; done
+  [ -n "$to" ] || { echo "FAIL: ledger-ops: '--to <sessão>' obrigatório em 'assign' — sem destino não há o que gravar." >&2; exit 1; }
+  _require_git_date
+  _init_ledger
+  result="$(node - "$LF" "$id" "$to" "$GIT_DATE_NOW" <<'NODEEOF'
+const { readFileSync } = require('fs');
+const [, , lf, id, to, now] = process.argv;
+const data = JSON.parse(readFileSync(lf, 'utf8'));
+const e = (data.entries || []).find((x) => x.id === id);
+if (!e) { console.error('entrada ' + id + ' não encontrada'); process.exit(1); }
+e.assigned_to = to;
+e.assigned_at = now;
+e.updated_at = now;
+console.log(JSON.stringify(data, null, 2));
+NODEEOF
+)"
+  _write_json "$LF" "$result"
+  _render
+  echo "OK assign — $id -> $to"
+  ;;
+
+pause)
+  id="${1:-}"; shift || true
+  [ -n "$id" ] || { echo "FAIL: LDG-id obrigatório" >&2; exit 1; }
+  by=""; checkpoint=""
+  PAUSE_FLAGS="--by --checkpoint"
+  while [ $# -gt 0 ]; do case "$1" in
+    --by) _require_value "pause" --by "${2-}" "$PAUSE_FLAGS"; by="$2"; shift 2 ;;
+    --checkpoint) _require_value "pause" --checkpoint "${2-}" "$PAUSE_FLAGS"; checkpoint="$2"; shift 2 ;;
+    *) _reject_unknown "pause" "$PAUSE_FLAGS" "$1" ;;
+  esac; done
+  [ -n "$by" ] || { echo "FAIL: ledger-ops: '--by <LDG-ID>' obrigatório em 'pause' — sem saber QUAL emergência pausou o item, 'paused_by' não tem o que apontar. Declare o id da entrada EMERGENCIAL que está preemptando este trabalho." >&2; exit 1; }
+  [ -n "$checkpoint" ] || { echo "FAIL: ledger-ops: '--checkpoint \"<texto>\"' obrigatório em 'pause' — sem checkpoint, quem retomar não sabe onde a sessão interrompida parou. Registre 1-2 linhas." >&2; exit 1; }
+  _require_git_date
+  _init_ledger
+  set +e
+  result="$(node - "$LF" "$id" "$by" "$checkpoint" "$GIT_DATE_NOW" <<'NODEEOF'
+const { readFileSync } = require('fs');
+const [, , lf, id, by, checkpoint, now] = process.argv;
+const data = JSON.parse(readFileSync(lf, 'utf8'));
+const e = (data.entries || []).find((x) => x.id === id);
+if (!e) { console.error('entrada ' + id + ' não encontrada'); process.exit(1); }
+const emergencia = (data.entries || []).find((x) => x.id === by);
+if (!emergencia) { console.error("FAIL: ledger-ops: pause --by '" + by + "' não encontrada — declare o id de uma entrada existente."); process.exit(1); }
+if (emergencia.priority !== 'EMERGENCIAL') { console.error("FAIL: ledger-ops: pause --by '" + by + "' não tem priority EMERGENCIAL (tem '" + (emergencia.priority || '(nenhuma)') + "') — só uma entrada EMERGENCIAL pode preemptar outro trabalho em andamento."); process.exit(1); }
+if (e.paused_by) { console.error("FAIL: ledger-ops: " + id + " já está pausada por " + e.paused_by + " desde " + e.paused_at + " — resume antes de pausar de novo."); process.exit(1); }
+e.paused_by = by;
+e.paused_at = now;
+e.checkpoint = checkpoint;
+e.updated_at = now;
+console.log(JSON.stringify(data, null, 2));
+NODEEOF
+)"; node_rc=$?
+  set -e
+  [ "$node_rc" -eq 0 ] || exit "$node_rc"
+  _write_json "$LF" "$result"
+  _render
+  echo "OK pause — $id pausada por $by"
+  ;;
+
+resume)
+  id="${1:-}"; shift || true
+  [ -n "$id" ] || { echo "FAIL: LDG-id obrigatório" >&2; exit 1; }
+  [ $# -eq 0 ] || { echo "FAIL: ledger-ops: 'resume' não aceita flags — $*" >&2; exit 1; }
+  _require_git_date
+  _init_ledger
+  set +e
+  result="$(node - "$LF" "$id" "$GIT_DATE_NOW" <<'NODEEOF'
+const { readFileSync } = require('fs');
+const [, , lf, id, now] = process.argv;
+const data = JSON.parse(readFileSync(lf, 'utf8'));
+const e = (data.entries || []).find((x) => x.id === id);
+if (!e) { console.error('entrada ' + id + ' não encontrada'); process.exit(1); }
+if (!e.paused_by) { console.error('FAIL: ledger-ops: ' + id + " não está pausada (sem 'paused_by') — nada para retomar."); process.exit(1); }
+e.paused_by = null;
+e.paused_at = null;
+e.checkpoint = null;
+e.updated_at = now;
+console.log(JSON.stringify(data, null, 2));
+NODEEOF
+)"; node_rc=$?
+  set -e
+  [ "$node_rc" -eq 0 ] || exit "$node_rc"
+  _write_json "$LF" "$result"
+  _render
+  echo "OK resume — $id retomada"
+  ;;
+
 harvest)
   change_id="${1:-}"; shift || true
   [ -n "$change_id" ] || { echo "WARN: harvest sem change-id — nada colhido" >&2; exit 0; }
@@ -948,13 +1054,17 @@ NODEEOF
   ;;
 
 list)
-  f_status=""; f_type=""; top=""; by_priority=""
-  LIST_FLAGS="--status --type --top --by-priority"
+  f_status=""; f_type=""; top=""; by_priority=""; f_assigned=""
+  LIST_FLAGS="--status --type --top --by-priority --assigned"
   while [ $# -gt 0 ]; do case "$1" in
     --status) _require_value "list" --status "${2-}" "$LIST_FLAGS"; f_status="$2"; shift 2 ;;
     --type) _require_value "list" --type "${2-}" "$LIST_FLAGS"; f_type="$2"; shift 2 ;;
     --top) _require_value "list" --top "${2-}" "$LIST_FLAGS"; top="$2"; shift 2 ;;
     --by-priority) by_priority="1"; shift ;;
+    # Booleana, sem valor — mesmo idioma de --by-priority. Mostra só entradas com assigned_to
+    # preenchido: "quem está em quê e com que peso agora", para comparar contra um pedido novo
+    # antes de decidir preempção (fila de priorização entre sessões do squad).
+    --assigned) f_assigned="1"; shift ;;
     *) _reject_unknown "list" "$LIST_FLAGS" "$1" ;;
   esac; done
   _init_ledger
@@ -970,15 +1080,16 @@ list)
   else
     l_ages="$(node "$AGING_LIB" ages "$LF" "$l_head" "$STALE_DAYS")"
   fi
-  node - "$LF" "$f_status" "$f_type" "$top" "$by_priority" "$l_ages" <<'NODEEOF'
+  node - "$LF" "$f_status" "$f_type" "$top" "$by_priority" "$l_ages" "$f_assigned" <<'NODEEOF'
 const { readFileSync } = require('fs');
-const [, , lf, fStatus, fType, topRaw, byPriority, agesRaw] = process.argv;
+const [, , lf, fStatus, fType, topRaw, byPriority, agesRaw, fAssigned] = process.argv;
 const ages = new Map(String(agesRaw || '').split('\n').filter(Boolean).map((l) => l.split(' ')));
 const data = JSON.parse(readFileSync(lf, 'utf8'));
 let items = data.entries || [];
 if (fStatus) items = items.filter((e) => e.status === fStatus);
 if (fType) items = items.filter((e) => e.type === fType);
-const PR = { P0: 0, P1: 1, P2: 2, P3: 3 };
+if (fAssigned) items = items.filter((e) => e.assigned_to);
+const PR = { EMERGENCIAL: -1, P0: 0, P1: 1, P2: 2, P3: 3 };
 const SV = { BLOCKER: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 const rank = (m, v) => (v != null && m[v] != null ? m[v] : 99);
 if (byPriority) items = items.slice().sort((a, b) => (rank(PR, a.priority) - rank(PR, b.priority)) || (rank(SV, a.severity) - rank(SV, b.severity)) || a.id.localeCompare(b.id));
@@ -992,7 +1103,11 @@ for (const e of items) {
   const ver = e.last_verified ? ` · reverificado em ${String(e.last_verified).slice(0, 10)}` : '';
   const ag = ages.get(e.id);
   const old = ag === '!' ? ' · inconsistente (motivo em ledger-ops.sh stale)' : (ag ? ` · sem reverificação há ${ag}d` : '');
-  console.log(`${e.id} [${e.type}/${e.status}]${tag ? ' (' + tag + ')' : ''} — ${e.title}${sup}${ver}${old}`);
+  // Fila de priorização: assigned_to/paused_by só aparecem quando preenchidos — item sem nenhum
+  // dos dois (a maioria, hoje) imprime exatamente como antes, sem sufixo novo.
+  const asg = e.assigned_to ? ` · atribuído a ${e.assigned_to}` : '';
+  const pau = e.paused_by ? ` · PAUSADA por ${e.paused_by} (checkpoint: ${e.checkpoint || '(vazio)'})` : '';
+  console.log(`${e.id} [${e.type}/${e.status}]${tag ? ' (' + tag + ')' : ''} — ${e.title}${sup}${ver}${old}${asg}${pau}`);
 }
 NODEEOF
   ;;

@@ -11,7 +11,7 @@
 #   [git-sem-force] push nunca usa --force/-f
 #   [git-observacao] a marca de publicação observada bate com o que o remoto realmente tem
 #     (git show do commit enviado, nunca um ref compartilhado)
-#   [git-pull-sem-checkout] pull por `git archive`, sem deixar checkout compartilhado
+#   [git-pull-sem-checkout] pull num repositório descartável por execução (checkout privado, SEC-001), sem deixar checkout compartilhado
 #   [git-sync-duplo] dois sync concorrentes (push-only e completo) não corrompem a branch
 #   [git-orfao] limpeza de diretório de execução morta só por idade (>1h), preservando um
 #     recente e o de outro canal

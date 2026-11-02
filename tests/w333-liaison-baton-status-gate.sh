@@ -256,6 +256,44 @@ else
   echo "FAIL [perda-tardia]: esperava aviso de perda tardia nomeando repo-a, achou: $out_late_status"; fail=1
 fi
 
+# === LGC-002: renovação e release PRÓPRIOS não são perda tardia. O [perda-tardia] acima é o
+# recontrole: a perda real continua sendo detectada ===
+mk_repo nl
+LG nl open "$CH" --self repo-a --participants repo-a,repo-b >/dev/null
+LG nl thread open "$CH" t1 --subject "sem perda" --participants repo-a,repo-b --body "x" >/dev/null
+outnl1="$(LGS nl s-offnl1 baton offer "$CH" --thread t1 --subject "renovada" 2>&1)"
+batnl1="$(offer_id "$outnl1")"
+LGS nl s-nl1 baton claim "$CH" "$batnl1" --lease 90 >/dev/null 2>&1
+LGS nl s-nl1 baton renew "$CH" "$batnl1" >/dev/null 2>&1
+out_nl_renew="$(LG nl baton status "$CH" "$batnl1" 2>&1)"
+json_nl_renew="$(LG nl baton status "$CH" "$batnl1" --json 2>&1)"
+if grep -qi "perda tardia" <<<"$out_nl_renew" || ! grep -q '"late_losses": \[\]' <<<"$json_nl_renew"; then
+  echo "FAIL [sem-perda-apos-renew]: claim → renew da própria sessão acusou perda tardia: $(grep -i 'perda tardia' <<<"$out_nl_renew")"; fail=1
+else
+  echo "OK [sem-perda-apos-renew]: claim → renew não acusa perda tardia"
+fi
+outnl2="$(LGS nl s-offnl2 baton offer "$CH" --thread t1 --subject "liberada" 2>&1)"
+batnl2="$(offer_id "$outnl2")"
+LGS nl s-nl2 baton claim "$CH" "$batnl2" --lease 90 >/dev/null 2>&1
+LGS nl s-nl2 baton release "$CH" "$batnl2" >/dev/null 2>&1
+out_nl_rel="$(LG nl baton status "$CH" "$batnl2" 2>&1)"
+if grep -qi "perda tardia" <<<"$out_nl_rel"; then
+  echo "FAIL [sem-perda-apos-release]: claim → release da própria sessão acusou perda tardia: $(grep -i 'perda tardia' <<<"$out_nl_rel")"; fail=1
+else
+  echo "OK [sem-perda-apos-release]: claim → release não acusa perda tardia"
+fi
+outnl3="$(LGS nl s-offnl3 baton offer "$CH" --thread t1 --subject "concluída" 2>&1)"
+batnl3="$(offer_id "$outnl3")"
+LGS nl s-nl3 baton claim "$CH" "$batnl3" --lease 90 >/dev/null 2>&1
+LGS nl s-nl3 baton renew "$CH" "$batnl3" >/dev/null 2>&1
+LGS nl s-nl3 baton complete "$CH" "$batnl3" >/dev/null 2>&1
+out_nl_comp="$(LG nl baton status "$CH" 2>&1)"
+if grep -qi "perda tardia" <<<"$out_nl_comp"; then
+  echo "FAIL [sem-perda-apos-complete]: claim → renew → complete acusou perda tardia: $(grep -i 'perda tardia' <<<"$out_nl_comp")"; fail=1
+else
+  echo "OK [sem-perda-apos-complete]: claim → renew → complete não acusa perda tardia"
+fi
+
 # === [reescrito] log próprio reescrito sem trava aparece também em baton status (cenário TASK-10)
 mk_repo rw
 LG rw open "$CH" --self repo-a --participants repo-a,repo-b >/dev/null

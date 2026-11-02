@@ -277,6 +277,22 @@ c_A5() {
 }
 c_A5
 
+echo "[A5b] o mesmo sob umask 000: o blob publicado não tem escrita para grupo nem para outros (QUAL-203)"
+c_A5b() {
+  prepara A5b fs
+  printf 'anexo sob umask 000\n' > "$T/A5b/anexo.md"
+  LG "$R" send "$CH" --thread t1 --kind note --subject anexo --body-file "$T/A5b/anexo.md" >/dev/null
+  ( umask 000; LG "$R" sync "$CH" --push-only >/dev/null ) || { falha "[A5b]: push legítimo sob umask 000 reprovou"; return 0; }
+  local x; x="$(ls "$HC/blobs")"
+  [ -n "$x" ] || { falha "[A5b]: o push não publicou o blob"; return 0; }
+  [ -z "$(find "$HC/blobs/$x" \( -perm -0020 -o -perm -0002 \) -print)" ] \
+    || { falha "[A5b]: blob publicado sob umask 000 com escrita para grupo/outros: $(ls -l "$HC/blobs/$x")"; return 0; }
+  [ -z "$(find "$HC/log/v.jsonl" \( -perm -0020 -o -perm -0002 \) -print)" ] \
+    || { falha "[A5b]: log publicado sob umask 000 com escrita para grupo/outros: $(ls -l "$HC/log/v.jsonl")"; return 0; }
+  echo "OK [A5b] — sob umask 000 o publicado sai sem escrita para grupo/outros"
+}
+c_A5b
+
 echo "[A6] log/<self>.jsonl do hub é symlink — push RECUSADO"
 c_A6() {
   ataque
@@ -651,6 +667,53 @@ c_C6() {
   neutralizado; echo "OK [C6] — recusa propagada, sem marca d'água falsa"
 }
 c_C6
+
+echo "[C6b] git — corrida: o primeiro push é rejeitado e a divergência chega entre as tentativas (QUAL-202)"
+# O t_push do git tem um SEGUNDO `_dir_push`, no caminho de corrida (push rejeitado → refaz o clone →
+# republica). Um shim de `git` rejeita o primeiro push UMA vez e, nesse instante, um terceiro
+# reescreve a história da vítima na branch: a recusa por divergência do segundo `_dir_push` tem de
+# propagar — rc≠0, causa DIVERGÊNCIA e nenhuma marca d'água de publicação.
+c_C6b() {
+  ataque
+  vitima_git C6b
+  git init -q --bare "$T/C6b/hub.git"
+  LG "$R" thread open "$CH" t1 --subject abertura --participants v,a --body abertura >/dev/null
+  LG "$R" sync "$CH" --push-only >/dev/null || { falha "[C6b]: pré-condição — primeiro push reprovou"; return 0; }
+  local realgit marca="$T/C6b/rejeitou" bin="$T/C6b/bin" att="$T/C6b/att"
+  realgit="$(command -v git)"; mkdir -p "$bin"
+  cat > "$bin/git" <<SHIM
+#!/bin/sh
+case " \$* " in
+  *" push "*)
+    if [ ! -e "$marca" ]; then
+      : > "$marca"
+      "$realgit" clone -q -b "liaison/$CH" "$T/C6b/hub.git" "$att" >/dev/null 2>&1
+      "$realgit" -C "$att" config user.email a@test; "$realgit" -C "$att" config user.name a
+      "$realgit" -C "$att" config commit.gpgsign false
+      perl -pi -e 's/("content_sha":")[0-9a-f]/\${1}z/ if \$. == 1' "$att/$CH/log/v.jsonl"
+      "$realgit" -C "$att" commit -qam "chore: reescrita" >/dev/null
+      "$realgit" -C "$att" push -q origin "liaison/$CH" >/dev/null 2>&1
+      echo "shim: push rejeitado uma vez (corrida simulada)" >&2
+      exit 1
+    fi ;;
+esac
+exec "$realgit" "\$@"
+SHIM
+  chmod +x "$bin/git"
+  LG "$R" send "$CH" --thread t1 --kind note --subject "segunda" --body "segunda" >/dev/null
+  local out rc
+  set +e; out="$(PATH="$bin:$PATH" LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
+  [ -e "$marca" ] || { falha "[C6b]: pré-condição — o shim não rejeitou o primeiro push"; return 0; }
+  "$realgit" -C "$T/C6b/hub.git" show "liaison/$CH:$CH/log/v.jsonl" | grep -q '"content_sha":"z' \
+    || { falha "[C6b]: pré-condição — a reescrita do terceiro não chegou ao remoto"; return 0; }
+  [ "$rc" -ne 0 ] || { falha "[C6b]: push no caminho de corrida terminou rc=0 — a recusa do segundo _dir_push foi engolida"; return 0; }
+  grep -qF 'DIVERGÊNCIA' <<<"$out" || { falha "[C6b]: recusou sem a causa. Saída: $(head -3 <<<"$out")"; return 0; }
+  case "$(cat "$LOC/state.json" 2>/dev/null)" in
+    *'"v": "v-0002"'*) falha "[C6b]: marca d'água de publicação gravada no caminho de corrida"; return 0 ;;
+  esac
+  neutralizado; echo "OK [C6b] — no caminho de corrida a divergência propaga: rc≠0, sem marca d'água"
+}
+c_C6b
 
 echo "[M3] mutação — varredura da árvore desligada: [4] perde a causa; [M4] + core.symlinks=true: o link materializa"
 c_M34() {
@@ -1047,6 +1110,61 @@ c_M5() {
   echo "OK [M5] — sem a conferência de pwd -P a corrida escreve fora; restaurada, segura"
 }
 c_M5
+
+echo "[L1] corrida — o nome FINAL do log vira symlink-para-diretório entre a guarda e a instalação"
+# LOG-201: a instalação por `rename(2)` é load-bearing? Um shim de `node` planta, na chamada da
+# união (depois de toda guarda sobre `log/<self>.jsonl` e antes da publicação), um symlink para um
+# diretório de fora no nome final. `rename` substitui o link sem segui-lo; `mv -f` moveria o
+# arquivo para DENTRO do diretório apontado, isto é, para fora do hub.
+# rename_push <id> — roda o push com o shim e deixa em $FORA o diretório-alvo do link.
+rename_push() {
+  local id="$1" realnode; realnode="$(command -v node)"
+  FORA="$T/$id/fora-rename"; mkdir -p "$FORA" "$T/$id/bin"
+  cat > "$T/$id/bin/node" <<SHIM
+#!/bin/sh
+case "\$1" in
+  */liaison-push-union.mjs) rm -f "$HC/log/v.jsonl"; ln -s "$FORA" "$HC/log/v.jsonl" ;;
+esac
+exec "$realnode" "\$@"
+SHIM
+  chmod +x "$T/$id/bin/node"
+  LG "$R" send "$CH" --thread t1 --kind note --subject "rename" --body "rename" >/dev/null
+  set +e; RENAME_OUT="$(PATH="$T/$id/bin:$PATH" LG "$R" sync "$CH" --push-only 2>&1)"; RENAME_RC=$?; set -e
+}
+c_L1() {
+  ataque
+  prepara L1 fs
+  rename_push L1
+  [ -z "$(ls -A "$FORA")" ] || { falha "[L1]: a instalação seguiu o symlink-para-diretório plantado no nome final: $(ls -A "$FORA" | tr '\n' ' ')"; return 0; }
+  [ -f "$HC/log/v.jsonl" ] && [ ! -L "$HC/log/v.jsonl" ] || { falha "[L1]: o nome final não ficou arquivo regular (o link plantado sobreviveu)"; return 0; }
+  [ "$RENAME_RC" -eq 0 ] || { falha "[L1]: push reprovou (rc=$RENAME_RC): $(head -3 <<<"$RENAME_OUT")"; return 0; }
+  neutralizado; echo "OK [L1] — rename(2) substitui o link plantado no nome final, nada sai do hub"
+}
+c_L1
+
+echo "[M6] mutação — a instalação troca rename(2) por mv -f: [L1] passa a escrever fora"
+c_M6() {
+  prepara M6 fs
+  local mod="$T/M6/v/.forge/scripts/lib/liaison-hub-io.mjs"
+  cp "$mod" "$T/M6/mod.orig"
+  # CONTROLE
+  rename_push M6
+  [ -z "$(ls -A "$FORA")" ] || { falha "[M6]: controle — escrita fora mesmo com rename(2)"; return 0; }
+  rm -f "$HC/log/v.jsonl"; rm -rf "$FORA"
+  # MUTANTE: `mv -f` no lugar do rename.
+  perl -0pi -e "s/import \\{ randomBytes \\} from 'node:crypto';/import { randomBytes } from 'node:crypto';\\nimport { execFileSync } from 'node:child_process';/; s/renameSync\\(tmp, nome\\);/execFileSync('mv', ['-f', tmp, nome]);/" "$mod"
+  grep -qF "execFileSync('mv', ['-f', tmp, nome]);" "$mod" || { falha "[M6]: a mutação não casou no módulo"; return 0; }
+  rename_push M6
+  [ -n "$(ls -A "$FORA")" ] || { falha "[M6]: com mv -f nada saiu do hub — [L1] não mede o rename(2)"; return 0; }
+  rm -f "$HC/log/v.jsonl"; rm -rf "$FORA"
+  # RECONTROLE
+  cp "$T/M6/mod.orig" "$mod"
+  cmp -s "$mod" "$T/M6/mod.orig" || { falha "[M6]: restauração não bateu byte a byte"; return 0; }
+  rename_push M6
+  [ -z "$(ls -A "$FORA")" ] || { falha "[M6]: recontrole — restaurado o rename, ainda escreveu fora"; return 0; }
+  echo "OK [M6] — com mv -f a corrida escreve fora; restaurado o rename(2), segura"
+}
+c_M6
 
 # ───────────────────────────────────────────────────────────────────────────────────────────────
 echo "[5] contador de controle — ataques exercitados = ataques neutralizados, e > 0"

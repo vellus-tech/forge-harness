@@ -50,3 +50,5 @@ Ver `verification.yaml` (gravado por `spec-verify.sh`, `FORGE.md` deste reposit�
 - Medir `pgrep -g` confirmando zero descendentes vivos após o vigia de 30s/5s do processo destacado de renovação (REQ-12) — exige ~35s reais de espera por amostra; não bloqueante para este merge.
 - Fixture dedicada para o texto exato do aviso de transporte `manual`/`gh` sem publicação automática (REQ-12).
 - Medição end-to-end do "caminho que renova" do gancho `PostToolUse` como UMA chamada só (em vez de decomposta em duas partes medidas separadamente) para o relatório de NFR-02, se uma rodada futura quiser eliminar a última lacuna honesta da medição.
+
+**Atualização no `ship` (2026-11-02, depois do merge de develop com o hotfix SEC-001 #256):** o limite de 9.999 mensagens por `msg_id` foi registrado como `LDG-0238`; os três follow-ups acima, como `LDG-0239` (`pgrep -g` do vigia), `LDG-0240` (fixture do aviso `manual`/`gh`) e `LDG-0241` (NFR-02 ponta a ponta). Os ids `LDG-0232..0236` usados antes nesta branch colidiam com os que o #256 registrou em develop e foram descartados no merge. Os 19 gates do bastão citados neste arquivo foram renumerados para `w324..w342`.

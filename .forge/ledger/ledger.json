@@ -4155,6 +4155,136 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0237"
+    },
+    {
+      "id": "LDG-0238",
+      "type": "tech-debt",
+      "title": "msg_id do liaison não sobrevive a mais de 9.999 mensagens por remetente num canal",
+      "detail": "O formato de msg_id do liaison usa um contador de largura fixa por remetente dentro de um canal (<sender>-NNNN, padrão do schema). Ao passar de 9.999 mensagens do mesmo remetente no mesmo canal, o contador rompe a largura fixa assumida pelo padrão e por pontos do parsing e da ordenação que tratam msg_id como texto de tamanho conhecido (por exemplo, comparações lexicográficas que assumem zero-padding de 4 dígitos). O efeito exato não foi medido (corrupção de ordem ou erro explícito); foi identificado durante a implementação do bastão de handoff (add-liaison-handoff-baton), cuja renovação automática aproxima o limite (dezenas de mensagens por dia por bastão ativo, com o default). Fecha quando alguém medir o comportamento real acima de 9.999 mensagens e, se o problema for real, decidir entre ampliar a largura do contador ou documentar o limite como norma operacional.",
+      "severity": "LOW",
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-handoff-baton",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-handoff-baton"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-02T16:40:31-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0238"
+    },
+    {
+      "id": "LDG-0239",
+      "type": "follow-up",
+      "title": "Medir com pgrep -g que o vigia de 30 s/5 s do processo destacado de renovação não deixa descendente vivo (REQ-12)",
+      "detail": "O gate do gancho PostToolUse prova que o evento do usuário não espera o processo destacado de renovação, mas não reconfirma que o grupo de processos morre de fato depois do vigia (TERM aos 30 s, KILL 5 s depois). A medição exige cerca de 35 s reais de espera por amostra. Não bloqueia o merge do add-liaison-handoff-baton.",
+      "severity": null,
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-handoff-baton",
+        "origin": "archive",
+        "ref": "verify-2"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-handoff-baton"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-02T16:40:31-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "add-liaison-handoff-baton:verify-2"
+    },
+    {
+      "id": "LDG-0240",
+      "type": "follow-up",
+      "title": "Fixture dedicada para o texto exato do aviso de transporte manual/gh sem publicação automática (REQ-12)",
+      "detail": "O gancho de renovação trata manual/gh pela ausência da linha 'sync --push-only' na saída do renew (que só aparece para fs, fs-union e git). O mecanismo está correto, mas não há fixture provando o texto exato do aviso para esses dois transportes.",
+      "severity": null,
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-handoff-baton",
+        "origin": "archive",
+        "ref": "verify-3"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-handoff-baton"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-02T16:40:31-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "add-liaison-handoff-baton:verify-3"
+    },
+    {
+      "id": "LDG-0241",
+      "type": "follow-up",
+      "title": "Medir de ponta a ponta o caminho que renova do gancho PostToolUse numa chamada só, para o relatório de NFR-02",
+      "detail": "O relatório de NFR-02 do add-liaison-handoff-baton mediu o caminho que renova decomposto em duas partes (checagem rápida e chamada de baton renew), em vez de 50 disparos reais do gancho fazendo a renovação. A soma das partes fica cerca de 5x abaixo do teto combinado, mas não foi observada diretamente.",
+      "severity": null,
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-handoff-baton",
+        "origin": "archive",
+        "ref": "verify-4"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-handoff-baton"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-02T16:40:31-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "add-liaison-handoff-baton:verify-4"
+    },
+    {
+      "id": "LDG-0242",
+      "type": "tech-debt",
+      "title": "Achados MEDIUM/LOW do code-evaluator do PR #254 (bastão do liaison) não corrigidos no merge",
+      "detail": "Não bloqueiam e ficaram para trabalho posterior. Arquitetura: o schema liaison-message impõe limites da camada de bastão (minimum/maximum/pattern) que o validateEnvelope não impõe (ARCH-002); falha de publicação não aparece no baton status e publish-result-*.json/.out se acumulam sem consumidor (ARCH-003, PLAT-005, SEC-005); os ganchos de sessão resolvem a maquinaria do liaison de formas diferentes (tronco vs worktree, ARCH-004); configuração liaison.baton inválida só avisa em stderr, sem additionalContext (ARCH-005); regras do bastão repetidas em heredocs do CLI (ARCH-006); ADR sugerido no design §8 não criado (ARCH-007); cabeçalhos desatualizados em liaison-publish.mjs, liaison-ops.sh e liaison-baton-local.mjs (ARCH-008). Lógica: toda falha de git push vira laço até o prazo sem distinguir não-fast-forward (LGC-004, SEC-003); status regrava published_at e avisa 'hub atrás' quando a marca sobe (LGC-006); pré-condições em ms contra carimbo em s e renew sem conferir veredito pós-gravação (LGC-007); claim sobre oferta malformed/forked grava e quebra com TypeError (LGC-005, NODE-006); readState descarta lateLossShown (NODE-005); rebuildHolders lê o canal fora da trava local (NODE-007); writeOwnLog sem fsync (NODE-008); publicação destacada morta pelo vigia não deixa rastro (PLAT-004). Segurança: baton_id (msg_id de peer) entra cru no contexto no SessionStart/PostToolUse e validateEnvelope não impõe o padrão de msg_id (SEC-002); janelas declaradas da recuperação de trava (SEC-004); verbos baton sem _chan_ok (SEC-006); --from-handoff lê o HANDOFF.md do tronco e não da worktree (SEC-007). Qualidade dos gates: deduplicação por 'at' não exercida no w339 (QLT-003); fiação PostToolUse sem passar pelo merge real do sync-adapters (QLT-004); e2e-w113 vácuo por só ter mensagens próprias (QLT-005); probe Node que quebra conta como aprovado no w329/w327 (QLT-006); mensagens sem acento em gates e no ledger antigo (QLT-007/008); seção 'Adicionado' paralela a 'Added' no CHANGELOG e falta de nota de atualização sobre PostToolUse ligado por padrão (QLT-009); prosa com hard-wrap em liaison.md/handoff.md (QLT-010); asserções frouxas em w342/w324/w333/w327/w338 (QLT-011..015).",
+      "severity": "MEDIUM",
+      "priority": "P2",
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-handoff-baton",
+        "origin": "manual",
+        "ref": "PR #254 code-evaluator round 1"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-handoff-baton"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-02T16:40:31-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "add-liaison-handoff-baton:PR #254 code-evaluator round 1"
     }
   ]
 }

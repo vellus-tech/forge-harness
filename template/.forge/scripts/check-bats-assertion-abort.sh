@@ -16,6 +16,13 @@
 #   check-bats-assertion-abort.sh range <rev-range>   # CI: só @test cujo corpo tem linha NOVA no diff
 #   check-bats-assertion-abort.sh --path <dir>        # auditoria ad-hoc, varre tudo, vacuidade reprova
 #   check-bats-assertion-abort.sh report [<path>]     # inventário do passivo inteiro, nunca reprova
+#   check-bats-assertion-abort.sh --fix <dir>         # injeta "|| return 1" nas linhas sem guarda
+#
+# --fix é transformação puramente SINTÁTICA (o mesmo idioma seguro provado no cenário [2] do
+# w324) - não decide se a asserção, depois de guardada, passa a reprovar um defeito real que
+# estava escondido. Rode a suíte real (bats) depois do --fix e trie cada teste que passar a
+# falhar: pode ser defeito de teste (mock frouxo, asserção fraca) ou defeito REAL no código sob
+# teste, nunca reescreva a asserção pra fazer voltar a passar sem entender qual dos dois é.
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -31,7 +38,8 @@ case "$MODE" in
   range) NODE_MODE="range"; ARG="${2:-}"; [ -n "$ARG" ] || { echo "FAIL bats-assertion-abort - uso: range <rev-range>" >&2; exit 2; } ;;
   --path) NODE_MODE="path"; ARG="${2:-}"; [ -n "$ARG" ] || { echo "FAIL bats-assertion-abort - uso: --path <dir>" >&2; exit 2; } ;;
   report) NODE_MODE="report"; ARG="${2:-$ROOT}" ;;
-  *) echo "FAIL bats-assertion-abort - uso: range <rev-range> | --path <dir> | report [<path>]" >&2; exit 2 ;;
+  --fix) NODE_MODE="fix"; ARG="${2:-}"; [ -n "$ARG" ] || { echo "FAIL bats-assertion-abort - uso: --fix <dir>" >&2; exit 2; } ;;
+  *) echo "FAIL bats-assertion-abort - uso: range <rev-range> | --path <dir> | report [<path>] | --fix <dir>" >&2; exit 2 ;;
 esac
 
 TMP="$(mktemp -d /tmp/forge-bats-assert.XXXXXX)" || { echo "FAIL bats-assertion-abort - mktemp falhou" >&2; exit 2; }
@@ -52,6 +60,16 @@ hits="$(awk -F'\t' '$1=="HIT"' "$OUT" | awk 'END{print NR+0}')"
 if [ "$NODE_MODE" = "report" ]; then
   echo "REPORT bats-assertion-abort - $hits teste(s) vulnerável(is) em $scanned arquivo(s) .bats:"
   awk -F'\t' '$1=="HIT"{printf "      %s:%s: %s (%s asserção(ões) sem guarda)\n", $2, $3, $4, $5}' "$OUT"
+  exit 0
+fi
+
+if [ "$NODE_MODE" = "fix" ]; then
+  total_fixed="$(awk -F'\t' '$1=="TOTALFIXED"{print $2}' "$OUT" | tail -1)"; : "${total_fixed:=0}"
+  files_changed="$(awk -F'\t' '$1=="TOTALFIXED"{print $3}' "$OUT" | tail -1)"; : "${files_changed:=0}"
+  echo "FIX bats-assertion-abort - $total_fixed asserção(ões) guardada(s) com '|| return 1' em $files_changed arquivo(s):"
+  awk -F'\t' '$1=="FIXED"{printf "      %s: %s asserção(ões)\n", $2, $3}' "$OUT"
+  echo "      Transformação SINTÁTICA só - rode a suíte real e trie cada teste que passar a" >&2
+  echo "      falhar: pode ser defeito de teste ou defeito real que a asserção escondia." >&2
   exit 0
 fi
 

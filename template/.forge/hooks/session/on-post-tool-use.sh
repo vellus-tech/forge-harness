@@ -159,10 +159,58 @@ _emit_context() { # _emit_context <texto>
   node -e 'console.log(JSON.stringify({hookSpecificOutput:{hookEventName:"PostToolUse",additionalContext:process.argv[1]}}))' "$1" 2>/dev/null
 }
 
+_consume_publish_results() { # _consume_publish_results <channel> -- design S2.4/S2.8: o
+  # publish-result-<pid>.json do processo destacado (e de qualquer sync manual) é consolidado
+  # SOB A TRAVA LOCAL pelo primeiro leitor que passar por aqui — mantém só o mais recente, apaga
+  # os demais, e avisa (uma vez por falha) quando o resultado consolidado tem rc != 0.
+  local channel="$1"
+  local resultdir="$LIAISON_ROOT/.forge/cache/liaison-baton/$channel"
+  ls "$resultdir"/publish-result-*.json >/dev/null 2>&1 || return 0
+  local libdir="$LIAISON_ROOT/.forge/scripts/lib"
+  node - "$LIAISON_ROOT" "$channel" "$resultdir" "$libdir" <<'NODEEOF' 2>/dev/null
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const fs = require('fs');
+  const [, , root, channel, resultDir, lib] = process.argv;
+  const { withLocalLock } = await import(pathToFileURL(join(lib, 'liaison-lock.mjs')).href);
+  const self = process.env.FORGE_BATON_SELF || '';
+  await withLocalLock({ root, channel, self }, () => {
+    const files = fs.readdirSync(resultDir).filter((f) => /^publish-result-\d+\.json$/.test(f));
+    if (!files.length) return;
+    let latest = null, latestMtime = -1;
+    for (const f of files) {
+      const p = join(resultDir, f);
+      const st = fs.statSync(p);
+      if (st.mtimeMs > latestMtime) { latestMtime = st.mtimeMs; latest = p; }
+    }
+    let result = null;
+    try { result = JSON.parse(fs.readFileSync(latest, 'utf8')); } catch { /* ignora, só limpa */ }
+    for (const f of files) { try { fs.unlinkSync(join(resultDir, f)); } catch { /* best-effort */ } }
+    if (result && Number(result.rc) !== 0) {
+      process.stdout.write(JSON.stringify({ failed: true, at: result.at }));
+    }
+  });
+})();
+NODEEOF
+}
+
 for chdir in "$LIAISON_DIR"/*/; do
   [ -d "$chdir/log" ] || continue
   channel="$(basename "$chdir")"
   cachefile="$LIAISON_ROOT/.forge/cache/liaison-baton/$channel/baton-local.json"
+
+  pr_out="$(FORGE_BATON_SELF="$self" _consume_publish_results "$channel")"
+  if [ -n "$pr_out" ] && echo "$pr_out" | grep -q '"failed":true'; then
+    # Chave inclui o instante ('at') da falha consolidada -- uma falha NOVA (instante diferente)
+    # precisa de aviso novo; sem isso, a primeira falha calaria o aviso de qualquer falha futura
+    # no mesmo canal para sempre.
+    pr_at="$(printf '%s' "$pr_out" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{try{process.stdout.write(JSON.parse(d).at||"");}catch{process.stdout.write("");}})' 2>/dev/null)"
+    pr_key="pubfail:$channel:$pr_at"
+    if _mark_warned_once "$channel" "$pr_key"; then
+      _emit_context "LIAISON baton: a última publicação em '$channel' falhou (processo destacado da renovação ou sync manual) — rode 'sync $channel' para tentar de novo."
+    fi
+  fi
 
   if [ ! -f "$cachefile" ]; then
     _rebuild_cold "$channel" "$chdir"

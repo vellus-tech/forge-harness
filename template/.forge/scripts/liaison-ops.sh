@@ -2508,8 +2508,10 @@ const { pathToFileURL } = require('url');
         msg_id: h.msgId, sender: h.sender,
         session: h.sender !== self ? renderUntrusted(String(h.session), h.sender) : h.session,
         // NODE-003: stamped_at vem do peer — só sai (texto e --json) com a forma de relógio de
-        // parede; fora dela vai null (o texto mostra '?'). O reason não carrega valor de peer
-        // (validateBaton só nomeia o campo).
+        // parede; fora dela vai null (o texto mostra '?'). O reason sai cru, então a dobra só
+        // interpola nele valor de peer já conferido contra padrão fechado: validateBaton só nomeia
+        // o campo, e thread_id/in_reply_to passam por `reasonId` em liaison-baton.mjs (fora do
+        // padrão de id, vira '?' — NODE-202/SEC-202).
         op: h.op, stamped_at: isWallClock(h.stampedAt) ? h.stampedAt : null, verdict: h.verdict, reason: h.reason,
       })),
     };

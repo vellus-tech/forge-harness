@@ -60,6 +60,14 @@ export const BATON_VERB_FLAGS = {
 };
 
 const SENDER_ID_RE = /^[a-z0-9][a-z0-9._-]*$/;
+// NODE-202/SEC-202: o reason da dobra (impresso cru por `baton status`, texto e --json, fora da
+// moldura untrusted-render) só interpola id que case com o padrão fechado de id e caiba em 128
+// caracteres; qualquer outro valor vira '?'. `thread_id` e `in_reply_to` vêm do peer e o
+// validateEnvelope não lhes impõe padrão — um `thread_id` multilinha entrava cru no contexto.
+const REASON_ID_RE = /^[a-z0-9][a-z0-9._-]{0,127}$/;
+function reasonId(v) {
+  return typeof v === 'string' && REASON_ID_RE.test(v) ? v : '?';
+}
 const SESSION_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const WALL_CLOCK_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 
@@ -349,16 +357,16 @@ export function foldBatons(channelMessages) {
         // pending-offer — a distinção que o REQ-04 exige.
         const referenced = all.find((x) => x && x.msg_id === baseBatonId);
         if (referenced) {
-          recordOrphanOrHistory(batons, orphans, m, { ...entry, verdict: 'not-an-offer', reason: `in_reply_to '${baseBatonId}' não é oferta aplicável` });
+          recordOrphanOrHistory(batons, orphans, m, { ...entry, verdict: 'not-an-offer', reason: `in_reply_to '${reasonId(baseBatonId)}' não é oferta aplicável` });
         } else {
-          orphans.push({ ...entry, verdict: 'pending-offer', reason: `oferta '${baseBatonId}' ainda não vista na réplica` });
+          orphans.push({ ...entry, verdict: 'pending-offer', reason: `oferta '${reasonId(baseBatonId)}' ainda não vista na réplica` });
         }
         continue;
       }
 
       // 5. oferta existe mas em OUTRA thread.
       if (offerMsg.thread_id !== threadId) {
-        recordOrphanOrHistory(batons, orphans, m, { ...entry, verdict: 'wrong-thread', reason: `oferta '${baseBatonId}' pertence à thread '${offerMsg.thread_id}'` });
+        recordOrphanOrHistory(batons, orphans, m, { ...entry, verdict: 'wrong-thread', reason: `oferta '${reasonId(baseBatonId)}' pertence à thread '${reasonId(offerMsg.thread_id)}'` });
         continue;
       }
 
@@ -367,7 +375,7 @@ export function foldBatons(channelMessages) {
       // 6. a oferta está na mesma thread mas ainda não foi aplicada na passada (vem depois na
       // ordem) — só alcançável com carimbo de ordem forjado.
       if (!baton) {
-        recordOrphanOrHistory(batons, orphans, m, { ...entry, verdict: 'before-offer', reason: `oferta '${baseBatonId}' ainda não aplicada na ordem da thread` });
+        recordOrphanOrHistory(batons, orphans, m, { ...entry, verdict: 'before-offer', reason: `oferta '${reasonId(baseBatonId)}' ainda não aplicada na ordem da thread` });
         continue;
       }
 

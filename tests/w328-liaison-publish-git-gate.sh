@@ -17,6 +17,8 @@
 #     recente e o de outro canal
 #   [git-clone-antigo] apagar o clone antigo (fonte opcional de objetos) durante uma execução
 #     não corrompe nem falha a publicação
+#   [git-replica-atrasada] LGC-201: réplica atrasada do mesmo self, sem nada novo a commitar,
+#     recebe as linhas do hub no log próprio local, e o send seguinte publica com rc 0
 set -uo pipefail
 # Hermético quanto à sessão: a sessão de um agente (Claude Code) exporta CLAUDE_CODE_SESSION_ID para
 # todo processo filho e o runner do CI não tem a variável. Sem este unset o gate passa dentro do
@@ -253,9 +255,55 @@ else
   fail=1
 fi
 
+# === [git-replica-atrasada] LGC-201: duas árvores do MESMO self; a atrasada sincroniza sem blob
+# novo e sem mensagem própria nova. O push não tem o que commitar (a união é igual à branch), mas o
+# log próprio local tem de passar a conter as linhas do hub — senão o send seguinte reusa um seq que
+# o hub já tem e o push vira DIVERGÊNCIA permanente (issue #101: o --repair-own-log destruiria a
+# mensagem da outra réplica). Em develop o git passava por _dir_push_union, que sempre faz union-own. ===
+git init -q --bare "$T/hub-lag.git"
+mk_repo la
+LG "$T/la" open "$CH" --self repo-a --participants repo-a,repo-b >/dev/null
+LG "$T/la" transport set "$CH" --kind git --remote "$T/hub-lag.git" --branch "liaison/$CH" >/dev/null
+LG "$T/la" thread open "$CH" t1 --subject gate --participants repo-a,repo-b --body open >/dev/null
+LG "$T/la" send "$CH" --thread t1 --kind note --subject lag1 --body x >/dev/null
+LG "$T/la" sync "$CH" --push-only >/dev/null 2>&1 || { echo "FAIL [git-replica-atrasada]: fixture — primeiro push de la falhou"; fail=1; }
+mk_repo la2
+cp -R "$T/la/.forge/liaison" "$T/la2/.forge/liaison"
+LG "$T/la" send "$CH" --thread t1 --kind note --subject lag2 --body x >/dev/null
+LG "$T/la" sync "$CH" --push-only >/dev/null 2>&1 || { echo "FAIL [git-replica-atrasada]: fixture — segundo push de la falhou"; fail=1; }
+hub_lag_n="$(git -C "$T/hub-lag.git" show "liaison/$CH:$CH/log/repo-a.jsonl" 2>/dev/null | grep -c .)"
+la2_before_n="$(grep -c . "$T/la2/.forge/liaison/$CH/log/repo-a.jsonl")"
+# controle da fixture: a réplica la2 está de fato atrás do hub antes do sync
+if [ "$la2_before_n" -ge "$hub_lag_n" ]; then
+  echo "FAIL [git-replica-atrasada]: fixture inválida — la2 ($la2_before_n linhas) não está atrás do hub ($hub_lag_n)"
+  fail=1
+fi
+out_lag="$(LG "$T/la2" sync "$CH" --push-only 2>&1)"; rc_lag=$?
+la2_after_n="$(grep -c . "$T/la2/.forge/liaison/$CH/log/repo-a.jsonl")"
+if [ "$rc_lag" -ne 0 ]; then
+  echo "FAIL [git-replica-atrasada]: sync --push-only da réplica atrasada reprovou (rc $rc_lag): $(tr '\n' ' ' <<<"$out_lag" | cut -c1-300)"
+  fail=1
+elif [ "$la2_after_n" -ne "$hub_lag_n" ]; then
+  echo "FAIL [git-replica-atrasada]: rc 0, mas o log próprio de la2 ficou com $la2_after_n linha(s) contra $hub_lag_n no hub — a união não voltou para a réplica local"
+  fail=1
+else
+  LG "$T/la2" send "$CH" --thread t1 --kind note --subject lag3 --body x >/dev/null
+  out_lag3="$(LG "$T/la2" sync "$CH" --push-only 2>&1)"; rc_lag3=$?
+  hub_lag_n3="$(git -C "$T/hub-lag.git" show "liaison/$CH:$CH/log/repo-a.jsonl" 2>/dev/null | grep -c .)"
+  if [ "$rc_lag3" -ne 0 ]; then
+    echo "FAIL [git-replica-atrasada]: o send seguinte da réplica atrasada não publicou (rc $rc_lag3): $(tr '\n' ' ' <<<"$out_lag3" | cut -c1-300)"
+    fail=1
+  elif [ "$hub_lag_n3" -ne $((hub_lag_n + 1)) ]; then
+    echo "FAIL [git-replica-atrasada]: o hub ficou com $hub_lag_n3 linha(s), esperado $((hub_lag_n + 1))"
+    fail=1
+  else
+    echo "OK [git-replica-atrasada]: a réplica atrasada recebeu as linhas do hub sem blob novo e o send seguinte publicou com rc 0"
+  fi
+fi
+
 if [ "$fail" -ne 0 ]; then
   exit 1
 fi
 
-echo "PASS — transporte git: repositório temporário por execução, ausência vs rede, commit inicial vazio, add explícito, sem force, observação, pull sem checkout, sync duplo, limpeza por idade, clone antigo removido"
+echo "PASS — transporte git: repositório temporário por execução, ausência vs rede, commit inicial vazio, add explícito, sem force, observação, pull sem checkout, sync duplo, limpeza por idade, clone antigo removido, réplica atrasada"
 exit 0

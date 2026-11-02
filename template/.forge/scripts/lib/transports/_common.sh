@@ -98,12 +98,7 @@ _dir_push_cleanup_own_tmp() {
 #   5. o import confere o sha256 embutido no nome do blob também na mensagem NOVA, não só na
 #      recuperação: um corpo que não confere não é instalado (defesa do SEC-002).
 #
-# RISCO RESIDUAL, declarado: depois de `cd -P`, o processo está preso ao inode do diretório. Quem
-# renomeia esse diretório para outro lugar no meio do sync só consegue movê-lo para onde ele mesmo
-# já tem escrita (rename exige escrita nos dois pais, no mesmo filesystem) — não alcança arquivo da
-# vítima. O que ainda segue caminho é o `import --from <bundle>` manual, cujo diretório é escolhido
-# pelo operador (follow-up NODE-002 no ledger). Em hub `fs` compartilhado entre usuários, aplique
-# sticky bit (`chmod +t`) — ver `fs.sh`.
+# RISCO RESIDUAL, declarado: depois de `cd -P`, o processo está preso ao inode do diretório. Quem renomeia esse diretório para outro lugar no meio do sync só consegue movê-lo para onde ele mesmo já tem escrita (rename exige escrita nos dois pais, no mesmo filesystem) — não alcança arquivo da vítima. O `import --from <bundle>` manual, que seguia caminho, passou a puxar o bundle por este mesmo `_dir_pull` para um staging privado antes de aplicar, e `applyBundle` lê cada blob sem seguir link (NODE-201, LDG-0233; w321 [I1], [I2], [M7]–[M9]). A raiz do `--from` tem o contrato da raiz do hub (`_dir_phys_expected`): o último componente é mantido literal e recusado se for link, porque é ele que o autor do bundle controla; resolvê-lo por `cd -P` inteiro deixava um "bundle" que é link para `.forge/liaison/<outro-canal>` da vítima levar o anexo confidencial de um canal para outro (w321 [I3], [M10]). Continua residual, como na raiz do hub, um componente PAI do `--from` controlado por terceiros (por exemplo, `--from /compartilhado/link/bundle` em que `link` foi plantado por outro usuário): o caminho até o pai é escolha do operador e é seguido. Em hub `fs` compartilhado entre usuários, aplique sticky bit (`chmod +t`) — ver `fs.sh`.
 
 # _dir_reject_symlink <path> — recusa se <path> EXISTIR como link simbólico (arquivo ou
 # diretório). Sem esta guarda, `mkdir -p` sobre um symlink-para-diretório já existente é um no-op

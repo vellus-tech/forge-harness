@@ -65,6 +65,15 @@
 #   [E2] controle: export legítimo publica sem bit de execução e é importável
 #   [L1] corrida: nome final do log vira symlink-para-diretório entre a guarda e a instalação —
 #        `rename(2)` substitui o link, nada sai do hub (LOG-201)
+#   [I1] import --from: bundle externo com blob symlink (nome sem prefixo sha256, fora do alcance do
+#        SEC-002) para o segredo da vítima — RECUSADO no staging seguro, segredo nunca na réplica;
+#        controle: o mesmo bundle com blob regular importa com o corpo (NODE-201, LDG-0233)
+#   [I2] import --from: blob do bundle é FIFO — o import termina, sem travar
+#   [I3] import --from: a RAIZ do bundle é symlink para o canal privado da vítima com outro peer (com e sem barra final) — RECUSADO citando SEC-001, nada cruza de canal; controle: symlink num componente PAI de `--from` continua aceito e importa com o corpo (NODE-201)
+#   [M7] mutação — guarda A (staging do import) sozinha segura; sem A e sem B o segredo vaza; restauradas, volta
+#   [M8] mutação — guarda B na leitura do blob de mensagem NOVA sozinha segura; sem ela e sem A, vaza
+#   [M9] mutação — guarda B na leitura do blob da RECUPERAÇÃO sozinha segura; sem ela e sem A, vaza
+#   [M10] mutação — a raiz do `--from` volta ao `cd -P` que segue o último componente: o canal privado vaza para o canal atacado; restaurada, segura
 #   [5]  contador de controle medido — ataques exercitados = ataques neutralizados, e > 0
 #   [M1] mutação pelo canal real (transporte `manual`) — sem a guarda de topo de `_dir_push` sobre
 #        `blobs/`, a causa exclusiva dela some (a camada ancorada ainda recusa); restaurada, volta
@@ -1284,6 +1293,265 @@ c_M6() {
   echo "OK [M6] — com mv -f a corrida escreve fora; restaurado o rename(2), segura"
 }
 c_M6
+
+# ───────────────────────────────────────────────────────────────────────────────────────────────
+# Cluster I — `import --from <bundle>` (NODE-201, achado da revisão do PR #254; LDG-0233).
+#
+# O `import` chamava `applyBundle` direto sobre o diretório que o operador aponta, sem o staging
+# seguro que o `sync` usa: um bundle recebido por fora do canal (pendrive, diretório compartilhado,
+# anexo de outro participante) com um symlink em `blobs/` para um arquivo da vítima fazia o
+# `readFileSync`/`copyFileSync` de `liaison-import.mjs` seguir o link — o segredo entrava na réplica
+# local e o próximo `sync` o publicava no hub. Um FIFO no lugar do blob travava o comando.
+#
+# O nome do blob é `anexo.md`, SEM o prefixo sha256: `BODY_REF_RE` o aceita, e por isso a
+# conferência do SEC-002 (sha256 do nome contra os bytes) não se aplica — é o caminho que o atacante,
+# dono do envelope, escolhe. O envelope é refeito com `content_sha` recalculado, como ele faria.
+
+# bundle_hostil <id> — x (atacante) exporta um bundle com um anexo renomeado para `anexo.md` e o
+# envelope recalculado; v (vítima) tem o canal aberto e nunca sincronizou. Define BUN (bundle),
+# BB (blobs/ do bundle) e SEG (segredo da vítima, fora do bundle e do repositório).
+bundle_hostil() {
+  local id="$1" orig
+  mk_repo "$id/x"; mk_repo "$id/v"
+  LG "$id/x" open "$CH" --self x --participants v,x >/dev/null
+  LG "$id/v" open "$CH" --self v --participants v,x >/dev/null
+  LG "$id/x" thread open "$CH" t1 --subject abertura --participants v,x --body abertura >/dev/null
+  printf 'isca legítima do anexo\n' > "$T/$id/isca.md"
+  LG "$id/x" send "$CH" --thread t1 --kind note --subject anexo --body-file "$T/$id/isca.md" >/dev/null
+  BUN="$T/$id/bundle"; BB="$BUN/blobs"
+  LG "$id/x" export "$CH" --out "$BUN" >/dev/null
+  orig="$(ls "$BB")"; mv "$BB/$orig" "$BB/anexo.md"
+  node - "$T/$id/x/.forge/scripts/lib" "$BUN/log/x.jsonl" <<'NODEEOF'
+const { readFileSync, writeFileSync } = require('fs');
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, f] = process.argv;
+  const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
+  const out = readFileSync(f, 'utf8').split('\n').filter(Boolean).map((l) => {
+    const m = JSON.parse(l);
+    if (m.body_ref) { m.body_ref = 'blobs/anexo.md'; m.content_sha = M.computeContentSha(m); }
+    return JSON.stringify(m);
+  });
+  writeFileSync(f, out.join('\n') + '\n');
+})();
+NODEEOF
+  SEG="$T/$id/fora/.ssh/id_ed25519"; mkdir -p "$(dirname "$SEG")"
+  printf 'SEGREDO-DA-VÍTIMA\n' > "$SEG"; chmod 600 "$SEG"
+}
+planta_link_blob() { rm -f "$BB/anexo.md"; ln -s "$SEG" "$BB/anexo.md"; }
+vazou() { grep -rqF 'SEGREDO-DA-VÍTIMA' "$T/$1/.forge/liaison"; }        # vazou <repo-relativo>
+reabre_vitima() { rm -rf "$T/$1/.forge/liaison"; LG "$1" open "$CH" --self v --participants v,x >/dev/null; }
+
+# Causas por extenso de cada guarda — é a causa que distingue QUAL camada recusou:
+#   guarda A (staging seguro do import, pelo leitor do `liaison-hub-io.mjs`)
+#   guarda B (leitura do blob em `applyBundle` sem seguir link, fstat no descritor)
+CAUSA_A='link simbólico no hub (SEC-001)'
+CAUSA_B='não é(são) arquivo regular de um vínculo'
+
+# Mutações: A volta a aplicar o bundle cru (o comportamento anterior à correção); B devolve cada
+# leitura de blob ao `readFileSync` por caminho. Cada uma tem de ALTERAR o arquivo (cmp), senão a
+# âncora do perl não casou e a prova não prova nada.
+muta_A() { perl -pi -e 's/_apply_bundle "\$channel" "\$staging" "import"/_apply_bundle "\$channel" "\$from_dir" "import"/' "$1"; }
+muta_B_novo() { perl -pi -e 's/buf = leBlobSeguro\(join\(fromBlobs, blobName\)\);/buf = readFileSync(join(fromBlobs, blobName));/' "$1"; }
+muta_B_rec() { perl -pi -e 's/buf = leBlobSeguro\(src\);/buf = readFileSync(src);/' "$1"; }
+muta() { # muta <função> <arquivo> <rótulo> — aplica e confere que o arquivo mudou
+  local f="$2" antes="$2.antes-da-mutacao"
+  cp "$f" "$antes"; "$1" "$f"
+  if cmp -s "$f" "$antes"; then rm -f "$antes"; falha "$3: a mutação $1 não alterou $(basename "$f") — âncora do perl não casou (guarda ausente?)"; return 1; fi
+  rm -f "$antes"
+}
+
+echo "[I1] import --from — bundle externo com blob symlink para o segredo da vítima: RECUSADO, nada entra na réplica"
+c_I1() {
+  ataque
+  bundle_hostil I1
+  local out rc
+  # CONTROLE (b): o mesmo bundle com o blob REGULAR é importado — mensagem e corpo chegam. Prova que
+  # o envelope refeito é aceito, e que a recusa abaixo é pelo link, não pelo envelope.
+  mk_repo I1/c; LG I1/c open "$CH" --self c --participants c,x >/dev/null
+  set +e; out="$(LG I1/c import "$CH" --from "$BUN" 2>&1)"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && grep -qF 'isca legítima do anexo' "$T/I1/c/.forge/liaison/$CH/blobs/anexo.md" 2>/dev/null \
+    || { falha "[I1]: controle — o bundle legítimo não foi importado com o corpo (rc=$rc). Saída: $(head -3 <<<"$out")"; return 0; }
+  # ATAQUE (a)
+  planta_link_blob
+  set +e; out="$(LG I1/v import "$CH" --from "$BUN" 2>&1)"; rc=$?; set -e
+  if vazou I1/v; then falha "[I1]: o conteúdo do segredo da vítima entrou na réplica pelo import --from (rc=$rc)"; return 0; fi
+  grep -qF "$CAUSA_A" <<<"$out" || { falha "[I1]: o blob symlink foi descartado sem a causa do staging seguro. Saída: $(head -3 <<<"$out")"; return 0; }
+  [ "$(find "$SEG" -perm 0600 -print)" = "$SEG" ] || { falha "[I1]: o modo do segredo mudou"; return 0; }
+  neutralizado; echo "OK [I1] — bundle legítimo importa; blob symlink recusado no staging, segredo fora da réplica (rc=$rc)"
+}
+c_I1
+
+echo "[I2] import --from — blob do bundle é FIFO: o import termina, sem travar"
+c_I2() {
+  ataque
+  bundle_hostil I2
+  rm -f "$BB/anexo.md"; mkfifo "$BB/anexo.md"
+  local saida="$T/I2/import.out" rcf="$T/I2/import.rc" pid
+  ( set +e; LG I2/v import "$CH" --from "$BUN" >"$saida" 2>&1; echo $? > "$rcf" ) & pid=$!
+  for _ in $(seq 1 40); do kill -0 "$pid" 2>/dev/null || break; perl -e 'select(undef,undef,undef,0.5)'; done
+  if kill -0 "$pid" 2>/dev/null; then
+    pkill -f "$T/I2/" 2>/dev/null || true; destrava_fifo "$BB/anexo.md"; wait "$pid" 2>/dev/null || true
+    falha "[I2]: o import TRAVOU por 20 s lendo o FIFO plantado no bundle"; return 0
+  fi
+  wait "$pid" 2>/dev/null || true
+  grep -qF 'SEC-001' "$saida" || { falha "[I2]: o FIFO foi descartado sem a causa. Saída: $(head -3 "$saida")"; return 0; }
+  neutralizado; echo "OK [I2] — FIFO no bundle é recusado sem travar (rc=$(cat "$rcf" 2>/dev/null || echo '?'))"
+}
+c_I2
+
+echo "[M7] mutação — guarda A (staging do import): sozinha segura; sem ela e sem B, o segredo vaza"
+# B desligada nos dois pontos de leitura: só o staging está entre o bundle e a réplica. Ele tem de
+# recusar com a causa dele. Desligado também o staging, o mesmo bundle vaza — prova de que o cenário
+# está armado. Restaurados os dois, segura de novo.
+c_M7() {
+  bundle_hostil M7; planta_link_blob
+  local ops="$T/M7/v/.forge/scripts/liaison-ops.sh" imp="$T/M7/v/.forge/scripts/lib/liaison-import.mjs" out
+  cp "$ops" "$T/M7/ops.orig"; cp "$imp" "$T/M7/imp.orig"
+  muta muta_B_novo "$imp" "[M7]" || return 0
+  muta muta_B_rec "$imp" "[M7]" || return 0
+  set +e; out="$(LG M7/v import "$CH" --from "$BUN" 2>&1)"; set -e
+  if vazou M7/v; then falha "[M7]: só com o staging (B desligada) o segredo vazou — a guarda A não segura sozinha"; return 0; fi
+  grep -qF "$CAUSA_A" <<<"$out" || { falha "[M7]: só com o staging a recusa saiu sem a causa dele. Saída: $(head -3 <<<"$out")"; return 0; }
+  muta muta_A "$ops" "[M7]" || return 0
+  reabre_vitima M7/v
+  set +e; LG M7/v import "$CH" --from "$BUN" >/dev/null 2>&1; set -e
+  vazou M7/v || { falha "[M7]: sem A e sem B o segredo NÃO vazou — o cenário não exercita o ataque"; return 0; }
+  cp "$T/M7/ops.orig" "$ops"; cp "$T/M7/imp.orig" "$imp"
+  cmp -s "$ops" "$T/M7/ops.orig" && cmp -s "$imp" "$T/M7/imp.orig" || { falha "[M7]: restauração não bateu byte a byte"; return 0; }
+  reabre_vitima M7/v
+  set +e; out="$(LG M7/v import "$CH" --from "$BUN" 2>&1)"; set -e
+  if vazou M7/v; then falha "[M7]: recontrole — restauradas as guardas, o segredo ainda vazou"; return 0; fi
+  echo "OK [M7] — o staging segura sozinho; sem ele e sem B o segredo vaza; restaurados, segura"
+}
+c_M7
+
+echo "[M8] mutação — guarda B (leitura do blob de mensagem NOVA): sozinha segura; sem ela e sem A, vaza"
+c_M8() {
+  bundle_hostil M8; planta_link_blob
+  local ops="$T/M8/v/.forge/scripts/liaison-ops.sh" imp="$T/M8/v/.forge/scripts/lib/liaison-import.mjs" out
+  cp "$ops" "$T/M8/ops.orig"; cp "$imp" "$T/M8/imp.orig"
+  muta muta_A "$ops" "[M8]" || return 0
+  set +e; out="$(LG M8/v import "$CH" --from "$BUN" 2>&1)"; set -e
+  if vazou M8/v; then falha "[M8]: só com B (staging desligado) o segredo vazou pela mensagem nova"; return 0; fi
+  grep -qF "$CAUSA_B" <<<"$out" || { falha "[M8]: só com B a recusa saiu sem a causa dela. Saída: $(head -3 <<<"$out")"; return 0; }
+  muta muta_B_novo "$imp" "[M8]" || return 0
+  reabre_vitima M8/v
+  set +e; LG M8/v import "$CH" --from "$BUN" >/dev/null 2>&1; set -e
+  vazou M8/v || { falha "[M8]: sem A e sem B (mensagem nova) o segredo NÃO vazou — o cenário não exercita o ponto"; return 0; }
+  cp "$T/M8/ops.orig" "$ops"; cp "$T/M8/imp.orig" "$imp"
+  cmp -s "$ops" "$T/M8/ops.orig" && cmp -s "$imp" "$T/M8/imp.orig" || { falha "[M8]: restauração não bateu byte a byte"; return 0; }
+  reabre_vitima M8/v
+  set +e; LG M8/v import "$CH" --from "$BUN" >/dev/null 2>&1; set -e
+  if vazou M8/v; then falha "[M8]: recontrole — restauradas as guardas, o segredo ainda vazou"; return 0; fi
+  echo "OK [M8] — a leitura segura da mensagem nova segura sozinha; sem ela e sem A vaza; restauradas, segura"
+}
+c_M8
+
+echo "[M9] mutação — guarda B (leitura do blob na RECUPERAÇÃO): sozinha segura; sem ela e sem A, vaza"
+# A recuperação (issue #107) só alcança mensagem JÁ CONHECIDA cujo corpo local sumiu. A vítima
+# importa o bundle legítimo, perde o blob local, e o atacante troca o blob do bundle por um link.
+c_M9() {
+  bundle_hostil M9
+  local ops="$T/M9/v/.forge/scripts/liaison-ops.sh" imp="$T/M9/v/.forge/scripts/lib/liaison-import.mjs" out
+  local local_blob="$T/M9/v/.forge/liaison/$CH/blobs/anexo.md"
+  LG M9/v import "$CH" --from "$BUN" >/dev/null 2>&1 || true
+  [ -f "$local_blob" ] || { falha "[M9]: preparação — o import legítimo não trouxe o corpo"; return 0; }
+  rm -f "$local_blob"; planta_link_blob
+  cp "$ops" "$T/M9/ops.orig"; cp "$imp" "$T/M9/imp.orig"
+  muta muta_A "$ops" "[M9]" || return 0
+  set +e; out="$(LG M9/v import "$CH" --from "$BUN" 2>&1)"; set -e
+  if vazou M9/v; then falha "[M9]: só com B (staging desligado) o segredo vazou pela recuperação"; return 0; fi
+  grep -qF "$CAUSA_B" <<<"$out" || { falha "[M9]: só com B a recusa na recuperação saiu sem a causa dela. Saída: $(head -3 <<<"$out")"; return 0; }
+  muta muta_B_rec "$imp" "[M9]" || return 0
+  set +e; LG M9/v import "$CH" --from "$BUN" >/dev/null 2>&1; set -e
+  vazou M9/v || { falha "[M9]: sem A e sem B (recuperação) o segredo NÃO vazou — o cenário não exercita o ponto"; return 0; }
+  rm -f "$local_blob"
+  cp "$T/M9/ops.orig" "$ops"; cp "$T/M9/imp.orig" "$imp"
+  cmp -s "$ops" "$T/M9/ops.orig" && cmp -s "$imp" "$T/M9/imp.orig" || { falha "[M9]: restauração não bateu byte a byte"; return 0; }
+  set +e; LG M9/v import "$CH" --from "$BUN" >/dev/null 2>&1; set -e
+  if vazou M9/v; then falha "[M9]: recontrole — restauradas as guardas, o segredo ainda vazou"; return 0; fi
+  echo "OK [M9] — a leitura segura da recuperação segura sozinha; sem ela e sem A vaza; restauradas, segura"
+}
+c_M9
+
+# ───────────────────────────────────────────────────────────────────────────────────────────────
+# NODE-201 um nível acima: a RAIZ do `--from`. O PR #261 passou o bundle pelo `_dir_pull` seguro, mas resolvia a raiz antes com `cd -P` inteiro, que SEGUE um link no último componente — justamente a entrada que o autor do bundle controla (pasta extraída de anexo, pendrive, diretório compartilhado) — e anula a guarda `_dir_reject_symlink` que o `_dir_pull` aplica na raiz. O atacante x entrega como "bundle" um link para o canal PRIVADO da vítima com outro peer; o import copiava o anexo confidencial desse canal para o canal atacado, e o próximo `sync --push-only` o publicava no hub que x lê (o push publica todos os blobs locais; `applyBundle` não confere canal nem participantes). Exfiltração entre canais.
+
+# vitima_dois_canais <id> — v tem o canal `$CH` com o atacante x e o canal privado `$CH2` com y, onde o anexo confidencial de y já foi importado legitimamente. Define V (repo de v, relativo a $T), PRIV (canal privado de v) e LNK (o "bundle" entregue por x: link para PRIV, ainda não plantado).
+CH2="ch2"
+vitima_dois_canais() {
+  local id="$1"
+  mk_repo "$id/y"; mk_repo "$id/v"; V="$id/v"
+  LG "$id/y" open "$CH2" --self y --participants v,y >/dev/null
+  LG "$V" open "$CH2" --self v --participants v,y >/dev/null
+  LG "$V" open "$CH" --self v --participants v,x >/dev/null
+  LG "$id/y" thread open "$CH2" t1 --subject privado --participants v,y --body abertura >/dev/null
+  printf 'CONFIDENCIAL-CH2 — só v e y podem ler\n' > "$T/$id/confidencial.md"
+  LG "$id/y" send "$CH2" --thread t1 --kind note --subject anexo --body-file "$T/$id/confidencial.md" >/dev/null
+  LG "$id/y" export "$CH2" --out "$T/$id/ybun" >/dev/null
+  LG "$V" import "$CH2" --from "$T/$id/ybun" >/dev/null
+  PRIV="$T/$V/.forge/liaison/$CH2"
+  mkdir -p "$T/$id/shared"; LNK="$T/$id/shared/bundle"
+}
+vazou_ch2() { grep -rqF 'CONFIDENCIAL-CH2' "$T/$1/.forge/liaison/$CH"; }   # vazou_ch2 <repo-relativo>
+reabre_canal_atacado() { rm -rf "$T/$1/.forge/liaison/$CH"; LG "$1" open "$CH" --self v --participants v,x >/dev/null; }
+
+echo "[I3] import --from — a raiz do bundle é symlink para o canal privado da vítima: RECUSADO, nada cruza de canal"
+c_I3() {
+  ataque
+  vitima_dois_canais I3
+  local out rc
+  grep -rqF 'CONFIDENCIAL-CH2' "$PRIV/blobs" 2>/dev/null \
+    || { falha "[I3]: preparação — o anexo confidencial de y não chegou ao canal privado de v"; return 0; }
+  # CONTROLE (a): symlink num componente PAI de `--from` é escolha do operador e continua aceito — x exporta um bundle legítimo de `$CH`, alcançado por `alias -> real`.
+  mk_repo I3/x; LG I3/x open "$CH" --self x --participants v,x >/dev/null
+  LG I3/x thread open "$CH" t1 --subject abertura --participants v,x --body abertura >/dev/null
+  printf 'isca legítima do canal atacado\n' > "$T/I3/isca.md"
+  LG I3/x send "$CH" --thread t1 --kind note --subject anexo --body-file "$T/I3/isca.md" >/dev/null
+  mkdir -p "$T/I3/real"; LG I3/x export "$CH" --out "$T/I3/real/bundle" >/dev/null
+  ln -s "$T/I3/real" "$T/I3/alias"
+  set +e; out="$(LG "$V" import "$CH" --from "$T/I3/alias/bundle" 2>&1)"; rc=$?; set -e
+  [ "$rc" -eq 0 ] && grep -rqF 'isca legítima do canal atacado' "$T/$V/.forge/liaison/$CH/blobs" 2>/dev/null \
+    || { falha "[I3]: controle — bundle legítimo por pai symlink não foi importado com o corpo (rc=$rc). Saída: $(head -3 <<<"$out")"; return 0; }
+  # ATAQUE (b): o próprio `--from` é link para o canal privado da vítima — com e sem barra final.
+  ln -s "$PRIV" "$LNK"
+  local variante
+  for variante in "$LNK" "$LNK/" "$LNK//"; do
+    set +e; out="$(LG "$V" import "$CH" --from "$variante" 2>&1)"; rc=$?; set -e
+    if vazou_ch2 "$V"; then falha "[I3]: o anexo confidencial de $CH2 entrou em $CH pelo import --from '$variante' (rc=$rc)"; return 0; fi
+    [ "$rc" -ne 0 ] || { falha "[I3]: import --from '$variante' (raiz symlink) saiu com rc=0. Saída: $(head -3 <<<"$out")"; return 0; }
+    grep -qF 'link simbólico' <<<"$out" && grep -qF 'SEC-001' <<<"$out" \
+      || { falha "[I3]: '$variante' recusado sem a causa (link simbólico, SEC-001). Saída: $(head -3 <<<"$out")"; return 0; }
+  done
+  grep -rqF 'CONFIDENCIAL-CH2' "$PRIV/blobs" || { falha "[I3]: o canal privado da vítima foi alterado"; return 0; }
+  neutralizado; echo "OK [I3] — pai symlink importa; raiz symlink para o canal privado RECUSADA (rc=$rc), nada cruza de canal"
+}
+c_I3
+
+echo "[M10] mutação — a raiz do --from volta a ser resolvida por cd -P inteiro: o canal privado vaza; restaurada, segura"
+# A mutação devolve a resolução da raiz ao `cd -P` que segue o último componente (o código anterior à correção). Com ela, o link entregue por x passa a ser a raiz física e a guarda do `_dir_pull` não vê link nenhum.
+muta_raiz() { perl -pi -e 's/from_phys="\$\(_dir_phys_expected "\$from_trim"\)"/from_phys="\$(cd -P -- "\$from_trim" && pwd -P)"/' "$1"; }
+c_M10() {
+  vitima_dois_canais M10; ln -s "$PRIV" "$LNK"
+  local ops="$T/M10/v/.forge/scripts/liaison-ops.sh" out
+  cp "$ops" "$T/M10/ops.orig"
+  set +e; out="$(LG "$V" import "$CH" --from "$LNK" 2>&1)"; set -e
+  if vazou_ch2 "$V"; then falha "[M10]: controle — com a guarda o canal privado vazou"; return 0; fi
+  muta muta_raiz "$ops" "[M10]" || return 0
+  reabre_canal_atacado "$V"
+  set +e; LG "$V" import "$CH" --from "$LNK" >/dev/null 2>&1; set -e
+  vazou_ch2 "$V" || { falha "[M10]: com a raiz seguida o canal privado NÃO vazou — o cenário não exercita o ataque"; return 0; }
+  cp "$T/M10/ops.orig" "$ops"
+  cmp -s "$ops" "$T/M10/ops.orig" || { falha "[M10]: restauração não bateu byte a byte"; return 0; }
+  reabre_canal_atacado "$V"
+  set +e; out="$(LG "$V" import "$CH" --from "$LNK" 2>&1)"; set -e
+  if vazou_ch2 "$V"; then falha "[M10]: recontrole — restaurada a guarda, o canal privado ainda vazou"; return 0; fi
+  grep -qF 'SEC-001' <<<"$out" || { falha "[M10]: recontrole sem a causa SEC-001. Saída: $(head -3 <<<"$out")"; return 0; }
+  echo "OK [M10] — com a raiz seguida o canal privado vaza; restaurada a guarda, segura"
+}
+c_M10
 
 # ───────────────────────────────────────────────────────────────────────────────────────────────
 echo "[5] contador de controle — ataques exercitados = ataques neutralizados, e > 0"

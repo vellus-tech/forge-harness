@@ -8,7 +8,8 @@
 #     claim nova, por renew manual e por reescrita externa (tamanho/mtime do log próprio)
 #   [aviso-*] perda tardia importada limpa o cache; JSON additionalContext emitido (e não
 #     repetido) para perda; configuração inválida avisa e não renova
-#   [destacado-*] sync --push-only destacado não prende o evento mesmo com transporte travado
+#   [destacado-*] sync --push-only destacado não prende o evento com o push parado de verdade
+#     (barreira de teste no meio da publicação); renew gravado e publicado ao liberar
 #   [perf-*] caminho sem bastão e fora da hora termina rápido (ordem de grandeza, não p95
 #     estatístico — máquina compartilhada e sob carga variável, ver nota)
 #
@@ -568,16 +569,19 @@ else
   fail=1
 fi
 
-# === [destacado-nao-prende-evento] sync --push-only destacado com transporte travado (FIFO que
-# nunca é lido) não prende o retorno do gancho ===
+# === [destacado-nao-prende-evento] sync --push-only destacado com transporte TRAVADO DE VERDADE não
+# prende o retorno do gancho (QLT-002). O FIFO antigo fazia o `sync` abortar em ~200 ms ("não foi
+# possível criar o hub"): nada bloqueava, e o cenário passaria com o sync em primeiro plano. Aqui o
+# hub é válido e a barreira de teste (FORGE_LIAISON_TEST_BARRIER, `_liaison_test_barrier` em
+# lib/transports/_common.sh) segura o push em `after-blobs` até o gate liberar — o destacado fica
+# de fato parado no meio da publicação enquanto o evento já voltou. O cenário confere também que
+# a renovação foi gravada, que o destacado foi disparado (parou na barreira) e que, liberado, ele
+# publica a renovação no hub. Mutação de controle (provada uma vez, descrita no commit, fora do
+# código): com o `sync` em primeiro plano no gancho, o evento fica preso na barreira e o cenário
+# reprova por tempo.
 mk_repo det true false
 LG det open "$CH" --self repo-a --participants repo-a,repo-b >/dev/null
 LG det thread open "$CH" t1 --subject "detached" --participants repo-a,repo-b --body "x" >/dev/null
-FIFO="$T/det/.forge/cache/stuck.fifo"
-mkfifo "$FIFO" 2>/dev/null || true
-LG det transport set "$CH" --kind fs --path "$FIFO" >/dev/null 2>&1 || true
-# fs aponta para um FIFO em vez de diretório -- qualquer tentativa de ler/escrever ali bloqueia
-# (nada no outro lado do FIFO para consumir), simulando transporte travado.
 mk_repo det_b true false
 LG det_b open "$CH" --self repo-b --participants repo-a,repo-b >/dev/null
 LG det transport set "$CH" --kind fs --path "$T/hub-det" >/dev/null
@@ -591,20 +595,68 @@ LG det_b sync "$CH" >/dev/null 2>&1
 LGS det sess-det baton claim "$CH" "$batdet" --lease 280 >/dev/null 2>&1
 lease_until_det="$(rewrite_claim_due det "$CH" 280 100)"
 sync_cache_after_rewrite det "$CH" "$batdet" sess-det "$lease_until_det"
-# Agora aponta o transporte para o FIFO travado (depois da claim, para não travar o setup) e
-# mede o tempo do PRÓPRIO evento (não do sync destacado, que corre à parte).
-LG det transport set "$CH" --kind fs --path "$FIFO" >/dev/null 2>&1 || true
+renews_in() { # renews_in <arquivo de log> -> número de renews deste bastão
+  node -e '
+const fs = require("fs");
+let n = 0;
+try { for (const l of fs.readFileSync(process.argv[1], "utf8").split("\n")) { if (!l.trim()) continue; const m = JSON.parse(l); if (m.baton && m.baton.op === "renew" && m.in_reply_to === process.argv[2]) n++; } } catch {}
+console.log(n);
+' "$1" "$batdet"
+}
+BARRIER_DET="$T/barrier-det"
+mkdir -p "$BARRIER_DET"
 start_ms="$(node -e 'console.log(Date.now())')"
-run_hook det sess-det >/dev/null 2>&1
+(cd "$T/det" && printf '{"session_id":"%s"}' sess-det | FORGE_LIAISON_TEST_BARRIER="$BARRIER_DET" FORGE_ROOT="$T/det" bash "$(HOOK_FOR det)") >/dev/null 2>&1
 end_ms="$(node -e 'console.log(Date.now())')"
 elapsed=$((end_ms - start_ms))
-if [ "$elapsed" -lt 5000 ]; then
-  echo "OK [destacado-nao-prende-evento]: evento terminou em ${elapsed}ms mesmo com transporte apontando para FIFO travado"
+# o destacado precisa chegar à barreira (prova de que foi disparado e de que o transporte está
+# de fato parado nele) — espera até 15 s
+ready=""
+for _ in $(seq 1 150); do
+  for r in "$BARRIER_DET"/after-blobs.*.ready; do [ -e "$r" ] && { ready="$r"; break; }; done
+  [ -n "$ready" ] && break
+  node -e 'setTimeout(()=>{},100)'
+done
+renew_local="$(renews_in "$T/det/.forge/liaison/$CH/log/repo-a.jsonl")"
+renew_hub_parado="$(renews_in "$T/hub-det/$CH/log/repo-a.jsonl")"
+det_ok=1
+if [ "$elapsed" -ge 5000 ]; then
+  echo "FAIL [destacado-nao-prende-evento]: evento levou ${elapsed}ms (>=5000ms) com o push parado na barreira -- o sync prendeu o retorno"
+  det_ok=0
+fi
+if [ "$renew_local" != "1" ]; then
+  echo "FAIL [destacado-nao-prende-evento]: esperava 1 renew gravado no log próprio, achei $renew_local"
+  det_ok=0
+fi
+if [ -z "$ready" ]; then
+  echo "FAIL [destacado-nao-prende-evento]: o sync destacado nunca chegou à barreira after-blobs (não foi disparado, ou abortou antes de travar)"
+  det_ok=0
+elif [ "$renew_hub_parado" != "0" ]; then
+  echo "FAIL [destacado-nao-prende-evento]: o hub já tinha o renew com o push parado na barreira ($renew_hub_parado) -- a barreira não travou nada"
+  det_ok=0
+fi
+# libera o destacado e confere que ele publica a renovação. `_dir_push` tem mais de um ponto de
+# barreira (after-blobs, after-union, after-mv): cada um que aparecer é liberado no mesmo laço.
+if [ -n "$ready" ]; then
+  renew_hub=0
+  for _ in $(seq 1 150); do
+    for r in "$BARRIER_DET"/*.ready; do [ -e "$r" ] && : > "${r%.ready}.go"; done
+    renew_hub="$(renews_in "$T/hub-det/$CH/log/repo-a.jsonl")"
+    [ "$renew_hub" = "1" ] && break
+    node -e 'setTimeout(()=>{},100)'
+  done
+  if [ "$renew_hub" != "1" ]; then
+    echo "FAIL [destacado-nao-prende-evento]: liberada a barreira, o destacado não publicou o renew no hub (achei $renew_hub)"
+    det_ok=0
+  fi
+fi
+# solta qualquer outro ponto de barreira que tenha sobrado, para nada ficar esperando 30 s
+for r in "$BARRIER_DET"/*.ready; do [ -e "$r" ] && : > "${r%.ready}.go"; done
+if [ "$det_ok" -eq 1 ]; then
+  echo "OK [destacado-nao-prende-evento]: evento voltou em ${elapsed}ms com o push destacado parado na barreira; renew gravado e, liberada a barreira, publicado no hub"
 else
-  echo "FAIL [destacado-nao-prende-evento]: evento levou ${elapsed}ms (>=5000ms) -- o processo destacado prendeu o retorno"
   fail=1
 fi
-rm -f "$FIFO" 2>/dev/null || true
 
 # === [perf-caminho-rapido] ordem de grandeza do caminho sem bastão/fora da hora (não é p95
 # estatístico rigoroso -- máquina compartilhada sob carga variável; mede só que o caminho NÃO

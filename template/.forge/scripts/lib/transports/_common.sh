@@ -166,6 +166,19 @@ _dir_publish_dir() {
   )
 }
 
+# _dir_read_hub_own_log <hub_phys> <destino_abs> — copia `<hub>/log/<self>.jsonl` para <destino_abs>
+# (no diretório privado do push) pelo leitor seguro do módulo: O_NOFOLLOW|O_NONBLOCK, arquivo
+# regular, UM vínculo, teto de tamanho. Ausente no hub = rc 0 sem <destino_abs>. FIFO, link,
+# hardlink = recusa com SEC-001 (NODE-201, SEC-204) — antes um FIFO travava o push para sempre e
+# um hardlink para log confidencial era unido e republicado.
+_dir_read_hub_own_log() {
+  local hub="$1" dest="$2" mod
+  mod="$(_liaison_hub_io)" || return 1
+  ( _dir_anchor "$hub/log" || exit 1
+    node "$mod" read "$LIAISON_SELF.jsonl" "$dest" "$hub/log"
+  )
+}
+
 # _dir_push_classify <hub_dir> <own_file> — em que RELAÇÃO o log do hub está com o local.
 #
 # O push era `cp` + `mv` INCONDICIONAL — issue #101: uma réplica atrasada substituía o log do hub
@@ -217,9 +230,14 @@ _dir_publish_dir() {
 # exatamente a classe que `check-shell-pipeline.sh` existe para reprovar.
 #
 # stdout: "ff" | "behind <ids…>" | "diverged <ids…>".  rc: 0 | 1 | 2.
+#
+# NODE-201, SEC-204: <hub_copy> (3º argumento) é a cópia do log próprio do hub já lida pelo leitor
+# seguro (`_dir_read_hub_own_log`) para o diretório privado do push — é ela que `_dir_push` passa,
+# para que a classificação e a união olhem os MESMOS bytes e nenhuma das duas leia o hub por
+# caminho. Sem o 3º argumento, lê `<hub_dir>/log/<self>.jsonl` (uso direto pelo w271).
 _dir_push_classify() {
   local hub="$1" own="$2"
-  local hubf="$hub/log/$LIAISON_SELF.jsonl"
+  local hubf="${3:-$hub/log/$LIAISON_SELF.jsonl}"
   # `-s`, não `-f`: log AUSENTE e log presente com ZERO byte são o mesmo fato — o hub não tem
   # linha nenhuma deste remetente, e um log vazio é prefixo de qualquer log. A distinção não é
   # teórica: o `awk` abaixo usa `NR == FNR` para separar os dois arquivos, e com o PRIMEIRO
@@ -276,15 +294,22 @@ _dir_push_classify() {
 # por `_dir_publish_file`. Antes, o node gravava `log/.<self>.jsonl.tmp` DENTRO do hub com
 # `writeFileSync`, que segue link — um symlink plantado nesse nome previsível desviava a união para
 # fora. A réplica local recebe a cópia do temporário privado, nunca relida do hub.
+#
+# NODE-201, SEC-204: o log do hub entra na união pela cópia privada <hub_copy> (3º argumento), lida
+# UMA vez pelo leitor seguro. Antes o node lia `hub/log/<self>.jsonl` por caminho: um FIFO
+# plantado ali travava o push para sempre, e um hardlink para um log confidencial de outro canal era
+# unido à réplica e republicado. Sem o 3º argumento, a própria função faz a leitura segura.
 _dir_push_union() {
-  local hub="$1" own="$2"
+  # `hubf` é a CÓPIA privada do log do hub (o que a união lê); `hubpath`, o caminho no hub (o que
+  # só se confere, nunca se lê).
+  local hub="$1" own="$2" hubf="${3:-}"
   hub="$(_dir_phys_expected "$hub")" || return 1
-  local hubf="$hub/log/$LIAISON_SELF.jsonl"
+  local hubpath="$hub/log/$LIAISON_SELF.jsonl"
   _dir_reject_symlink "$hub/log" || return 1
-  _dir_reject_symlink "$hubf" || return 1
+  _dir_reject_symlink "$hubpath" || return 1
   # O `lib/` é o diretório-pai deste arquivo (`lib/transports/_common.sh`) — derivado do próprio
   # BASH_SOURCE em vez de variável exportada, para não depender de quem fez o source.
-  local libdir; libdir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  local libdir; libdir="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
   local mod="$libdir/liaison-push-union.mjs"
   if ! command -v node >/dev/null 2>&1 || [ ! -f "$mod" ]; then
     echo "FAIL: push RECUSADO — a união do log exige node e '$mod', e um dos dois não está disponível." >&2
@@ -296,6 +321,10 @@ _dir_push_union() {
   local priv
   priv="$(mktemp -d "${TMPDIR:-/tmp}/forge-liaison-uniao.XXXXXX")" \
     || { echo "FAIL: push RECUSADO — não foi possível criar o diretório privado da união." >&2; return 1; }
+  if [ -z "$hubf" ]; then
+    hubf="$priv/hub.jsonl"
+    _dir_read_hub_own_log "$hub" "$hubf" || { rm -rf "$priv"; return 1; }
+  fi
   local tmp="$priv/uniao.jsonl"
   if ! node "$mod" "$own" "$hubf" "$tmp" "$LIAISON_SELF"; then
     rm -rf "$priv"
@@ -356,17 +385,28 @@ _dir_push() {
   _dir_ensure_subdir "$hub" blobs || return 1
   local own="$src/log/$LIAISON_SELF.jsonl"
   if [ -f "$own" ]; then
+    # NODE-201, SEC-204: o log próprio do hub é lido UMA vez, pelo leitor seguro, para um diretório
+    # privado; a classificação e a união olham essa cópia, nunca o hub por caminho. Todo caminho de
+    # saída daqui em diante apaga o diretório privado.
+    local priv hubcopy
+    priv="$(mktemp -d "${TMPDIR:-/tmp}/forge-liaison-push.XXXXXX")" \
+      || { echo "FAIL: push RECUSADO — não foi possível criar o diretório privado do push." >&2; return 1; }
+    hubcopy="$priv/hub-$LIAISON_SELF.jsonl"
+    if ! _dir_reject_symlink "$hub/log/$LIAISON_SELF.jsonl" || ! _dir_read_hub_own_log "$hub" "$hubcopy"; then
+      rm -rf "$priv"; return 1
+    fi
     local verdict cls_rc=0
-    verdict="$(_dir_push_classify "$hub" "$own")" || cls_rc=$?
+    verdict="$(_dir_push_classify "$hub" "$own" "$hubcopy")" || cls_rc=$?
     case "$cls_rc" in
       0)
         # `ff` também passa pela união. Quando o local é superconjunto do hub o resultado é o
         # mesmo do `cp` que havia aqui — mas o caminho ganha a validação de UM ESCRITOR POR
         # ARQUIVO, que o `cp` nunca fez: um log próprio contaminado com mensagem de terceiro era
         # publicado com rc 0, sobrescrevendo no hub a versão do dono por uma cópia alheia.
-        if ! _dir_push_union "$hub" "$own"; then
-          return 1
+        if ! _dir_push_union "$hub" "$own" "$hubcopy"; then
+          rm -rf "$priv"; return 1
         fi
+        rm -rf "$priv"
         _dir_push_blobs "$hub" "$src" || return 1
         return 0
         ;;
@@ -378,9 +418,10 @@ _dir_push() {
         # porque `_dir_pull` não traz o próprio log de volta, por desenho. A união publica o que
         # esta árvore tem de novo sem derrubar o que só o hub tem, e a recusa fica reservada à
         # bifurcação real, que o próprio módulo detecta por `detectForks`.
-        if ! _dir_push_union "$hub" "$own"; then
-          return 1
+        if ! _dir_push_union "$hub" "$own" "$hubcopy"; then
+          rm -rf "$priv"; return 1
         fi
+        rm -rf "$priv"
         _dir_push_blobs "$hub" "$src" || return 1
         return 0
         ;;
@@ -407,12 +448,12 @@ _dir_push() {
           echo "      Só o dono do log sabe qual é. Confirme e, se for (a), repare com:" >&2
           echo "        liaison-ops.sh sync <canal> --push-only --repair-own-log" >&2
           echo "      Hub: $hub/log/$LIAISON_SELF.jsonl" >&2
-          return 1
+          rm -rf "$priv"; return 1
         fi
         ;;
       *)
         echo "FAIL: push RECUSADO — não foi possível classificar o log do hub (rc $cls_rc). Não saber ler o ponto de encontro é motivo de rigor, não de publicação." >&2
-        return 1
+        rm -rf "$priv"; return 1
         ;;
     esac
     # Só o REPARO DECLARADO (caso 2 sob --repair-own-log) chega aqui: é o único caminho em que a
@@ -420,7 +461,8 @@ _dir_push() {
     # árvore é a autoridade sobre o log e viu por extenso o que está descartando.
     # Publicação pelo mesmo helper da união: temporário aleatório com O_EXCL e rename, nunca o
     # `log/.<self>.jsonl.tmp` previsível que um symlink plantado desviava para fora (SEC-001).
-    _dir_publish_file "$own" "$hub/log" "$LIAISON_SELF.jsonl" || return 1
+    _dir_publish_file "$own" "$hub/log" "$LIAISON_SELF.jsonl" || { rm -rf "$priv"; return 1; }
+    rm -rf "$priv"
   fi
   _dir_push_blobs "$hub" "$src" || return 1
   return 0
@@ -430,8 +472,8 @@ _dir_push() {
 # num staging cru. Nunca traz de volta o próprio log: a réplica local é a fonte da verdade dele.
 #
 # SEC-001: o hub é fixado no caminho físico e cada diretório (`log/`, `blobs/`) é lido de DENTRO,
-# por `cd -P` conferido — a varredura não atravessa um `log/` trocado por link no meio do pull. O
-# staging é privado; os `chmod` nele são cosméticos e nunca derrubam o rc do laço.
+# por `cd -P` conferido — a varredura não atravessa um `log/` trocado por link no meio do pull. A
+# enumeração e a leitura de cada entrada são do módulo (`_dir_pull_copy`); o staging é privado.
 _dir_pull() {
   local hub="$1" staging="$2"
   _dir_reject_symlink "$hub" || return 1

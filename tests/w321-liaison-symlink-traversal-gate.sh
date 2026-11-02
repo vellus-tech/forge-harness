@@ -848,7 +848,54 @@ c_H4() {
 c_H4
 
 # ───────────────────────────────────────────────────────────────────────────────────────────────
-# Cluster E — `export` publica no diretório de saída pelos mesmos helpers do push (ARCH-201).
+# Cluster R — o push lê `hub/log/<self>.jsonl` UMA vez, pelo leitor seguro (NODE-201, SEC-204).
+# Antes, a classificação e a união o liam por CAMINHO: um FIFO plantado travava o push para sempre,
+# e um hardlink para um log confidencial (outro canal, mesmo filesystem) era unido à réplica e
+# republicado no hub.
+
+echo "[R1] push — log próprio do hub é FIFO: o push termina RECUSADO, sem travar"
+c_R1() {
+  ataque
+  prepara R1 fs
+  rm -f "$HC/log/v.jsonl"; mkfifo "$HC/log/v.jsonl"
+  LG "$R" send "$CH" --thread t1 --kind note --subject "segunda" --body "segunda" >/dev/null
+  local saida="$T/R1/push.out" rcf="$T/R1/push.rc" pid i
+  ( set +e; LG "$R" sync "$CH" --push-only >"$saida" 2>&1; echo $? > "$rcf" ) & pid=$!
+  for i in $(seq 1 40); do kill -0 "$pid" 2>/dev/null || break; perl -e 'select(undef,undef,undef,0.5)'; done
+  if kill -0 "$pid" 2>/dev/null; then
+    pkill -f "$T/R1/" 2>/dev/null || true; destrava_fifo "$HC/log/v.jsonl"; wait "$pid" 2>/dev/null || true
+    falha "[R1]: o push TRAVOU por 20 s lendo o FIFO plantado no log próprio do hub"; return 0
+  fi
+  wait "$pid" 2>/dev/null || true
+  local rc; rc="$(cat "$rcf" 2>/dev/null || echo '?')"
+  [ "$rc" != 0 ] || { falha "[R1]: push com FIFO no log próprio do hub terminou rc=0"; return 0; }
+  grep -qF 'SEC-001' "$saida" || { falha "[R1]: recusou sem a causa. Saída: $(head -3 "$saida")"; return 0; }
+  neutralizado; echo "OK [R1] — FIFO no log próprio do hub é recusado sem travar (rc=$rc)"
+}
+c_R1
+
+echo "[R2] push — log próprio do hub é hardlink de um log confidencial: RECUSADO, nada é unido nem republicado"
+c_R2() {
+  ataque
+  prepara R2 fs
+  local segredo="$T/R2/fora/confidencial.jsonl"; mkdir -p "$(dirname "$segredo")"
+  printf '{"sender":"v","seq":7,"msg_id":"v-0007","content_sha":"s7","subject":"SEGREDO do canal confidencial"}\n' > "$segredo"
+  rm -f "$HC/log/v.jsonl"; ln "$segredo" "$HC/log/v.jsonl"
+  LG "$R" send "$CH" --thread t1 --kind note --subject "segunda" --body "segunda" >/dev/null
+  local out rc
+  set +e; out="$(LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
+  if grep -q 'SEGREDO' "$LOC/log/v.jsonl"; then falha "[R2]: o conteúdo hardlinkado foi unido à réplica local (rc=$rc)"; return 0; fi
+  if [ ! -L "$HC/log/v.jsonl" ] && [ "$(find "$HC/log/v.jsonl" -links 1 -print)" ] && grep -q 'SEGREDO' "$HC/log/v.jsonl"; then
+    falha "[R2]: o conteúdo hardlinkado foi republicado no hub como arquivo novo (rc=$rc)"; return 0
+  fi
+  [ "$rc" -ne 0 ] || { falha "[R2]: push com o log próprio do hub hardlinkado terminou rc=0"; return 0; }
+  grep -qF 'mais de um vínculo (hardlink)' <<<"$out" || { falha "[R2]: recusou sem a causa. Saída: $(head -3 <<<"$out")"; return 0; }
+  neutralizado; echo "OK [R2] — hardlink no log próprio do hub recusado, nada unido nem republicado"
+}
+c_R2
+
+# ───────────────────────────────────────────────────────────────────────────────────────────────
+# Cluster E —`export` publica no diretório de saída pelos mesmos helpers do push (ARCH-201).
 # O diretório de `--out` tem o mesmo layout do transporte `manual` e costuma ser compartilhado
 # (pendrive, diretório de VPN); o `export` fazia `mkdir -p` + `cp` em `log/` e `blobs/` seguindo link.
 

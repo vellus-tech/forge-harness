@@ -36,6 +36,8 @@
 // removido antes de sair.
 //
 // Subcomandos (rc 0 sucesso; rc 1 recusa/erro; rc 2 uso):
+//   read <nome> <destino_abs> <rótulo>
+//       lê o log próprio do hub uma vez, pelo leitor seguro, para o diretório privado do push.
 //   pull <log|blobs> <destino_abs> <self> <rótulo>
 //       copia as entradas aceitas do cwd para <destino_abs> (staging privado). Entrada recusada
 //       vira aviso no stderr e o pull segue — mesmo comportamento que o `-links 1` já tinha.
@@ -224,9 +226,44 @@ function publishDir(origemDir, tipo, modo, rotulo) {
   return 0;
 }
 
+// read <nome> <destino_abs> <rótulo> — lê UMA entrada do cwd (o log próprio no hub) pelo mesmo
+// leitor seguro do pull, para o diretório privado do push (NODE-201, SEC-204). Ausente = rc 0 sem
+// destino (o hub ainda não tem o log); link, FIFO, hardlink ou acima do teto = RECUSA, nunca aviso:
+// é o arquivo que o push vai unir e republicar.
+function read(nome, destino, rotulo) {
+  let origem;
+  try {
+    origem = abreSeguro(nome, LOG_MAX_BYTES);
+  } catch (e) {
+    if (e.code === 'ENOENT') return 0;
+    const causa = e instanceof Recusa ? e.message : `erro de leitura (${e.code || e.message})`;
+    console.error(`FAIL: push RECUSADO — ${q(`${rotulo}/${nome}`)} ${causa}. O log próprio no hub só é lido`);
+    console.error('      como arquivo regular de um vínculo; nada foi unido nem publicado (SEC-001). Investigue quem o');
+    console.error('      publicou antes de sincronizar de novo.');
+    return 1;
+  }
+  let destFd = null;
+  try {
+    destFd = openSync(destino, 'wx', 0o600);
+    copiaDoFd(origem.fd, destFd, LOG_MAX_BYTES);
+  } catch (e) {
+    if (destFd !== null) { try { closeSync(destFd); } catch { /* já fechado */ } destFd = null; try { unlinkSync(destino); } catch { /* melhor esforço */ } }
+    console.error(`FAIL: push RECUSADO — não foi possível ler ${q(`${rotulo}/${nome}`)} (${e instanceof Recusa ? e.message : e.code || e.message}).`);
+    return 1;
+  } finally {
+    if (destFd !== null) closeSync(destFd);
+    closeSync(origem.fd);
+  }
+  return 0;
+}
+
 function main(argv) {
   const [sub, ...args] = argv;
   switch (sub) {
+    case 'read': {
+      if (args.length !== 3) { console.error('FAIL liaison-hub-io (uso: read <nome> <destino_abs> <rótulo>)'); return 2; }
+      return read(...args);
+    }
     case 'pull': {
       if (args.length !== 4) { console.error('FAIL liaison-hub-io (uso: pull <log|blobs> <destino_abs> <self> <rótulo>)'); return 2; }
       return pull(...args);

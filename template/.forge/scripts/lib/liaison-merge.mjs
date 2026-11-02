@@ -285,6 +285,11 @@ export const CROSS_SESSION_TEXT_FIELDS = ['from_addr', 'from_name', 'from_mode']
 export const CROSS_SESSION_TEXT_MAX = 128;
 export const CROSS_SESSION_CONTROL_CHAR_RE = /[\u0000-\u001f\u007f]/;
 export const NATIVE_REF_RE = /^[0-9a-f]{64}$/;
+// add-liaison-handoff-baton, design §2.2/§4.1 — padrão de `op` da camada de ENVELOPE (aberto,
+// sem enum fechado): uma operação de versão futura do harness entra na réplica sem virar
+// conflito nem buraco de `seq`. O conjunto fechado das seis operações é responsabilidade de
+// `validateBaton` (lib/liaison-baton.mjs), que reexporta este padrão em vez de duplicá-lo.
+export const BATON_OP_PATTERN = /^[a-z][a-z-]{0,31}$/;
 
 // Valida a forma do envelope (campos obrigatórios, enums, tetos). Não decide política de
 // import (spoofing, duplicata, quarentena) — isso mora em liaison-ops.sh, que tem o contexto de
@@ -338,6 +343,23 @@ export function validateEnvelope(msg) {
       if (cs.origin_verified !== undefined && typeof cs.origin_verified !== 'boolean') {
         errors.push('cross_session.origin_verified deve ser boolean');
       }
+    }
+  }
+
+  // add-liaison-handoff-baton, REQ-01/design §2.2 — camada de ENVELOPE, a única que este
+  // validador impõe sobre `baton`: objeto, só em kind=note com requires_ack=false, `op` no
+  // padrão aberto. A validação COMPLETA (campos por `op`, limites, aritmética do lease) é a de
+  // `validateBaton`, chamada pelo CLI antes de gravar e pela dobra — nunca aqui, para que uma
+  // mensagem de bastão malformada entre na réplica (sem buraco de `seq`) e receba `malformed`
+  // na dobra, em vez de virar conflito no import.
+  if (Object.prototype.hasOwnProperty.call(msg, 'baton') && msg.baton !== null) {
+    const b = msg.baton;
+    if (typeof b !== 'object' || Array.isArray(b)) {
+      errors.push('baton não é um objeto');
+    } else {
+      if (msg.kind !== 'note') errors.push('baton só é permitido em kind=note');
+      if (msg.requires_ack === true) errors.push('baton exige requires_ack=false');
+      if (typeof b.op !== 'string' || !BATON_OP_PATTERN.test(b.op)) errors.push(`baton.op fora do padrão: ${b.op}`);
     }
   }
   return errors;

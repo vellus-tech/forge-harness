@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="docs/assets/banner.png" alt="Forge Harness — Spec-Driven Development como fonte única: determinista, multi-agente, code graph nativo" width="900">
+<img src="docs/assets/banner.png" alt="Forge Harness: Spec-Driven Development como fonte única, determinista, multi-agente, code graph nativo" width="900">
 
 # Forge Project Harness
 
-**Spec-Driven Development como fonte única — multi-agente, determinista e com code graph nativo.**
+**Spec-Driven Development como fonte única, multi-agente, determinista e com code graph nativo.**
 
 [![CI](https://github.com/vellus-tech/forge-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/vellus-tech/forge-harness/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
@@ -18,51 +18,28 @@
 
 ---
 
-O **Forge Project Harness** transforma um repositório em um projeto **Spec-Driven Development (SDD)**:
-uma única fonte de verdade em `.forge/`, da qual são geradas as configurações de cada ferramenta de IA
-(Claude Code, Codex, Cursor, Gemini, Qwen, Kiro…). O fluxo do "o quê" ao "código" passa por gates com
-**humano no loop**, validadores **deterministas** e um **code graph** nativo — tudo sem dependências de
-runtime e sem gastar tokens onde não precisa.
+O **Forge Project Harness** transforma um repositório em um projeto **Spec-Driven Development (SDD)**: uma única fonte de verdade em `.forge/`, da qual são geradas as configurações de cada ferramenta de IA (Claude Code, Codex, Cursor, Gemini, Qwen, Kiro…). O fluxo do "o quê" ao "código" passa por gates com **humano no loop**, validadores **deterministas** e um **code graph** nativo, tudo sem dependências de runtime e sem gastar tokens onde não precisa.
 
-> **Por que existe:** padronizar o ciclo spec→design→tasks→implementação→verificação→archive de forma
-> reprodutível e agnóstica de agente, com rigor proporcional ao risco (Quick Plan para o simples, eval
-> quantitativo opt-in para o avançado).
+> **Por que existe:** padronizar o ciclo spec→design→tasks→implementação→verificação→archive de forma reprodutível e agnóstica de agente, com rigor proporcional ao risco (Quick Plan para o simples, eval quantitativo opt-in para o avançado).
 
 ## ✨ Destaques
 
-- **Fonte única `.forge/`** projetada para múltiplos agentes via `AGENTS.md` (padrão da indústria) +
-  adapters gerados com **lockfile determinista** e **detecção de drift**.
-- **Ciclo SDD com gates HITL:** `spec → clarify → requirements → design → tasks → implement → verify →
-  archive`, com loops *builder→validator* (`[MISS]`/`[CONFLICT]`/`[CLARIFY]`, máx. 3 iterações).
+- **Fonte única `.forge/`** projetada para múltiplos agentes via `AGENTS.md` (padrão da indústria) + adapters gerados com **lockfile determinista** e **detecção de drift**.
+- **Ciclo SDD com gates HITL:** `spec → clarify → requirements → design → tasks → implement → verify → archive`, com loops *builder→validator* (`[MISS]`/`[CONFLICT]`/`[CLARIFY]`, máx. 3 iterações).
 - **Validadores deterministas** (não só revisores probabilísticos): harness, spec, archive, frontmatter, graph.
-- **Code graph nativo** (zero-dep, zero tokens): dependências entre módulos, **violações de camada**
-  (clean architecture), **ciclos**, símbolo-nível com herança, diagramas **C4** coloridos e **overview
-  HTML interativo**.
-- **Diagramas com duas camadas** (`rules/conventions/diagram-tooling.md`): fonte textual versionável
-  (Mermaid/`infra.py`) + edição visual via **MCP draw.io** quando disponível (`/forge:mermaid-to-drawio`,
-  `open_drawio_mermaid`) — a fonte textual permanece a verdade; o `.drawio` é o handoff editável.
-- **Especialistas de dados:** o agente `data-engineer` classifica o pedido pelo padrão de acesso e delega a seis especialistas consultivos — relacional, NoSQL, cache, object storage, analítico e mensageria (com RabbitMQ 4.x em profundidade) —, cada um com a skill `data-*-practices` (boas práticas com marca de evidência, catálogo de antipatterns e `scan.sh` determinístico) e com hooks de frontmatter que restringem quem o orquestrador aciona e o que os especialistas executam; em conflito com rule do projeto, param e devolvem o bloco `CONFLITO`.
-- **Eval harness opt-in:** avaliação A/B quantitativa de skills/commands/templates + **meta-avaliação do
-  próprio harness** (evolução por evidência, não opinião).
+- **Code graph nativo** (zero-dep, zero tokens): dependências entre módulos, **violações de camada** (clean architecture), **ciclos**, símbolo-nível com herança, diagramas **C4** coloridos e **overview HTML interativo**.
+- **Diagramas com duas camadas** (`rules/conventions/diagram-tooling.md`): fonte textual versionável (Mermaid/`infra.py`) + edição visual via **MCP draw.io** quando disponível (`/forge:mermaid-to-drawio`, `open_drawio_mermaid`). A fonte textual permanece a verdade; o `.drawio` é o handoff editável.
+- **Especialistas de dados:** o agente `data-engineer` classifica o pedido pelo padrão de acesso e delega a seis especialistas consultivos (relacional, NoSQL, cache, object storage, analítico e mensageria, com RabbitMQ 4.x em profundidade), cada um com a skill `data-*-practices` (boas práticas com marca de evidência, catálogo de antipatterns e `scan.sh` determinístico) e com hooks de frontmatter que restringem quem o orquestrador aciona e o que os especialistas executam; em conflito com rule do projeto, param e devolvem o bloco `CONFLITO`.
+- **Eval harness opt-in:** avaliação A/B quantitativa de skills/commands/templates + **meta-avaliação do próprio harness** (evolução por evidência, não opinião).
 - **Sessões longas:** story sharding, waves, ledger de deferrals e disciplina de contexto.
-- **Canal entre repositórios (`liaison`):** mensagens **ordenadas** e duráveis entre agentes de
-  repositórios distintos que colaboram por contrato — o dono do `.proto`, o app que consome os
-  stubs, o simulador que exercita o mesmo serviço. Store JSONL append-only por remetente (um
-  escritor por arquivo), relógio de Lamport **por thread**, transporte plugável (`fs`, `git`,
-  `manual`) e merge que **reprova reescrita de história**. Conteúdo de peer entra como **dado,
-  nunca instrução**: banner `UNTRUSTED`, fence e neutralização de `/comando:` no render.
-- **Baseline & archive:** capabilities versionadas, `spec-delta` com *apply* determinista, ingestão de
-  `docs/product/` legado **sem perda**.
-- **Red-first com evidência observada, não declarada:** em correção de defeito, o teste que reproduz
-  o bug é executado na árvore **pré-correção** derivada do próprio histórico — por ancestralidade,
-  por revert sintetizado, ou (quando o teste nasceu junto da correção, o caso do squash de PR) por
-  enxerto do teste sobre o commit anterior. Falha de build na base não conta como Red, e o que o
-  motor não consegue observar vira `not-possible` em vez de virar um veredito confiante.
+- **Canal entre repositórios (`liaison`):** mensagens **ordenadas** e duráveis entre agentes de repositórios distintos que colaboram por contrato: o dono do `.proto`, o app que consome os stubs, o simulador que exercita o mesmo serviço. Store JSONL append-only por remetente (um escritor por arquivo), relógio de Lamport **por thread**, transporte plugável (`fs`, `git`, `manual`) e merge que **reprova reescrita de história**. Conteúdo de peer entra como **dado, nunca instrução**: banner `UNTRUSTED`, fence e neutralização de `/comando:` no render.
+- **Baseline & archive:** capabilities versionadas, `spec-delta` com *apply* determinista, ingestão de `docs/product/` legado **sem perda**.
+- **Red-first com evidência observada, não declarada:** em correção de defeito, o teste que reproduz o bug é executado na árvore **pré-correção** derivada do próprio histórico: por ancestralidade, por revert sintetizado, ou (quando o teste nasceu junto da correção, o caso do squash de PR) por enxerto do teste sobre o commit anterior. Falha de build na base não conta como Red, e o que o motor não consegue observar vira `not-possible` em vez de virar um veredito confiante.
 - **PoC notação MDL 2.0** ([mdlmodel.com](https://mdlmodel.com)) gerada a partir do code graph.
 
 ## 🚀 Quickstart
 
-Publicado no npm: **[`forge-harness`](https://www.npmjs.com/package/forge-harness)** — instale com um comando, sem clonar nada:
+Publicado no npm: **[`forge-harness`](https://www.npmjs.com/package/forge-harness)**, instale com um comando, sem clonar nada:
 
 ```bash
 # no diretório do seu projeto (greenfield ou existente) — interativo, zero-install
@@ -81,34 +58,22 @@ cd /caminho/do/seu-projeto
 bash .forge/scripts/doctor.sh        # detecta a stack + diagnostica o ambiente
 ```
 
-O `init` cria `.forge/` (fonte única) + `AGENTS.md` + `CLAUDE.md` (symlink) + os adapters do(s)
-agente(s) ativo(s). Por padrão instala apenas o adapter **claude**; adicione outros depois com
-`bash .forge/scripts/sync-adapters.sh --set claude,codex,cursor`. Zero dependências de runtime — o
-`npx` baixa o pacote (o template viaja dentro dele), roda uma vez e sai; nada de `node_modules` no
-seu projeto.
+O `init` cria `.forge/` (fonte única) + `AGENTS.md` + `CLAUDE.md` (symlink) + os adapters do(s) agente(s) ativo(s). Por padrão instala apenas o adapter **claude**; adicione outros depois com `bash .forge/scripts/sync-adapters.sh --set claude,codex,cursor`. Zero dependências de runtime: o `npx` baixa o pacote (o template viaja dentro dele), roda uma vez e sai; nada de `node_modules` no seu projeto.
 
 ### ⬆️ Atualizar o harness (`update`)
 
-Quando sair uma versão nova, **não** use `init --force` (ele move o `.forge/` inteiro para backup e
-reinstala do zero). Use o **update cirúrgico**, que faz overlay aditivo da maquinaria
-(commands/agents/contracts/hooks/scripts/schemas/rules/templates) **preservando** suas `specs/`, o baseline
-`product/current/` e a config do `forge.yaml`:
+Quando sair uma versão nova, **não** use `init --force` (ele move o `.forge/` inteiro para backup e reinstala do zero). Use o **update cirúrgico**, que faz overlay aditivo da maquinaria (commands/agents/contracts/hooks/scripts/schemas/rules/templates) **preservando** suas `specs/`, o baseline `product/current/` e a config do `forge.yaml`:
 
 ```bash
 npx forge-harness@latest update --dry-run   # mostra o que mudaria
 npx forge-harness@latest update             # aplica (backup em .git/forge-backups/; --no-backup para pular)
 ```
 
-Dentro do Claude Code, o mesmo via `/forge:upgrade`. Órfãos (arquivos que o template removeu entre
-versões) não são deletados; customize rules em `custom/rules/**`, nunca editando `rules/*` in-place.
+Dentro do Claude Code, o mesmo via `/forge:upgrade`. Órfãos (arquivos que o template removeu entre versões) não são deletados; customize rules em `custom/rules/**`, nunca editando `rules/*` in-place.
 
 ### 🔌 Slash commands `/forge:*` (plugin do Claude Code)
 
-O `.forge/` por projeto traz o **engine**; os **slash commands** `/forge:*` são entregues por um
-**plugin** do Claude Code — porque o Claude Code (≥ 2.x) reserva o namespace `:` para plugins
-(comandos soltos em `.claude/commands/` viram só `/<nome>`, sem o prefixo `forge:`). **O `init` já
-auto-instala o plugin** (global, vale para todos os seus projetos) quando o adapter claude está ativo;
-depois é só `/reload-plugins` (ou nova sessão) e os 57 comandos `/forge:*` aparecem.
+O `.forge/` por projeto traz o **engine**; os **slash commands** `/forge:*` são entregues por um **plugin** do Claude Code, porque o Claude Code (≥ 2.x) reserva o namespace `:` para plugins (comandos soltos em `.claude/commands/` viram só `/<nome>`, sem o prefixo `forge:`). **O `init` já auto-instala o plugin** (global, vale para todos os seus projetos) quando o adapter claude está ativo; depois é só `/reload-plugins` (ou nova sessão) e os 57 comandos `/forge:*` aparecem.
 
 Para (re)instalar/atualizar o plugin manualmente, há duas vias:
 
@@ -121,11 +86,7 @@ npx forge-harness@latest install-plugin
 /plugin install forge@forge-harness
 ```
 
-Pule a auto-instalação com `init --no-plugin`. Para projetos com comandos custom, regenere o plugin a
-partir do `.forge/` local com `/forge:build-plugin`. Se o plugin ficar desabilitado/ausente
-silenciosamente (sintoma clássico: colar o corpo dos comandos como texto porque `/forge:*` some),
-`bash .forge/scripts/doctor.sh` detecta isso (best-effort, quando a CLI `claude` está disponível) e
-sugere `npx forge-harness install-plugin`.
+Pule a auto-instalação com `init --no-plugin`. Para projetos com comandos custom, regenere o plugin a partir do `.forge/` local com `/forge:build-plugin`. Se o plugin ficar desabilitado/ausente silenciosamente (sintoma clássico: colar o corpo dos comandos como texto porque `/forge:*` some), `bash .forge/scripts/doctor.sh` detecta isso (best-effort, quando a CLI `claude` está disponível) e sugere `npx forge-harness install-plugin`.
 
 <details>
 <summary>Alternativa: instalação por clone (offline / sem npm)</summary>
@@ -136,18 +97,13 @@ forge-harness/installer/install.sh --target /caminho/do/seu-projeto \
   --name "Seu Projeto" --slug seu-projeto --desc "Descrição em 1 linha"
 ```
 
-O `installer/install.sh` (bash) é o mesmo fluxo do `init`, útil sem Node/npm no PATH ou em ambiente
-totalmente offline. O `bin/forge.mjs` (usado pelo `npx`) é a porta cross-platform desse script.
+O `installer/install.sh` (bash) é o mesmo fluxo do `init`, útil sem Node/npm no PATH ou em ambiente totalmente offline. O `bin/forge.mjs` (usado pelo `npx`) é a porta cross-platform desse script.
 </details>
 
 <details>
 <summary>Por que o subsistema se chama <code>liaison</code></summary>
 
-Do francês *lier* (ligar), estabelecido no vocabulário organizacional como **canal formal de
-comunicação entre grupos que permanecem autônomos** — um *liaison officer* faz a ponte sem que
-nenhum dos lados se subordine ao outro. É exatamente o que o subsistema é: dois ou mais
-repositórios que colaboram por contrato, mas cada um com seu próprio ciclo, seu ledger e sua
-autoridade sobre o próprio código.
+Do francês *lier* (ligar), estabelecido no vocabulário organizacional como **canal formal de comunicação entre grupos que permanecem autônomos**: um *liaison officer* faz a ponte sem que nenhum dos lados se subordine ao outro. É exatamente o que o subsistema é: dois ou mais repositórios que colaboram por contrato, mas cada um com seu próprio ciclo, seu ledger e sua autoridade sobre o próprio código.
 
 O nome foi escolhido por eliminação dos vizinhos, que descreviam mal:
 
@@ -156,12 +112,9 @@ O nome foi escolhido por eliminação dos vizinhos, que descreviam mal:
 | *chat* | sugere conversa efêmera; aqui cada mensagem é um fato de contrato que se cita num ADR meses depois |
 | *queue* | pressupõe produtor e consumidor com papéis fixos; no canal todos escrevem e todos leem |
 | *RPC* / *call* | pressupõe chamada síncrona e resposta imediata; o fluxo normal é assíncrono e sobrevive à sessão |
-| *sync* | descreve o transporte, não o conteúdo — e o subsistema é sobre **o que** atravessa a fronteira, não sobre como os bytes viajam |
+| *sync* | descreve o transporte, não o conteúdo, e o subsistema é sobre **o que** atravessa a fronteira, não sobre como os bytes viajam |
 
-**O custo assumido, dito abertamente:** é a única palavra estrangeira não-técnica na superfície de
-comandos (`spec`, `graph`, `verify`, `archive`, `ledger` são transparentes para quem lê português),
-e escreve-se de um jeito que se erra com facilidade. A precisão do termo foi considerada mais
-valiosa que a familiaridade — decisão consciente, não descuido.
+**O custo assumido, dito abertamente:** é a única palavra estrangeira não-técnica na superfície de comandos (`spec`, `graph`, `verify`, `archive`, `ledger` são transparentes para quem lê português), e escreve-se de um jeito que se erra com facilidade. A precisão do termo foi considerada mais valiosa que a familiaridade: decisão consciente, não descuido.
 
 </details>
 
@@ -172,32 +125,13 @@ spec new ─▶ clarify ─▶ requirements ─▶ design ─▶ tasks ─▶ im
               (HITL)        (loop)       (loop)             (story a story)        (baseline)
 ```
 
-Cada transição é registrada por scripts deterministas; os gates humanos (`approve`/`review`/`reject`/
-`block`) ficam em `approvals.yaml`. Em `scale` baixo, fases são puláveis (Quick Plan) com justificativa.
+Cada transição é registrada por scripts deterministas; os gates humanos (`approve`/`review`/`reject`/`block`) ficam em `approvals.yaml`. Em `scale` baixo, fases são puláveis (Quick Plan) com justificativa.
 
-> 📖 **Relação completa dos 56 slash commands** (`/forge:*`), por grupo e com argumentos:
-> [`docs/refer/slash-commands.md`](./docs/refer/slash-commands.md). Os comandos são
-> entregues por um **plugin** do Claude Code — gere/instale com `/forge:build-plugin`
-> (ou `bash .forge/scripts/build-plugin.sh`).
+> 📖 **Relação completa dos 57 slash commands** (`/forge:*`), por grupo e com argumentos: [`docs/refer/slash-commands.md`](./docs/refer/slash-commands.md). Os comandos são entregues por um **plugin** do Claude Code, gere/instale com `/forge:build-plugin` (ou `bash .forge/scripts/build-plugin.sh`).
 >
-> Comandos novos endereçam fricção recorrente de sessão: **`/forge:ship`** (commit → PR →
-> revisão → merge em `develop` → cleanup num único comando — o comando em si é o gate humano),
-> **`/forge:resume`** (emite o mandato de retomada da sessão: estado do change ativo + regras
-> operacionais fixas, sem reescrevê-las à mão) e **`/forge:handoff`** (gera `.forge/HANDOFF.md`,
-> um handoff **portátil e agente-agnóstico** — Codex, Cursor, Gemini — com núcleo determinístico
-> via script e só um delta narrativo curto escrito pelo modelo; o `/forge:resume` já ingere esse
-> delta quando existe. Automação é opt-in via `handoff.auto` no `forge.yaml`, que liga hooks
-> SessionStart/SessionEnd no adapter Claude).
+> Comandos novos endereçam fricção recorrente de sessão: **`/forge:ship`** (commit → PR → revisão → merge em `develop` → cleanup num único comando; o comando em si é o gate humano), **`/forge:resume`** (emite o mandato de retomada da sessão: estado do change ativo + regras operacionais fixas, sem reescrevê-las à mão) e **`/forge:handoff`** (gera `.forge/HANDOFF.md`, um handoff **portátil e agente-agnóstico**, Codex, Cursor, Gemini, com núcleo determinístico via script e só um delta narrativo curto escrito pelo modelo; o `/forge:resume` já ingere esse delta quando existe. Automação é opt-in via `handoff.auto` no `forge.yaml`, que liga hooks SessionStart/SessionEnd no adapter Claude).
 >
-> **`/forge:ledger`** mantém o **ledger durável de projeto** (`.forge/ledger/LEDGER.md`) — roadmap,
-> dívida técnica, bugs conhecidos, follow-ups e ideias que **sobrevivem entre changes**, num store
-> estruturado e **não-bloqueante**. Alimentado por captura automática (o `close`/`archive` colhem
-> deferrals e findings antes de a pasta do change sumir — nada se perde mesmo sem pedir) e por
-> curadoria manual. `/forge:resume`/`/forge:status` o consultam ao sugerir o próximo trabalho
-> (`rules/conventions/ledger-consultation.md`); surfacing opt-in via `ledger.auto` no `forge.yaml`.
-> Ciclo fechado: `/forge:spec new --from-ledger LDG-NNNN` promove o item e grava o elo no manifest —
-> o archive então dá baixa (`resolved`) e o close por abandono o reabre (`open`), sem depender de
-> memória.
+> **`/forge:ledger`** mantém o **ledger durável de projeto** (`.forge/ledger/LEDGER.md`): roadmap, dívida técnica, bugs conhecidos, follow-ups e ideias que **sobrevivem entre changes**, num store estruturado e **não-bloqueante**. Alimentado por captura automática (o `close`/`archive` colhem deferrals e findings antes de a pasta do change sumir; nada se perde mesmo sem pedir) e por curadoria manual. `/forge:resume`/`/forge:status` o consultam ao sugerir o próximo trabalho (`rules/conventions/ledger-consultation.md`); surfacing opt-in via `ledger.auto` no `forge.yaml`. Ciclo fechado: `/forge:spec new --from-ledger LDG-NNNN` promove o item e grava o elo no manifest; o archive então dá baixa (`resolved`) e o close por abandono o reabre (`open`), sem depender de memória.
 
 ## 🕸️ Code graph & arquitetura
 
@@ -210,9 +144,7 @@ bash .forge/scripts/c4.sh                           # diagramas C4 (.md Mermaid)
 bash .forge/scripts/graph.sh mdl                    # PoC: diagramas na notação MDL 2.0
 ```
 
-Engine nativo (sem tree-sitter, sem deps): nós = arquivos (com camada inferida), arestas = imports/
-referências resolvidas. Para módulos grandes, os diagramas **agregam por submódulo** (renderável e
-completo, sem virar *hairball*).
+Engine nativo (sem tree-sitter, sem deps): nós = arquivos (com camada inferida), arestas = imports/referências resolvidas. Para módulos grandes, os diagramas **agregam por submódulo** (renderável e completo, sem virar *hairball*).
 
 ## 🔎 Busca unificada sobre o conhecimento (`/forge:kb`)
 
@@ -241,8 +173,7 @@ Gerado com [Archify](https://github.com/tt-a1i/archify).
 
 `claude` · `codex` · `gemini` · `qwen` · `cursor` · `kiro` · `forge-cli` · `agents-skills`
 
-`AGENTS.md` (raiz) é a interface canônica; `CLAUDE.md`/`QWEN.md`/`GEMINI.md` são projeções (symlink).
-Trocar/adicionar um agente reconcilia o workspace (gera os ausentes, poda os removidos) sem perda.
+`AGENTS.md` (raiz) é a interface canônica; `CLAUDE.md`/`QWEN.md`/`GEMINI.md` são projeções (symlink). Trocar/adicionar um agente reconcilia o workspace (gera os ausentes, poda os removidos) sem perda.
 
 ## 📁 Estrutura
 
@@ -270,41 +201,29 @@ snapshot/               # snapshot congelado do adapter Claude (contrato de comp
 bash tests/run-all.sh          # roda os gates + suítes bats; saída agregada
 ```
 
-Cada wave de desenvolvimento entrega seu gate junto (shift-left). O contrato do adapter Claude
-(`tests/snapshot/claude-contract.bats`) garante compatibilidade do início (snapshot) ao fim.
+Cada wave de desenvolvimento entrega seu gate junto (shift-left). O contrato do adapter Claude (`tests/snapshot/claude-contract.bats`) garante compatibilidade do início (snapshot) ao fim.
 
-Os scripts que gravam estado durável — `ledger-ops.sh`, `deferral-ops.sh` e `liaison-ops.sh` — recusam três formas de escrita silenciosa: valor vazio, flag desconhecida e flag engolida como valor de outra flag. A terceira era a mais difícil de ver, porque produzia `rc 0` com mensagem de sucesso: `ledger-ops.sh update LDG-0001 --detail --title` gravava `detail = "--title"`. A guarda recusa quando o valor é membro do conjunto de flags daquele subcomando, por token exato — `--top -3` e `--detail '---frontmatter'` continuam válidos.
+Os scripts que gravam estado durável, `ledger-ops.sh`, `deferral-ops.sh` e `liaison-ops.sh`, recusam três formas de escrita silenciosa: valor vazio, flag desconhecida e flag engolida como valor de outra flag. A terceira era a mais difícil de ver, porque produzia `rc 0` com mensagem de sucesso: `ledger-ops.sh update LDG-0001 --detail --title` gravava `detail = "--title"`. A guarda recusa quando o valor é membro do conjunto de flags daquele subcomando, por token exato: `--top -3` e `--detail '---frontmatter'` continuam válidos.
 
 ## 🗺️ Status & roadmap
 
-`v0.1.0-rc17` — MVP1–MVP5 completos + consolidação (Fase 8) + code graph + entrega dos `/forge:*` via
-plugin do Claude Code + workflow-hardening + `/forge:handoff` portátil e gate de docs no pre-push +
-**ledger durável de projeto** (`/forge:ledger`, com captura automática de findings no close/archive).
-Ver [CHANGELOG](./CHANGELOG.md).
+O núcleo SDD (ciclo completo spec→archive, baseline/archive, code graph, eval harness opt-in, ledger durável, canal liaison entre repositórios, entrega dos `/forge:*` via plugin do Claude Code) está completo e em hardening contínuo desde o piloto real em Claude Code (contrato C10). O [CHANGELOG](./CHANGELOG.md) é o registro vivo de cada rodada; a versão publicada no npm segue o badge no topo deste README.
 
 - [x] Núcleo canônico, multi-adapter, ciclo SDD, validadores
 - [x] Baseline/archive, code graph + insights de arquitetura, eval harness opt-in
 - [x] `/init-project` global delegando ao Forge
-- [x] Slash commands `/forge:*` via **plugin** (npx + marketplace git); adapter claude deixa de
-  projetar `.claude/commands/` (contrato C1 v1.3)
-- [ ] Teste manual em Claude Code real (contrato C10) → **v0.1.0**
+- [x] Slash commands `/forge:*` via **plugin** (npx + marketplace git); adapter claude deixa de projetar `.claude/commands/` (contrato C1 v1.3)
+- [x] Teste manual em Claude Code real (contrato C10)
 - [ ] Renderer MDL nativo (PoC atual aproxima via Mermaid)
 
 ## 🤝 Contribuindo
 
-1. **Branch a partir de `develop`** (`feature/<wave>`); todo PR mira **`develop`** (branch padrão e de
-   integração). `main` é a branch estável/de release. Todo trabalho entra com **gate verde**.
+1. **Branch a partir de `develop`** (`feature/<wave>`); todo PR mira **`develop`** (branch padrão e de integração). `main` é a branch estável/de release. Todo trabalho entra com **gate verde**.
 2. `bash tests/run-all.sh` deve passar 100% antes do merge.
 3. Convenções em `template/.forge/rules/`; documentos em **pt-BR**, identificadores em inglês.
 4. Sem co-autoria de IA em mensagens de commit/PR.
-5. Fluxo recomendado de fechamento: **`/forge:ship`** (commit → PR → revisão → merge → cleanup) em
-   vez de repetir o protocolo manualmente. Após um subagente cair no meio de uma onda, rode
-   `bash .forge/scripts/worktree-reconcile.sh` antes de redistribuir tasks — ele mostra o estado
-   real (branch/ahead-behind/status/último commit) de cada worktree.
-6. **Gate de pre-push exige README/CHANGELOG revisados em mudanças user-facing.** Push com commit
-   `feat`/`fix`/`perf` ou qualquer arquivo de código-fonte no diff é bloqueado (sem válvula de
-   escape) se `README.md` e `CHANGELOG.md` não estiverem no diff do push — mantém a documentação
-   sincronizada com o comportamento observável do harness.
+5. Fluxo recomendado de fechamento: **`/forge:ship`** (commit → PR → revisão → merge → cleanup) em vez de repetir o protocolo manualmente. Após um subagente cair no meio de uma onda, rode `bash .forge/scripts/worktree-reconcile.sh` antes de redistribuir tasks: ele mostra o estado real (branch/ahead-behind/status/último commit) de cada worktree.
+6. **Gate de pre-push exige README/CHANGELOG revisados em mudanças user-facing.** Push com commit `feat`/`fix`/`perf` ou qualquer arquivo de código-fonte no diff é bloqueado (sem válvula de escape) se `README.md` e `CHANGELOG.md` não estiverem no diff do push: mantém a documentação sincronizada com o comportamento observável do harness.
 
 ## 📄 Licença
 

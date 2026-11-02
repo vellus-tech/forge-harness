@@ -17,9 +17,10 @@
 // no log do liaison. `recordWon` é chamado pelo `claim` SÓ quando a claim de fato grava (verdict
 // 'won'); a claim recusada "sessão já titular com lease vigente" não grava nada no canal e
 // também não precisa tocar este cache (o holder já existe de quando a claim original venceu).
-import { existsSync, readFileSync, writeFileSync, renameSync, statSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, renameSync, statSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { withLocalLock } from './liaison-lock.mjs';
+import { foldBatons } from './liaison-baton.mjs';
 
 function filePath(root, channel) {
   return join(root, '.forge', 'cache', 'liaison-baton', channel, 'baton-local.json');
@@ -42,11 +43,15 @@ function writeState(path, state) {
   renameSync(tmp, path);
 }
 
+// Truncado ao SEGUNDO, nunca ao milissegundo: o gancho de renovação (design §2.8, TASK-26/27)
+// confere esta invalidação com `stat -f %m`/`stat -c %Y` em bash puro (sem node no caminho
+// rápido), que só devolve segundos inteiros em qualquer plataforma — gravar a precisão de
+// milissegundo do node faria a comparação nunca bater e o caminho rápido cair em frio sempre.
 function ownLogStat(chDir, self) {
   const p = join(chDir, 'log', `${self}.jsonl`);
   if (!existsSync(p)) return { size: 0, mtimeMs: 0 };
   const st = statSync(p);
-  return { size: st.size, mtimeMs: st.mtimeMs };
+  return { size: st.size, mtimeMs: Math.floor(st.mtimeMs / 1000) * 1000 };
 }
 
 // recordWon({root, channel, chDir, self, batonId, msgId, session, leaseSeconds, leaseUntil})
@@ -90,4 +95,45 @@ export function readBatonLocal(root, channel) {
 
 export function batonLocalPath(root, channel) {
   return filePath(root, channel);
+}
+
+// rebuildHolders({root, channel, chDir, self}) — cache FRIO (design §2.8, TASK-26/27): relê o
+// canal inteiro, roda a dobra e SUBSTITUI `holders` pelo que ela diz agora (nunca funde com o
+// que já estava — um bastão que este repositório deixou de deter, por perda tardia importada ou
+// por release/complete de outra réplica, não pode sobreviver no índice). `claims` nunca é
+// tocado aqui: é histórico de rc 0 passados, não estado corrente. Chamado pelo gancho de
+// renovação quando o tamanho/mtime do log próprio no cache não bate com o atual (invalidação),
+// ou quando o cache nem existe ainda (primeira chamada da sessão).
+export async function rebuildHolders({ root, channel, chDir, self }) {
+  if (!root || !channel || !chDir || !self) {
+    throw new Error('rebuildHolders: root/channel/chDir/self obrigatórios');
+  }
+  const logDir = join(chDir, 'log');
+  const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
+  const all = [];
+  for (const f of files) {
+    const text = readFileSync(join(logDir, f), 'utf8');
+    for (const line of text.split('\n')) {
+      const t = line.trim();
+      if (t) all.push(JSON.parse(t));
+    }
+  }
+  const { batons } = foldBatons(all);
+  return withLocalLock({ root, channel, self }, () => {
+    const path = filePath(root, channel);
+    const state = readState(path);
+    const holders = {};
+    const { size, mtimeMs } = ownLogStat(chDir, self);
+    for (const [batonId, b] of batons) {
+      if (b.state === 'held' && b.holder && b.holder.sender === self) {
+        const nextRenewAt = new Date(Date.parse(b.leaseUntil) - (b.leaseSeconds * 1000) / 2)
+          .toISOString()
+          .replace(/\.\d+Z$/, 'Z');
+        holders[batonId] = { session: b.holder.session, leaseUntil: b.leaseUntil, nextRenewAt, ownLogSize: size, ownLogMtimeMs: mtimeMs };
+      }
+    }
+    state.holders = holders;
+    writeState(path, state);
+    return state;
+  });
 }

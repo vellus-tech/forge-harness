@@ -1,0 +1,234 @@
+#!/usr/bin/env bash
+# Forge PostToolUse (opt-in via forge.yaml liaison.auto + liaison.baton.auto_renew, ausente vale
+# true) — renovação automática do bastão enquanto a sessão titular está ativa (REQ-12, design
+# §2.8). Dispara em toda ferramenta (matcher '.*'). NUNCA bloqueia: sai sempre rc 0.
+#
+# Caminho rápido (NFR-02, ≤150 ms p95): sem bastão detido por esta sessão, ou sem nenhum ainda na
+# hora de renovar, lê baton-local.json via jq/python3 (nunca `node`) e sai. Só cai no caminho
+# frio (roda a dobra via node e regrava o cache) quando o cache está ausente ou o tamanho/mtime
+# do log próprio mudou por fora (claim nova, renovação manual, reescrita) — ou quando de fato
+# renova (chama `liaison-ops.sh baton renew`, que já é node).
+set -u
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+_common="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+LIAISON_ROOT="$ROOT"
+case "$_common" in /*) LIAISON_ROOT="$(dirname "$_common")" ;; esac
+
+FORGE_YAML="$ROOT/.forge/forge.yaml"
+LIAISON_DIR="$LIAISON_ROOT/.forge/liaison"
+LIAISON_YAML="$LIAISON_DIR/liaison.yaml"
+OPS="$LIAISON_ROOT/.forge/scripts/liaison-ops.sh"
+
+# liaison.auto — mesma leitura de on-session-start.sh (awk puro, sem node).
+_yaml_auto() {
+  [ -f "$FORGE_YAML" ] || { echo ""; return; }
+  awk -v key="$1" '
+    $0 ~ "^"key":" { inblk=1; next }
+    inblk && /^[a-z_]+:/ { exit }
+    inblk && /^[ ]+auto:[ ]*(true|false)/ { sub(/^[ ]+auto:[ ]*/, ""); print; exit }
+  ' "$FORGE_YAML"
+}
+[ "$(_yaml_auto liaison)" = "true" ] || exit 0
+
+# liaison.baton.auto_renew — ausência VALE true (design §2.6); só 'false' explícito desliga.
+_baton_auto_renew_false() {
+  [ -f "$FORGE_YAML" ] || { echo "no"; return; }
+  awk '
+    $0 ~ /^liaison:/ { f=1; next }
+    f && $0 ~ /^[a-zA-Z]/ { f=0 }
+    f && $0 ~ /^[ ]+baton:/ { b=1; next }
+    f && b && $0 ~ /^[ ]{0,2}[a-zA-Z_]+:/ { b=0 }
+    f && b && $0 ~ /^[ ]+auto_renew:[ ]*false/ { print "yes"; exit }
+  ' "$FORGE_YAML"
+}
+[ "$(_baton_auto_renew_false)" = "yes" ] && exit 0
+
+[ -f "$OPS" ] || exit 0
+[ -f "$LIAISON_YAML" ] || exit 0
+
+input="$(cat)"
+session_id=""
+if command -v jq >/dev/null 2>&1; then
+  session_id="$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)"
+fi
+if [ -z "$session_id" ] && command -v python3 >/dev/null 2>&1; then
+  session_id="$(printf '%s' "$input" | python3 -c '
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    print(d.get("session_id") or "")
+except Exception:
+    print("")
+' 2>/dev/null)"
+fi
+[ -n "$session_id" ] || exit 0
+
+self="$(awk '/^self:/{f=1;next} f && /^[ ]+id:/{sub(/^[ ]+id:[ ]*/,"");print;exit}' "$LIAISON_YAML" 2>/dev/null)"
+[ -n "$self" ] || exit 0
+
+_stat_size() { stat -f %z "$1" 2>/dev/null || stat -c %s "$1" 2>/dev/null || echo 0; }
+_stat_mtime_ms() {
+  local s
+  s="$(stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null || echo 0)"
+  printf '%s000\n' "$s"
+}
+
+now_iso="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+_extract_holders() { # _extract_holders <cachefile> <session_id> -> linhas TSV: baton_id\tleaseUntil\tnextRenewAt\townLogSize\townLogMtimeMs
+  local cachefile="$1" sid="$2"
+  if command -v jq >/dev/null 2>&1; then
+    jq -r --arg sid "$sid" '
+      (.holders // {}) | to_entries[] | select(.value.session == $sid) |
+      [.key, .value.leaseUntil, .value.nextRenewAt, (.value.ownLogSize|tostring), (.value.ownLogMtimeMs|tostring)] | @tsv
+    ' "$cachefile" 2>/dev/null
+    return
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c '
+import sys, json
+try:
+    with open(sys.argv[1]) as f:
+        d = json.load(f)
+except Exception:
+    sys.exit(0)
+sid = sys.argv[2]
+for k, v in (d.get("holders") or {}).items():
+    if v.get("session") == sid:
+        print("\t".join([k, str(v.get("leaseUntil","")), str(v.get("nextRenewAt","")), str(v.get("ownLogSize","")), str(v.get("ownLogMtimeMs",""))]))
+' "$cachefile" "$sid" 2>/dev/null
+  fi
+}
+
+_rebuild_cold() { # _rebuild_cold <channel> <chdir> -- roda a dobra via node e regrava holders
+  local channel="$1" chdir="$2"
+  local libdir="$LIAISON_ROOT/.forge/scripts/lib"
+  node - "$LIAISON_ROOT" "$channel" "$chdir" "$self" "$libdir" <<'NODEEOF' >/dev/null 2>&1
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , root, channel, chDir, self, lib] = process.argv;
+  const { rebuildHolders } = await import(pathToFileURL(join(lib, 'liaison-baton-local.mjs')).href);
+  try { await rebuildHolders({ root, channel, chDir, self }); } catch { /* best-effort — nunca bloqueia o gancho */ }
+})();
+NODEEOF
+}
+
+_remove_holder_entry() { # _remove_holder_entry <channel> <baton_id> -- design §2.8: toda recusa
+  # de renew no modo IF_DUE (not-holder ou lease vencido) apaga SÓ a entrada deste bastão no
+  # cache, nunca o canal inteiro. Diferente de _rebuild_cold: a dobra ainda pode dizer que este
+  # repositório "detém" um bastão de lease vencido (REQ-06: titular com lease vencido continua
+  # titular até liberar/concluir/perder para outra claim) — um `_rebuild_cold` reconstruiria a
+  # MESMA entrada de volta. `removeHolder` tira a entrada do CACHE de qualquer forma, para o
+  # gancho parar de tentar renovar uma lease perdida a cada evento.
+  local channel="$1" baton_id="$2"
+  local libdir="$LIAISON_ROOT/.forge/scripts/lib"
+  node - "$LIAISON_ROOT" "$channel" "$self" "$baton_id" "$libdir" <<'NODEEOF' >/dev/null 2>&1
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , root, channel, self, batonId, lib] = process.argv;
+  const { removeHolder } = await import(pathToFileURL(join(lib, 'liaison-baton-local.mjs')).href);
+  try { await removeHolder({ root, channel, self, batonId }); } catch { /* best-effort */ }
+})();
+NODEEOF
+}
+
+_mark_warned_once() { # _mark_warned_once <channel> <chave> -> rc 0 se é a PRIMEIRA vez (deve avisar)
+  local channel="$1" chave="$2"
+  local warnfile="$LIAISON_ROOT/.forge/cache/liaison-baton/$channel/warned.json"
+  mkdir -p "$(dirname "$warnfile")" 2>/dev/null
+  if [ -f "$warnfile" ] && grep -qF "\"$chave\"" "$warnfile" 2>/dev/null; then
+    return 1
+  fi
+  node -e '
+const fs = require("fs");
+const path = process.argv[1], key = process.argv[2];
+let state = {};
+try { state = JSON.parse(fs.readFileSync(path, "utf8")); } catch {}
+state[key] = true;
+const tmp = path + ".tmp." + process.pid + "." + Date.now();
+fs.writeFileSync(tmp, JSON.stringify(state));
+fs.renameSync(tmp, path);
+' "$warnfile" "$chave" 2>/dev/null
+  return 0
+}
+
+_emit_context() { # _emit_context <texto>
+  node -e 'console.log(JSON.stringify({hookSpecificOutput:{hookEventName:"PostToolUse",additionalContext:process.argv[1]}}))' "$1" 2>/dev/null
+}
+
+for chdir in "$LIAISON_DIR"/*/; do
+  [ -d "$chdir/log" ] || continue
+  channel="$(basename "$chdir")"
+  cachefile="$LIAISON_ROOT/.forge/cache/liaison-baton/$channel/baton-local.json"
+
+  if [ ! -f "$cachefile" ]; then
+    _rebuild_cold "$channel" "$chdir"
+  fi
+  [ -f "$cachefile" ] || continue
+
+  while IFS=$'\t' read -r baton_id lease_until next_renew_at own_size own_mtime; do
+    [ -n "$baton_id" ] || continue
+    own_log="$chdir/log/$self.jsonl"
+    cur_size="$(_stat_size "$own_log")"
+    cur_mtime="$(_stat_mtime_ms "$own_log")"
+    if [ "$cur_size" != "$own_size" ] || [ "$cur_mtime" != "$own_mtime" ]; then
+      _rebuild_cold "$channel" "$chdir"
+      continue 2 # cache mudou -- próxima passada deste canal (loop externo não reitera; aceitável: próximo evento revalida)
+    fi
+    if [[ "$now_iso" < "$next_renew_at" ]]; then
+      continue
+    fi
+    # Configuração só é lida (e validada) AQUI — no caminho que de fato vai renovar (design
+    # §2.8: "lida só quando o gancho vai chamar node"). renew em si NUNCA lê liaison.baton
+    # (REQ-06: só offer/claim leem) — é o GANCHO quem recusa renovar com configuração inválida,
+    # sem tocar o cache, para não mascarar o erro regravando next_renew_at como se nada tivesse
+    # acontecido.
+    cfg_errors="$(node -e '
+const { join } = require("path");
+const { pathToFileURL } = require("url");
+(async () => {
+  const { readBatonConfig } = await import(pathToFileURL(join(process.argv[2], "liaison-baton.mjs")).href);
+  const cfg = readBatonConfig(process.argv[1]);
+  process.stdout.write(cfg.errors.join("; "));
+})();
+' "$FORGE_YAML" "$LIAISON_ROOT/.forge/scripts/lib" 2>/dev/null)"
+    if [ -n "$cfg_errors" ]; then
+      echo "[HOOK] on-post-tool-use: liaison.baton inválido ($cfg_errors) — não renova '$baton_id' em '$channel'" >&2
+      continue
+    fi
+    renew_out="$(FORGE_BATON_RENEW_IF_DUE=1 FORGE_LIAISON_LOCK_WAIT_MS=300 FORGE_ROOT="$LIAISON_ROOT" bash "$OPS" baton renew "$channel" "$baton_id" --session "$session_id" 2>&1)"
+    renew_rc=$?
+    if [ "$renew_rc" -eq 0 ]; then
+      sync_line="$(printf '%s\n' "$renew_out" | grep -E '^liaison-ops\.sh sync .* --push-only$' || true)"
+      if [ -n "$sync_line" ]; then
+        # Processo destacado (design §2.8): `set -m` DENTRO do bash -c desacoplado dá ao `sync`
+        # que ele lança um grupo de processos próprio (job control), para que `kill -TERM -$pgid`
+        # alcance o grupo inteiro (node, git, qualquer descendente) — sem timeout(1)/setsid(1),
+        # que não existem no macOS por padrão (NFR-01). `disown` tira o job desta shell depois de
+        # lançado, para que o fim do gancho nunca espere nem mate o destacado.
+        resultfile="$LIAISON_ROOT/.forge/cache/liaison-baton/$channel/publish-result-$$"
+        nohup bash -c '
+          set -m
+          FORGE_ROOT="$1" bash "$2" sync "$3" --push-only > "$4.out" 2>&1 &
+          child=$!
+          ( sleep 30; kill -TERM -"$child" 2>/dev/null; sleep 5; kill -KILL -"$child" 2>/dev/null ) &
+          wait "$child"
+        ' _ "$LIAISON_ROOT" "$OPS" "$channel" "$resultfile" >/dev/null 2>&1 &
+        disown 2>/dev/null || true
+      fi
+    else
+      # recusa no modo IF_DUE (not-holder ou lease vencido) -- apaga a entrada do cache e avisa
+      # uma vez por ocorrência (design §2.8).
+      _remove_holder_entry "$channel" "$baton_id"
+      key="lost:$channel:$baton_id"
+      if _mark_warned_once "$channel" "$key"; then
+        _emit_context "LIAISON baton: perdeu a titularidade de '$baton_id' no canal '$channel' (rode 'baton status $channel $baton_id' para ver quem detém agora)."
+      fi
+    fi
+  done < <(_extract_holders "$cachefile" "$session_id")
+done
+
+exit 0

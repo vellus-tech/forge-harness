@@ -46,8 +46,10 @@
   "license": "MIT",
   "devDependencies": {
     "@babel/parser": "^7.29.9",
+    "@huggingface/tokenizers": "0.2.0",
     "ajv": "^8.20.0",
     "eslint": "^10.9.1",
+    "onnxruntime-web": "1.31.1",
     "yaml": "^2.9.0"
   }
 }

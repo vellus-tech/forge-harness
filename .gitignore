@@ -40,3 +40,8 @@ tests/**/*.actual
 !.forge/evals/**/run-*/outputs/
 !.forge/evals/**/run-*/outputs/**
 .forge/evals/**/outputs/work/
+
+# Busca unificada (/forge:kb): índice, vetores e camada semântica instalada são derivados e locais.
+# O bloco gerenciado do installer/gitignore.patch já ignora este caminho nos consumidores; este
+# repositório é a fonte do bloco e não o aplica em si.
+.forge/kb/

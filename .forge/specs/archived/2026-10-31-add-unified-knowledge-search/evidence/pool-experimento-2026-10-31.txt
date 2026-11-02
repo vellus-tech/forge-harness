@@ -1,0 +1,12 @@
+== calibration.json (35)
+lexical            hit@1=0.457 hit@5=0.743 hit@10=0.771 MRR=0.571
+rr K10             hit@1=0.571 hit@5=0.857 hit@10=0.857 MRR=0.695
+rr K10+bm3+vec3    hit@1=0.600 hit@5=0.857 hit@10=0.857 MRR=0.710
+rr K10+bm3         hit@1=0.600 hit@5=0.857 hit@10=0.886 MRR=0.710
+rr K10+bm1         hit@1=0.600 hit@5=0.857 hit@10=0.886 MRR=0.710
+== holdout-2.json (30)
+lexical            hit@1=0.600 hit@5=0.967 hit@10=1.000 MRR=0.759
+rr K10             hit@1=0.700 hit@5=0.933 hit@10=0.933 MRR=0.809
+rr K10+bm3+vec3    hit@1=0.700 hit@5=1.000 hit@10=1.000 MRR=0.821
+rr K10+bm3         hit@1=0.700 hit@5=1.000 hit@10=1.000 MRR=0.821
+rr K10+bm1         hit@1=0.700 hit@5=0.967 hit@10=0.967 MRR=0.816

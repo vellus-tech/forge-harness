@@ -1,0 +1,10 @@
+TASK-01 red: rc=1 fail_line=yes (FAIL [1] kb-corpus.mjs ausente ou falhou) | green: rc=0 PASS w284-kb-corpus (9 casos)
+TASK-02 red: rc=1 fail_line=yes (FAIL [1] normalização incorreta) | green: rc=0 PASS w285-kb-lexical (7 casos)
+TASK-03 red: rc=1 fail_line=yes (FAIL [1] rrf incorreto) | green: rc=0 PASS w286-kb-fuse (7 casos)
+TASK-04 red: rc=1 fail_line=yes (FAIL [1] kb.sh build falhou ou não existe) | green: rc=0 PASS w287-kb-cli (10 casos)
+TASK-05 red: rc=1 fail_line=yes (FAIL [1] kb.sh eval falhou ou não existe) | green: rc=0 PASS w288-kb-offline-lexical (7 casos; bloqueio: permissoes interceptador)
+TASK-06 red: rc=1 fail_line=yes (FAIL [1] pins/devDependencies incoerentes) | green: rc=0 PASS w290-kb-pins (1 caso)
+TASK-07 red: rc=1 fail_line=yes (FAIL [1] mensagem sem npm: kb: erro: Cannot find module '/private/tmp/forge-w291.hkX4aT/ro) | green: rc=0 PASS w291-kb-install (7 casos)
+TASK-08 red: rc=1 fail_line=yes (FAIL [2] primeiro build: OK índice lexical: 4 documentos, 4 trechos (0.0s)) | green: rc=0 PASS w293-kb-offline-semantic (2 casos; bloqueio: permissoes interceptador)
+
+[exited with code 0]

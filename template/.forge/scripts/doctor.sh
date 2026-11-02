@@ -49,6 +49,15 @@ cd "$ROOT"
 # shellcheck disable=SC1091
 . "$SCRIPT_DIR/lib/scan-exclude.sh"
 
+# Resolução do checkout principal — UM sítio, lib/forge-root.sh (LDG-0014: duas implementações do
+# mesmo contrato divergindo em silêncio). Usado só pela linha informativa do /forge:kb, abaixo; o
+# doctor é diagnóstico (nunca load-bearing), então a ausência da lib não derruba o script — só faz
+# a linha do kb cair no fallback (raiz de estado = ROOT) mais abaixo.
+if [ -f "$SCRIPT_DIR/lib/forge-root.sh" ]; then
+  # shellcheck source=lib/forge-root.sh
+  . "$SCRIPT_DIR/lib/forge-root.sh"
+fi
+
 # ── helpers ────────────────────────────────────────────────────────────────
 if [ -t 1 ]; then GREEN=$'\033[32m'; RED=$'\033[31m'; YEL=$'\033[33m'; DIM=$'\033[2m'; RST=$'\033[0m'
 else GREEN=""; RED=""; YEL=""; DIM=""; RST=""; fi
@@ -405,6 +414,23 @@ EOF_CHG
       if [ "$stale" -gt 0 ]; then info "harness: grafo possivelmente desatualizado ($stale arquivo(s) grafado(s) mudaram — rode /forge:graph update)"
       else ok "harness: grafo de código atualizado"; fi
     fi
+  fi
+
+  # busca unificada (/forge:kb): informativo, NUNCA load-bearing. A camada semântica é opcional e a
+  # ausência dela é o default — por isso esta linha é sempre `info`. Só testa presença de arquivo:
+  # não executa node, não importa módulo da busca, não pode disparar instalação nem rede. O índice é
+  # por branch (ROOT); a instalação semântica mora na raiz de estado (FORGE_ROOT, ou o checkout
+  # principal pelo mesmo critério de lib/forge-root.sh).
+  if [ -f "$ROOT/.forge/scripts/kb.sh" ]; then
+    kb_state="$ROOT"
+    if [ -z "${FORGE_ROOT:-}" ] && command -v forge_main_root >/dev/null 2>&1; then
+      kb_main="$(forge_main_root 2>/dev/null || true)"
+      case "$kb_main" in /*) kb_state="$kb_main" ;; esac
+    fi
+    if [ -f "$ROOT/.forge/kb/index.json" ]; then kb_idx="índice construído"; else kb_idx="índice ainda não construído (kb.sh build)"; fi
+    if [ -f "$kb_state/.forge/kb/semantic/installed.json" ]; then kb_sem="camada semântica instalada (integridade: kb.sh semantic status)"
+    else kb_sem="camada semântica não instalada (opcional: kb.sh semantic install)"; fi
+    info "harness: busca unificada /forge:kb — $kb_idx; $kb_sem"
   fi
 
   # ledger advisory (§ ledger-consultation): informativo, NUNCA load-bearing. Resume o estado e

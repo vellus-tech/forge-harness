@@ -1,11 +1,11 @@
 {
   "schema": "graph/v0",
-  "generated_at": "2026-11-01T23:34:57.438Z",
+  "generated_at": "2026-11-02T02:49:14.407Z",
   "engine": "native",
   "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/ledger-evidence-aging",
   "stats": {
-    "nodes": 523,
-    "edges": 81,
+    "nodes": 549,
+    "edges": 90,
     "languages": [
       "csharp",
       "go",
@@ -16,23 +16,23 @@
       "shell",
       "ts"
     ],
-    "summaries_stale": 523,
+    "summaries_stale": 549,
     "census": {
       "csharp": 10,
       "go": 15,
       "java": 14,
-      "js": 115,
+      "js": 126,
       "kotlin": 6,
       "python": 21,
-      "shell": 313,
+      "shell": 328,
       "ts": 29
     },
     "layer_coverage": {
-      "classified": 327,
-      "unclassified": 196,
+      "classified": 345,
+      "unclassified": 204,
       "out_of_taxonomy": 0,
-      "denominator": 523,
-      "ratio": 0.6252
+      "denominator": 549,
+      "ratio": 0.6284
     }
   },
   "nodes": [
@@ -399,8 +399,8 @@
     {
       "id": "template/.forge/scripts/doctor.sh",
       "lang": "shell",
-      "loc": 1324,
-      "fingerprint": "51bf0e98107e789356841451b2df3d72b1a0873bdd55232a14a5c5fcc8d2000d",
+      "loc": 1350,
+      "fingerprint": "6699065b64e8ffb8e6f6767a870ccbddbfc43734bb43dc7d853bb1a726efe27d",
       "layer": "unknown",
       "summary": null
     },
@@ -489,6 +489,14 @@
       "lang": "shell",
       "loc": 35,
       "fingerprint": "bbfbcb648c4ad66e5d31592c30c7e603a85a0b97ca5957ddb153bea0b0da62a2",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/kb.sh",
+      "lang": "shell",
+      "loc": 37,
+      "fingerprint": "360f911cb3b3441ede9b89f4b0bc35e3c32706400e005480f03f94c1fb97d910",
       "layer": "unknown",
       "summary": null
     },
@@ -793,6 +801,62 @@
       "lang": "js",
       "loc": 152,
       "fingerprint": "61ba38b811af3f14b57286c18019c134ce22e610fae038eb009e90df9ff1f2d1",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/kb-cli.mjs",
+      "lang": "js",
+      "loc": 325,
+      "fingerprint": "caf8759a4932e71bfd6f2b7cad7ae75039fd64e891b60b39d35620b9e8ee8397",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/kb-corpus.mjs",
+      "lang": "js",
+      "loc": 169,
+      "fingerprint": "f13596998c0cc3c9cc7d0daea128acaa5e192b6dadec8c4927ef15b95ff4c5ad",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/kb-fuse.mjs",
+      "lang": "js",
+      "loc": 87,
+      "fingerprint": "c8ddd6195d859a938bc5645d80d677bf4940b4aa57a98e033bd99401b0bf3f6a",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/kb-install.mjs",
+      "lang": "js",
+      "loc": 100,
+      "fingerprint": "1a30621898509859dd832933d0faaff10af5184ba773354c3ea55ba2420c0a64",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/kb-integrity.mjs",
+      "lang": "js",
+      "loc": 78,
+      "fingerprint": "310ed968311301abe6f62b276f936a484fd42debbcdee58544451b536b09dfac",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/kb-lexical.mjs",
+      "lang": "js",
+      "loc": 166,
+      "fingerprint": "8192711e64a7fd9ce24cad7167dd739cbffaa255e91a6369bd230ad93bf3f0b0",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/kb-semantic.mjs",
+      "lang": "js",
+      "loc": 176,
+      "fingerprint": "71cbdae458e79de355db054655be9c38b37830d2e630bf2ee7c49843ed93eeb3",
       "layer": "unknown",
       "summary": null
     },
@@ -1183,8 +1247,8 @@
     {
       "id": "template/.forge/scripts/lib/untrusted-render.mjs",
       "lang": "js",
-      "loc": 36,
-      "fingerprint": "99ef78ac3092eafd984e43b236491374b06a46da152853597040d3b0269cbba4",
+      "loc": 43,
+      "fingerprint": "a3aa0d464dd19a56e3e3c60b8ee7d1715a53ac4dbab941cde8e025b278175642",
       "layer": "unknown",
       "summary": null
     },
@@ -1681,6 +1745,62 @@
       "lang": "go",
       "loc": 9,
       "fingerprint": "8d6e9c7e8a9dc684ee7d72b99c2e55b346557e31d0804e5b33ab6ffb936580d8",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/kb/fake-git.sh",
+      "lang": "shell",
+      "loc": 8,
+      "fingerprint": "0779f340a18caeb89d4dab78f6fd3054bc92ed89bd2f1b31927d97409e48e9bf",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/kb/fake-npm.sh",
+      "lang": "shell",
+      "loc": 18,
+      "fingerprint": "64773d6c77d03079511aa4a8a5f05bf0ed48c25173b8d34191d7d58ab60c6850",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/kb/make-semantic-fixture.mjs",
+      "lang": "js",
+      "loc": 70,
+      "fingerprint": "81b5a0f9da663ea9e229c30cc47b0e05c9b8e91f4bb4aaf62ae29766b9075dab",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/kb/net-canary.mjs",
+      "lang": "js",
+      "loc": 36,
+      "fingerprint": "b683bbd3031a808cca42951d30dbe359f6f713f9ec4b9374f420ae1fe6141d85",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/kb/no-network.cjs",
+      "lang": "js",
+      "loc": 34,
+      "fingerprint": "8a06fc08588fd6566a1aa8b6208ff0b702b1f652556de6d83053a8280074df1a",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/kb/semantic-env.sh",
+      "lang": "shell",
+      "loc": 38,
+      "fingerprint": "55507a0f965b9f24f28c3b6d15f2c8054c1b1f0fde359433d31dee2898de6b40",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/kb/serve.mjs",
+      "lang": "js",
+      "loc": 14,
+      "fingerprint": "ded4c3281db572bfd0afb76c0bef0acfc2347d512d7398cb63688ae0443400e7",
       "layer": "test",
       "summary": null
     },
@@ -3815,8 +3935,8 @@
     {
       "id": "tests/w292-native-hook-packaging-gate.sh",
       "lang": "shell",
-      "loc": 319,
-      "fingerprint": "e84866262960473c34c95706acaa498b3c28777068cf9c0a24267f3ca481a9b8",
+      "loc": 304,
+      "fingerprint": "913deb22850c0fd1b022b894996961020c15749ee48539f6e9b7ea86f735e595",
       "layer": "test",
       "summary": null
     },
@@ -3957,6 +4077,14 @@
       "summary": null
     },
     {
+      "id": "tests/w309-kb-corpus-gate.sh",
+      "lang": "shell",
+      "loc": 149,
+      "fingerprint": "3f47f6ec5e59b96cb36896403360f69471771e22432f9987f2233bbe5e394e8e",
+      "layer": "test",
+      "summary": null
+    },
+    {
       "id": "tests/w309-ledger-evidence-aging-gate.sh",
       "lang": "shell",
       "loc": 741,
@@ -3969,6 +4097,86 @@
       "lang": "shell",
       "loc": 8,
       "fingerprint": "fd4d13b4829cc8dce35ac51496e962cd3a1be638c9020e1624b39b59073f29f3",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w310-kb-lexical-gate.sh",
+      "lang": "shell",
+      "loc": 97,
+      "fingerprint": "ac1e279d356a52aec77981fd4793e1ddb42a53f40f251a6100eca56feec17975",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w311-kb-fuse-gate.sh",
+      "lang": "shell",
+      "loc": 116,
+      "fingerprint": "5eeb91dd44b316450907965c0203bac4f9158a980c4bd09853cf70479c3c1a3d",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w312-kb-cli-gate.sh",
+      "lang": "shell",
+      "loc": 148,
+      "fingerprint": "f97ecb85074d0d019b48390bb312b89f9f854fc3f90b604813e4dd0a567c0eb9",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w313-kb-offline-lexical-gate.sh",
+      "lang": "shell",
+      "loc": 121,
+      "fingerprint": "8bead232395432642281295d31e9f6180c87d07ed8c2389e7fe7a405aece905a",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w314-kb-eval-gate.sh",
+      "lang": "shell",
+      "loc": 56,
+      "fingerprint": "ea011d276889a92cfccb25061194b0925dc44805fc237320e7bd56a4223c6a55",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w315-kb-pins-gate.sh",
+      "lang": "shell",
+      "loc": 29,
+      "fingerprint": "03c036a865eee4292a265f192d2b6c801be8e6e3d94415c8d92cc3384ccbb754",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w316-kb-install-gate.sh",
+      "lang": "shell",
+      "loc": 104,
+      "fingerprint": "fd916aa149aad46c577c3362db2a7b48ac9ab4a76e7d4b5ad7801b90114c9453",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w317-kb-semantic-gate.sh",
+      "lang": "shell",
+      "loc": 157,
+      "fingerprint": "ec042cce709867375b3aaee7ed7320d3c276a814e550b0e51d59a3a5c44c82c6",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w318-kb-offline-semantic-gate.sh",
+      "lang": "shell",
+      "loc": 78,
+      "fingerprint": "aab7a11db5f3f1a3bfdc6a0901cced6861f9d6d9d76912441445967f9d43526d",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w319-kb-surface-gate.sh",
+      "lang": "shell",
+      "loc": 60,
+      "fingerprint": "ceda4bf489f5177a5245cef7ccc49c7ce7a4096c4e63e8027768823bcc0513ab",
       "layer": "test",
       "summary": null
     },
@@ -4429,6 +4637,60 @@
     {
       "from": "template/.forge/scripts/lib/impact-scan.mjs",
       "to": "template/.forge/scripts/lib/impact-freshness.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/kb-cli.mjs",
+      "to": "template/.forge/scripts/lib/kb-corpus.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/kb-cli.mjs",
+      "to": "template/.forge/scripts/lib/kb-fuse.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/kb-cli.mjs",
+      "to": "template/.forge/scripts/lib/kb-lexical.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/kb-cli.mjs",
+      "to": "template/.forge/scripts/lib/untrusted-render.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/kb-corpus.mjs",
+      "to": "template/.forge/scripts/lib/liaison-trust.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/kb-corpus.mjs",
+      "to": "template/.forge/scripts/lib/yaml-lite.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/kb-install.mjs",
+      "to": "template/.forge/scripts/lib/kb-integrity.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/kb-lexical.mjs",
+      "to": "template/.forge/scripts/lib/kb-corpus.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/kb-semantic.mjs",
+      "to": "template/.forge/scripts/lib/kb-integrity.mjs",
       "kind": "import",
       "resolved": true
     },

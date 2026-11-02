@@ -1,0 +1,31 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+const root = process.argv[2]; const lib = join(root, 'template/.forge/scripts/lib');
+const { bm25, entityMatch, toDocRanks, attachTexts } = await import(join(lib, 'kb-lexical.mjs'));
+const { rrf, propagateLinks, combineRerank, WEIGHTS } = await import(join(lib, 'kb-fuse.mjs'));
+const { loadSemantic } = await import(join(lib, 'kb-semantic.mjs'));
+const idx = attachTexts(JSON.parse(readFileSync(join(root, '.forge/kb/index.json'), 'utf8')), readFileSync(join(root, '.forge/kb/texts.bin')));
+const L = await loadSemantic(join(root, '.forge/kb/semantic'), join(lib, 'kb-pins'), join(root, '.forge/kb/vectors.bin'));
+const sem = L.semantic;
+const rk = (m) => new Map([...m].map(([d, o]) => [d, o.rank]));
+const cases = [['nenhum gate confronta a máquina de estados canônica do archive com o script de transição', 'ledger:LDG-0035'], ['guarda anti-recursão do gate da suíte estava morta por causa de pipelines com exclamação', 'ledger:LDG-0182']];
+for (const [q, gold] of cases) {
+  const b = toDocRanks(idx, bm25(idx, q)), e = toDocRanks(idx, entityMatch(idx, q));
+  const v = await sem.vectorSearch(idx, q);
+  const lexP = propagateLinks(rrf({ bm25: rk(b), entities: rk(e) }, WEIGHTS), idx.links).map((r) => r.doc);
+  const fused = rrf({ bm25: rk(b), entities: rk(e), vector: rk(v.ranks) }, WEIGHTS);
+  const prop = propagateLinks(fused, idx.links);
+  const order = prop.map((r) => r.doc);
+  const best = new Map([...b].map(([d, o]) => [d, o.chunk])); for (const [d, o] of v.ranks) if (!best.has(d)) best.set(d, o.chunk);
+  const sc = new Map(); for (const d of order.slice(0, 10)) sc.set(d, await sem.crossScore(q, idx.chunkText(sem.representative(idx, d, q, v.queryVector, best.get(d)))));
+  const fin = combineRerank(order, sc).map((r) => r.doc);
+  const gi = idx.chunks.findIndex((c) => c.doc === gold);
+  const gv = v.ranks.get(gold);
+  console.log(`\n### ${q}\n gold=${gold} chunks=${idx.chunks.filter(c=>c.doc===gold).length} textlen=${idx.chunkText(gi).length}`);
+  console.log(` bm25 rank=${b.get(gold)?.rank} score=${b.get(gold)?.score?.toFixed(2)} | entities=${e.get(gold)?.rank ?? '-'} | vetor rank=${gv?.rank} cos=${gv?.score?.toFixed(4)} (top1 cos=${[...v.ranks.values()][0].score.toFixed(4)}, #20 cos=${[...v.ranks.values()][19].score.toFixed(4)})`);
+  console.log(` lexical final=${lexP.indexOf(gold)+1} | fundido(bm25+ent+vetor)=${fused.findIndex(r=>r.doc===gold)+1} | propagado=${order.indexOf(gold)+1} | no top10 do re-rank? ${order.slice(0,10).includes(gold)} | final=${fin.indexOf(gold)+1}`);
+  const g = fused.find(r=>r.doc===gold); console.log(' contribuições gold:', JSON.stringify(g.channels));
+  console.log(' top5 vetor:', [...v.ranks.entries()].slice(0,5).map(([d,o])=>`${d}(${o.score.toFixed(3)})`).join(' | '));
+  console.log(' top5 fundido:', fused.slice(0,5).map(r=>`${r.doc}[bm25#${r.channels.bm25?.rank??'-'} vet#${r.channels.vector?.rank??'-'}]`).join(' | '));
+  console.log(' gold texto:', idx.chunkText(gi).slice(0,300).replace(/\n/g,' '));
+}

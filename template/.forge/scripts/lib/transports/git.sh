@@ -152,15 +152,28 @@ t_push() {
     _dir_push_blobs "$hub" "$src"
     _liaison_test_barrier after-blobs
 
-    local verdict cls_rc=0
+    local verdict cls_rc=0 did_union=1
+    local hubf="$hub/log/$LIAISON_SELF.jsonl"
     verdict="$(_dir_push_classify "$hub" "$snap")" || cls_rc=$?
     case "$cls_rc" in
       0) : ;;
       1) repairs=$((repairs + 1)) ;;
       2)
         if [ "${LIAISON_PUSH_REPAIR:-0}" = "1" ]; then
+          # Reparo DECLARADO (LGC-003): mesmo desfecho do caso 2 de `_dir_push` — o log desta
+          # árvore substitui o da branch, em vez de cair na união (que recusa a bifurcação e
+          # instruiria o operador a trazer a versão do hub, o oposto do que ele declarou). O
+          # commit segue sem force: se a branch andar no meio, o laço de recusa não-ff refaz a
+          # tentativa inteira, com nova classificação.
           echo "WARN: reparo do log próprio (--repair-own-log) — a branch diverge desta árvore em posição(ões) que ela também tem:" >&2
           echo "     ${verdict#diverged}" >&2
+          echo "      A versão da BRANCH nessas posições será DESCARTADA e substituída pela desta árvore." >&2
+          echo "      Você está afirmando que este log é a autoridade sobre '$LIAISON_SELF'. Se a" >&2
+          echo "      divergência vier de outra réplica sua que publicou mensagem distinta no mesmo" >&2
+          echo "      seq, ela se perde aqui." >&2
+          cp "$snap" "$hubf"
+          repairs=$((repairs + 1))
+          did_union=0
         else
           echo "FAIL: push RECUSADO — DIVERGÊNCIA entre a branch $branch e esta árvore em posição(ões) que ela também tem: ${verdict#diverged}" >&2
           rm -f "$snap"; rm -rf "$run_dir"
@@ -176,12 +189,13 @@ t_push() {
 
     local libdir; libdir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
     local unionmod="$libdir/liaison-push-union.mjs"
-    local hubf="$hub/log/$LIAISON_SELF.jsonl"
-    if ! node "$unionmod" "$snap" "$hubf" "$hubf.tmp" "$LIAISON_SELF"; then
-      rm -f "$snap" "$hubf.tmp"; rm -rf "$run_dir"
-      return 1
+    if [ "$did_union" -eq 1 ]; then
+      if ! node "$unionmod" "$snap" "$hubf" "$hubf.tmp" "$LIAISON_SELF"; then
+        rm -f "$snap" "$hubf.tmp"; rm -rf "$run_dir"
+        return 1
+      fi
+      mv "$hubf.tmp" "$hubf"
     fi
-    mv "$hubf.tmp" "$hubf"
     _liaison_test_barrier after-union
     rm -f "$snap"
 

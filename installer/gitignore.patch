@@ -8,6 +8,8 @@
 .forge/graph/cache/fingerprints.json
 .forge/graph/symbols.json
 .forge/graph/module-deps.json
+# busca unificada (/forge:kb): índice, vetores e camada semântica instalada são derivados e locais.
+.forge/kb/
 # backups do próprio `forge update` (.forge.bak-N): artefato de rollback, nunca fonte —
 # versioná-los duplica a maquinaria inteira dentro do commit que deveria substituí-la.
 .forge.bak-*/

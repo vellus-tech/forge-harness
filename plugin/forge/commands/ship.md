@@ -68,6 +68,16 @@ Argumentos: nenhum.
    escopo, registre um deferral (`/forge:defer`) em vez de ignorar silenciosamente.
 10. Se corrigiu algo no passo 9, commit adicional + `git push` (atualiza o PR automaticamente) e volte ao passo 7.
 
+## Mudanças de contenção da mensageria nativa (REQ-12, design §2.7)
+
+10b. **Antes da decisão de merge**, rode `bash .forge/scripts/liaison-ops.sh native containment
+    --range develop..HEAD --format markdown`. Se a saída não for vazia, inclua-a como seção
+    `## Mudanças de contenção` no corpo do PR (ou atualize o PR já aberto). **Qualquer achado, ou
+    rc 2 (detector indisponível), faz o merge cair para confirmação humana explícita — mesmo em
+    modo `--yolo`.** Não é uma recusa do comando: é a decisão de merge que deixa de ser
+    autônoma. Sem achado e rc 0 ("nenhuma mudança de contenção detectada"), o merge segue o fluxo
+    normal do passo 11 (humano em modo padrão, `yolo-gate` em `--yolo`).
+
 ## Merge + cleanup
 
 11. Após revisão limpa, confirme com o usuário em uma linha (a menos que ele já tenha
@@ -116,4 +126,4 @@ revisão corrigidos (se houver), e confirmação de que `develop` está atualiza
 
 ## Modo autônomo (--yolo)
 
-`--yolo` (ou `autonomy.mode: yolo`) delega a decisão de revisão/merge ao agent `yolo-gate` (Opus, effort high), que analisa o diff e decide seguir ou segurar. `ship` **não** é um gate de lifecycle de spec (não há entrada em `approvals.yaml` para ele) — a decisão autônoma é o próprio prosseguir com o merge, não um registro em approvals. Merge para `develop` **é** yolo-able (integração contínua de baixo custo). **`promote_staging` e `deploy_prd` são `irreversible_hard_stops`** — permanecem humanos mesmo em yolo. Achados de revisão ainda precisam ser corrigidos/deferidos antes do merge (yolo não faz merge com finding aberto). Ver `.forge/rules/conventions/autonomy-yolo.md`.
+`--yolo` (ou `autonomy.mode: yolo`) delega a decisão de revisão/merge ao agent `yolo-gate` (Opus, effort high), que analisa o diff e decide seguir ou segurar. `ship` **não** é um gate de lifecycle de spec (não há entrada em `approvals.yaml` para ele) — a decisão autônoma é o próprio prosseguir com o merge, não um registro em approvals. Merge para `develop` **é** yolo-able (integração contínua de baixo custo). **`promote_staging` e `deploy_prd` são `irreversible_hard_stops`** — permanecem humanos mesmo em yolo. Achados de revisão ainda precisam ser corrigidos/deferidos antes do merge (yolo não faz merge com finding aberto). **Merge com mudança de contenção da mensageria nativa (passo 10b) cai para confirmação humana mesmo em yolo** — o `yolo-gate` decide `block` com o motivo "mudança de contenção exige humano" em vez de aprovar o merge sozinho. Ver `.forge/rules/conventions/autonomy-yolo.md`.

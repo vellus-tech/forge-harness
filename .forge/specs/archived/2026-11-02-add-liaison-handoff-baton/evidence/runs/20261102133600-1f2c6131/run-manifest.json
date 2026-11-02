@@ -1,0 +1,109 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20261102133600-1f2c6131",
+  "stage": "archive",
+  "status": "passed",
+  "started_at": "2026-11-02T13:35:59Z",
+  "finished_at": "2026-11-02T13:36:00.697Z",
+  "duration_ms": 1697,
+  "git": {
+    "repo": true,
+    "branch": "feat/harness/liaison-handoff-baton",
+    "head_sha": "cab59f90cf4a4e4e63f4e81c9802e9128583bf48",
+    "dirty": true,
+    "changed_files": [
+      ".forge/ledger/LEDGER.md",
+      ".forge/ledger/ledger.json",
+      ".forge/product/current/CHANGELOG.md",
+      ".forge/product/current/capabilities/forge-harness-template/spec.yaml",
+      ".forge/specs/active/add-liaison-handoff-baton/approvals.yaml",
+      ".forge/specs/active/add-liaison-handoff-baton/design.md",
+      ".forge/specs/active/add-liaison-handoff-baton/evidence/NFR-02-measurement-report.md",
+      ".forge/specs/active/add-liaison-handoff-baton/evidence/runs/20261102120629-ea47b4da/run-manifest.json",
+      ".forge/specs/active/add-liaison-handoff-baton/impact.json",
+      ".forge/specs/active/add-liaison-handoff-baton/manifest.yaml",
+      ".forge/specs/active/add-liaison-handoff-baton/proposal.md",
+      ".forge/specs/active/add-liaison-handoff-baton/requirements.md",
+      ".forge/specs/active/add-liaison-handoff-baton/spec-delta.yaml",
+      ".forge/specs/active/add-liaison-handoff-baton/tasks.md",
+      ".forge/specs/active/add-liaison-handoff-baton/verification.md",
+      ".forge/specs/active/add-liaison-handoff-baton/verification.yaml",
+      ".forge/specs/archived/2026-11-02-add-liaison-handoff-baton/",
+      ".forge/specs/archived/index.yaml"
+    ],
+    "diff_stat": ".forge/ledger/LEDGER.md                            |   6 +-\n .forge/ledger/ledger.json                          | 104 +++\n .forge/product/current/CHANGELOG.md                |   6 +\n .../capabilities/forge-harness-template/spec.yaml  | 267 +++++-\n .../add-liaison-handoff-baton/approvals.yaml       |  96 --\n .../active/add-liaison-handoff-baton/design.md     | 297 -------\n .../evidence/NFR-02-measurement-report.md          |  65 --\n .../runs/20261102120629-ea47b4da/run-manifest.json |  76 --\n .../active/add-liaison-handoff-baton/impact.json   | 969 ---------------------\n .../active/add-liaison-handoff-baton/manifest.yaml |  50 --\n .../active/add-liaison-handoff-baton/proposal.md   |  51 --\n .../add-liaison-handoff-baton/requirements.md      | 270 ------\n .../add-liaison-handoff-baton/spec-delta.yaml      | 315 -------\n .../active/add-liaison-handoff-baton/tasks.md      | 194 -----\n .../add-liaison-handoff-baton/verification.md      |  52 --\n .../add-liaison-handoff-baton/verification.yaml    |   9 -\n .forge/specs/archived/index.yaml                   |   4 +\n 17 files changed, 363 insertions(+), 2468 deletions(-)",
+    "diff_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "3ca65bb8f9642ef36d57bf131a4e2978950a491cfa8caefaf5aa1f606326132a",
+      "bytes": 1623,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "f59fd246b30267725372aee3ccc76bfc691ff0f92ca86cf7f06d97984ba3ba35",
+      "bytes": 54379,
+      "kind": "file"
+    },
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "62f6371b50fb2517666c0aa43d1dd283dd5148821da4649d49dfe518f1ab7db9",
+      "bytes": 219,
+      "kind": "file"
+    },
+    {
+      "path": "spec-delta.yaml",
+      "exists": true,
+      "sha256": "634ddb6bd132f0b3794f84018c0569d37c944b7aab1f622645764717e02f0f89",
+      "bytes": 20380,
+      "kind": "file"
+    },
+    {
+      "path": "impact.json",
+      "exists": true,
+      "sha256": "a91d39f30504e53f87ba8382d711e45f1ba4a9c9744903731aa47e85f0a75c7f",
+      "bytes": 50178,
+      "kind": "file"
+    }
+  ],
+  "commands": [
+    {
+      "name": "archive-spec",
+      "command": "archive-spec.sh add-liaison-handoff-baton",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "3ca65bb8f9642ef36d57bf131a4e2978950a491cfa8caefaf5aa1f606326132a",
+      "bytes": 1623,
+      "kind": "file"
+    },
+    {
+      "path": "evidence/runs",
+      "exists": true,
+      "sha256": "1c87cc1dc19b26f6b49c4ae7b157e6add33bf3b142c2c2e4adbd555edc1fb163",
+      "bytes": null,
+      "kind": "directory"
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

@@ -14,6 +14,7 @@ import { renderUntrusted } from './untrusted-render.mjs';
 import { join } from 'node:path';
 import { mergeLogs, formatSkew } from './liaison-merge.mjs';
 import { readQuarantinedPositions } from './liaison-import.mjs';
+import { foldBatons, isWallClock } from './liaison-baton.mjs';
 
 const env = process.env;
 const channel = env.LIAISON_CHANNEL;
@@ -49,6 +50,16 @@ const { threads, quarantined, gaps, forks, clockSkews } = mergeLogs(messages);
 // mensagens que NUNCA entraram no log local, então nenhuma leitura dos *.jsonl as revelaria.
 const divergentPositions = readQuarantinedPositions(channelDir);
 
+// Bastão (add-liaison-handoff-baton, REQ-01/REQ-04): a dobra é PURA (só o que está gravado nas
+// mensagens, nunca o relógio de quem gera), então o resultado é o mesmo em qualquer réplica sob
+// qualquer relógio — é essa propriedade que faz o CHANNEL.md ficar byte a byte idêntico sob TZ e
+// relógios diferentes (REQ-08). `verdictByMsgId` indexa o veredito de CADA mensagem de bastão
+// (inclusive órfãs) por `msg_id`, para `renderMessage` não precisar conhecer a dobra inteira.
+const { batons: batonFold, orphans: batonOrphans } = foldBatons(messages);
+const verdictByMsgId = new Map();
+for (const [, b] of batonFold) for (const h of b.history) verdictByMsgId.set(h.msgId, h.verdict);
+for (const h of batonOrphans) verdictByMsgId.set(h.msgId, h.verdict);
+
 const threadIds = Object.keys(threads).sort((a, b) => {
   const ta = threads[a].opened_at || '';
   const tb = threads[b].opened_at || '';
@@ -63,14 +74,42 @@ function fmtTag(m) {
 }
 
 function renderMessage(m) {
+  // Mensagem de bastão (design S2.7): `[baton <op>] sessão <session> · <stamped_at> → <veredito>`
+  // em vez do cabeçalho genérico — `session` e o veredito vêm da dobra, nunca do relógio de quem
+  // gera (stamped_at é dado da mensagem, REQ-06). `session` de peer passa por renderUntrusted como
+  // o subject de qualquer mensagem (REQ-08): é texto autodeclarado, não validado por nós.
+  if (m.baton) {
+    const verdict = verdictByMsgId.get(m.msg_id) || '?';
+    const sessionText = m.sender !== self ? renderUntrusted(String(m.baton.session), m.sender) : m.baton.session;
+    // NODE-003: stamped_at é dado do peer e sai fora da moldura nesta linha — só é interpolado
+    // quando tem a forma de relógio de parede; senão sai '?' (a mensagem é `malformed` na dobra).
+    const stampText = isWallClock(m.baton.stamped_at) ? m.baton.stamped_at : '?';
+    const lines = [`- **${m.msg_id}** [baton ${m.baton.op}] \`${m.sender}\` sessão ${sessionText} · ${stampText} → ${verdict}`];
+    if (m.in_reply_to) lines.push(`  ↳ em resposta a \`${m.in_reply_to}\``);
+    if (m.body) lines.push(...renderUntrusted(m.body, m.sender).split('\n').map((l) => `  ${l}`));
+    else if (m.body_ref) lines.push(`  corpo em \`${m.body_ref}\``);
+    return lines.join('\n');
+  }
   const lines = [`- **${m.msg_id}** [${fmtTag(m)}] \`${m.sender}\` (lamport ${m.lamport}) — ${m.subject || '(sem assunto)'}`];
   if (m.in_reply_to) lines.push(`  ↳ em resposta a \`${m.in_reply_to}\``);
   // Corpo de mensagem é texto arbitrário escrito por OUTRO repositório. Vai sempre embrulhado
   // (banner + fence + neutralização), inclusive o que nós mesmos escrevemos: um render que trata
   // conteúdo próprio e alheio de formas diferentes convida ao erro no dia em que a origem do
   // registro deixar de ser óbvia — e o custo de embrulhar o próprio é uma linha a mais.
-  if (m.body) lines.push(...renderUntrusted(m.body, m.sender).split('\n').map((l) => `  ${l}`));
-  else if (m.body_ref) lines.push(`  corpo em \`${m.body_ref}\``);
+  //
+  // REQ-02/design §2.4: via=cross-session mostra `via: cross-session` e o nome declarado
+  // rotulado como autodeclarado, DENTRO da mesma moldura (neutralizado pela mesma função).
+  const cs = m.via === 'cross-session' && m.cross_session ? m.cross_session : null;
+  const extra = cs ? [`via: cross-session`, `nome declarado (autodeclarado): ${cs.from_name}`] : [];
+  if (m.body) {
+    const composite = extra.length ? `${extra.join('\n')}\n\n${m.body}` : m.body;
+    lines.push(...renderUntrusted(composite, m.sender).split('\n').map((l) => `  ${l}`));
+  } else if (m.body_ref) {
+    if (extra.length) lines.push(...renderUntrusted(extra.join('\n'), m.sender).split('\n').map((l) => `  ${l}`));
+    lines.push(`  corpo em \`${m.body_ref}\``);
+  } else if (extra.length) {
+    lines.push(...renderUntrusted(extra.join('\n'), m.sender).split('\n').map((l) => `  ${l}`));
+  }
   const refs = m.refs || {};
   const refBits = [];
   if (refs.change_id) refBits.push(`change \`${refs.change_id}\``);
@@ -95,6 +134,18 @@ function renderThreadViews() {
     const body = t.messages.map(renderMessage).join('\n');
     return `### ${id} — ${t.subject || '(sem assunto)'}\n\nParticipantes: ${t.participants.join(', ')} · aberta por \`${t.opened_by}\`\n\n${body}`;
   }).join('\n\n');
+}
+
+function renderBatons() {
+  const ids = [...batonFold.keys()].sort();
+  if (!ids.length) return '_(nenhum bastão)_';
+  return ids.map((id) => {
+    const b = batonFold.get(id);
+    const holderTxt = b.holder ? `\`${b.holder.sender}\`/${b.holder.session}` : '(nenhuma)';
+    const subjectText = b.offer.sender !== self ? renderUntrusted(b.offer.subject || '', b.offer.sender) : (b.offer.subject || '(sem assunto)');
+    const leaseBit = b.leaseUntil ? ` · lease_until \`${b.leaseUntil}\`` : '';
+    return `- **${id}** — ${b.state} · ofertante \`${b.offer.sender}\` · titular: ${holderTxt}${leaseBit} · assunto: ${subjectText}`;
+  }).join('\n');
 }
 
 function renderQuarantine() {
@@ -135,6 +186,7 @@ content = content
   .replaceAll('{{SUMMARY}}', summary)
   .replaceAll('{{THREAD_INDEX}}', renderThreadIndex())
   .replaceAll('{{THREAD_VIEWS}}', renderThreadViews())
+  .replaceAll('{{BATONS}}', renderBatons())
   .replaceAll('{{QUARANTINE}}', renderQuarantine())
   .replaceAll('{{DIVERGENCES}}', renderDivergences())
   .replaceAll('{{DIAGNOSTICS}}', renderDiagnostics());

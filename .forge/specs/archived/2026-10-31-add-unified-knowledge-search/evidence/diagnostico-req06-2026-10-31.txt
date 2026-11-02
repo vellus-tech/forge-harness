@@ -1,0 +1,18 @@
+
+### nenhum gate confronta a máquina de estados canônica do archive com o script de transição
+ gold=ledger:LDG-0035 chunks=2 textlen=1500
+ bm25 rank=1 score=24.53 | entities=- | vetor rank=109 cos=0.8782 (top1 cos=0.9036, #20 cos=0.8931)
+ lexical final=1 | fundido(bm25+ent+vetor)=24 | propagado=24 | no top10 do re-rank? false | final=24
+ contribuições gold: {"bm25":{"rank":1,"contribution":0.01639344262295082},"vector":{"rank":109,"contribution":0.005917159763313609}}
+ top5 vetor: docs/plans/spikes/backlog-fase1-dogfood.md(0.904) | CHANGELOG.md(0.902) | docs/plans/spikes/backlog-onda-c-liaison-transporte.md(0.902) | docs/plans/spikes/backlog-onda-a-perda-de-dado.md(0.898) | docs/plans/spikes/backlog-onda-d-falso-verde.md(0.898)
+ top5 fundido: CHANGELOG.md[bm25#2 vet#2] | docs/plans/spikes/backlog-onda-d-falso-verde.md[bm25#9 vet#5] | docs/plans/2026-09-05-spec-ataque-backlog.md[bm25#14 vet#6] | docs/plans/spikes/backlog-onda-l6-prosa-e-isolados.md[bm25#15 vet#7] | docs/plans/spikes/backlog-onda-e-ordinal-e-escrita.md[bm25#13 vet#9]
+ gold texto: LDG-0035 Nenhum gate confronta archive-state-machine.yaml (definição canônica) com a cadeia executável de spec-transition.sh type: tech-debt status: resolved priority: P3 detail: Achado pelo harness-integrity-reviewer no code-evaluator do PR #42, atualizado após 2ª rodada de revisão (R2-004): a evid
+
+### guarda anti-recursão do gate da suíte estava morta por causa de pipelines com exclamação
+ gold=ledger:LDG-0182 chunks=3 textlen=1500
+ bm25 rank=2 score=16.32 | entities=- | vetor rank=107 cos=0.8557 (top1 cos=0.8909, #20 cos=0.8784)
+ lexical final=1 | fundido(bm25+ent+vetor)=20 | propagado=20 | no top10 do re-rank? false | final=20
+ contribuições gold: {"bm25":{"rank":2,"contribution":0.016129032258064516},"vector":{"rank":107,"contribution":0.005988023952095809}}
+ top5 vetor: docs/plans/spikes/backlog-onda-k-cicd-portatil.md(0.891) | docs/plans/2026-07-29-api-surface-closure.md(0.887) | docs/plans/2026-09-07-backlog-zero.md(0.887) | docs/plans/spikes/strix-pentest-spec.md(0.886) | docs/plans/spikes/w40-graph-engine-spike.md(0.885)
+ top5 fundido: docs/plans/spikes/backlog-onda-k-cicd-portatil.md[bm25#5 vet#1] | docs/plans/2026-09-15-plano-issues-abertas.md[bm25#1 vet#6] | docs/plans/2026-09-07-backlog-zero.md[bm25#8 vet#3] | CHANGELOG.md[bm25#15 vet#8] | docs/plans/spikes/backlog-fase1-dogfood.md[bm25#7 vet#18]
+ gold texto: LDG-0182 O guarda anti-recursão do w80 está MORTO: as asserções [4] e [5] são pipelines com '!' e são isentas do set -e type: known-bug status: resolved priority: P2 detail: Medido em 2026-09-08 pela revisão adversarial da especificação de LDG-0180 e reproduzido pela implementação com controle, muta

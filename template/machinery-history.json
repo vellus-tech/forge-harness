@@ -38,7 +38,8 @@
   "v0.15.0",
   "v0.16.0",
   "v0.17.0",
-  "v0.18.0"
+  "v0.18.0",
+  "v0.19.0"
  ],
  "paths": {
   "README.md": [
@@ -127,6 +128,7 @@
   ],
   "agents/coding/task-coder.md": [
    "02d7a7bdb99aec6a47859089cc4c74d5cd92053d524f873fd2b481b3a081f70d",
+   "4136617be20b9b5ab47f839dedd0743d70ef7f30549b919bf4f73bfe21d5b28b",
    "64713f783c338af5a03c9640a4bb1658598f8022b6cf4333e898157ee4390594",
    "d73f5efd212ceebe3d4f13fd450c801a0b8ff1073e911b8fc10918689dd47c68",
    "df2c2833d29f8726ab1e6e906150dd215608c449a452d5efdc11b29448234412"
@@ -230,6 +232,7 @@
    "f7eb21563c7c569b6be708d47b49b1c212d2f92dd5bd65e1d7a6c08bdd7c73bd"
   ],
   "agents/review/yolo-gate.md": [
+   "4652fae0bd96edc23563d74beb4ba758eb8026afd53cd2087768f8e11394b2f4",
    "4f1f9a7f62c5bab9c43c368dd9ed0e26270dae85c9e25705acf13c1475995758",
    "979e8445a284213619b6b65e7f53f4de2b2af5a155891555bd8c2e04aa1e2cf0"
   ],
@@ -388,9 +391,11 @@
    "6a7867c923e429d576c8bc2c157b2cce850012670943bd3052490c0202e337cf"
   ],
   "commands/docs/update-changelog.md": [
-   "2438140252a45ff137a8309d5cf86085ade1f60010fa814cd45de7ff25b827d1"
+   "2438140252a45ff137a8309d5cf86085ade1f60010fa814cd45de7ff25b827d1",
+   "d9961051b714e830466dfa12ba093eaa63955eda42db983e2b681c68043c4f89"
   ],
   "commands/git/ship.md": [
+   "291bf7c471d8e4f38b19662ca823a65476bf03fad0f0639b4f276b491dda7be1",
    "3f8937904e4812be7892a989d14334f95ff1b1c19f260b1258c3cabb41a6aeff",
    "423f0cea75ab81da92b54c7b7172db9ed870a05b07a0f6c91541c41a30dbc94d",
    "5884203def245b460c4cdac8e5bb321d59dcb01361da94fb00e1ac60fcb16d93",
@@ -421,6 +426,9 @@
    "3119a78a8528c125922404d38d6080aa578c013cf984342038a90fe82eb5eff2",
    "a4943a0a8c221395332d387368f461f27e63eb77d6c86fe2d5eb1110b55bcd49"
   ],
+  "commands/graph/kb.md": [
+   "82d2e97d076c744e6c07441f1e80f514c5bbd19d4ede73b313a17a230ce72774"
+  ],
   "commands/graph/onboard.md": [
    "54dc652ddedc2491075c42875a3d55e7f5ceeb90be5462a29cf0b43967a9a585",
    "8d6f01b0b2d209072e9df4f728d179ea132c407cc5ece6a2040f299604cfc16b",
@@ -428,7 +436,8 @@
   ],
   "commands/graph/query.md": [
    "64710224c6855a2778769a91a0674ef43e025718fcbdf7053c230ef2b9a6fd96",
-   "797226d37131f2f776eb8a3e6a77ea1a024146279684e5a42a1711ce91250d46"
+   "797226d37131f2f776eb8a3e6a77ea1a024146279684e5a42a1711ce91250d46",
+   "de50e009f30adf81090334952182ca3f784837ea2ffafe6df8e2636c7b3bc1da"
   ],
   "commands/graph/update.md": [
    "f9fd75ae3a4f78f060c78943cd3d3818dd2a6eebe4f4e2ea17ac6a07964f1b58"
@@ -441,19 +450,23 @@
    "d8a6c79437c05557355366cc2d9ada1010a5892334ce31fee6cfd559b5930217"
   ],
   "commands/harness/doctor.md": [
+   "7ace3a23d16e9657ef3b644833f09e35690c96f2079d2ea979008590ea70a961",
    "c55580cd425494de30efc40a5a16285cdfae2d66489fb2f996416e9805107bd2",
    "e030700c2946d456ab86bce9210ad9cac1b31b27fb77b83ef5394f3e4d2eb355"
   ],
   "commands/harness/handoff.md": [
+   "3b073dd5842a7220136f49ffb730c759092da188c745896217051a70b1d31f02",
    "7b30898b9214d30f54932e848f48489387d337f3fb5148d1259b12f9d23f2a47"
   ],
   "commands/harness/ledger.md": [
+   "09fbb3bf91f5532f2bcf7ab225d2d98bb2535e1532319c97d68476fbb7e8c1e2",
    "3f8586d3c30045166821e9793974ef055e058ca4f7b7b620c902d43d88951324",
    "73859bf0327eedbb174ec15d057c2ab2f0276a8636f9079a52aaa0f11a75f16d",
    "e6749646c1a99fbdbd663f4b5783d112b7690383a9556946fd9d66d4083e715f"
   ],
   "commands/harness/liaison.md": [
    "14fad61f156906c06fc8fa394e8a0d8098ec97f93ffaf6d28c81a5d2b4b67a49",
+   "1f6295e5b45f8a0fc63be0bc91280c6e754a37f99f4ca87b59e19f4a0eea83a5",
    "27cfcee23afd5cdd6e40293151d5f198de2c309ce0da80853a9efe25e669ac5b",
    "622ad91c3c57077b000efc17c3131d37d5dc6f13ef8f189c20607eb5ef32555b",
    "a42d0826b71de9aa1c811f293319f59681e45a5fb6daa1823323f0fb82ca2d89",
@@ -461,6 +474,7 @@
    "c7f5e6ad758bde8cb17e43eebdc358200df3ca60f2095f069cff0990466faf9e"
   ],
   "commands/harness/prepare-pr.md": [
+   "4c96afc05d302a49342071656440dff5dbab3af4a388781c5466fe597962c57b",
    "99d8597e007bd7e937bb1ef0fc23107293686b668fc9900ee37b4c89d4b89b73"
   ],
   "commands/harness/promote-staging.md": [
@@ -470,7 +484,8 @@
    "30b8178b4520353b22d133955d08248199d84986a67f4d92650e4b694b2c4dbf",
    "781d211578a292d16367079cb9e506c9dfef6c42797ea4d67532f033e269027c",
    "adc1e08c550dbea8358fffdebc718b7018c7740d4350eeecfa651ac2a1a15398",
-   "d48fedd46e70ee980c0f1a2dd834a24a87ab710f3456b22bcaea14c938081e0e"
+   "d48fedd46e70ee980c0f1a2dd834a24a87ab710f3456b22bcaea14c938081e0e",
+   "efa76b43feda451968e25b619b4ebe753e3a42a8631723aa23dd9f3e77d5f063"
   ],
   "commands/harness/status.md": [
    "04cd2652000528afe75a17bae0cdb2993c241f3b4ed49417f6bd80e4d361cdf6",
@@ -485,6 +500,7 @@
    "06649af4c09a2d82f6c6bb5e3d7f5f92d11ae5a129537728390eb2c357f95c60",
    "0b2ea6492e9efdff61733266e1b7f6fb7829e38cce8ee210958087f2f79db6d9",
    "5c3b1852403ff6ecabde8ab7865f89ac8372d3f883a8c3f2beaf4b10b7ddfc31",
+   "5f0e797e284df8eb00d991942270c6651aed45f57f3a2f9b2bb7121b97d2a686",
    "ca10a9786ff85a33f366ec1da2b8a4d8a286bc6ad65048bcf878d4eac5960b4e",
    "e35fab9eff2af7518f68b21f37e358a143d15cf08dc92b65ffdae425c55caf98"
   ],
@@ -533,6 +549,7 @@
    "fa6e66f01554f2360109cfa756d52fcdd28fc312e8d8e7faac684f58fbf72530"
   ],
   "commands/specs/implement.md": [
+   "14079248b4af09d3b7afd6a8655e6a1b274cfd7c83e5fa05a0741bfeffff4bdd",
    "2993e0b3aa9594d52160a8d295618a7013ea844e071fa16e77c270b1b3d6f519",
    "2c80c0e9d5e532e73a51c071a13dfe6ceb1e526c06adb6052371ff105caba916",
    "50668ab77e6d3efa486fb05da8256e692f96a9bdffc3720574c92fc8fb9829c7",
@@ -656,7 +673,8 @@
    "cf63d1a7eec85ed0b5e55982ea83ccda147fdb8ea407b58eba04213156a4d550",
    "d0f253860a9c6b52bac4350f30dc7ce6fe0e373aa20f4f0606302c7615479255",
    "e08f5b70bba22f6afe677d0f85b1f8d1d042f6cd99ca875baad4fbe912f16a7f",
-   "efed9c0477e18ad9182654c5af1b1043ec8434efa1e66fc2ae1015c5b71c057e"
+   "efed9c0477e18ad9182654c5af1b1043ec8434efa1e66fc2ae1015c5b71c057e",
+   "f53d22b73d019dc2f95a6ce499e6d59113243470426ffef66c46158be6b05fc7"
   ],
   "hooks/git/pre-commit": [
    "0d5686d6107d95410766fe63cc2863efd7ee4ef3db91adcde16a4f5f9725cda2",
@@ -677,7 +695,8 @@
    "94752d00224c6fec70e331b9f340aabf2ca2b3b51e6461c5294b4106aab76c08",
    "c11228f8cee287b372f50a6ddb1ef1a1da1d9201d1310be51edfc40660f43267",
    "d3443e931a1edad7235fd7485cf982fc523be8e8049742d9992fee5969ed0c9a",
-   "d612f21e6ef7e7282164cc1aa46f20bc4902db2a84dafb2e539a7c9f52fc8332"
+   "d612f21e6ef7e7282164cc1aa46f20bc4902db2a84dafb2e539a7c9f52fc8332",
+   "e2e9628ab8960243938c94fbb8bbdeb97f9a574d4ed21fb322e5fea471a93538"
   ],
   "hooks/pre-commit/check-dockerfile-multiarch.sh": [
    "8378f0b55992ebb0780a9d37b1092903f69ace250cba46869a0a75478ba45b8e"
@@ -688,8 +707,12 @@
   "hooks/pre-tool-use/enforce-worktree-location.sh": [
    "bd5da25c32088e05f822dc6de8b8e36b484ef3c8b987d59482337f524c386edf"
   ],
+  "hooks/pre-tool-use/guard-cross-session-send.sh": [
+   "4eb9431c9dc742ee9addf3f045a5f8fd8a6bb83d550dfc036e407d9d82d7b016"
+  ],
   "hooks/pre-tool-use/hooks.manifest.default": [
-   "381a5a238b5085f93eb56d279d6e627eeb0916b13302dffd3138850e5efbfba4"
+   "381a5a238b5085f93eb56d279d6e627eeb0916b13302dffd3138850e5efbfba4",
+   "a62238d97ddebe818cea3f217832b8ace7c54a4526d6e1a4bf34414fc6605c61"
   ],
   "hooks/pre-tool-use/lib/argv-bridge.sh": [
    "7d24db51e0a8ce95f3dbe21ea425275b81d4128315a45419f379465ece24d801"
@@ -702,11 +725,16 @@
    "904b699a9d4073ab68fee9f4a133da8c722ebc9671ca3f9d7d54fec8e1182759",
    "b5331cb44f9d80b1d943ce5e010133b00fb86ebc5d97bccd411af3b2211e316d"
   ],
+  "hooks/session/on-post-tool-use.sh": [
+   "3ac116ae3678f62eea1d9fcde1ca28270386bf6e11cd564ff00924f6a9952411"
+  ],
   "hooks/session/on-session-end.sh": [
+   "328b16c7455d08dd5cac47476b823900ef9e5223556bfa5d78faea027dc5cf8e",
    "8a5caf89a349dd0f1775fe5ed66c1e09f9ce2c90eb916f129d15ba85fc4d574b"
   ],
   "hooks/session/on-session-start.sh": [
    "14ae1afe7400860b3ab3a16859efbc9a18d42facc42a8a4801e92c40643c4246",
+   "25edc1bffa0c88a6b5de575475e24a78a756f2be416664e0610780378a698ccc",
    "5becf8f977a427b14c71fac5efa946909d718149a32a14d4879e6a798d3a66be",
    "c2cef053f95302f89c862228f770c6b9b34f647d87897d2dd98db7b81664721e",
    "e60b49e4018582f1223b9b159bf425a63ae4555a3794ca9c1f9f6635ffb226b1"
@@ -768,7 +796,8 @@
   ],
   "rules/conventions/autonomy-yolo.md": [
    "2198f69ee34bb2fd5922e5cc84bb375b99cf85deb09a6c11b8207f6e2b881326",
-   "2441d766b757e98f0c64585ce894731425b757cd65266d4ac60a54a737afaff5"
+   "2441d766b757e98f0c64585ce894731425b757cd65266d4ac60a54a737afaff5",
+   "fed1162c3571a654fbde524900f69dd4af87d1678b6d6521c16cc6816bdc4bfd"
   ],
   "rules/conventions/code-style.md": [
    "5f674b9f95f44f19f4c8dd03e813906a72e68d1d0a3ae2c85330f75d7faa7384",
@@ -806,16 +835,19 @@
   "rules/conventions/ledger-consultation.md": [
    "72c01e34ce8a994584bf8a627e620e41fd47ebc2ff0557d740cbb48a8bb7b423",
    "bb68b82cf6ffeaccd984d1e8902f39500f9e661cd7720c83ea4f94d076f3c7e0",
+   "d9e37cc12620234f39d39e9386a4561b894725dd82c4618ad27e57a02931db48",
    "f881b375bebe1890d1136ecac7df031065220eeb0a7c1c7a7c07bc1dfbf0ec45"
   ],
   "rules/conventions/liaison-protocol.md": [
+   "38655f7aca89af22c2a2d4324828124ac6734a0dfbc7bcd44cf4aae87486744b",
    "3edf65642fa6b089ffe7de7ce83261f0800b599b5a203e6021d17778b955ae98",
    "87c35b277f5d6ce2d1f818ea2e1679d5118b3e9bfccfddb392efe6a538600119",
    "96ec30d3ce6028e5bacfb29a04061f453bea90645f85a42c1dfcb4beb0c63baf",
    "a9cff29a5590e60f07cb18eb752be4cf21c3505992086f4aed9101095c19b8e0"
   ],
   "rules/conventions/liaison-untrusted-input.md": [
-   "349df9bc9f16422558d22e9cc9ec9f916cb3ce928dba6a99ef77185dd1b17410"
+   "349df9bc9f16422558d22e9cc9ec9f916cb3ce928dba6a99ef77185dd1b17410",
+   "ab125ab36d8193ed3090047835f1f6394206a48ce1e14590c71f90d63060061b"
   ],
   "rules/conventions/lsp-impact-analysis.md": [
    "55a5ccba2cd06e1308a7fe1006f979d515d77790eff4f8d3e500442320e01156",
@@ -852,6 +884,9 @@
   ],
   "rules/data/data-transactional-nosql.md": [
    "7e526f02fa707dfd70108e3169b1c08071e14d07d286f6c48b9783863bcf9c73"
+  ],
+  "rules/data/migration-review.md": [
+   "7dce136a160084a7ef7980e4667651cd5877755aa1282e87bda2e7fa0d539bdc"
   ],
   "rules/data/schema-evolution.md": [
    "028c6e38b3c37ca74d6c74721dc09d1f33dc4c9544fd869b3f3245a0a51a11e5"
@@ -955,6 +990,7 @@
    "b28e45663f57a0bff0dffb33e4189e93071dcd1df3cc1f052dc452d96d18cc75",
    "be6dfb59a480e5d0a0081db4c20b25d7f26ffab73b78f43abdd6f9b0e3d2af52",
    "d55a32f0cd1ca235d7f395f6eb718d1b09b5c6467524bd2943a954eb23f317fb",
+   "fcbc94b2064f9be0d0fa76a896c573c65adccafb6fa7f09c7a3ac6e747bcad55",
    "fde37cb27b014dc3422effc8e4f4aaaf2bd02e10f9fba6bbbe86cc27c234b55e"
   ],
   "schemas/grading.schema.json": [
@@ -972,7 +1008,11 @@
    "7f645f28766b19dd3b1a6981e18fbb55635acbae6ce0e75a68d244bb3aab5e75"
   ],
   "schemas/ledger.schema.json": [
-   "4570283a80c19dbabf887dd39d91e7b0ab23dba15f86fbe1247a2c21dcf6afa1"
+   "4570283a80c19dbabf887dd39d91e7b0ab23dba15f86fbe1247a2c21dcf6afa1",
+   "d7d170548858b9a08c679d942f37675d6e7b2c4695b13b82cd6ecff3a3ac712f"
+  ],
+  "schemas/liaison-allowed-workspaces.schema.json": [
+   "60d5ca166fbdbc08919c41af98fa15c546c7cf793277cace6bdd46440e0a97bb"
   ],
   "schemas/liaison-config.schema.json": [
    "494d25c50f7964f3c08770d5791e6bfa246ab08000ca3fa7bfd31079f1e677d9",
@@ -981,6 +1021,7 @@
   ],
   "schemas/liaison-message.schema.json": [
    "236c90779da8112a0b16da0353765fce6bf183eb214c4ddea8e7cea243987994",
+   "819ac0e24a11b0a226e6ac0837dd06fbef8afeb44cbd4ed9c4e1a04cd68583ad",
    "b1c31e9ce72a44c3ec377e73c177e21482d9f016d12c5928e5fd1b9e39a62f1b",
    "bfa35d8df8301bbd8a1a7eeff44a33a3eba8b9dc40642f0c6fd20c4ed7d84442",
    "e7f8865d52113dc118cd522af80eb33030215f5bfbfeb6947af9ad0b53edc512",
@@ -1063,6 +1104,9 @@
   "scripts/check-authz.sh": [
    "b4e232a392a85aa167c507a98a35970818d160a9088a22913c55320b84ba12a2"
   ],
+  "scripts/check-bats-assertion-abort.sh": [
+   "cd6929a0163826f1c03c576295faf4cba77374fbdc7a8205b2ef3db24625c66b"
+  ],
   "scripts/check-data-governance.sh": [
    "1070deece974f226b5587f4fbf392d8ba50af78c99611a000e2a18cc8d279a28",
    "3ae727091bab46870eeff9f2dd874afb51b960a3dc8922cd0757124e2c797702",
@@ -1070,6 +1114,7 @@
   ],
   "scripts/check-heavy-mutex.sh": [
    "87127a4244552c1bbe9f6ed014cf837242d9787b410886bbb59a8dce6bdd62f9",
+   "889a8f8c9a53ba49cc26c517537fc4895921f761e6cb04c6374b31f147626935",
    "94c31d9a93a1d7adab41f6055075aced5f55e7227bf8621ea1621bc7f4f3c1f2",
    "9b167fb2c8b6ccaab8457fbac9c0234608971c35d55a3fe31ec19b143b591ee9"
   ],
@@ -1087,6 +1132,9 @@
   "scripts/check-liaison-log-integrity.sh": [
    "899aa74f435178539176d0cd45bcd8b18717ebccf08231eb3536f9fd838b7a20",
    "a912d5d0acef61e8bd09372ed673d74ed20886910d483b169c287a41c83d27bf"
+  ],
+  "scripts/check-migration-review.sh": [
+   "8eba8267c0900f065b13170ffdd1ae520cced01c068a7be27d25379be29c6848"
   ],
   "scripts/check-observability.sh": [
    "6013c12ba28c89d597f45b2ac15b87c7b558c4b7b28b4ccbec7b0e26b364ea4e",
@@ -1132,6 +1180,7 @@
    "29ff54938868cd525786711aea512858ede973f32173629ca47ea636892cc358",
    "5fc4bcce3068103af627ff22d34f67ba0c8973c01e8cd8aa7aacc4127edaa1ff",
    "648244499ce401afcab701d6dcc338667b518f00e9facfbe801337b3f6b8489f",
+   "6788cfeed3032d5edb91c9a25119c4c6d93b4c9520f5e7e70883b70408a5e7b1",
    "6b4dbda2d8903437d57ea6b45aacdba132d1686dbecb9fe0a84f7f0b3cf389fe",
    "7540aff095b15facf06b0a42fddb870f21a009c2be23bfd76ebfe68413e376eb",
    "77488083afc71c223853c6c110c2995d21243e960877c2cc4cbf77ddfd97e12f",
@@ -1187,6 +1236,9 @@
    "2e461ff1c072c2de69272d4229baea5b4d514580c32bc426de3365d981a2ba6c",
    "82f62366a189b960b1ef6b993227e2fa3d447b913838b9226c3fe31c34bed73f"
   ],
+  "scripts/kb.sh": [
+   "2f8b5b72f854b05f26f6bccdfa48f9d7697d57f305da13fe7cf77f94efcd2850"
+  ],
   "scripts/ledger-ops.sh": [
    "248e25114a08e3ccda9e7c3a5708f1a1b3b2399848c4864acf721433716e7ebc",
    "4d9888bc52c05eee24265a86592d341da6b62f776ac95f25b068a910401ee040",
@@ -1194,6 +1246,7 @@
    "60a8beac611c5e0c1ce7b8f471e456577700ca7a899cca144984d496395f2469",
    "93e95a4404e4c6a12ee0bb31a34e65977c1faa0264beb247f4935e1f25df252a",
    "c7bccb125ab4cf8753c6e72f0dfbc03950f759a427f9cc8d3029117434c1e3b8",
+   "d19ed6cdd56fea85757dcc62a439b5d2bc92f28e1c58f0a0f7f24a85600352ef",
    "d366d7de56277e4c894f159389aebb5077311c4d96a369cc3212b9c3f82b6243",
    "e5420240c790dd0e522e96151bee957356d1c32f5f833a9d78c73e7dfb646283"
   ],
@@ -1203,6 +1256,7 @@
    "5c35bf1f5fbd870fbd97638c51e4b5ced242249b5eef106e2be55e3053799b30",
    "8e236d9639909f82726644b86147913a0f6053bf5c8b3ea8b90b23b706fd7968",
    "b7e7423371524c49720831d026ca161a742c6ff1098cb58897ae37936b0442a6",
+   "cd924eddbb9ce95c23959760bc9c2d42923f53a8d4e96814e5fb1f445cc8aa37",
    "cfe8f2d8f471d860975297e9f0f05a19778557d4ecc3a8e224ff443dbf659332",
    "d2972b5c750a2b791713cd05304e2653fd47610862d25ba981ca2213ffdc6b80",
    "f748d1e7d03b6b18145241b08f2574393f1506a1bd25246aa901fc03208d853c",
@@ -1227,6 +1281,9 @@
    "99dfd5a2206c1e2a9a9a1f74e87b8cc42f961779b4f2059dcd2ea9457f4e02e0",
    "a990a053d5171ba264a78b4b390e73925a2648d6f3ef415d21ebaf3d942f903d"
   ],
+  "scripts/lib/bats-assertion-lint.mjs": [
+   "a0ce0742329ba5b5c3245b08f04a5ddbea4f7a480c4131e33f6e233793589a9d"
+  ],
   "scripts/lib/benchmark-eval.mjs": [
    "663e3b5a712e2a6e39c5954554b9cdb0e175111b1d999ff6f69b129c187237ef"
   ],
@@ -1246,10 +1303,17 @@
    "82a23f3c93d0b68e5e02a6428024a7b4e887523f2638090ce946c462a1297bfb",
    "bdc23439a7643ce60c832559bcb69a2a5e1be018040fc9f45c16624f374e1759"
   ],
+  "scripts/lib/check-bats-assertion-abort-cli.mjs": [
+   "24c2b8b48b724c13f8af72b81b7bd861198017b39064927872071664a1480dbe"
+  ],
   "scripts/lib/check-data-governance.mjs": [
    "1298d34742b025e5828eab3fe592300a0f9ed1d95ff226f027eddb698cf696a5",
    "695ba0ca2f6f217999c0c4328d7a0dba8e5b7596f2a2a4d2c0cec42661bff2f7",
-   "dcd139a60717293da6468ed9ceb18a28722911e58044863b08e8803921c47810"
+   "dcd139a60717293da6468ed9ceb18a28722911e58044863b08e8803921c47810",
+   "eebd6db98d0012013ccc1bb4c12c2195f71eb7af1bf8d1fb198356ff750cfdbf"
+  ],
+  "scripts/lib/check-migration-review.mjs": [
+   "544623b0e29979278358dfa117c25ec4ce228ba6734b668cf4a1f5cf54949dd2"
   ],
   "scripts/lib/check-observability.mjs": [
    "ebca41dd409759a4606eecbbf864efadb729525c903540f252ae9da7cf5e5415",
@@ -1263,6 +1327,9 @@
   ],
   "scripts/lib/check-worktree-prereqs.mjs": [
    "254286d959a8a11895006e32b571e7d604764c1bd27823154118a4426e66ae09"
+  ],
+  "scripts/lib/component-story-runner.py": [
+   "ab219118b0ee151d0a08eee7d5ecda12c389dd6134ba5c546926e31ad85918dd"
   ],
   "scripts/lib/defect-scope.mjs": [
    "560d7a5feb16c482259b6a68c95f5c7bb12a4bdce8f8a89fd54f31005cfd0604"
@@ -1346,10 +1413,53 @@
   "scripts/lib/infra-scan.mjs": [
    "49a8f0a676898e5b847620cacbb990cc104c578fccc1cf8fc23bbc03a3c64364"
   ],
+  "scripts/lib/kb-cli.mjs": [
+   "a11b3b5f9a8db469f9bd3d21cf9336a6ac03b697ddf95091ec5f12ded817db64"
+  ],
+  "scripts/lib/kb-corpus.mjs": [
+   "636cb3a5e85f1039792f521df62716a60d9022d62a634c7a57f261c9f1036bb1"
+  ],
+  "scripts/lib/kb-fuse.mjs": [
+   "f7fa2e9a921172feb9effda9e5e0bae956ad230d35d679680efa3d7356c11be6"
+  ],
+  "scripts/lib/kb-install.mjs": [
+   "d80f532446a4edcd93a1bd9f6272b1c49c3b21f4e408911281c3104caba4262f"
+  ],
+  "scripts/lib/kb-integrity.mjs": [
+   "5d0d9f47d5cdd7f1139f0d66a56dde1920d932c99828a6e4884abfca580a0eac"
+  ],
+  "scripts/lib/kb-lexical.mjs": [
+   "b879f754ece4e29f2fc9b4a163b550d23eac50bea0513df744c151fad12e6533"
+  ],
+  "scripts/lib/kb-pins/models.json": [
+   "3ee818fa0a12688eb66980efbf43063a891e61b834568277c643700d274d1b16"
+  ],
+  "scripts/lib/kb-pins/package-lock.json": [
+   "f6ceed9bbc1e6163ead8df3dda888e6bc037bf4dbe5e2921c5f75b0b44316829"
+  ],
+  "scripts/lib/kb-pins/package.json": [
+   "955628cc21f975fe01720d6c70786f4b70b04cdafc3deb59ecef4ecdd4a2b745"
+  ],
+  "scripts/lib/kb-semantic.mjs": [
+   "f1aaefbdec38dd2975079dfe5871a7a00418f54cef681ee0353ca8a124c46060"
+  ],
+  "scripts/lib/ledger-aging.mjs": [
+   "cfc70e828608612f86e19d7676554e593ac45aa62e977eb688ddff84587731e4"
+  ],
   "scripts/lib/ledger-render.mjs": [
    "35c89cf7f97ecb81a9e022f972d4f68531c6e62183ec788424a279d5585977ba",
    "6732120068001a492a7d0e6af23d9d652b93810a1db07b9825f78224ade7c8b8",
-   "c17e4eb29dcbb15eb848ba30ef32c2a1c617f99ec057ffcefcc839716bca31ce"
+   "c17e4eb29dcbb15eb848ba30ef32c2a1c617f99ec057ffcefcc839716bca31ce",
+   "e3ed84ae66d77e6a439c94a49d597f8a60a98537a8d98126e03ff8596164ca05"
+  ],
+  "scripts/lib/liaison-append.mjs": [
+   "3b5a6967cac7af93869fe6c52b89f420eec23a31fe2ff198c075ccdf8b376df1"
+  ],
+  "scripts/lib/liaison-baton-local.mjs": [
+   "38b10357ceda0a9bb4288898841eb0c9979d8c738fec64aa7f432120168a60cf"
+  ],
+  "scripts/lib/liaison-baton.mjs": [
+   "951e2be4f0f08b5ddf90a2488a4b58101663ef969db0a0d79c9faaa944a35eff"
   ],
   "scripts/lib/liaison-config.mjs": [
    "080ac83d96a61758dbb9493b8ac19c23c2fd3c67654ea64a4845df5d5898521d",
@@ -1357,21 +1467,34 @@
    "88c286c771b3955d806ca166c676d7471f0c7ed98a776a5e314c26fd9196d276"
   ],
   "scripts/lib/liaison-cursor.mjs": [
+   "2a50a29491942751c3e30e4e63d5629295aa4b10d16416983e7d2b7f4f942604",
    "c4723a64c741e4396884d632f8cceff3075f26fb639677ac48324db077384e56"
+  ],
+  "scripts/lib/liaison-hub-io.mjs": [
+   "cc30050a9f24ff68361eddbd7372795c0fcbb6758eec91360e17438c7caec19d"
   ],
   "scripts/lib/liaison-import.mjs": [
    "010a5be3273babff0445740059f4d1aa69aef8411584b8d5317cedf49bea2aba",
    "39e4128d54ece4a31959ef9bb8169dfdfe88f16d2166cf612771f9d0c8ac8a8b",
+   "8005c4bb20887d3deef7bb6d457cc01aea3231805f66a7c8fc8fe8b2a39e5ca2",
    "da59042f5124054309d130dd8f4c883ddad4fee311dbdec011f180e41b2951c3",
    "eecd390a35dbcac6e1230205229c7bc918d0d0a8b1b0fc1057a521a27acdef0f"
+  ],
+  "scripts/lib/liaison-lock.mjs": [
+   "2cfedec71fdb4c2f497fc303193c69534541f90308d90c4e624e71f232a640f7"
   ],
   "scripts/lib/liaison-merge.mjs": [
    "036c349da59924058f93eb83c677bb503ed24c2be117cb410b56ca9e858f477f",
    "1be70de7d286178a790624cea0c4f30c26e5fa42600eaf8193c8a72d4879add1",
-   "71e314bab6a34879db02c46f698663b9bf1825c6ff83c54356c4794c45d075cf"
+   "71e314bab6a34879db02c46f698663b9bf1825c6ff83c54356c4794c45d075cf",
+   "7738347f91ea565f76d29859c715f98108f66dc2d628950d1ed37e1c0f0d76dc"
+  ],
+  "scripts/lib/liaison-pointer.mjs": [
+   "4d6f10778def6b886744bdb29bc6af89c46d5560830c982f070b57c8f790d8fa"
   ],
   "scripts/lib/liaison-publish.mjs": [
-   "1ad39c8f393a01f8bb9b6c2cb5c4c6eeb901ad83806bd77fa8336da0668186df"
+   "1ad39c8f393a01f8bb9b6c2cb5c4c6eeb901ad83806bd77fa8336da0668186df",
+   "810bed6b43f0a84cbaad8d0c73f7706e220d95209723439e2e22a3e4afa75dff"
   ],
   "scripts/lib/liaison-push-union.mjs": [
    "82f60ea29eac2021e9c8df92ab446f7289bc732df17a8d173ff070a34172d441"
@@ -1379,6 +1502,7 @@
   "scripts/lib/liaison-render.mjs": [
    "4bf6c09e464ba10be942c59337a4aa59ca6bb7231f731fa58e687933b980cb50",
    "ac0b071749078cae30961a2cb18595bdd0314b980c205de517cb2fb3d6a8239b",
+   "ec99e20fdbd94bb64013882bfb33cb91265874f8ca13a796913af8199cd935b2",
    "f342968786b9777c32954b0f74fb03268a872a50dbf118f1cd709bdc6dc903ba"
   ],
   "scripts/lib/liaison-trust.mjs": [
@@ -1389,6 +1513,27 @@
   ],
   "scripts/lib/mermaid-to-drawio.mjs": [
    "f780357bb6f94112c088fd61828667dcfec906a89c1d46e4d97c4b91b9b60c61"
+  ],
+  "scripts/lib/native-allowlist.mjs": [
+   "df5bcc57466efc8ba01cff4cb14efe5549dd43e226c87c5cab178f3c9b361035"
+  ],
+  "scripts/lib/native-classes.mjs": [
+   "9e6f845389a687b7f0c7c23a67a2ad93b3366f8fa1028ffebb072a91def377e1"
+  ],
+  "scripts/lib/native-containment.mjs": [
+   "09415b40a28fe3849cd35a46341fd25cf0f707c845b0429ef263ccc5acee315e"
+  ],
+  "scripts/lib/native-registry.mjs": [
+   "b9f9a24316d8516f5c8364f72e3ada1f707f54c040fe18f1dedfe00a1a6d8fd2"
+  ],
+  "scripts/lib/native-send-guard.mjs": [
+   "a5dbc1ca6844e2466a0064bfdb0dc8028fe03497389d892d9c180653235a65db"
+  ],
+  "scripts/lib/native-transcript.mjs": [
+   "390f7654107216434b65811cdb30bba4ae6948d95e75f6f2bee5e1d1755f63b8"
+  ],
+  "scripts/lib/native-workspace.mjs": [
+   "864a0c7b6a05a85bd7c9a5cbea9a9951c4aa9b0c6ac79d72b461f54e6913189a"
   ],
   "scripts/lib/orphan-changes.mjs": [
    "6df9b8b7a1782c19f2c02c9ae0b13b1d6a41da0e9cbe8c26f43cdcc3d3145d8b"
@@ -1428,6 +1573,7 @@
   ],
   "scripts/lib/red-replay.mjs": [
    "1d2b9b18f26d661d7595e9f671b920fb2a04988e800c9d33e25fe4cab20166d7",
+   "213399756f4aa6e891db113c6d3eb0a5de18869d689f3b762400d5d2c066ec2f",
    "48278f477199d9d1bc8bcf19380451847446ed7cf11c4600d8b7b48e47294129",
    "7b1c27629292272505776389c1633e4e57fcea965635dc86159da604848dc914",
    "e6549198656ae7709fb1fe9b3699176e7b237aa0a9f054e2ce656b7c5fe366ed",
@@ -1468,12 +1614,16 @@
   "scripts/lib/stage-contract.mjs": [
    "3cc9f0996fe9d564a0231581a714027dc1afa0d7fa01192e474c3dd96d5ab4ed"
   ],
+  "scripts/lib/story-checkpoint.py": [
+   "93d8c8d121361c9711b9be035374506eab7be92336952c8f1ffa9e2346b73d03"
+  ],
   "scripts/lib/story-shard.mjs": [
    "28abaebdad12e4682055b9261bc596d210c0f4e13a017d2183b517a45d6be858",
    "45b5a6093615df802d8098ca56e02b15a644a8377f3aefa7e80894ba456f48ae"
   ],
   "scripts/lib/sync-adapters.mjs": [
    "202edc1ddc2e314fee5b0f17848d86579e5b361b8186c958ecb804426c38e621",
+   "36c0dff3919b1a443b0d5c11695d57ed83189845da0070645fee661df8157919",
    "4992a24da98399afcfcc8eaa33043aa0314a6ee3fd7e485a7b0e9ffddfedd6d1",
    "6788c9baffade589de130755048e691da4948e5f08e77d0f39439dd6b9eddd79",
    "a915d719fa1dd6fc965d7e61e1797fa60892182401181d703e6ca06ad9db8033",
@@ -1488,24 +1638,30 @@
    "28a01adc11c7e9c26ca018ed40399c28b6703627702c8ed6bc6cc8eb5cb5602a",
    "50f684c86a57114a6ba46362e568109c7cf3ac8097709d936c683ca890744da5",
    "d1d5bdf958e417574792fd8a9f8b2d2551f58e1fc3fe183675bf897a8420552e",
+   "db6f872366412d50b2b22493c39c141a9226c7fc8f03829a761bd822c152e859",
    "ff5efd5049fbffa4920e2c71a33da64963d6834a78d2ae36f93467fd67da2e50"
   ],
   "scripts/lib/transports/fs-union.sh": [
-   "5580f625c7b123d7c78c86dc7bae25a126622a87700ea7d707e10cfa30ea302e"
+   "5580f625c7b123d7c78c86dc7bae25a126622a87700ea7d707e10cfa30ea302e",
+   "adb8eba1295a94868b7526458f868493252ec0f2fa97bab3f62609b6cd2ae1e0"
   ],
   "scripts/lib/transports/fs.sh": [
+   "63d1cdfbf9bf0202f3ac3a14c5a0a62d6a0d05710c2bb563ded4ccebf43d74be",
    "996917db068a8ee0b3e38f2029ad6d680f224c2cd857428406d132b412824fd6"
   ],
   "scripts/lib/transports/gh.sh": [
    "e511076f7598ef7b4a3490b496f7bbdf8a8e1841216d33e97d3d93b36840e45f"
   ],
   "scripts/lib/transports/git.sh": [
+   "0b7ff9052c1708540d06d717bcea8a01c6901856ce0e9b2b2514aa171d2efa69",
    "e5b0758353b9efb567405f59f8041466f7e65635ee465d207066188bf5c58ef6"
   ],
   "scripts/lib/transports/manual.sh": [
+   "2fcf72bccd7da5a1f0571f837b2285221a523987600d59c6a1617166f6492446",
    "f31dcb77afa86ed075a76438d3952684b6107af756a5bb82c08ae7ce168b7075"
   ],
   "scripts/lib/untrusted-render.mjs": [
+   "66b0c99adc6b34801eac73bd25b2985b70c0171668d618358ac68222194edebe",
    "6d84b22512c53d4504f1d869541e93d3ea063ac1bf3541ea8dcc6e62fd855841"
   ],
   "scripts/lib/validate-archive.mjs": [
@@ -1536,6 +1692,7 @@
    "a23b10a73fbf9faa2922637f9bc7a6b664611ef8d8e1a2d50503d07300798c56",
    "b1986a6b04a51bbf86ca30e03b3d6c6ab612657204e77720656226b74be55aa7",
    "bfbdf1b0c82e0f3474899af967169ecff9ad747b8c8ce0cb53a8623ebe2b029e",
+   "cbe7f33f421b67a48ef70cd7e7b47eaa99ae3ae79ef9533989499fad128aade0",
    "d0ea250cca1ee11d14115bd62cba86a58f6ace48f2513892d12db7bca101165e"
   ],
   "scripts/lib/worktree-classify.sh": [
@@ -1575,6 +1732,9 @@
    "779bbe6accaa9982d9fe1b2e9a731b8cdad117b21704362689b4b168e72dabfe",
    "88f43a9d0999564a3fc8edee1370d80dca92394b7304c5e264d70a31cbd7c58c"
   ],
+  "scripts/resolve-skill.sh": [
+   "9963538a0dc60ff2e7fd20bd8390307e735d7b2d1fdcd96e8578ad0b823f1986"
+  ],
   "scripts/run-gates.sh": [
    "19d24846124203383dd9799d20d48096617c507cafa9469a144bde763df93a91",
    "a8a724424dc8456666511e0737b778b8492324f66166daeda99e6fabeb336a78",
@@ -1602,6 +1762,7 @@
    "439b82b659380d59de7ca04f964dc301f93a54689859daa7ba6f25e9b5fe7e62",
    "614ecd594bf9c6ba9a086cbad686db825578627443a3b59ec8afad3058f8aa85",
    "b1c0179290cede1d593dffa02037ecbf44536332b9fd4eb3c9a3b6b81aabce6a",
+   "c0021cb2d575edcdb44e5c6dcb613137776eb5b6e37c8a044cc66c021460ebc0",
    "e848ed46799dca8d3786b16a911cbceca40273823de3a750c2ddbadd5b177ce9"
   ],
   "scripts/spec-transition.sh": [
@@ -1619,7 +1780,8 @@
    "70630a85ae206f5a48b6a7cfa38959b9451dce277d63e049b38ba73284862578",
    "af3dd27ddf348000dc0a873ba2b060a717a08a17bedf75a4145f912bf95cf305",
    "c09b3666bf57dd20f15a0efae1f5630831a41015559a5b1841a898cc600fba9a",
-   "c950dd42c0ee7fad59d558fe634825c45c4c304414b243dc0d61ac7aab4c02f2"
+   "c950dd42c0ee7fad59d558fe634825c45c4c304414b243dc0d61ac7aab4c02f2",
+   "d272466e1a36f949cf921842956de12b3b03d21956e0d902a59550da880ccd37"
   ],
   "scripts/sync-adapters.sh": [
    "644a19993b7fdde2f4371d459bacccdfaee662eca6fec63fe5f978dd637f117c"
@@ -1793,6 +1955,21 @@
    "68bba2a9cff9154adba5059d28da8bed20e277bb7caa05a8a2a174e3c6270c5b",
    "a022506118d43b7ea693e8e9420b1746ffa106edef68b83f211e39c809e9f15f"
   ],
+  "skills/readme-generator/SKILL.md": [
+   "05e61b05f618f0f8f64b08a72588840d0d3826b4f5b53270b179367712628dc9"
+  ],
+  "skills/readme-generator/scripts/changelog-engine.mjs": [
+   "9d5613b7add5c21a90a42093125f82d7cff5e373f550842b45f691fc098887b1"
+  ],
+  "skills/readme-generator/scripts/gates/lint.mjs": [
+   "aebbd6943f226cac1e02dad41fe7f3fe7d80a58e850d9e8d560f1590d0e0812c"
+  ],
+  "skills/readme-generator/scripts/gates/preserve.mjs": [
+   "fd11e741c251d5246c3025364f48fdca09187c7c8b6e293dbe6ae82c274afb32"
+  ],
+  "skills/readme-generator/scripts/gates/released.mjs": [
+   "715dc538bcd041b149aba41ce920db6e3910e01ca284d044df999d7a28d7684e"
+  ],
   "skills/story-context/SKILL.md": [
    "ec4b60ca1aae23de1260285f35adfb34cf6cb0f51ba19cca6821ad2ac25b23fc"
   ],
@@ -1842,6 +2019,7 @@
   ],
   "templates/liaison/CHANNEL.md": [
    "339785c4ca4a0e0ab42ab85855bfc47ff2ab7ca1e5456b12e4d27ac0858c3c85",
+   "8f4a284b1d413253ee46e40afc16047b485a4579113babae17c01e924d440c8c",
    "fc3822fe73c6d54611ac7d5ec9588d562141deabafb3fd157fd8766834928e4d"
   ],
   "templates/product/adr-data-governance.md": [

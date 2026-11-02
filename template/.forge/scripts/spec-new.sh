@@ -130,6 +130,25 @@ archive:
   reason: "tasks not implemented"
 EOF
 
+# ── ledger origin: item já substituído (status superseded) não vira elo ─────────────────────
+# (add-ledger-evidence-aging, REQ-04) Um change ligado a um item 'superseded' nasceria com
+# ledger_origin apontando para algo encerrado: o promote seria recusado e, no archive, o resolve
+# também — o sucessor ficaria aberto para sempre com o trabalho entregue. O change continua sendo
+# criado (o --from-ledger é não-bloqueante, como para id inexistente), mas sem elo, e o aviso
+# nomeia o sucessor e o comando que liga o change a ele.
+LEDGER_SUCCESSOR=""
+if [ -n "$FROM_LEDGER" ] && [ -f "$ROOT/.forge/ledger/ledger.json" ]; then
+  LEDGER_SUCCESSOR="$(node -e '
+    const d = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+    const e = (d.entries || []).find((x) => x.id === process.argv[2]);
+    if (e && e.status === "superseded") process.stdout.write((e.links && e.links.superseded_by) || "(sucessor ausente)");
+  ' "$ROOT/.forge/ledger/ledger.json" "$FROM_LEDGER" 2>/dev/null || true)"
+  if [ -n "$LEDGER_SUCCESSOR" ]; then
+    echo "  WARN: ledger: $FROM_LEDGER foi substituído por $LEDGER_SUCCESSOR — change criado SEM elo com o ledger. Para ligar ao sucessor: bash .forge/scripts/ledger-ops.sh promote $LEDGER_SUCCESSOR --to $ID"
+    FROM_LEDGER=""
+  fi
+fi
+
 # ── ledger origin (opt-in): stamp the manifest so archive/close can close the loop ───────────
 if [ -n "$FROM_LEDGER" ]; then
   LEDGER_ORIGIN="$FROM_LEDGER" perl -pi -e 's/^(owner: .*)$/$1\nledger_origin: $ENV{LEDGER_ORIGIN}/' "$DEST/manifest.yaml"

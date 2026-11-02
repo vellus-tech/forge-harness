@@ -1,0 +1,70 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20261031004429-87ed66c7",
+  "stage": "verify",
+  "status": "passed",
+  "started_at": "2026-10-31T00:44:28Z",
+  "finished_at": "2026-10-31T00:44:29.450Z",
+  "duration_ms": 1450,
+  "git": {
+    "repo": true,
+    "branch": "feat/harness/ledger-evidence-aging",
+    "head_sha": "3108ab9e0a445f3da13ea6e03a9f2ed2c54ef889",
+    "dirty": true,
+    "changed_files": [
+      ".forge/specs/active/add-ledger-evidence-aging/verification.yaml"
+    ],
+    "diff_stat": ".forge/specs/active/add-ledger-evidence-aging/verification.yaml | 4 ++--\n 1 file changed, 2 insertions(+), 2 deletions(-)",
+    "diff_sha256": "24ccefc1ea83b39d91414eba4cac25b1d1d8b823fdab1fa697742c07b33e1dc4"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "4e2870be03076a82d5fbb1ffa9e54b5d69ab1f5ac71544499bb85e7ebddb2eb6",
+      "bytes": 1274,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "6822639004e58e084de741880476e3b4a677fe3858004d37b258bc81429118b0",
+      "bytes": 13767,
+      "kind": "file"
+    },
+    {
+      "path": "traceability.yaml",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "commands": [
+    {
+      "name": "spec-verify",
+      "command": "spec-verify.sh add-ledger-evidence-aging",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "9b5040ab62e4f3e468b649567f320cc5052a1c7c426898a4e55bab532f5a26f7",
+      "bytes": 219,
+      "kind": "file"
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

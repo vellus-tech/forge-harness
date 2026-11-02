@@ -144,12 +144,13 @@ wiring_of() { # wiring_of <lib> <root>
 owned_projection_of() {
   node -e '
     const fs = require("fs");
-    // issue #125: o universo de PreToolUse deixou de ser fixo — inclui os quatro ganchos do
-    // template, nas duas formas de comando possíveis (direta e via lib/argv-bridge.sh). As formas
-    // COM ASPAS em $CLAUDE_PROJECT_DIR (achado de correção MEDIUM, iteração 3 do modo correção) e
-    // as formas *Legacy* sem aspas convivem no universo owned — mesma migração sem duplicar de
+    // issue #125: o universo de PreToolUse deixou de ser fixo — inclui os cinco ganchos do
+    // template (TASK-19/#214 acrescentou guard-cross-session-send.sh), nas duas formas de comando
+    // possíveis (direta e via lib/argv-bridge.sh). As formas COM ASPAS em $CLAUDE_PROJECT_DIR
+    // (achado de correção MEDIUM, iteração 3 do modo correção) e as formas *Legacy* sem aspas
+    // convivem no universo owned — mesma migração sem duplicar de
     // hookCommandDirect/hookCommandDirectLegacy na lib.
-    const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "check-language-policy.sh", "validate-naming-conventions.sh"];
+    const HOOK_FILES = ["enforce-worktree-location.sh", "prevent-secrets-leak.sh", "check-language-policy.sh", "validate-naming-conventions.sh", "guard-cross-session-send.sh"];
     const OWNED = new Set([
       "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-start.sh",
       "\"$CLAUDE_PROJECT_DIR\"/.forge/hooks/session/on-session-end.sh",
@@ -653,8 +654,14 @@ const CMD_START = '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh'
 const CMD_START_QUOTED = '"$CLAUDE_PROJECT_DIR"/.forge/hooks/session/on-session-start.sh';
 const CMD_END = '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh';
 const CMD_END_QUOTED = '"$CLAUDE_PROJECT_DIR"/.forge/hooks/session/on-session-end.sh';
+// CMD_POST_TOOL_USE — renovação automática do bastão (add-liaison-handoff-baton, TASK-26/27).
+// Gancho NOVO, sem forma legada (nunca existiu sem aspas em $CLAUDE_PROJECT_DIR para migrar) —
+// só entra em OWNED, nunca em SEED_POOL: este PBT já cobre "hook owned pré-sync numa forma
+// reconhecida" com os três ganchos antigos, e adicionar aqui exigiria também um ramo de
+// staleOwned/existingHooks.PostToolUse dedicado, fora do escopo desta correção pontual.
+const CMD_POST_TOOL_USE = '"$CLAUDE_PROJECT_DIR"/.forge/hooks/session/on-post-tool-use.sh';
 const SEED_POOL = [CMD_ENFORCE, CMD_START, CMD_END];
-const OWNED = new Set([CMD_ENFORCE, CMD_ENFORCE_QUOTED, CMD_START, CMD_START_QUOTED, CMD_END, CMD_END_QUOTED]);
+const OWNED = new Set([CMD_ENFORCE, CMD_ENFORCE_QUOTED, CMD_START, CMD_START_QUOTED, CMD_END, CMD_END_QUOTED, CMD_POST_TOOL_USE]);
 
 const AUTHOR_POOL = ['permissions', 'env', 'includeCoAuthoredBy', 'model'];
 function authorValue(rnd, key) {

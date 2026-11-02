@@ -1,0 +1,61 @@
+id: add-unified-knowledge-search
+type: feature
+mode: brownfield
+rigor: spec-anchored
+scale: 3
+status: archived
+created_at: "2026-10-30"
+updated_at: "2026-10-31"
+owner: "milton"
+parent:
+  baseline: .forge/product/current
+affected_capabilities:
+  - forge-harness-template
+affected_paths:
+  - template/.forge/scripts/kb.sh
+  - template/.forge/scripts/lib/kb-corpus.mjs
+  - template/.forge/scripts/lib/kb-lexical.mjs
+  - template/.forge/scripts/lib/kb-fuse.mjs
+  - template/.forge/scripts/lib/kb-semantic.mjs
+  - template/.forge/scripts/lib/kb-integrity.mjs
+  - template/.forge/scripts/lib/kb-install.mjs
+  - template/.forge/scripts/lib/kb-cli.mjs
+  - template/.forge/scripts/lib/kb-pins/package.json
+  - template/.forge/scripts/lib/kb-pins/package-lock.json
+  - template/.forge/scripts/lib/kb-pins/models.json
+  - template/.forge/commands/graph/kb.md
+  - template/.forge/commands/graph/query.md
+  - template/.forge/scripts/doctor.sh
+  - installer/gitignore.patch
+  - .gitignore
+  - package.json
+  - package-lock.json
+  - plugin/forge/
+  - tests/fixtures/kb/
+  - tests/
+  - README.md
+  - docs/refer/slash-commands.md
+  - .forge/product/current/adr/0004-opt-in-runtime-layer.md
+  - .forge/product/current/adr/README.md
+  - CHANGELOG.md
+dependencies:
+  specs: []
+  code: []
+gates:
+  requirements_reviewed: true
+  design_reviewed: true
+  tasks_reviewed: true
+  implementation_verified: true
+  human_archive_approval: true
+dev_loop:
+  sharded: true
+  stories_path: stories/
+  epic_context_compiled: true
+quick_plan:
+  enabled: false
+  skipped_phases: []
+  justification:
+archive:
+  kind: baseline_update
+  eligible: true
+  reason: "deltas applied to baseline on 2026-10-31"

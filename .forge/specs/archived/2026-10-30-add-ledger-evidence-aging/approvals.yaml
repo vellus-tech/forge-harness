@@ -1,0 +1,64 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: review
+    reason: "2 MAJOR: spec new --from-ledger com item superseded quebra o ciclo (from-ledger-superseded); /forge:resume e SessionStart não veem item envelhecido via list (resume-stale-surface). 6 MINOR (schema do item de evidência, command não executa, symlink, doctor delega, relógio/CI documentados, homônimo superseded)."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:14:43-03:00"
+    iteration: 1
+    commit: "34f9d2c1"
+    scope: "requirements.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: requirements_reviewed
+    decision: approve
+    reason: "Rodada 2 — as duas MAJOR (from-ledger-superseded, resume-stale-surface) e os seis MINOR corrigidos com critério verificável; cinco pontos do dono cobertos de ponta a ponta. Notas MINOR para o design: conferir gates que comparam saída do list; resume não marca planned/in-progress (filtro herdado); doctor mapeia rc 2 do stale para info."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:15:54-03:00"
+    iteration: 2
+    commit: "34f9d2c1"
+    scope: "requirements.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: design_reviewed
+    decision: approve
+    reason: "Design atende REQ-01..09 de ponta a ponta e trata com estratégia por alvo os literais de mutação dos gates existentes, conferidos contra o código; 7 MINOR incorporados como §8 (comparação cronológica, definição única de ativo, contrato das portas de leitura, formato do list, fuso do --as-of, rollout no CHANGELOG, _require_value no stale)."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:38:33-03:00"
+    iteration: 1
+    commit: "b0bdf390"
+    scope: "design.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: tasks_reviewed
+    decision: approve
+    reason: "Tasks entregam REQ-01..09 e NFRs de ponta a ponta em ordem de dependência, com prova de TDD viável e suíte verde entre tasks; 5 MINOR incorporados (DoD com w211/w194/w193 nas TASK-03/04, follow-up do renomeio wNNN no verification, recorte e mutação do NFR-02, doctor dentro do guard de ledger.json)."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:53:11-03:00"
+    iteration: 1
+    commit: "526b9938"
+    scope: "tasks.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: implementation_verified
+    decision: review
+    reason: "2 MAJOR: inconsistência de last_verified invisível no list/status/doctor (inconsistencia-invisivel-na-fiacao); --as-of com hora sem fuso depende do TZ da máquina (fuso-implicito-no-as-of). 5 MINOR: data rolada, chave stale_days vazia vira default, prefixo '..' e evidência em .git/ledger, elo não recíproco no show, rc 5 sem contrato."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T21:33:26-03:00"
+    iteration: 1
+    commit: "31a5c2c3"
+    scope: "verification.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: implementation_verified
+    decision: approve
+    reason: "Rodada 2 — os dois MAJOR (inconsistência invisível na fiação; --as-of dependente de TZ) e os cinco MINOR corrigidos e reproduzidos num clone; gate do change com 44 cenários verde. Nota de convergência (motivo fixo na marca de inconsistência do list) corrigida em seguida: a marca agora remete ao stale."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T21:48:48-03:00"
+    iteration: 2
+    commit: "b7b57f10"
+    scope: "verification.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "Delta REQ-FHT-054..056 descreve o código entregue, numeração sem colisão, dry-run e validate-spec OK, cobertura dos 9 REQs registrada, follow-ups colhidos pelo harvest; MINORs aplicados (follow-up do renomeio inclui o baseline, w96 fora do ledger, verification.yaml refeito no commit final)."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T21:52:15-03:00"
+    iteration: 1
+    commit: "6212be31"
+    scope: "spec-delta.yaml"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"

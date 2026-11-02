@@ -1,0 +1,71 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20261031004448-a4874dae",
+  "stage": "verify",
+  "status": "passed",
+  "started_at": "2026-10-31T00:44:47Z",
+  "finished_at": "2026-10-31T00:44:48.379Z",
+  "duration_ms": 1379,
+  "git": {
+    "repo": true,
+    "branch": "feat/harness/ledger-evidence-aging",
+    "head_sha": "826c35d92298facc1b97c645dc120846df8b35aa",
+    "dirty": true,
+    "changed_files": [
+      ".forge/specs/active/add-ledger-evidence-aging/spec-delta.yaml",
+      ".forge/specs/active/add-ledger-evidence-aging/verification.yaml"
+    ],
+    "diff_stat": ".forge/specs/active/add-ledger-evidence-aging/spec-delta.yaml   | 6 ++++++\n .forge/specs/active/add-ledger-evidence-aging/verification.yaml | 4 ++--\n 2 files changed, 8 insertions(+), 2 deletions(-)",
+    "diff_sha256": "71988d92a42b42a9383a770bae66e157766215e6152b2cc920397820805db1cf"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "4e2870be03076a82d5fbb1ffa9e54b5d69ab1f5ac71544499bb85e7ebddb2eb6",
+      "bytes": 1274,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "6822639004e58e084de741880476e3b4a677fe3858004d37b258bc81429118b0",
+      "bytes": 13767,
+      "kind": "file"
+    },
+    {
+      "path": "traceability.yaml",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "commands": [
+    {
+      "name": "spec-verify",
+      "command": "spec-verify.sh add-ledger-evidence-aging",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "d21f86c6d14bbbaf187d635b13beab30a36caec0f93ed7e71ee395b4fb7e5122",
+      "bytes": 219,
+      "kind": "file"
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

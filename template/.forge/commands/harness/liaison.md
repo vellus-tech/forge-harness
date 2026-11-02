@@ -1,6 +1,6 @@
 ---
 description: Canal de mensagens ORDENADAS entre agentes de repositórios distintos (ex.: dono do .proto/gRPC e app cliente) — elimina drift de handoff manual. Store JSONL append-only por remetente, thread como campo, relógio de Lamport por thread, abertura de thread e entrada de participante como mensagens auditáveis. Transporte plugável (fs, git, manual) com sync idempotente e merge append-only. Operado por script determinista — exceto o subcomando ask, consulta síncrona a um peer sob mandato read-only.
-argument-hint: "[open|thread|send|ask|inbox|read|ack|status|conflicts|export|import|peer|transport|sync|render] [flags]"
+argument-hint: "[open|thread|send|ask|notify|native|inbox|read|ack|status|conflicts|export|import|peer|transport|sync|render|baton] [flags]"
 ---
 
 # /forge:liaison — canal de mensagens ordenadas entre repositórios
@@ -96,7 +96,7 @@ fariam a mais frouxa virar o caminho de menor resistência.
 | `manual` | diretório com `log/` + `blobs/`, no layout exato do `export` | a fronteira não é cruzável por script (pendrive, anexo, VPN montada à mão). **Nunca cria o diretório**: se ele não existe, o `probe` reprova, para você não publicar num lugar que ninguém combinou |
 | `fs` | `<path>/<channel>/{log,blobs}`, criado sob demanda | default do piloto — dois repositórios na mesma máquina ou num volume compartilhado |
 | `fs-union` | o mesmo de `fs` | opt-in, sem recomendação de troca: carrega o `_common.sh` do checkout principal e recusa, sem cair para a cópia da árvore, quando ele falta ou quando não une o log (tronco anterior à #110: atualize o tronco antes de sincronizar) — e, enquanto isso, o canal inteiro fica indisponível, inclusive `sync --pull-only` e `transport probe`; exige checkout git, e fora de git recusa, então ali use `fs`; uma árvore anterior ao kind recusa o `liaison.yaml` do tronco com `kind inválido` antes de tocar o hub; a invocação inline `FORGE_ROOT=<worktree>` numa worktree de branch anterior à #123 lê o `liaison.yaml` dela (`kind: fs`) e continua sem essa proteção (issue #123) |
-| `git` | branch **órfã** dedicada num remote, clone de trabalho descartável em `.forge/cache/liaison/<channel>` | os participantes não compartilham filesystem. Branch órfã por construção: sem ancestral comum com o código, nunca vira candidata a merge nem dispara CI |
+| `git` | branch **órfã** dedicada num remote; cada sync usa um repositório descartável próprio em `.forge/cache/liaison-git-run/` e o push não-fast-forward é o compare-and-swap | os participantes não compartilham filesystem. Branch órfã por construção: sem ancestral comum com o código, nunca vira candidata a merge nem dispara CI. A branch é dedicada ao liaison: symlink ou submódulo em qualquer ponto dela faz o sync recusar |
 | `gh` | — | **declarado, não implementável por script.** O harness proíbe invocar o CLI do GitHub em `.sh` (rede, auth interativa, estado irreprodutível em gate); o backend reprova por construção. A via por issue é sua, agente, com as ferramentas que você tem |
 
 **Topologia: hub único por canal, nunca par-a-par.** Cada participante publica o próprio log no
@@ -122,7 +122,7 @@ cara de funcionando.
 
 **`ack` avisa quando publica mas o cursor não avança** (issue #108) — `WARN: ack publicado, mas o cursor não avançou (<motivo>)` em stderr, com `rc 0`: o ack em si já é um ato de protocolo PUBLICADO no log antes desse efeito colateral rodar, então falhar o comando reportaria erro num ato que funcionou. O reparo manual é o `read --upto <msg_id>` do bloco de comandos acima. **O `doctor` nomeia quando `liaison-ops.sh status` falha**, em vez de sumir com a seção inteira: `✗ harness: LIAISON: status falhou — <primeira linha do erro>`. Cursores anteriores a essa correção que nunca avançaram (a issue #105 introduziu o avanço automático; até o #108, o `catch` que hoje avisa ficava vazio e engolia a falha em silêncio) não são reparados por esta mudança — é passivo retroativo, a medir em campo antes de decidir um reparo automático.
 
-**`status` distingue mensagem ENVIADA de mensagem PUBLICADA** (issue #109) — `· N própria(s) não publicada(s)` aparece quando o log próprio tem mensagens depois da marca do último `sync` bem-sucedido; `send` sozinho nunca publica nada, só grava localmente. Depois de um `sync` com push, a linha soma um `(há Xmin)` medido contra `published_at` (carimbo de hora do PUSH, wall clock deliberado) — nunca contra `created_at` (data do HEAD do commit, determinística e alheia a quando o push de fato aconteceu). Sem nenhum `sync` prévio, a linha aparece sem o parêntese: não há carimbo contra o que medir. É o mesmo motivo do item acima aplicado à outra ponta do protocolo — sem esta marca, uma mensagem `send`ada e esquecida (sessão encerrada antes do `sync`, transporte indisponível) ficava sem aviso nenhum, e o remetente acreditava que a contraparte já via algo que nunca saiu da árvore local.
+**`status` distingue mensagem ENVIADA de mensagem PUBLICADA** (issue #109) — `· N própria(s) não publicada(s)` aparece quando o log próprio tem mensagens depois da marca do último `sync` bem-sucedido; `send` sozinho nunca publica nada, só grava localmente. Depois de um `sync` com push, a linha soma um `(há Xmin)` medido contra `published_at` (carimbo de hora do PUSH, wall clock deliberado) — nunca contra `created_at` (data do HEAD do commit, determinística e alheia a quando o push de fato aconteceu). Sem nenhum `sync` prévio, a linha aparece sem o parêntese: não há carimbo contra o que medir. É o mesmo motivo do item acima aplicado à outra ponta do protocolo — sem esta marca, uma mensagem `send`ada e esquecida (sessão encerrada antes do `sync`, transporte indisponível) ficava sem aviso nenhum, e o remetente acreditava que a contraparte já via algo que nunca saiu da árvore local. **Com o bastão (add-liaison-handoff-baton):** nos transportes `fs`, `fs-union` e `manual`, o `status` GERAL relê o arquivo do `self` no hub e, se a marca estiver desatualizada em relação ao que o hub de fato tem, REGRAVA a marca de publicação (sob a trava de `state.json`) e avisa `hub atrás do log próprio: rode sync` — único caso em que `status` grava algo; `baton status` e `baton list` continuam sendo só leitura.
 
 ## Regras de import (o que protege o canal de um peer malicioso ou corrompido)
 
@@ -141,6 +141,59 @@ cara de funcionando.
 - `trust` é carimbado no IMPORT (`self` só para o que este repositório escreveu; tudo que veio de
   fora vira `untrusted-peer`, mesmo que a mensagem alegue outra coisa) — nunca decidido pelo
   remetente.
+
+## `baton` — dono único de uma unidade de trabalho
+
+Coordena uma unidade de trabalho que uma sessão de outro repositório participante poderia
+duplicar (ex.: as duas pontas da mesma migração, ou um handoff de sessão que encerrou sem
+concluir). Leia a seção "Bastão de dono único" da rule
+[liaison-protocol](../../rules/conventions/liaison-protocol.md#bastão-de-dono-único) antes de
+operar — modelo de estado (dobra, `provisional`/`stable`, desempate por code point), lease e
+carimbo, publicação automática da renovação e os limites declarados moram lá, não aqui.
+
+```bash
+bash .forge/scripts/liaison-ops.sh baton offer    <channel> --thread <id> --subject "<txt>" \
+  [--body "<txt>" | --body-file <path> | --from-handoff] [--for <a,b>] [--max-lease <s>] [--session <id>]
+bash .forge/scripts/liaison-ops.sh baton claim    <channel> <baton_id> [--lease <s>] [--session <id>]
+bash .forge/scripts/liaison-ops.sh baton renew    <channel> <baton_id> [--lease <s>] [--session <id>]
+bash .forge/scripts/liaison-ops.sh baton release  <channel> <baton_id> [--session <id>] [--body "<txt>" | --body-file <path>]
+bash .forge/scripts/liaison-ops.sh baton complete <channel> <baton_id> [--session <id>] [--body "<txt>" | --body-file <path>]
+bash .forge/scripts/liaison-ops.sh baton withdraw <channel> <baton_id> [--session <id>] [--body "<txt>" | --body-file <path>]
+bash .forge/scripts/liaison-ops.sh baton status   <channel> [<baton_id>] [--json]
+bash .forge/scripts/liaison-ops.sh baton list     <channel> [--json]
+```
+
+Flags aceitas por verbo (fonte única: `BATON_VERB_FLAGS` em `scripts/lib/liaison-baton.mjs`; o
+script recusa qualquer flag fora desta lista, nomeando o verbo e as flags aceitas):
+
+| Verbo | Flags aceitas |
+|---|---|
+| `offer` | `--thread`, `--subject`, `--body`, `--body-file`, `--from-handoff`, `--for`, `--max-lease`, `--session` |
+| `claim` | `--lease`, `--session` |
+| `renew` | `--lease`, `--session` |
+| `release` | `--session`, `--body`, `--body-file` |
+| `complete` | `--session`, `--body`, `--body-file` |
+| `withdraw` | `--session`, `--body`, `--body-file` |
+| `status` | `--json` |
+| `list` | `--json` |
+
+- `offer` recusa (sem gravar) quando a thread não tem participante além do `self`, quando
+  `--for` cita alguém fora da thread, ou quando o `eligible` resultante não sobra ninguém além
+  do `self` — bastão não é coordenação dentro do próprio repositório.
+- `--from-handoff` usa o `HANDOFF.md` da worktree corrente como corpo (gerado na hora se
+  ausente), pelo MESMO caminho de `--body-file` (teto de 64 KB, varredura de segredo); exclusivo
+  de `--body`/`--body-file`. Ver nota em [/forge:handoff](./handoff.md#transferência-de-posse).
+- `claim` devolve `won` (rc 0, com `provisional`/`stable`), qualquer outro veredito nomeado (rc
+  3, com a titular corrente) ou recusa de pré-condição sem gravar (rc 1) — oferta desconhecida,
+  `--lease` fora da faixa, ou sessão já titular com lease vigente (esse último caso é rc 0 sem
+  gravar, não recusa).
+- `renew`/`release`/`complete`/`withdraw` recusam sem gravar quando a sessão não é a titular
+  corrente (`release`/`complete`/`renew`) ou quando não é o ofertante com o bastão disponível ou
+  vencido além da folga (`withdraw`).
+- `renew` distingue o motivo pelo código de saída: rc 0 renovado; rc 4 perda real (não é a titular corrente, ou o lease venceu, e a retomada é `baton claim`); rc 5 ainda não é hora (só com `FORGE_BATON_RENEW_IF_DUE=1`, antes da metade do prazo); rc 1 erro ou transitório (trava ocupada ou perdida, oferta desconhecida, `--lease` fora da faixa, exceção). O gancho de renovação automática só avisa perda e tira o bastão do cache com rc 4; com rc 5 regrava o cache a partir da dobra; com rc 1 não toca o cache e tenta de novo no próximo evento.
+- `status <channel> [<baton_id>]` e `list <channel>` são só leitura: nunca gravam mensagem. O
+  `status` GERAL (sem `baton`) soma à linha do canal `· bastões: N disponível(is), M nosso(s), K
+  perdido(s)`.
 
 ## `ask` — consulta síncrona a um peer
 
@@ -196,6 +249,60 @@ resposta é **nossa mensagem sobre o que o peer disse**: `authored_by` preserva 
   existe: ou você sabe a quem perguntar, ou o caminho é o assíncrono, que roteia pela thread.
 - **Nunca invente a resposta.** Se a consulta falhou, diga que falhou. Uma resposta fabricada com
   `authored_by` de outro repositório é a pior corrupção possível deste canal.
+
+## Mensageria nativa entre sessões (campainha → `sync` → `inbox --show`)
+
+A mensageria nativa do Claude Code (`SendMessage`) é **campainha**, não registro — ver [liaison-protocol](../../rules/conventions/liaison-protocol.md#mensageria-nativa-entre-sessões). O fluxo operacional:
+
+```bash
+# 1. gravar o fato no liaison, publicar, e resolver o ponteiro canônico
+bash .forge/scripts/liaison-ops.sh send <channel> --thread <id> --kind <k> --subject "<txt>" [--body "<txt>"]
+bash .forge/scripts/liaison-ops.sh sync <channel>
+bash .forge/scripts/liaison-ops.sh notify <channel> <msg_id> --to <destino>
+# imprime "liaison:<channel>/<msg_id>" — esse ponteiro vai como primeira linha não vazia do
+# corpo do SendMessage nativo (é a forma que a ferramenta `notify` já imprime); ponteiro no
+# meio do texto seria ambíguo com uma citação
+
+# 2. o SendMessage nativo (fora do liaison) leva o ponteiro como primeira linha
+
+# 3. do lado de quem recebe: diagnóstico de cobertura
+bash .forge/scripts/liaison-ops.sh native check [--session <id>] [--transcript <path>] [--report] [--pending]
+
+# 4. registrar o que chegou — mensagem com conteúdo que vira registro próprio
+bash .forge/scripts/liaison-ops.sh send <channel> --via cross-session --native-ref <fingerprint> --session <id>
+# --native-ref é o fingerprint da recepção (sha256 hex); a origem (from_addr/from_name/from_mode)
+# é extraída do transcript por esse fingerprint, nunca informada por flag
+
+# 4b. ou, quando a troca é genuinamente efêmera (lista FECHADA de classes)
+bash .forge/scripts/liaison-ops.sh native dispose <fingerprint> --ephemeral <classe>
+
+# 5. ler o que chegou (corpo sob banner UNTRUSTED, neutralizado — regra liaison-untrusted-input)
+bash .forge/scripts/liaison-ops.sh inbox <channel> --show
+```
+
+### Cadastro de workspaces permitidos (`native allow|revoke|pin`) — restrição humana
+
+```bash
+# só roda num terminal do operador, FORA de qualquer sessão do Claude Code — o CLI recusa
+# com rc != 0 se detectar qualquer marcador de sessão de agente (CLAUDECODE, CLAUDE_CODE_SESSION_ID, CLAUDE_PID)
+bash .forge/scripts/liaison-ops.sh native allow <identidade> --reason "<motivo>"
+bash .forge/scripts/liaison-ops.sh native revoke <identidade> --reason "<motivo>"
+bash .forge/scripts/liaison-ops.sh native pin   # fixa self_identity no primeiro cadastro
+```
+
+A identidade de workspace é o remote `origin` do repositório mais externo (`git remote get-url origin`, que aplica `insteadOf`); remote com alias SSH (`git@<alias>:owner/repo`) gera identidade com o alias como host, e é assim que deve ser cadastrado. O cadastro vale **só para a saída**: os dois lados de uma conversa precisam cadastrar um ao outro para que ela flua nos dois sentidos.
+
+### Detector de mudanças de contenção
+
+```bash
+bash .forge/scripts/liaison-ops.sh native containment [--range <a>..<b>] [--format text|markdown]
+```
+
+Chamado por `pre-push` (avisa, sem bloquear), `doctor` (estado atual) e `/forge:prepare-pr`/`/forge:ship` (seção "Mudanças de contenção" no PR, para decisão humana no merge). As quatro mudanças fechadas: cadastro alterado; linha do gancho de `SendMessage` removida/trocada em `hooks.manifest`; gancho ausente da fiação efetiva quando o manifesto o declara armado; identidade do remote `origin` diferente de `self_identity`.
+
+### O gancho de saída
+
+`guard-cross-session-send.sh` (`PreToolUse`, `SendMessage`) recusa com rc 2 quando: o corpo contém segredo (mesma varredura do `send`); o destino é sessão/subagente sem ponteiro resolvido nem declaração efêmera válida na primeira linha; ou o destino está fora do workspace atual e não há cadastro `allow` ativo. **Limite declarado:** `allowed_workspaces` protege contra liberação induzida pelo próprio fluxo, não é fronteira de segurança — um agente determinado rodando como o mesmo usuário do sistema contorna o gancho inteiro (ver [liaison-untrusted-input](../../rules/conventions/liaison-untrusted-input.md#mensagem-nativa-recebida)). A única contenção que o usuário do sistema não altera é a configuração gerenciada do Claude Code, recomendada para repositórios em escopo PCI.
 
 ## Quando usar
 

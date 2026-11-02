@@ -1,0 +1,121 @@
+capability_id: changelog-authoring
+version: 0.1.0
+status: current
+requirements:
+  - id: REQ-CA-001
+    title: "Modo explícito grava entrada pt-BR em Unreleased sem alterar seções numeradas"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-CA-001-A
+        given: "um CHANGELOG.md com [Unreleased] vazio e uma seção numerada publicada"
+        when: "/forge:update-changelog <component> <type> <description> roda em branch não protegida, sem release-please-config.json"
+        then: "grava '- <description>' na seção pt-BR mapeada de <type>, dentro de [Unreleased], e a seção numerada publicada permanece byte a byte idêntica"
+      - id: SCN-CA-001-B
+        given: "CHANGELOG.md ainda inexistente no componente"
+        when: "o motor roda em modo explícito"
+        then: "cria o arquivo com cabeçalho Keep a Changelog padrão antes de gravar a entrada (REQ-14)"
+    tests:
+      - tests/w296-changelog-engine-explicito-gate.sh
+      - tests/w304-update-changelog-comando-gate.sh
+  - id: REQ-CA-002
+    title: "Modo derivado deriva entradas de Conventional Commits por subject ou path"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-CA-002-A
+        given: "type e description omitidos e --subject \\\"feat(x): ...\\\" informado"
+        when: "o comando roda sem argumentos de tipo/descrição"
+        then: "deriva e grava a entrada na seção Adicionado, a partir do título do commit"
+      - id: SCN-CA-002-B
+        given: "--path aponta para um componente inexistente no repositório"
+        when: "o comando roda em modo derivado por path"
+        then: "sai com rc=2 e não grava 'nada a registrar' por vacuidade"
+    tests:
+      - tests/w297-changelog-engine-derivado-gate.sh
+  - id: REQ-CA-003
+    title: "Comando para sem editar nada em branch protegida"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-CA-003-A
+        given: "a branch atual é develop, master ou main"
+        when: "/forge:update-changelog roda em qualquer modo (explícito ou derivado)"
+        then: "o comando para antes de editar qualquer CHANGELOG.md e informa que não roda em branch protegida"
+    tests:
+      - tests/w304-update-changelog-comando-gate.sh
+  - id: REQ-CA-004
+    title: "Comando recusa editar CHANGELOG quando o componente tem release-please-config.json"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-CA-004-A
+        given: "o componente (ou raiz) alvo tem release-please-config.json"
+        when: "/forge:update-changelog roda em modo explícito ou derivado"
+        then: "o CHANGELOG.md permanece intocado e a saída aponta o título do PR atual como fonte da entrada de release"
+    tests:
+      - tests/w299-changelog-engine-release-please-gate.sh
+      - tests/w304-update-changelog-comando-gate.sh
+  - id: REQ-CA-005
+    title: "Comando só conclui se os quatro gates pós-escrita passarem"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-CA-005-A
+        given: "a escrita do motor alterou (byte a byte) uma seção [X.Y.Z] já publicada no arquivo anterior"
+        when: "o gate released roda sobre o par de arquivos (antigo, novo)"
+        then: "reprova com FAIL released e o comando não conclui com sucesso"
+      - id: SCN-CA-005-B
+        given: "um bloco antigo (### Added) foi removido sem substituto equivalente"
+        when: "o gate preserve roda sobre o par de arquivos"
+        then: "reprova com FAIL preserve"
+      - id: SCN-CA-005-C
+        given: "a entrada gravada contém travessão, quebra de linha dentro do parágrafo, acentuação ASCII ou placeholder"
+        when: "o gate lint roda sobre o arquivo novo"
+        then: "reprova com FAIL lint, nomeando a violação"
+    tests:
+      - tests/w300-changelog-gate-released-gate.sh
+      - tests/w301-changelog-gate-preserve-gate.sh
+      - tests/w302-changelog-gate-lint-gate.sh
+      - tests/w306-changelog-gates-regressao-gate.sh
+  - id: REQ-CA-006
+    title: "resolve-skill.sh resolve o motor só para o comando, com precedência e falha explícita"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-CA-006-A
+        given: "FORGE_SKILL_DIR_README_GENERATOR definido no ambiente"
+        when: "resolve-skill.sh readme-generator roda"
+        then: "resolve esse override antes de .forge/skills/readme-generator/ do projeto e antes da skill de usuário"
+      - id: SCN-CA-006-B
+        given: "nenhuma das três fontes (override, projeto, skill de usuário) tem o diretório ou o arquivo obrigatório"
+        when: "resolve-skill.sh readme-generator scripts/changelog-engine.mjs roda"
+        then: "sai com 'FAIL skill readme-generator ausente' e rc 1, nunca em silêncio"
+    tests:
+      - tests/w303-resolve-skill-gate.sh
+  - id: REQ-CA-007
+    title: "Formato Keep a Changelog preservado e motor aceita CHANGELOG ausente nos modos do comando"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-CA-007-A
+        given: "CHANGELOG.md inexistente no componente alvo, modo explícito ou derivado"
+        when: "o motor roda"
+        then: "cria o arquivo com cabeçalho Keep a Changelog padrão em vez de falhar com erro de arquivo ausente"
+      - id: SCN-CA-007-B
+        given: "um CHANGELOG.md sem a seção ## [Unreleased]"
+        when: "o motor grava uma entrada nova"
+        then: "cria a seção [Unreleased] antes da primeira versão numerada, preservando ## [X.Y.Z] - lista '- ' do Keep a Changelog"
+    tests:
+      - tests/w296-changelog-engine-explicito-gate.sh
+      - tests/w298-changelog-engine-merge-range-gate.sh
+  - id: REQ-CA-008
+    title: "Mapeamento pt-BR de Conventional Commits trata perf como Corrigido, nunca Alterado"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-CA-008-A
+        given: "--subject \\\"perf(x): ...\\\" no modo derivado"
+        when: "o motor deriva a seção a partir do tipo do commit"
+        then: "grava a entrada em ### Corrigido, nunca em ### Alterado"
+      - id: SCN-CA-008-B
+        given: "--subject \\\"refactor(x): ...\\\" no modo derivado"
+        when: "o motor deriva a seção"
+        then: "não gera entrada nenhuma (DIV-02)"
+    tests:
+      - tests/w297-changelog-engine-derivado-gate.sh
+history:
+  - change_id: add-unify-changelog-skill
+    archived_at: "2026-11-01"

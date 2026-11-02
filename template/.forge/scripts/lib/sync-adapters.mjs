@@ -149,6 +149,46 @@ function readYamlAutoFlag(yamlPath, key) {
   } catch { return false; }
 }
 
+// readYamlNestedFlag(yamlPath, ['liaison', 'baton', 'auto_renew']) — leitura pura de uma chave
+// booleana ANINHADA em qualquer profundidade (TASK-27, design §2.8/§4.4: liaison.baton.auto_renew
+// decide a fiação de PostToolUse). `readYamlAutoFlag` não serve aqui — ele só lê `<key>.auto` de
+// UM nível e devolve `false` para "ausente", enquanto aqui ausência tem de ser distinguível de
+// `false` explícito (design §2.6: auto_renew ausente VALE true; só `auto_renew: false` desliga).
+// Por isso devolve `true | false | undefined`, nunca colapsa ausência em `false`.
+//
+// Rastreia o caminho por indentação, como `readBatonConfig` faz para `liaison.baton.*`, mas para
+// profundidade arbitrária: casa o segmento N do caminho só numa linha cuja indentação é MAIOR que
+// a do segmento N-1 já casado (filho direto por indentação, não qualquer linha mais abaixo); um
+// dedent até a indentação do último segmento casado (ou menor) reinicia a busca do zero, porque
+// saiu do bloco daquele pai.
+function readYamlNestedFlag(yamlPath, path) {
+  let text;
+  try { text = readFileSync(yamlPath, 'utf8'); } catch { return undefined; }
+  let matchedDepth = 0;
+  let matchIndent = -1;
+  for (const line of text.split('\n')) {
+    const m = line.match(/^(\s*)([A-Za-z0-9_]+):\s*(.*)$/);
+    if (!m) continue;
+    const indent = m[1].length;
+    const key = m[2];
+    const val = m[3].replace(/\s*#.*$/, '').trim();
+    if (matchedDepth > 0 && indent <= matchIndent) {
+      matchedDepth = 0;
+      matchIndent = -1;
+    }
+    if (key === path[matchedDepth] && indent > matchIndent) {
+      matchedDepth += 1;
+      matchIndent = indent;
+      if (matchedDepth === path.length) {
+        if (val === 'true') return true;
+        if (val === 'false') return false;
+        return undefined;
+      }
+    }
+  }
+  return undefined;
+}
+
 // preToolUseWiring(root) — exportação nomeada e estável (#130): a
 // função que MONTA a fiação PreToolUse/SessionStart/SessionEnd, como um objeto puro, sem
 // escrever nada em disco e sem depender do ROOT/cwd de quem importou o módulo — só do `root`
@@ -176,6 +216,11 @@ const CMD_SESSION_START = '"$CLAUDE_PROJECT_DIR"/.forge/hooks/session/on-session
 const CMD_SESSION_START_LEGACY = '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh';
 const CMD_SESSION_END = '"$CLAUDE_PROJECT_DIR"/.forge/hooks/session/on-session-end.sh';
 const CMD_SESSION_END_LEGACY = '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh';
+// CMD_POST_TOOL_USE — renovação automática do bastão (TASK-26/27, design §2.8/§4.4). Mesma
+// família de ganchos de sessão (hooks/session/), fora do hooks.manifest do PreToolUse: não é um
+// gancho de arquivo (bash/edit/write), dispara em TODA ferramenta (matcher '.*'). Sem forma
+// *Legacy*: é gancho novo, nunca existiu sem aspas em `$CLAUDE_PROJECT_DIR` para migrar.
+const CMD_POST_TOOL_USE = '"$CLAUDE_PROJECT_DIR"/.forge/hooks/session/on-post-tool-use.sh';
 
 // hookCommandDirect/hookCommandBridge — as DUAS únicas formas de comando que este gerador pode
 // emitir para um gancho de `pre-tool-use/`: direta (contrato `stdin-json`, o próprio gancho lê o
@@ -251,7 +296,7 @@ function declaredHookNames(hooksDir) {
 }
 
 function ownedHookCommandsFor(root) {
-  const set = new Set([CMD_SESSION_START, CMD_SESSION_END, CMD_SESSION_START_LEGACY, CMD_SESSION_END_LEGACY]);
+  const set = new Set([CMD_SESSION_START, CMD_SESSION_END, CMD_SESSION_START_LEGACY, CMD_SESSION_END_LEGACY, CMD_POST_TOOL_USE]);
   const hooksDir = join(root, '.forge', 'hooks', 'pre-tool-use');
   for (const hook of declaredHookNames(hooksDir)) {
     set.add(hookCommandDirect(hook));
@@ -414,6 +459,13 @@ function derivePreToolUseHooks(root) {
   const consumerText = readManifestFile(join(hooksDir, 'hooks.manifest'));
   let consumerDecls = null;
   let unresolved = false;
+  // Nomes citados pelo manifesto do consumidor quando ele existe mas não resolve e não há
+  // `.claude/settings.json` (caminho de instalação nova abaixo). Sem esta restrição, o 1º sync
+  // armava pelo default um gancho que o consumidor nunca declarou e o 2º sync, já com fiação
+  // observada, o desarmava: o conjunto oscilava entre o 1º e o 2º sync (medido quando
+  // o gancho de saída de mensagens entre sessões entrou armado no default, change
+  // add-liaison-native-bridge).
+  let consumerNamedOnly = null;
   if (consumerText != null) {
     const lido = lerHooksManifest(consumerText, {
       fiacao: existingGroups,
@@ -435,6 +487,13 @@ function derivePreToolUseHooks(root) {
         // vez de gravar uma vacuidade fabricada pelo próprio gerador.
         avisos.push(
           `LDG-0178: .forge/hooks/pre-tool-use/hooks.manifest não foi resolvido pelo leitor canônico (${lido.mensagem}) — sem .claude/settings.json anterior para preservar, a fiação parte de hooks.manifest.default (instalação nova)`,
+        );
+        consumerNamedOnly = new Set(
+          consumerText.split('\n')
+            .map((l) => l.trim())
+            .filter((l) => l && !l.startsWith('#'))
+            .map((l) => l.split(/\s+/)[0])
+            .filter((h) => h.endsWith('.sh')),
         );
       } else {
         unresolved = true;
@@ -473,7 +532,7 @@ function derivePreToolUseHooks(root) {
     avisos.push(
       'hooks.manifest.default ausente e .forge/hooks/pre-tool-use/hooks.manifest ausente — PreToolUse permanece como estava (sem fonte de matcher/contrato para derivar ou reconciliar com segurança)',
     );
-    return { groups: [], avisos, unresolved: true, ownedSet: new Set([CMD_SESSION_START, CMD_SESSION_END, CMD_SESSION_START_LEGACY, CMD_SESSION_END_LEGACY]) };
+    return { groups: [], avisos, unresolved: true, ownedSet: new Set([CMD_SESSION_START, CMD_SESSION_END, CMD_SESSION_START_LEGACY, CMD_SESSION_END_LEGACY, CMD_POST_TOOL_USE]) };
   }
 
   const foreignReachable = dispatchedHookNames(existingGroups || [], ownedSet);
@@ -530,6 +589,10 @@ function derivePreToolUseHooks(root) {
       continue;
     }
     if (existingGroups == null) {
+      if (consumerNamedOnly && !consumerNamedOnly.has(hook)) {
+        avisos.push(`'${hook}' não está declarado em .forge/hooks/pre-tool-use/hooks.manifest — ignorado (o manifesto do consumidor decide os ganchos do diretório)`);
+        continue;
+      }
       if (fromDefault.armado) emit(hook, fromDefault.matcher, fromDefault.contrato);
       continue;
     }
@@ -572,9 +635,20 @@ export function preToolUseWiring(root) {
   if (handoffAuto || ledgerAuto || liaisonAuto) {
     hooks.SessionStart = [{ hooks: [{ type: 'command', command: CMD_SESSION_START }] }];
   }
-  // SessionEnd só regenera o scaffold do handoff (o ledger é regenerado a cada mutação).
-  if (handoffAuto) {
+  // SessionEnd regenera o scaffold do handoff (handoff.auto) e/ou roda o diagnóstico de
+  // cobertura `native check --report` do liaison (liaison.auto, REQ-08, design §2.6) — basta um
+  // dos dois flags para materializar o hook; o `.sh` decide internamente o que de fato roda.
+  if (handoffAuto || liaisonAuto) {
     hooks.SessionEnd = [{ hooks: [{ type: 'command', command: CMD_SESSION_END }] }];
+  }
+  // PostToolUse — renovação automática do bastão (TASK-26/27, REQ-12, design §2.8): liga quando
+  // liaison.auto está ligado E liaison.baton.auto_renew não é false (ausente VALE true, design
+  // §2.6 — por isso readYamlNestedFlag, não readYamlAutoFlag, que colapsaria ausência em false).
+  // Categoria DERIVADA, como SessionStart/SessionEnd: nunca congelada, nunca duplicada (o mesmo
+  // ownedSet que decide PreToolUse decide esta).
+  const batonAutoRenew = readYamlNestedFlag(forgeYaml, ['liaison', 'baton', 'auto_renew']);
+  if (liaisonAuto && batonAutoRenew !== false) {
+    hooks.PostToolUse = [{ matcher: '.*', hooks: [{ type: 'command', command: CMD_POST_TOOL_USE }] }];
   }
   return hooks;
 }

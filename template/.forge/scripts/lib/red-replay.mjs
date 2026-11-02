@@ -966,10 +966,14 @@ export async function replayTask({ root, red, green = null, taskBase = null, tas
     if (rp.length !== 1 || rp[0] !== baseSha) return topo('o pai do vermelho não é o início da TASK (--task-base) — há commit(s) da TASK antes do vermelho');
   }
   if (taskId) {
-    if (!subjectOf(redSha).includes(`${taskId} — vermelho`)) return topo(`o assunto do commit de vermelho não contém '${taskId} — vermelho'`);
+    const escapedTask = taskId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const taskPrefix = `^(?:feat|fix|refactor|test|chore|docs|style|perf|build|ci|revert)\\([a-z-]+\\): ${escapedTask} (?:—|-) `;
+    const redSubject = new RegExp(`${taskPrefix}vermelho(?: |$)`);
+    const taskSubject = new RegExp(`${taskPrefix}\\S`);
+    if (!redSubject.test(subjectOf(redSha))) return topo(`o assunto do commit de vermelho não contém '${taskId} - vermelho'`);
     if (greenSha) {
       const gs = subjectOf(greenSha);
-      if (!gs.includes(`${taskId} — `) || gs.includes('vermelho')) return topo(`o commit de implementação não é da ${taskId} (assunto: '${gs}')`);
+      if (!taskSubject.test(gs) || redSubject.test(gs)) return topo(`o commit de implementação não é da ${taskId} (assunto: '${gs}')`);
     }
   }
 

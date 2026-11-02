@@ -1,0 +1,126 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: review
+    reason: "Revisor delegado (opus): REVIEW. MAJOR: origem do runtime carregado não definida (resolução de pacote contornaria pins e varredura nativa); ativação do modo semântico com modelos de fixture na suíte sem desligar a integridade não especificada. MINORs: drift de pins pós-update, semantic remove sob bloqueio, lista de provedores por limite de palavra, nomes genéricos de link, desempate do re-rank, fragmentos amplos no eval, evidência desatualizada, pesos degenerados, build interrompido."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:47:53-03:00"
+    iteration: 1
+    commit: "7dd0a8bc"
+    scope: "requirements.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: requirements_reviewed
+    decision: review
+    reason: "Revisor delegado (opus): REVIEW. MAJORs da rodada 1 corrigidos; troca de links (canal RRF para propagação) justificada pela medição. MAJOR consequente: ordem entre canal vetorial, propagação e re-rank no modo semântico indefinida; REQ-06 ainda fala em quarto canal; REQ-04 sem a contribuição da propagação. MINORs: citação §3.1, linha BM25 isolado na evidência, rascunhos não versionados, dependência transitiva envenenada, caso de runtime que lança na importação, redação."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:53:40-03:00"
+    iteration: 2
+    commit: "dc3ca148"
+    scope: "requirements.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: requirements_reviewed
+    decision: approve
+    reason: "Revisor delegado (opus), rodada 3: APPROVE. MAJOR e MINORs da rodada 2 corrigidos (ordem do pipeline explícita, terceiro canal, contribuição da propagação na saída, evidência reproduzível, casos de envenenamento e importação). Três NOTAs consequentes aplicadas como esclarecimento após o approve: resultado por caso no teste de módulos envenenados, etapas nomeadas (ranking fundido/propagado/final) no REQ-07, linha semântica com e sem propagação no verify."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:59:02-03:00"
+    iteration: 3
+    commit: "c07288cc"
+    scope: "requirements.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: design_reviewed
+    decision: review
+    reason: "Revisor delegado (opus): REVIEW. Conferências (i)-(iv) OK; ratificadas a emenda do REQ-07 (desempate pelo cross-encoder), a propagação de links e a aceitação de que o verify tende a parar em REQ-03/REQ-07 no holdout, com diagnóstico no canal de entidades (siglas genéricas). MAJOR: no CI (Node 20) o gate de rede usa só o interceptador por --import, que não alcança worker_threads (usados pelo onnxruntime-web), e não há controle positivo. MINORs: frase sobre ids no eval, rascunho do kb-fuse defasado, reusar expectedTrust do liaison-trust, licença de dados de treino (MS MARCO), medição em x86_64."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T20:26:26-03:00"
+    iteration: 1
+    commit: "2a45ba74"
+    scope: "design.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: design_reviewed
+    decision: approve
+    reason: "Revisor delegado (opus), rodada 2: APPROVE. MAJOR da rodada 1 corrigido (interceptador por --require alcança Workers; canário com recontrole), reproduzido pelo revisor em Node 22 e 26. Ratificadas como dono delegado as emendas do REQ-07 (desempate pelo cross-encoder) e do REQ-09 (--require + canário). MINOR para a TASK-08: interceptar net.Socket.prototype.connect, dgram.Socket.prototype.send/bind e dns; canário com import ESM nomeado, socket cru e child_process."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T20:33:36-03:00"
+    iteration: 2
+    commit: "4610ae2f"
+    scope: "design.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: requirements_reviewed
+    decision: approve
+    reason: "Ratificação, pelo revisor delegado do gate design_reviewed (rodadas 1 e 2), das emendas feitas no requirements depois do approve: REQ-07 (desempate do re-rank pela posição do cross-encoder, motivado por contradição interna do critério ii) e REQ-09 (interceptador por --require, que alcança Workers, mais canário de controle positivo)."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T20:33:36-03:00"
+    iteration: 1
+    commit: "4610ae2f"
+    scope: "requirements.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: tasks_reviewed
+    decision: review
+    reason: "Revisor delegado (opus): REVIEW. MAJOR: TASK-08 sem vermelho possível (só teste; comportamento já entregue); TASK-07 sem node_modules na worktree efêmera do red-evidence; TASK-10 (ADR sob .forge) com prova sempre reprovada; eval semântico sem task; dependência da TASK-08 sem o eval. MINORs: prova de ordem do holdout, seção de medições do verify, testes estáticos do kb-install e do doctor nomeados, REQ-09 na TASK-09, padrão FAIL [^]]+ e ausência convertida em FAIL, TASK-07 grande demais, spec-delta e CHANGELOG sem dono, alerta de Dependabot nos pins."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T20:40:13-03:00"
+    iteration: 1
+    commit: "3f303644"
+    scope: "tasks.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: tasks_reviewed
+    decision: review
+    reason: "Revisor delegado (opus), rodada 2: REVIEW. MAJOR: o gate w288 da TASK-05 chama kb_env_setup, que depende de fake-npm/make-semantic-fixture (TASK-07) e de kb-pins (TASK-06) — verde impossível. MINOR: semantic remove/status (não instalada) exigidos no verde da TASK-05 mas atribuídos à TASK-07. NOTAs: w291 [7] textual casaria comentário; rótulos do assert_clean no w293."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T20:48:09-03:00"
+    iteration: 2
+    commit: "deb83fb2"
+    scope: "tasks.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: tasks_reviewed
+    decision: approve
+    reason: "Revisor delegado (opus), rodada 3: APPROVE. MAJOR da rodada 2 resolvido (kb_env_setup sem devDependencies, pins nem fixtures de modelo); simulação reproduzida pelo revisor com vermelho FAIL [n] e verde em TASK-01..08 sem regressão. NOTAs para a implementação: testar semantic status/remove no w287; recortar o kb-cli.mjs por task (lexical na TASK-04, eval na 05, install/status na 07, canal vetorial/re-rank/eval semântico na 08); semantic-env.sh da TASK-05 só com kb_env_setup."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T21:02:56-03:00"
+    iteration: 3
+    commit: "38098e02"
+    scope: "tasks.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: implementation_verified
+    decision: review
+    reason: "Revisor delegado (opus): REVIEW. Conferências (i)-(vi) confirmadas com execução (zero-dep em /tmp sem node_modules, inferência real, nada sai sob --permission e interceptador, números reproduzidos ao milésimo, spec-delta fiel). MAJORs só de texto na decisão do dono: diagnóstico do re-rank errado (3 sobem, 3 descem; perde 1 em hit@1 e 1 em hit@5), troca do desempate após ver o holdout não declarada na seção de decisão, ablação por canal ausente (entidades valem zero na calibração e tiram no holdout). MINORs: bloqueio do archive só em prosa, comentário de cache, código morto."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T22:40:01-03:00"
+    iteration: 1
+    commit: "af2883cf"
+    scope: "verification.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30. REQ-03/REQ-07 falham no holdout; archive condicionado à decisão do dono."
+  - gate: implementation_verified
+    decision: approve
+    reason: "Revisor delegado (opus), rodada 2: APPROVE. Correções da rodada 1 conferidas e números reproduzidos ao milésimo (ablação e diagnóstico por consulta); refactor sem regressão (w285, w287, w292). MINOR e NOTAs de redação aplicados (resumo do REQ-07 na evidência, custo das opções, frase sem prova removida). Este APPROVE não decide o archive."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T22:46:33-03:00"
+    iteration: 2
+    commit: "a6a60e66"
+    scope: "verification.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30. REQ-03/REQ-07 falham no holdout; archive condicionado à decisão do dono (verification.md, Decisão pendente do dono)."
+  - gate: implementation_verified
+    decision: approve
+    reason: "Re-verificação delegada (opus) após as decisões do dono de 2026-10-31: APPROVE. Licença registrada (risco aceito pelo dono); holdout-2 limpo e anterior ao código; TASK-10 com vermelho provado e sem regressão; números reproduzidos ao milésimo. Re-rank fica PADRÃO (holdout-2: melhora 8, piora 4; calibração: 6 e 2). REQ-03 e REQ-07 passam. REQ-06 falha no holdout-2 por uma consulta (hit@5 0,933 contra 0,967): BLOCK-ARCHIVE até decisão do dono."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-31T10:22:43-03:00"
+    iteration: 1
+    commit: "ac006950"
+    scope: "verification.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30. Archive bloqueado: REQ-06 no holdout-2 é decisão reservada ao dono pelo texto aprovado."
+  - gate: implementation_verified
+    decision: approve
+    reason: "Re-verificação delegada (opus) após o diagnóstico pedido pelo dono: APPROVE. Diagnóstico do REQ-06 fiel aos dados brutos (descarte antes do re-rank por viés estrutural do canal vetorial a favor de documentos longos); correção geral (TASK-11, topo do BM25 no pool do cross-encoder) com vermelho provado; REQ-03, REQ-06 e REQ-07 passam na calibração e no holdout-2; re-rank PADRÃO (10 melhoram/4 pioram no holdout-2, 8/2 na calibração); R1/R2/NFR-02 intactos; suíte 194/0. MINORs de redação aplicados (N = 3 escolhido com informação do holdout-2, declarado; 0,0323)."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-31T12:09:07-03:00"
+    iteration: 2
+    commit: "c6f97783"
+    scope: "verification.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30; decisões do dono de 2026-10-31 (licença aceita; entidades + holdout novo; investigar antes de arquivar) cumpridas."
+  - gate: human_archive_approval
+    decision: approve
+    reason: "Revisor delegado (opus): APPROVE. spec-delta com 11 add_requirement (REQ-FHT-070..080) corresponde ao comportamento verificado, incluindo as emendas de entidades e do pool do re-rank; pré-voo sem bloqueio (impacto fresh, ADR 0004 no baseline, sem scaffold, dry-run do delta OK); licença registrada como risco aceito pelo dono em 2026-10-31."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-31T12:09:07-03:00"
+    commit: "c6f97783"
+    scope: "spec-delta.yaml"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30; dono instruiu seguir ao archive após o diagnóstico (2026-10-31)."

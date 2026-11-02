@@ -20,6 +20,9 @@
 #   [9]  mutação: reduzir o limiar de "2+ assertivas sem guarda" pra "1+" faz o cenário [3]
 #        (seguro) passar a ser acusado - prova que o limiar de 2 não é vácuo/decorativo
 set -uo pipefail
+# Isolamento git (LDG-0201): GIT_DIR herdado faria os comandos git das fixtures obedecerem ao
+# repositório de quem invoca o gate.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LINT="$WS/template/.forge/scripts/check-bats-assertion-abort.sh"
@@ -174,12 +177,12 @@ echo "OK [8]"
 
 # ── [9] MUTAÇÃO ──────────────────────────────────────────────────────────────────────────────
 echo "[9] mutação: baixar o limiar de 2 pra 1 asserção sem guarda faz o cenário seguro [3] reprovar"
-LIB="$LIBDIR/bats-assertion-lint.mjs"
-cp "$LIB" "$T/lib.bak.mjs"
-sed -i.bak 's/bare\.length >= 2/bare.length >= 1/' "$LIB"
-run_lint --path "$T/c3"
-cp "$T/lib.bak.mjs" "$LIB"
-rm -f "$LIB.bak"
+# A mutação nunca toca a árvore rastreada (LDG-0201/w213-arvore-rastreada): copia o
+# template/.forge/scripts/ inteiro pra um sandbox sob $T e muta só a cópia ali.
+rm -rf "$T/scripts-mut"
+cp -R "$WS/template/.forge/scripts" "$T/scripts-mut"
+sed -i.bak 's/bare\.length >= 2/bare.length >= 1/' "$T/scripts-mut/lib/bats-assertion-lint.mjs"
+out="$(FORGE_ROOT="$T/repo" bash "$T/scripts-mut/check-bats-assertion-abort.sh" --path "$T/c3" 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] || { echo "FAIL [9]: mutação do limiar não mudou nada - o limiar de 2 pode ser decorativo (saída: '$out')"; exit 1; }
 echo "OK [9]"
 

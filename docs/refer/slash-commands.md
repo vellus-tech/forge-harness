@@ -1,6 +1,6 @@
 # Relação de Slash Commands — Forge Harness
 
-> Catálogo gerado a partir dos frontmatters em `template/.forge/commands/`. **55 commands** em 10 grupos.
+> Catálogo gerado a partir dos frontmatters em `template/.forge/commands/`. **57 commands** em 10 grupos.
 
 Os `/forge:*` são entregues por um **plugin** do Claude Code (gerado de `.forge/commands/**` por `/forge:build-plugin` ou `bash .forge/scripts/build-plugin.sh`). O Claude Code (>= 2.x) reserva o namespace `:` para plugins — por isso os comandos vivem num plugin `name: forge`, não em `.claude/commands/`. O engine que eles chamam (`.forge/scripts/...`) vem do `.forge/` por projeto (instalado via `npx forge-harness init`).
 
@@ -13,10 +13,10 @@ No Claude Code digite `/` e o nome do command; argumentos vão na mesma linha. E
 - [Specs — SDD / Spec-Driven Development](#specs) — 13 commands
 - [Coding — Dev loop & entrega](#coding) — 4 commands
 - [Waves — Planejamento incremental](#waves) — 6 commands
-- [Graph — Knowledge graph & brownfield](#graph) — 8 commands
+- [Graph — Knowledge graph & brownfield](#graph) — 9 commands
 - [Docs — Documentação & ADRs](#docs) — 8 commands
 - [Git — Fluxo de entrega](#git) — 1 commands
-- [Harness — Manutenção do Forge](#harness) — 11 commands
+- [Harness — Manutenção do Forge](#harness) — 12 commands
 - [Quality — Avaliação](#quality) — 1 commands
 - [Testing — TDD](#testing) — 2 commands
 - [Skills](#skills) — 1 commands
@@ -89,6 +89,7 @@ _Descoberta, build, query e impacto sobre o grafo de conhecimento do repo._
 | `/forge:discover` | — | Inventário determinístico do repositório (modo lite, §16.1) — stack, comandos run/test/build, estrutura, boundaries, mudanças e fingerprints — gravado em .forge/graph/manifest.json. |
 | `/forge:impact` | `--change <id> \| --diff [<base>] \| --files a,b,c` | Análise de impacto de uma spec ou diff sobre o grafo de código — quais arquivos dependem (transitivamente) do que mudou. |
 | `/forge:onboard` | `[<módulo ou capability>]` | Tour de arquitetura e domínio para um agente/humano novo no repositório — camadas, módulos, fluxos de dependência e pontos de concentração, derivados do grafo de código. |
+| `/forge:kb` | `<consulta> \| build \| status \| eval <arquivo> \| semantic install\|remove\|status` | Busca unificada sobre o conhecimento acumulado (baseline, ADRs, specs arquivadas, ledger, planos, CHANGELOG, liaison próprio). Lexical zero-dep por padrão; camada semântica local opcional. Sem LLM, sem rede na busca. |
 | `/forge:query` | `<termo> \| path <de> <para>` | Consulta o grafo de código (nodes/edges/caminhos) antes de abrir arquivos crus — lookup barato para localizar módulos, dependências e caminhos de import. |
 | `/forge:update` | — | Atualiza o grafo de código incrementalmente — só reprocessa se os fingerprints estruturais mudaram. |
 
@@ -119,7 +120,7 @@ _Ship end-to-end: commit, PR, revisão e merge num comando._
 
 | Command | Argumentos | Descrição |
 |---|---|---|
-| `/forge:ship` | `[--no-review]` | Fluxo completo commit -> PR -> revisao -> merge em develop -> cleanup, num unico comando. Gate humano do §20.4 e satisfeito pela invocacao explicita de /forge:ship. |
+| `/forge:ship` | `[--no-review]` | Fluxo completo commit -> PR -> revisão -> merge em develop -> cleanup, num único comando. Gate humano do §20.4 é satisfeito pela invocação explícita de /forge:ship. |
 
 
 <a id="harness"></a>
@@ -132,14 +133,15 @@ _Doctor, status, resume, sync de adapters, build do plugin, PR, promoção de st
 |---|---|---|
 | `/forge:build-plugin` | `[--out <dir>] [--version <x>]` | Gera/atualiza o plugin Claude Code "forge" (slash commands /forge:*) a partir de .forge/commands/**. |
 | `/forge:capabilities` | `list\|show <pack>\|activate <pack>` | Lista, inspeciona e orienta a ativação explícita de capability packs por stack. |
-| `/forge:doctor` | — | Valida o harness Forge e a tooling do projeto (stacks, adapters, symlinks, drift de lockfile, placeholders orfaos). |
+| `/forge:doctor` | — | Valida o harness Forge e a tooling do projeto (stacks, adapters, symlinks, drift de lockfile, placeholders órfãos). |
 | `/forge:handoff` | `[<change-id>]` | Gera um handoff portátil e agente-agnóstico em .forge/HANDOFF.md a partir do estado do change ativo — para passar contexto entre sessões ou entre code agents. |
+| `/forge:ledger` | `[list\|add\|update\|note\|resolve\|promote\|render\|status]` | Ledger durável de projeto (roadmap e dívida técnica): registra e consulta trabalho conhecido que sobrevive entre changes, alimentado por captura automática no close/archive e por curadoria manual; não-bloqueante, operado por script determinista. |
 | `/forge:liaison` | `[open\|thread\|send\|ask\|notify\|native\|inbox\|read\|ack\|status\|conflicts\|export\|import\|peer\|transport\|sync\|render\|baton]` | Canal de mensagens ORDENADAS entre agentes de repositórios distintos — store JSONL append-only por remetente, lamport por thread, transporte plugável (fs/git/manual), merge append-only que reprova reescrita de história e o subcomando `ask` para consulta síncrona a um peer. Ponte nativa (`SendMessage` entre sessões do Claude Code): `notify` resolve o ponteiro canônico; `send --via cross-session --native-ref` registra o que chegou; `native check`/`dispose` diagnosticam cobertura; `native allow`/`revoke`/`pin` cadastram workspaces permitidos (restrito a terminal do operador, fora de sessão); `native containment` detecta mudança de contenção. `baton` coordena uma unidade de trabalho de dono único entre réplicas (`offer`/`claim`/`renew`/`release`/`complete`/`withdraw`/`status`/`list`), com lease, dobra determinística e renovação automática opcional. |
-| `/forge:prepare-pr` | — | Prepara a descricao de um PR da branch de trabalho para develop a partir dos artefatos da mudanca. |
-| `/forge:promote-staging` | — | Direcionador de promocao develop para staging (decisao humana). |
-| `/forge:resume` | `[<change-id>]` | Emite o mandato de retomada de sessao (estado do change ativo + regras operacionais fixas) sem o usuario ter que reescreve-lo. |
+| `/forge:prepare-pr` | — | Prepara a descrição de um PR da branch de trabalho para develop a partir dos artefatos da mudança. |
+| `/forge:promote-staging` | — | Direcionador de promoção develop para staging (decisão humana). |
+| `/forge:resume` | `[<change-id>]` | Emite o mandato de retomada de sessão (estado do change ativo + regras operacionais fixas) sem o usuário ter que reescrevê-lo. |
 | `/forge:status` | — | Mostra o estado do harness Forge - specs ativas, baseline, graph e adapters - em formato curto. |
-| `/forge:sync-adapters` | — | Regenera os adapters (.claude, AGENTS.md, symlinks) a partir da fonte canonica .forge. |
+| `/forge:sync-adapters` | — | Regenera os adapters (.claude, AGENTS.md, symlinks) a partir da fonte canônica .forge. |
 | `/forge:upgrade` | `[--no-backup]` | Atualiza o harness Forge deste projeto para a versão mais recente do template (npx forge-harness update) — overlay cirúrgico da maquinaria, preservando specs, baseline e config. |
 
 

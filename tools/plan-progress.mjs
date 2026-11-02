@@ -45,7 +45,8 @@ const REPO = 'vellus-tech/forge-harness';
 // de JSON — decisão, não entrega. O placar os separa em balde próprio: colapsá-los com trabalho
 // feito permitiria declarar uma onda fechada sem uma linha de código.
 const DELIVERED = new Set(['resolved']);
-const RECLASSIFIED = new Set(['wont-fix', 'promoted']);
+// `superseded` (add-ledger-evidence-aging) encerra por decisão — o trabalho continua no sucessor.
+const RECLASSIFIED = new Set(['wont-fix', 'promoted', 'superseded']);
 
 let planPath = join(ROOT, 'docs/plans/2026-09-04-plano-resolucao-issues-e-ledger.md');
 let ledgerPath = join(ROOT, '.forge/ledger/ledger.json');

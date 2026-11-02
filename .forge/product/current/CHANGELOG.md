@@ -20,6 +20,18 @@
 - **Operações:** 12
 - **Pasta:** `.forge/specs/archived/2026-10-31-add-liaison-native-bridge/`
 
+## 2026-10-31 — add-unified-knowledge-search
+
+- **Capabilities:** forge-harness-template
+- **Operações:** 11
+- **Pasta:** `.forge/specs/archived/2026-10-31-add-unified-knowledge-search/`
+
+## 2026-10-30 — add-ledger-evidence-aging
+
+- **Capabilities:** forge-harness-template
+- **Operações:** 3
+- **Pasta:** `.forge/specs/archived/2026-10-30-add-ledger-evidence-aging/`
+
 ## 2026-08-04 — surface-literal-endpoint
 
 - **Capabilities:** forge-harness-template

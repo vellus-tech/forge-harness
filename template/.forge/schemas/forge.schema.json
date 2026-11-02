@@ -528,6 +528,11 @@
           "properties": {
             "auto": {
               "type": "boolean"
+            },
+            "stale_days": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Limiar de envelhecimento (dias) de item ativo do ledger sem reverificação. Advisory; default 30."
             }
           }
         },

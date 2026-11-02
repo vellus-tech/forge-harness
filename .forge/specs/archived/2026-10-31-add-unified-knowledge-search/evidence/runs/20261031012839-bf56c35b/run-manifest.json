@@ -1,0 +1,76 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20261031012839-bf56c35b",
+  "stage": "verify",
+  "status": "passed",
+  "started_at": "2026-10-31T01:28:38Z",
+  "finished_at": "2026-10-31T01:28:39.338Z",
+  "duration_ms": 1338,
+  "git": {
+    "repo": true,
+    "branch": "feat/harness/unified-knowledge-search",
+    "head_sha": "19ca30f806b99d52dfe3e89cd3ae552a309fe532",
+    "dirty": true,
+    "changed_files": [
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/eval-noprop.mjs",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/mutation.sh",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/verify-measurements.md",
+      ".forge/specs/active/add-unified-knowledge-search/manifest.yaml",
+      ".forge/specs/active/add-unified-knowledge-search/spec-delta.yaml",
+      ".forge/specs/active/add-unified-knowledge-search/verification.yaml",
+      "CHANGELOG.md"
+    ],
+    "diff_stat": ".../add-unified-knowledge-search/manifest.yaml     |   2 +-\n .../add-unified-knowledge-search/spec-delta.yaml   | 198 +++++++++++++++++++--\n CHANGELOG.md                                       |   2 +\n 3 files changed, 186 insertions(+), 16 deletions(-)",
+    "diff_sha256": "58c457c2a94edb637ea88448f03eeae87b16bdd498be736f19906ed132619089"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "679131dac90af552e19b474c7b3cb8aa7e4dbd6e4ff7e94b4660c2ac83152ca6",
+      "bytes": 1629,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "4b6fd4e90e989a49d6122ed3066a5f6e8642ec9d9e1e547c051733a6d1414d2a",
+      "bytes": 11847,
+      "kind": "file"
+    },
+    {
+      "path": "traceability.yaml",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "commands": [
+    {
+      "name": "spec-verify",
+      "command": "spec-verify.sh add-unified-knowledge-search",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "54831623cf196a4dbca33643919f8c7bc9ff927ae2ffc67fc90843dd37fca677",
+      "bytes": 219,
+      "kind": "file"
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

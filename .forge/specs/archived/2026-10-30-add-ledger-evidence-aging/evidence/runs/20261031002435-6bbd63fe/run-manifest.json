@@ -1,0 +1,75 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20261031002435-6bbd63fe",
+  "stage": "verify",
+  "status": "passed",
+  "started_at": "2026-10-31T00:24:35Z",
+  "finished_at": "2026-10-31T00:24:35.430Z",
+  "duration_ms": 430,
+  "git": {
+    "repo": true,
+    "branch": "feat/harness/ledger-evidence-aging",
+    "head_sha": "0816b8bd4cb78c95ca5c697d95dece04fea17a17",
+    "dirty": true,
+    "changed_files": [
+      ".forge/graph/cache/fingerprints.json",
+      ".forge/graph/graph.json",
+      ".forge/graph/report.md",
+      ".forge/specs/active/add-ledger-evidence-aging/manifest.yaml",
+      ".forge/specs/active/add-ledger-evidence-aging/spec-delta.yaml",
+      ".forge/specs/active/add-ledger-evidence-aging/verification.yaml"
+    ],
+    "diff_stat": ".forge/graph/cache/fingerprints.json               |  18 +--\n .forge/graph/graph.json                            |  64 +++++----\n .forge/graph/report.md                             |  12 +-\n .../active/add-ledger-evidence-aging/manifest.yaml |   2 +-\n .../add-ledger-evidence-aging/spec-delta.yaml      | 149 ++++++++++++++++++---\n 5 files changed, 191 insertions(+), 54 deletions(-)",
+    "diff_sha256": "d50d9eac3c74e76e38c9f4ed64fd88dce95cb0e48bc5021bdf18a55aaac138f0"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "4e2870be03076a82d5fbb1ffa9e54b5d69ab1f5ac71544499bb85e7ebddb2eb6",
+      "bytes": 1274,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "ddcc99a55bbd9f6e196e6421f98583f29f5c889bdbe31ca9153d985a20d14843",
+      "bytes": 12655,
+      "kind": "file"
+    },
+    {
+      "path": "traceability.yaml",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "commands": [
+    {
+      "name": "spec-verify",
+      "command": "spec-verify.sh add-ledger-evidence-aging",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "f5eb4c58b4022b3291029294fa08ad7ed8c34ed8d6af0a89d29bc6fbf90f29e8",
+      "bytes": 219,
+      "kind": "file"
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

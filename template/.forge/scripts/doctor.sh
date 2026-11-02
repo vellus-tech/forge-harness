@@ -49,6 +49,15 @@ cd "$ROOT"
 # shellcheck disable=SC1091
 . "$SCRIPT_DIR/lib/scan-exclude.sh"
 
+# Resolução do checkout principal — UM sítio, lib/forge-root.sh (LDG-0014: duas implementações do
+# mesmo contrato divergindo em silêncio). Usado só pela linha informativa do /forge:kb, abaixo; o
+# doctor é diagnóstico (nunca load-bearing), então a ausência da lib não derruba o script — só faz
+# a linha do kb cair no fallback (raiz de estado = ROOT) mais abaixo.
+if [ -f "$SCRIPT_DIR/lib/forge-root.sh" ]; then
+  # shellcheck source=lib/forge-root.sh
+  . "$SCRIPT_DIR/lib/forge-root.sh"
+fi
+
 # ── helpers ────────────────────────────────────────────────────────────────
 if [ -t 1 ]; then GREEN=$'\033[32m'; RED=$'\033[31m'; YEL=$'\033[33m'; DIM=$'\033[2m'; RST=$'\033[0m'
 else GREEN=""; RED=""; YEL=""; DIM=""; RST=""; fi
@@ -408,6 +417,23 @@ EOF_CHG
     fi
   fi
 
+  # busca unificada (/forge:kb): informativo, NUNCA load-bearing. A camada semântica é opcional e a
+  # ausência dela é o default — por isso esta linha é sempre `info`. Só testa presença de arquivo:
+  # não executa node, não importa módulo da busca, não pode disparar instalação nem rede. O índice é
+  # por branch (ROOT); a instalação semântica mora na raiz de estado (FORGE_ROOT, ou o checkout
+  # principal pelo mesmo critério de lib/forge-root.sh).
+  if [ -f "$ROOT/.forge/scripts/kb.sh" ]; then
+    kb_state="$ROOT"
+    if [ -z "${FORGE_ROOT:-}" ] && command -v forge_main_root >/dev/null 2>&1; then
+      kb_main="$(forge_main_root 2>/dev/null || true)"
+      case "$kb_main" in /*) kb_state="$kb_main" ;; esac
+    fi
+    if [ -f "$ROOT/.forge/kb/index.json" ]; then kb_idx="índice construído"; else kb_idx="índice ainda não construído (kb.sh build)"; fi
+    if [ -f "$kb_state/.forge/kb/semantic/installed.json" ]; then kb_sem="camada semântica instalada (integridade: kb.sh semantic status)"
+    else kb_sem="camada semântica não instalada (opcional: kb.sh semantic install)"; fi
+    info "harness: busca unificada /forge:kb — $kb_idx; $kb_sem"
+  fi
+
   # ledger advisory (§ ledger-consultation): informativo, NUNCA load-bearing. Resume o estado e
   # sinaliza itens 'promoted' cujo change de destino sumiu sem baixa (promovido-e-abandonado antes
   # do fechamento automático existir, ou elo quebrado) — candidatos a reabrir/resolver à mão.
@@ -423,6 +449,24 @@ EOF_CHG
     ' "$ROOT" 2>/dev/null || true)"
     if [ -n "$orphans" ]; then info "harness: ledger — item(ns) promoted com change de destino ausente: $orphans (reabra ou resolva via /forge:ledger)"
     else ok "harness: ledger sem itens promovidos órfãos"; fi
+    # Envelhecimento (add-ledger-evidence-aging, REQ-06): DELEGA ao `ledger-ops.sh stale` — uma
+    # fonte só do cálculo — e nunca herda o código de saída dele (advisory, como todo o bloco).
+    # Fica dentro do guard de ledger.json: sem ledger, o `stale` criaria o arquivo pelo doctor.
+    if [ -f "$ROOT/.forge/scripts/ledger-ops.sh" ]; then
+      stale_rc=0
+      stale_out="$(FORGE_ROOT="$ROOT" bash "$ROOT/.forge/scripts/ledger-ops.sh" stale 2>&1)" || stale_rc=$?
+      stale_head="$(printf '%s\n' "$stale_out" | head -1)"
+      st_j=0
+      [[ "$stale_out" =~ inconsistente\(s\):\ ([0-9]+) ]] && st_j="${BASH_REMATCH[1]}"
+      if [ "$stale_rc" -eq 0 ] && [[ "$stale_head" =~ ^LEDGER\ stale:\ ([0-9]+)\ de\ [0-9]+\ .*mais\ de\ ([0-9]+)\ dia ]]; then
+        st_k="${BASH_REMATCH[1]}"; st_n="${BASH_REMATCH[2]}"
+        if [ "$st_k" -gt 0 ]; then info "harness: ledger — $st_k item(ns) ativo(s) sem reverificação há mais de $st_n dia(s) (rode ledger-ops.sh stale)"
+        elif [ "$st_j" -eq 0 ]; then ok "harness: ledger sem itens ativos envelhecidos (limiar $st_n dia(s))"; fi
+        # Inconsistência (last_verified sem evidência, data ilegível ou futura) nunca passa por "em dia".
+        if [ "$st_j" -gt 0 ]; then info "harness: ledger — $st_j item(ns) com registro de reverificação inconsistente (rode ledger-ops.sh stale)"; fi
+      elif [ "$stale_rc" -eq 2 ]; then info "harness: ledger — idade não medida: $stale_head"
+      else info "harness: ledger — idade não medida (stale rc=$stale_rc)"; fi
+    fi
   fi
 
   # liaison advisory (§ liaison-protocol): informativo, NUNCA load-bearing. O estado do canal é

@@ -19,8 +19,19 @@
 #       fiar o gancho em settings.json) NÃO arma o gancho — só acrescentar a linha não basta, é
 #       preciso o passo 3 do §5 (migrar para canônico com estado explícito);
 #   [7] varredura de imports dos arquivos novos do change (native-*.mjs, liaison-pointer.mjs, o
-#       gancho .sh) — só `node:*` ou caminho relativo (NFR-02);
-#   [8] package.json sem dependência nova em relação ao merge-base com origin/develop (NFR-02).
+#       gancho .sh) — só `node:*` ou caminho relativo (NFR-02).
+#
+# NFR-02 ("zero dependência nova de runtime") é uma afirmação sobre os ARQUIVOS NOVOS deste change
+# (acima), não sobre o `package.json` do repositório inteiro para sempre. Uma versão anterior deste
+# gate também comparava `package.json` contra `git merge-base HEAD origin/develop` ("[8] package.json
+# sem dependência nova") — isso era o método de EVIDÊNCIA usada uma vez, no /forge:verify deste
+# change, não um invariante permanente: o merge-base é um alvo que se move a cada push de `develop`,
+# e qualquer PR futuro, de qualquer feature, que adicione uma devDependency legítima e sem relação
+# alguma com o gancho nativo reprovaria este gate para sempre (medido: `add-unified-knowledge-search`
+# — PR #252 — adiciona `onnxruntime-web`/`@huggingface/tokenizers`, devDependencies do harness para a
+# camada semântica opt-in do `/forge:kb`, documentadas na ADR 0005; zero relação com o gancho nativo).
+# O check [7] já prova a afirmação real e com o escopo certo (os arquivos desta feature não importam
+# nada fora de `node:*`/relativo); o diff de `package.json` era redundante com ele e removido daqui.
 set -euo pipefail
 # Isolamento git (LDG-0201): GIT_* herdado do ambiente faria os comandos git deste gate obedecerem
 # ao repositório de quem o invocou, nunca às fixtures sintéticas criadas aqui.
@@ -282,32 +293,6 @@ if grep -qE '\b(npm|npx|pip|pip3|curl|wget|nc|socat)\b' "$GANCHO_SH"; then
   bad "$GUARD_HOOK invoca ferramenta externa fora de node/git — grep achou npm/npx/pip/curl/wget/nc/socat"
 else
   ok "$GUARD_HOOK não invoca ferramenta externa fora de node"
-fi
-
-# --- [8] package.json sem dependência nova vs merge-base com origin/develop --------------------
-echo "[8] package.json sem dependência nova em relação ao merge-base com origin/develop (NFR-02)"
-MERGE_BASE="$(git -C "$WS" merge-base HEAD origin/develop 2>/dev/null || true)"
-if [ -z "$MERGE_BASE" ]; then
-  bad "não foi possível calcular o merge-base de HEAD com origin/develop — contagem de dependências não verificável"
-else
-  BASE_PKG="$(git -C "$WS" show "$MERGE_BASE:package.json" 2>/dev/null || echo '{}')"
-  CUR_PKG="$(cat "$WS/package.json")"
-  DEP_DIFF="$(node -e '
-    const base = JSON.parse(process.argv[1]);
-    const cur = JSON.parse(process.argv[2]);
-    const keysOf = (o, k) => Object.keys((o && o[k]) || {}).sort();
-    const added = [];
-    for (const k of ["dependencies", "devDependencies"]) {
-      const baseKeys = new Set(keysOf(base, k));
-      for (const name of keysOf(cur, k)) if (!baseKeys.has(name)) added.push(`${k}.${name}`);
-    }
-    console.log(JSON.stringify(added));
-  ' "$BASE_PKG" "$CUR_PKG")"
-  if [ "$DEP_DIFF" != "[]" ]; then
-    bad "package.json ganhou dependência nova em relação ao merge-base com origin/develop: $DEP_DIFF"
-  else
-    ok "package.json sem dependência nova em relação ao merge-base com origin/develop"
-  fi
 fi
 
 echo "---"

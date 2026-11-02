@@ -32,7 +32,8 @@
             "enum": ["P0", "P1", "P2", "P3", null]
           },
           "status": {
-            "enum": ["open", "planned", "in-progress", "resolved", "wont-fix", "promoted"]
+            "enum": ["open", "planned", "in-progress", "resolved", "wont-fix", "promoted", "superseded"],
+            "description": "superseded: encerrado por um sucessor (links.superseded_by), só nasce por 'ledger-ops.sh add --supersedes'."
           },
           "source": {
             "type": "object",
@@ -59,6 +60,11 @@
               "promoted_to": {
                 "type": ["string", "null"],
                 "description": "change-id criado a partir desta entrada (status: promoted)."
+              },
+              "superseded_by": {
+                "type": ["string", "null"],
+                "pattern": "^LDG-[0-9]{4}$",
+                "description": "Entrada que substituiu esta (status: superseded). Elo inverso de 'supersedes'."
               }
             }
           },
@@ -68,6 +74,31 @@
           },
           "updated_at": { "type": ["string", "null"] },
           "resolved_at": { "type": ["string", "null"] },
+          "last_verified": {
+            "type": ["string", "null"],
+            "description": "Data do commit HEAD da última reverificação contra o código/estado real. Gravada só por 'ledger-ops.sh verify', sempre junto do registro de evidence que a justifica; igual, em instante, ao 'at' do último registro. Ausente = nunca reverificado (a idade parte de created_at)."
+          },
+          "evidence": {
+            "type": "array",
+            "description": "Registros acumulativos de reverificação, na ordem em que foram gravados. O conteúdo mínimo de cada kind é conferido pelo script no momento do verify (arquivo e linha existentes, commit resolvível, teste existente); o schema confere a forma. Declarado inline, não em $defs, porque gates compilam properties.entries.items isoladamente.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["at", "kind", "ref", "observed", "verdict"],
+              "properties": {
+                "at": { "type": "string", "description": "Data do commit HEAD no momento do verify." },
+                "kind": { "enum": ["file", "commit", "test", "command"] },
+                "ref": { "type": "string", "minLength": 1, "description": "file: <caminho>:<linha>[-<linha>] · commit: SHA completo · test: <caminho>[::<nome>] · command: a linha de comando (nunca executada pelo script)." },
+                "observed": { "type": "string", "minLength": 1, "description": "O que foi visto ao conferir." },
+                "verdict": { "enum": ["confirmed", "changed"] }
+              }
+            }
+          },
+          "supersedes": {
+            "type": ["string", "null"],
+            "pattern": "^LDG-[0-9]{4}$",
+            "description": "Entrada anterior que esta substitui (gravada por 'add --supersedes'; a anterior fica superseded)."
+          },
           "dedup_key": {
             "type": "string",
             "description": "Chave de idempotência do harvest: \"${change_id}:${ref}\" (ex.: add-auth:DEFER-02). Manual usa \"manual:${id}\"."

@@ -51,10 +51,18 @@ archived:
     archived_at: "2026-08-04"
     kind: baseline_update
     path: 2026-08-04-surface-literal-endpoint
+  - change_id: add-ledger-evidence-aging
+    archived_at: "2026-10-30"
+    kind: baseline_update
+    path: 2026-10-30-add-ledger-evidence-aging
   - change_id: add-liaison-native-bridge
     archived_at: "2026-10-31"
     kind: baseline_update
     path: 2026-10-31-add-liaison-native-bridge
+  - change_id: add-unified-knowledge-search
+    archived_at: "2026-10-31"
+    kind: baseline_update
+    path: 2026-10-31-add-unified-knowledge-search
   - change_id: add-migration-review-rule
     archived_at: "2026-11-01"
     kind: baseline_update

@@ -189,6 +189,7 @@ _prop() { # _prop -> imprime uma linha por violação; rc 0 quando a propriedade
       add)     args=(add --type follow-up --title "prop-$RANDOM" --detail "x") ;;
       update)  args=(update "$id" --detail "prop $RANDOM") ;;
       note)    args=(note "$id" --kind progress --text "prop $RANDOM") ;;
+      verify)  args=(verify "$id" --kind command --ref "rg prop" --observed "o defeito segue igual ao registro $RANDOM" --verdict confirmed) ;;
       resolve) args=(resolve "$id" --note "prop $RANDOM") ;;
       promote) args=(promote "$id" --to "ch-prop-$RANDOM") ;;
       harvest) args=(harvest ch-inexistente --origin close) ;;

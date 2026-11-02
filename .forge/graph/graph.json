@@ -1,11 +1,11 @@
 {
   "schema": "graph/v0",
-  "generated_at": "2026-11-01T19:59:15.111Z",
+  "generated_at": "2026-11-02T03:09:35.877Z",
   "engine": "native",
-  "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/unify-changelog-command",
+  "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/ledger-evidence-aging",
   "stats": {
-    "nodes": 521,
-    "edges": 81,
+    "nodes": 549,
+    "edges": 90,
     "languages": [
       "csharp",
       "go",
@@ -16,23 +16,23 @@
       "shell",
       "ts"
     ],
-    "summaries_stale": 521,
+    "summaries_stale": 549,
     "census": {
       "csharp": 10,
       "go": 15,
       "java": 14,
-      "js": 114,
+      "js": 126,
       "kotlin": 6,
       "python": 21,
-      "shell": 312,
+      "shell": 328,
       "ts": 29
     },
     "layer_coverage": {
-      "classified": 326,
-      "unclassified": 195,
+      "classified": 345,
+      "unclassified": 204,
       "out_of_taxonomy": 0,
-      "denominator": 521,
-      "ratio": 0.6257
+      "denominator": 549,
+      "ratio": 0.6284
     }
   },
   "nodes": [
@@ -399,8 +399,8 @@
     {
       "id": "template/.forge/scripts/doctor.sh",
       "lang": "shell",
-      "loc": 1306,
-      "fingerprint": "681e05cded4d1581dc5db590d815beb1908cf4e1bfdd08ed8d6c615724b5432e",
+      "loc": 1350,
+      "fingerprint": "6699065b64e8ffb8e6f6767a870ccbddbfc43734bb43dc7d853bb1a726efe27d",
       "layer": "unknown",
       "summary": null
     },
@@ -493,10 +493,18 @@
       "summary": null
     },
     {
+      "id": "template/.forge/scripts/kb.sh",
+      "lang": "shell",
+      "loc": 37,
+      "fingerprint": "360f911cb3b3441ede9b89f4b0bc35e3c32706400e005480f03f94c1fb97d910",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
       "id": "template/.forge/scripts/ledger-ops.sh",
       "lang": "shell",
-      "loc": 644,
-      "fingerprint": "5c076dfbf9da1d75ce67ac87cb0757922dcc66bc2707f0d856e92f702def249a",
+      "loc": 1004,
+      "fingerprint": "1b9155e80d5a7627a1244621a2529cdc815555f8cb80ba22dafe15dd5239038f",
       "layer": "unknown",
       "summary": null
     },
@@ -797,10 +805,74 @@
       "summary": null
     },
     {
+      "id": "template/.forge/scripts/lib/kb-cli.mjs",
+      "lang": "js",
+      "loc": 325,
+      "fingerprint": "caf8759a4932e71bfd6f2b7cad7ae75039fd64e891b60b39d35620b9e8ee8397",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/kb-corpus.mjs",
+      "lang": "js",
+      "loc": 169,
+      "fingerprint": "f13596998c0cc3c9cc7d0daea128acaa5e192b6dadec8c4927ef15b95ff4c5ad",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/kb-fuse.mjs",
+      "lang": "js",
+      "loc": 87,
+      "fingerprint": "c8ddd6195d859a938bc5645d80d677bf4940b4aa57a98e033bd99401b0bf3f6a",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/kb-install.mjs",
+      "lang": "js",
+      "loc": 100,
+      "fingerprint": "1a30621898509859dd832933d0faaff10af5184ba773354c3ea55ba2420c0a64",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/kb-integrity.mjs",
+      "lang": "js",
+      "loc": 78,
+      "fingerprint": "310ed968311301abe6f62b276f936a484fd42debbcdee58544451b536b09dfac",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/kb-lexical.mjs",
+      "lang": "js",
+      "loc": 166,
+      "fingerprint": "8192711e64a7fd9ce24cad7167dd739cbffaa255e91a6369bd230ad93bf3f0b0",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/kb-semantic.mjs",
+      "lang": "js",
+      "loc": 176,
+      "fingerprint": "71cbdae458e79de355db054655be9c38b37830d2e630bf2ee7c49843ed93eeb3",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/ledger-aging.mjs",
+      "lang": "js",
+      "loc": 106,
+      "fingerprint": "9a3496204761c9a536c4ca8884dc70ade5b8c6488ccaa1189debea63cc5d586b",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
       "id": "template/.forge/scripts/lib/ledger-render.mjs",
       "lang": "js",
-      "loc": 158,
-      "fingerprint": "1329e8af80bf5b87af8e3ac62225a0e0dd081e9a7fb64dc45931bbf33592fbfc",
+      "loc": 163,
+      "fingerprint": "d91ec6f4cc48614f8f19e9d05b4ec6b68f9df3fcdcbbf6a56c3c662da04ab404",
       "layer": "unknown",
       "summary": null
     },
@@ -1175,8 +1247,8 @@
     {
       "id": "template/.forge/scripts/lib/untrusted-render.mjs",
       "lang": "js",
-      "loc": 36,
-      "fingerprint": "99ef78ac3092eafd984e43b236491374b06a46da152853597040d3b0269cbba4",
+      "loc": 43,
+      "fingerprint": "a3aa0d464dd19a56e3e3c60b8ee7d1715a53ac4dbab941cde8e025b278175642",
       "layer": "unknown",
       "summary": null
     },
@@ -1287,8 +1359,8 @@
     {
       "id": "template/.forge/scripts/resolve-skill.sh",
       "lang": "shell",
-      "loc": 62,
-      "fingerprint": "f71d6f23b7c0b0f19a9580fd831a52bb5b5824e03ae4ce56ea6275a80c349457",
+      "loc": 78,
+      "fingerprint": "ee383ca6adf502a1412e96b8399e3f3b6547b99de1c674bb14a1242226277b6b",
       "layer": "unknown",
       "summary": null
     },
@@ -1335,8 +1407,8 @@
     {
       "id": "template/.forge/scripts/spec-new.sh",
       "lang": "shell",
-      "loc": 152,
-      "fingerprint": "10a28fd123376b568c73d84693fb3620f1e3545d6074941e2f721396b71da1e7",
+      "loc": 171,
+      "fingerprint": "e542448804f951e1b8c1efea2264eeebb7b88463c65784d7e29e1fecd21b59f3",
       "layer": "unknown",
       "summary": null
     },
@@ -1527,32 +1599,32 @@
     {
       "id": "template/.forge/skills/readme-generator/scripts/changelog-engine.mjs",
       "lang": "js",
-      "loc": 292,
-      "fingerprint": "a569f5a779121531be2a6187535db5b8ac7b6d23ef9d91d06bfeff925987b7b2",
+      "loc": 470,
+      "fingerprint": "81b28e56639f891d91d53850d7d9ffa606ce4970b419747dc11a430098e8af32",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "template/.forge/skills/readme-generator/scripts/gates/lint.mjs",
       "lang": "js",
-      "loc": 73,
-      "fingerprint": "4b628d652b94f73016e897c07edff3efab2c2244d42a6c0b051f9f07473a4c47",
+      "loc": 109,
+      "fingerprint": "b0142e667db62f050a29164258582bcfb6d5e72852de1131743896ad578243b1",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "template/.forge/skills/readme-generator/scripts/gates/preserve.mjs",
       "lang": "js",
-      "loc": 60,
-      "fingerprint": "ba1060bf9e9a267f95bdbdd57115cad062d3945984b5c35fd01fcdd5352a857e",
+      "loc": 68,
+      "fingerprint": "47ed5d648a625ff58f4875cae0de8a27acf828b05057c6ee2142ee5fe24c8b86",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "template/.forge/skills/readme-generator/scripts/gates/released.mjs",
       "lang": "js",
-      "loc": 51,
-      "fingerprint": "b9f1ed7ec079ed09961907c2bdafa320e02e57ece7f9d719c0c8f4525eaa98d8",
+      "loc": 80,
+      "fingerprint": "8aad56defb8a7bcc9c68945f1f7450a1d92d9cce50193059aa37ec4defe236aa",
       "layer": "unknown",
       "summary": null
     },
@@ -1673,6 +1745,62 @@
       "lang": "go",
       "loc": 9,
       "fingerprint": "8d6e9c7e8a9dc684ee7d72b99c2e55b346557e31d0804e5b33ab6ffb936580d8",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/kb/fake-git.sh",
+      "lang": "shell",
+      "loc": 8,
+      "fingerprint": "0779f340a18caeb89d4dab78f6fd3054bc92ed89bd2f1b31927d97409e48e9bf",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/kb/fake-npm.sh",
+      "lang": "shell",
+      "loc": 18,
+      "fingerprint": "64773d6c77d03079511aa4a8a5f05bf0ed48c25173b8d34191d7d58ab60c6850",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/kb/make-semantic-fixture.mjs",
+      "lang": "js",
+      "loc": 70,
+      "fingerprint": "81b5a0f9da663ea9e229c30cc47b0e05c9b8e91f4bb4aaf62ae29766b9075dab",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/kb/net-canary.mjs",
+      "lang": "js",
+      "loc": 36,
+      "fingerprint": "b683bbd3031a808cca42951d30dbe359f6f713f9ec4b9374f420ae1fe6141d85",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/kb/no-network.cjs",
+      "lang": "js",
+      "loc": 34,
+      "fingerprint": "8a06fc08588fd6566a1aa8b6208ff0b702b1f652556de6d83053a8280074df1a",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/kb/semantic-env.sh",
+      "lang": "shell",
+      "loc": 38,
+      "fingerprint": "55507a0f965b9f24f28c3b6d15f2c8054c1b1f0fde359433d31dee2898de6b40",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/kb/serve.mjs",
+      "lang": "js",
+      "loc": 14,
+      "fingerprint": "ded4c3281db572bfd0afb76c0bef0acfc2347d512d7398cb63688ae0443400e7",
       "layer": "test",
       "summary": null
     },
@@ -3183,8 +3311,8 @@
     {
       "id": "tests/w193-tree-derived-state-gate.sh",
       "lang": "shell",
-      "loc": 237,
-      "fingerprint": "274f2f1273130194029efc91097be58c6aa6fbd14623d22dfe831e03e6682251",
+      "loc": 238,
+      "fingerprint": "1d1062ded9b6d39aed205f5da2593f527590489131dd96af128b11353f9cedba",
       "layer": "test",
       "summary": null
     },
@@ -3335,8 +3463,8 @@
     {
       "id": "tests/w211-ledger-detail-acumulativo-gate.sh",
       "lang": "shell",
-      "loc": 751,
-      "fingerprint": "e0d1464b4c0d33195c5b0cde10da8928895cecb919fb0cb0f630b311cd13cbfb",
+      "loc": 754,
+      "fingerprint": "b955cc6c6992011c647adaa349d94760e25aa3d5b2f9b3dad2cd27657a133e1a",
       "layer": "test",
       "summary": null
     },
@@ -3584,7 +3712,7 @@
       "id": "tests/w257-arg-surface-gate.sh",
       "lang": "shell",
       "loc": 366,
-      "fingerprint": "3870a7683635dfdbb10e7c7fa545736086ace0ea56386f3e30c2638bd243a3a5",
+      "fingerprint": "6825f0c6b17459fdce4cddd8da3be5c3d7331a22cbe1a02cda1fdb564e7803d5",
       "layer": "test",
       "summary": null
     },
@@ -3807,8 +3935,8 @@
     {
       "id": "tests/w292-native-hook-packaging-gate.sh",
       "lang": "shell",
-      "loc": 319,
-      "fingerprint": "e84866262960473c34c95706acaa498b3c28777068cf9c0a24267f3ca481a9b8",
+      "loc": 304,
+      "fingerprint": "913deb22850c0fd1b022b894996961020c15749ee48539f6e9b7ea86f735e595",
       "layer": "test",
       "summary": null
     },
@@ -3839,24 +3967,24 @@
     {
       "id": "tests/w296-changelog-engine-explicito-gate.sh",
       "lang": "shell",
-      "loc": 61,
-      "fingerprint": "f0518e24dbec0341abb0e7d0cfeabcc33d1f91c4f3b06e5811ced36b575e68cd",
+      "loc": 169,
+      "fingerprint": "0da4d4caf5b9b1a40ca46b4b85b2f0ccf85aae901f0e216e3b0fbaa65ddb32d0",
       "layer": "test",
       "summary": null
     },
     {
       "id": "tests/w297-changelog-engine-derivado-gate.sh",
       "lang": "shell",
-      "loc": 70,
-      "fingerprint": "6ce2668511840becf7d800011cd1e56d789df5930f703b06e719c22fef8914f1",
+      "loc": 113,
+      "fingerprint": "cbfe17c6440108536853dba90d15885a474df7a751741c96a64aeeb5f34e767a",
       "layer": "test",
       "summary": null
     },
     {
       "id": "tests/w298-changelog-engine-merge-range-gate.sh",
       "lang": "shell",
-      "loc": 124,
-      "fingerprint": "0a5093d9c6a6fed1eaae88b40c5087a56794b2b95e9f952b59b02064b1eb1463",
+      "loc": 227,
+      "fingerprint": "e348876390440bc88b6bdab85d40cba772436d54b0bb2dea64c72e6ac2680c27",
       "layer": "test",
       "summary": null
     },
@@ -3864,7 +3992,7 @@
       "id": "tests/w299-changelog-engine-release-please-gate.sh",
       "lang": "shell",
       "loc": 53,
-      "fingerprint": "a42217e343b5bd54387775cb10d58ad42d6795d8e1d1e850b30d0acf006c3e7b",
+      "fingerprint": "0afd6be43cd85b2a6bfd669a85ee531448b601701ad8d258fe6486723c6ca1a7",
       "layer": "test",
       "summary": null
     },
@@ -3879,40 +4007,40 @@
     {
       "id": "tests/w300-changelog-gate-released-gate.sh",
       "lang": "shell",
-      "loc": 56,
-      "fingerprint": "10b86f4cb9ba78976729126d4956d1e9a2fb38f03a3a6e247a4989661e8272f7",
+      "loc": 90,
+      "fingerprint": "d22f3319134f1090732eefc485f7e316ba08f17013f8c19aa920a40add2b7e6e",
       "layer": "test",
       "summary": null
     },
     {
       "id": "tests/w301-changelog-gate-preserve-gate.sh",
       "lang": "shell",
-      "loc": 68,
-      "fingerprint": "6e47c17399dfe6076f35bb2b22c999f025db3276c5a39f2732be6fa9c732c00b",
+      "loc": 84,
+      "fingerprint": "5b54558387d6d0bd66eb669c00af1d4d7b14b8ae5ac497529657c32d3558b430",
       "layer": "test",
       "summary": null
     },
     {
       "id": "tests/w302-changelog-gate-lint-gate.sh",
       "lang": "shell",
-      "loc": 72,
-      "fingerprint": "c930b9ead60a3400718b0c9bb5a9456197cefaa19facd0615b7752bb1a2489e2",
+      "loc": 128,
+      "fingerprint": "8a4088faee6ebdeaa40474e6b7bc871ad6411a85cc8d7122bf94f485f1aabdf7",
       "layer": "test",
       "summary": null
     },
     {
       "id": "tests/w303-resolve-skill-gate.sh",
       "lang": "shell",
-      "loc": 57,
-      "fingerprint": "0352f60fcd1a30491096fc943df21005a174db2d85040f8f18104f10e210cea0",
+      "loc": 84,
+      "fingerprint": "38c15b73e58b1ace0fd54a5832c1948925997dcfc43d2f12b15bd7d42bad670a",
       "layer": "test",
       "summary": null
     },
     {
       "id": "tests/w304-update-changelog-comando-gate.sh",
       "lang": "shell",
-      "loc": 57,
-      "fingerprint": "452a642fd9d6949d0b60bd5d3e4db794a84d312bb070739f42c6f76c290dc504",
+      "loc": 92,
+      "fingerprint": "4555d0103159eb13428cb906c928340e9b5f171fc9bbbbc49dce896902ba7874",
       "layer": "test",
       "summary": null
     },
@@ -3920,7 +4048,7 @@
       "id": "tests/w305-post-merge-changelog-engine-gate.sh",
       "lang": "shell",
       "loc": 114,
-      "fingerprint": "f60031813b456aaede6aec34aeffd24de1c106df7120abd05871ee916cbdb482",
+      "fingerprint": "19f352ded3647843efe891a0e2a1cc629f87da8ca59e974251f088c052d6f6ec",
       "layer": "test",
       "summary": null
     },
@@ -3928,7 +4056,7 @@
       "id": "tests/w306-changelog-gates-regressao-gate.sh",
       "lang": "shell",
       "loc": 116,
-      "fingerprint": "db95a90c08b07499c81fa6ac714b1341c72fb54aea31ca9a716d3e3b5c64cf7c",
+      "fingerprint": "127108ef1fa46c624cbd58f8638504f2469187f9170657800d84888f555bcdff",
       "layer": "test",
       "summary": null
     },
@@ -3936,7 +4064,7 @@
       "id": "tests/w307-changelog-merge-engine-gate.sh",
       "lang": "shell",
       "loc": 160,
-      "fingerprint": "2df5ec70e7c809f7393b2a4a3eafcb7b4dd69e99d6b87adfc2045914255da622",
+      "fingerprint": "b2aa1e5e59205692207cdd3d4f5be31a0e28533e064110f7bf416ed06a9ff836",
       "layer": "test",
       "summary": null
     },
@@ -3944,7 +4072,15 @@
       "id": "tests/w308-skill-readme-generator-escopo-gate.sh",
       "lang": "shell",
       "loc": 76,
-      "fingerprint": "715a19794b91b6e611ad24d06a204c97a58afd0327b23e21356e4373f3dbe461",
+      "fingerprint": "1811300baf78a71ac1fee7d90963afab75a3d215f25c42f32914cc741fc1704f",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w309-kb-corpus-gate.sh",
+      "lang": "shell",
+      "loc": 149,
+      "fingerprint": "3f47f6ec5e59b96cb36896403360f69471771e22432f9987f2233bbe5e394e8e",
       "layer": "test",
       "summary": null
     },
@@ -3957,10 +4093,98 @@
       "summary": null
     },
     {
+      "id": "tests/w310-kb-lexical-gate.sh",
+      "lang": "shell",
+      "loc": 97,
+      "fingerprint": "ac1e279d356a52aec77981fd4793e1ddb42a53f40f251a6100eca56feec17975",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w311-kb-fuse-gate.sh",
+      "lang": "shell",
+      "loc": 116,
+      "fingerprint": "5eeb91dd44b316450907965c0203bac4f9158a980c4bd09853cf70479c3c1a3d",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w312-kb-cli-gate.sh",
+      "lang": "shell",
+      "loc": 148,
+      "fingerprint": "f97ecb85074d0d019b48390bb312b89f9f854fc3f90b604813e4dd0a567c0eb9",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w313-kb-offline-lexical-gate.sh",
+      "lang": "shell",
+      "loc": 121,
+      "fingerprint": "8bead232395432642281295d31e9f6180c87d07ed8c2389e7fe7a405aece905a",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w314-kb-eval-gate.sh",
+      "lang": "shell",
+      "loc": 56,
+      "fingerprint": "ea011d276889a92cfccb25061194b0925dc44805fc237320e7bd56a4223c6a55",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w315-kb-pins-gate.sh",
+      "lang": "shell",
+      "loc": 29,
+      "fingerprint": "03c036a865eee4292a265f192d2b6c801be8e6e3d94415c8d92cc3384ccbb754",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w316-kb-install-gate.sh",
+      "lang": "shell",
+      "loc": 104,
+      "fingerprint": "fd916aa149aad46c577c3362db2a7b48ac9ab4a76e7d4b5ad7801b90114c9453",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w317-kb-semantic-gate.sh",
+      "lang": "shell",
+      "loc": 157,
+      "fingerprint": "ec042cce709867375b3aaee7ed7320d3c276a814e550b0e51d59a3a5c44c82c6",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w318-kb-offline-semantic-gate.sh",
+      "lang": "shell",
+      "loc": 78,
+      "fingerprint": "aab7a11db5f3f1a3bfdc6a0901cced6861f9d6d9d76912441445967f9d43526d",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w319-kb-surface-gate.sh",
+      "lang": "shell",
+      "loc": 60,
+      "fingerprint": "ceda4bf489f5177a5245cef7ccc49c7ce7a4096c4e63e8027768823bcc0513ab",
+      "layer": "test",
+      "summary": null
+    },
+    {
       "id": "tests/w32-archive-gate.sh",
       "lang": "shell",
       "loc": 350,
       "fingerprint": "63a9ab6c17e30ffa261a1056a99e081692e892aa116bbc517ad7ee102a81f810",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w320-ledger-evidence-aging-gate.sh",
+      "lang": "shell",
+      "loc": 741,
+      "fingerprint": "da34cca49f27da4a6f75853298b0e665b94792617e9d9b974d582b8e13cfdba4",
       "layer": "test",
       "summary": null
     },
@@ -4175,8 +4399,8 @@
     {
       "id": "tools/plan-progress.mjs",
       "lang": "js",
-      "loc": 265,
-      "fingerprint": "a34b8334e155cad50ae5875773d83732b58de2b89d02f8545cf21ea5f8ed38c1",
+      "loc": 266,
+      "fingerprint": "c681805f7bb8432d94ef2720c4db164d9d07dc4fe4e2b41e106c09108d32e960",
       "layer": "unknown",
       "summary": null
     },
@@ -4413,6 +4637,60 @@
     {
       "from": "template/.forge/scripts/lib/impact-scan.mjs",
       "to": "template/.forge/scripts/lib/impact-freshness.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/kb-cli.mjs",
+      "to": "template/.forge/scripts/lib/kb-corpus.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/kb-cli.mjs",
+      "to": "template/.forge/scripts/lib/kb-fuse.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/kb-cli.mjs",
+      "to": "template/.forge/scripts/lib/kb-lexical.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/kb-cli.mjs",
+      "to": "template/.forge/scripts/lib/untrusted-render.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/kb-corpus.mjs",
+      "to": "template/.forge/scripts/lib/liaison-trust.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/kb-corpus.mjs",
+      "to": "template/.forge/scripts/lib/yaml-lite.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/kb-install.mjs",
+      "to": "template/.forge/scripts/lib/kb-integrity.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/kb-lexical.mjs",
+      "to": "template/.forge/scripts/lib/kb-corpus.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/kb-semantic.mjs",
+      "to": "template/.forge/scripts/lib/kb-integrity.mjs",
       "kind": "import",
       "resolved": true
     },

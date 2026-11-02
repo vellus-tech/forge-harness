@@ -24,6 +24,7 @@ import { execFileSync } from 'node:child_process';
 import { parseYamlSubset } from './yaml-lite.mjs';
 import { hasScaffoldMarkers } from './scaffold-markers.mjs';
 import { evaluateRedFirst } from './check-red-first.mjs';
+import { isDefectFixing } from './defect-scope.mjs';
 import { applyMode } from './gate-mode.mjs';
 import { parseTasks, checkTasksGraph, parseSurfaceChecklist, checkSurfaceCoverage, checkSurfaceChecklistPresence, checkSurfaceDeclaration, checkSurfaceChecklistLiteral } from './tasks-graph.mjs';
 import { parseStories, checkStoryCoverage, checkStoryCycle } from './story-shard.mjs';
@@ -139,9 +140,16 @@ if (reached('verified') && !has('verification.yaml'))
   errors.push('verification.yaml missing (status verified requires recorded evidence — §12)');
 
 // ── red-first (rule testing/regression-red-first.md, itens 1-4 — bloqueiam, não rebaixáveis) ──
-// change type:bugfix só alcança verified com Red observado (por replay real) ou dispensado
+// change sujeito à política (isDefectFixing — type:bugfix OU fixes_defects declarado, ver
+// lib/defect-scope.mjs) só alcança verified com Red observado (por replay real) ou dispensado
 // (waived, com a política dos quatro motivos reaplicada a cada checagem) — espelha o precedente
 // hasScaffoldMarkers acima: reprova aqui em vez de deixar o gap chegar ao archive.
+//
+// LDG-0045: este sítio testava só `man.type === 'bugfix'` direto, sem passar por
+// isDefectFixing — um change type:feature com fixes_defects declarado alcançava verified com
+// evidência pending sem bloqueio nenhum, divergindo dos demais nove sítios que a issue #138 já
+// tinha convertido (check-red-first.mjs, red-evidence-ops.mjs, red-evidence.sh,
+// hooks/git/lib/check-red-first.sh, spec-verify.sh).
 //
 // Onda E (decisão do orquestrador) — sem cache local, a única forma não-circular de confirmar
 // 'observed' na transição para verified é executar o replay de VERDADE, agora, e deixar o
@@ -163,7 +171,7 @@ function isActiveChangeDir(id) {
   const activeDir = join(process.env.FORGE_ROOT || root, '.forge/specs/active', String(id));
   try { return realpathSync(activeDir) === realpathSync(root); } catch { return false; }
 }
-if (reached('verified') && man.type === 'bugfix') {
+if (reached('verified') && isDefectFixing(man)) {
   const ensureScript = join(process.env.FORGE_ROOT || root, '.forge/scripts/red-evidence.sh');
   if (man.id && !isActiveChangeDir(man.id)) {
     warnings.push(`red-first: replay não executado — ${root} não é o change ativo .forge/specs/active/${man.id}/; evidência avaliada como está, nada gravado (issue #189)`);

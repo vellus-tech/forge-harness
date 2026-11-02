@@ -616,46 +616,40 @@ thread)
     [ -n "$subject" ] || { echo "FAIL: --subject obrigatório" >&2; exit 1; }
     [ -n "$participants" ] || { echo "FAIL: --participants obrigatório" >&2; exit 1; }
     IFS=',' read -ra parts <<< "$participants"
-    out="$(node - "$LIBDIR" "$ch_dir" "$self" "$channel" "$thread_id" "$subject" "$body" "${parts[*]}" "$requires_ack" "$(_git_date)" <<'NODEEOF'
-const { readFileSync, writeFileSync, readdirSync, existsSync } = require('fs');
+    out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$self" "$channel" "$thread_id" "$subject" "$body" "${parts[*]}" "$requires_ack" "$(_git_date)" <<'NODEEOF'
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, chDir, self, channel, threadId, subject, body, partsRaw, requiresAck, now] = process.argv;
-  const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
-  const logDir = join(chDir, 'log');
-  const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
-  const all = [];
-  for (const f of files) {
-    const text = readFileSync(join(logDir, f), 'utf8');
-    for (const line of text.split('\n')) { const t = line.trim(); if (t) all.push(JSON.parse(t)); }
+  const [, , lib, root, chDir, self, channel, threadId, subject, body, partsRaw, requiresAck, now] = process.argv;
+  const { appendOwn, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
+  try {
+    const { msg } = await appendOwn({
+      root, chDir, channel, self,
+      build: (all) => {
+        if (all.some((m) => m.thread_id === threadId && m.kind === 'thread-open')) {
+          throw new Error(`thread '${threadId}' já está aberta`);
+        }
+        const participants = [...new Set(partsRaw.split(' ').filter(Boolean))];
+        if (!participants.includes(self)) participants.push(self);
+        return {
+          channel, thread_id: threadId, kind: 'thread-open', in_reply_to: null,
+          requires_ack: requiresAck === 'true', subject, ...(body ? { body } : {}),
+          refs: { change_id: null, contract_files: [], commit: null },
+          participants: participants.sort(),
+          created_at: now, trust: 'self',
+          // abertura: primeira mensagem lógica da thread. appendOwn calcula o lamport por
+          // nextLamport sobre as mensagens já existentes desta thread_id, que aqui são zero
+          // (thread nova) — nextLamport([]) já dá 1 sozinho, sem precisar fixar à mão.
+        };
+      },
+    });
+    process.stdout.write(msg.msg_id);
+  } catch (err) {
+    if (err instanceof AppendValidationError) console.error('envelope inválido: ' + err.errors.join('; '));
+    else if (err instanceof LockLostError) console.error(err.message);
+    else console.error(err && err.message ? err.message : String(err));
+    process.exit(1);
   }
-  if (all.some((m) => m.thread_id === threadId && m.kind === 'thread-open')) {
-    console.error(`thread '${threadId}' já está aberta`); process.exit(1);
-  }
-  const own = all.filter((m) => m.sender === self);
-  const seq = M.nextSeq(own);
-  const lamport = 1; // abertura — primeira mensagem lógica da thread
-  const participants = [...new Set(partsRaw.split(' ').filter(Boolean))];
-  if (!participants.includes(self)) participants.push(self);
-  const msgId = `${self}-${String(seq).padStart(4, '0')}`;
-  const msg = {
-    msg_id: msgId, channel, thread_id: threadId, sender: self, seq, lamport,
-    kind: 'thread-open', in_reply_to: null, requires_ack: requiresAck === 'true',
-    subject, ...(body ? { body } : {}),
-    refs: { change_id: null, contract_files: [], commit: null },
-    participants: participants.sort(),
-    created_at: now, trust: 'self',
-  };
-  msg.content_sha = M.computeContentSha(msg);
-  const errs = M.validateEnvelope(msg);
-  if (errs.length) { console.error('envelope inválido: ' + errs.join('; ')); process.exit(1); }
-  own.push(msg);
-  const target = join(logDir, `${self}.jsonl`);
-  const senderMsgs = all.filter((m) => m.sender === self).concat([msg]).sort((a, b) => a.seq - b.seq);
-  writeFileSync(target + '.tmp', senderMsgs.map((m) => JSON.stringify(m)).join('\n') + '\n');
-  require('fs').renameSync(target + '.tmp', target);
-  process.stdout.write(msgId);
 })();
 NODEEOF
 )"
@@ -675,43 +669,35 @@ NODEEOF
       *) _reject_unknown "thread join" "$THREAD_JOIN_FLAGS" "$1" ;;
     esac; done
     [ -n "$subject" ] || subject="$self entrou na thread"
-    out="$(node - "$LIBDIR" "$ch_dir" "$self" "$channel" "$thread_id" "$subject" "$body" "$requires_ack" "$(_git_date)" <<'NODEEOF'
-const { readFileSync, writeFileSync, readdirSync, existsSync, renameSync } = require('fs');
+    out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$self" "$channel" "$thread_id" "$subject" "$body" "$requires_ack" "$(_git_date)" <<'NODEEOF'
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, chDir, self, channel, threadId, subject, body, requiresAck, now] = process.argv;
-  const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
-  const logDir = join(chDir, 'log');
-  const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
-  const all = [];
-  for (const f of files) {
-    const text = readFileSync(join(logDir, f), 'utf8');
-    for (const line of text.split('\n')) { const t = line.trim(); if (t) all.push(JSON.parse(t)); }
+  const [, , lib, root, chDir, self, channel, threadId, subject, body, requiresAck, now] = process.argv;
+  const { appendOwn, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
+  try {
+    const { msg } = await appendOwn({
+      root, chDir, channel, self,
+      build: (all) => {
+        const threadMsgs = all.filter((m) => m.thread_id === threadId);
+        if (!threadMsgs.some((m) => m.kind === 'thread-open')) {
+          throw new Error(`thread '${threadId}' desconhecida localmente (aguarde o thread-open chegar)`);
+        }
+        return {
+          channel, thread_id: threadId, kind: 'join', in_reply_to: null,
+          requires_ack: requiresAck === 'true', subject, ...(body ? { body } : {}),
+          refs: { change_id: null, contract_files: [], commit: null },
+          created_at: now, trust: 'self',
+        };
+      },
+    });
+    process.stdout.write(msg.msg_id);
+  } catch (err) {
+    if (err instanceof AppendValidationError) console.error('envelope inválido: ' + err.errors.join('; '));
+    else if (err instanceof LockLostError) console.error(err.message);
+    else console.error(err && err.message ? err.message : String(err));
+    process.exit(1);
   }
-  const threadMsgs = all.filter((m) => m.thread_id === threadId);
-  if (!threadMsgs.some((m) => m.kind === 'thread-open')) {
-    console.error(`thread '${threadId}' desconhecida localmente (aguarde o thread-open chegar)`); process.exit(1);
-  }
-  const own = all.filter((m) => m.sender === self);
-  const seq = M.nextSeq(own);
-  const lamport = M.nextLamport(threadMsgs);
-  const msgId = `${self}-${String(seq).padStart(4, '0')}`;
-  const msg = {
-    msg_id: msgId, channel, thread_id: threadId, sender: self, seq, lamport,
-    kind: 'join', in_reply_to: null, requires_ack: requiresAck === 'true',
-    subject, ...(body ? { body } : {}),
-    refs: { change_id: null, contract_files: [], commit: null },
-    created_at: now, trust: 'self',
-  };
-  msg.content_sha = M.computeContentSha(msg);
-  const errs = M.validateEnvelope(msg);
-  if (errs.length) { console.error('envelope inválido: ' + errs.join('; ')); process.exit(1); }
-  const target = join(logDir, `${self}.jsonl`);
-  const senderMsgs = own.concat([msg]).sort((a, b) => a.seq - b.seq);
-  writeFileSync(target + '.tmp', senderMsgs.map((m) => JSON.stringify(m)).join('\n') + '\n');
-  renameSync(target + '.tmp', target);
-  process.stdout.write(msgId);
 })();
 NODEEOF
 )"
@@ -935,76 +921,67 @@ ack)
     body=""
   fi
 
-  out="$(node - "$LIBDIR" "$ch_dir" "$self" "$channel" "$msg_id" "$subject" "$body" "$body_ref" "$(_git_date)" <<'NODEEOF'
-const { readFileSync, writeFileSync, readdirSync, existsSync, renameSync } = require('fs');
+  out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$self" "$channel" "$msg_id" "$subject" "$body" "$body_ref" "$(_git_date)" <<'NODEEOF'
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, chDir, self, channel, targetId, subjectArg, body, bodyRef, now] = process.argv;
-  const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
-  const logDir = join(chDir, 'log');
-  const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
-  const all = [];
-  for (const f of files) {
-    const text = readFileSync(join(logDir, f), 'utf8');
-    for (const line of text.split('\n')) { const t = line.trim(); if (t) all.push(JSON.parse(t)); }
-  }
-  const target = all.find((m) => m.msg_id === targetId);
-  if (!target) { console.error(`mensagem '${targetId}' desconhecida localmente`); process.exit(1); }
-  const threadId = target.thread_id;
-  const threadMsgs = all.filter((m) => m.thread_id === threadId);
-  const own = all.filter((m) => m.sender === self);
-  const seq = M.nextSeq(own);
-  const lamport = M.nextLamport(threadMsgs);
-  const msgId = `${self}-${String(seq).padStart(4, '0')}`;
-  const subject = subjectArg || `ack: ${target.subject || target.msg_id}`;
-  const msg = {
-    msg_id: msgId, channel, thread_id: threadId, sender: self, seq, lamport,
-    kind: 'ack', in_reply_to: targetId, requires_ack: false,
-    subject, ...(body ? { body } : {}), ...(bodyRef ? { body_ref: bodyRef } : {}),
-    refs: { change_id: null, contract_files: [], commit: null },
-    created_at: now, trust: 'self',
-  };
-  msg.content_sha = M.computeContentSha(msg);
-  const errs = M.validateEnvelope(msg);
-  if (errs.length) { console.error('envelope inválido: ' + errs.join('; ')); process.exit(1); }
-  const targetFile = join(logDir, `${self}.jsonl`);
-  const senderMsgs = own.concat([msg]).sort((a, b) => a.seq - b.seq);
-  writeFileSync(targetFile + '.tmp', senderMsgs.map((m) => JSON.stringify(m)).join('\n') + '\n');
-  renameSync(targetFile + '.tmp', targetFile);
+  const [, , lib, root, chDir, self, channel, targetId, subjectArg, body, bodyRef, now] = process.argv;
+  const { appendOwn, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
+  let target = null;
+  try {
+    const { msg, all } = await appendOwn({
+      root, chDir, channel, self,
+      build: (allMsgs) => {
+        target = allMsgs.find((m) => m.msg_id === targetId);
+        if (!target) throw new Error(`mensagem '${targetId}' desconhecida localmente`);
+        const subject = subjectArg || `ack: ${target.subject || target.msg_id}`;
+        return {
+          channel, thread_id: target.thread_id, kind: 'ack', in_reply_to: targetId,
+          requires_ack: false, subject, ...(body ? { body } : {}), ...(bodyRef ? { body_ref: bodyRef } : {}),
+          refs: { change_id: null, contract_files: [], commit: null },
+          created_at: now, trust: 'self',
+        };
+      },
+    });
 
-  // O ack AVANÇA o cursor da thread até a mensagem ackada — issue #102. Antes desta linha, o ato
-  // mais forte de leitura do protocolo não marcava nada como lido, e `read --upto` era o único
-  // caminho por onde um cursor avançava — toda mensagem ackada permanecia não lida.
-  //
-  // Só para mensagem de TERCEIRO. Ackar a própria mensagem é PARTICIPAÇÃO, não leitura: mover o
-  // cursor ali marcaria como lidas as mensagens alheias que ficaram entre o cursor e a própria,
-  // que ninguém leu. É a invariante que separa os dois atos.
-  //
-  // Não-regressão em modo NÃO estrito: ackar algo já lido é legítimo, e transformar isso em erro
-  // faria um ato de protocolo falhar por um cursor que já estava adiante.
+    // O ack AVANÇA o cursor da thread até a mensagem ackada — issue #102. Antes desta linha, o
+    // ato mais forte de leitura do protocolo não marcava nada como lido, e `read --upto` era o
+    // único caminho por onde um cursor avançava — toda mensagem ackada permanecia não lida.
+    //
+    // Só para mensagem de TERCEIRO. Ackar a própria mensagem é PARTICIPAÇÃO, não leitura: mover
+    // o cursor ali marcaria como lidas as mensagens alheias que ficaram entre o cursor e a
+    // própria, que ninguém leu. É a invariante que separa os dois atos.
+    //
+    // Não-regressão em modo NÃO estrito: ackar algo já lido é legítimo, e transformar isso em
+    // erro faria um ato de protocolo falhar por um cursor que já estava adiante.
   if (target.sender !== self) {
     try {
-      const { mergeLogs } = M;
-      const { threads } = mergeLogs(all.concat([msg]));
-      if (threads[threadId] && threads[threadId].order.includes(targetId)) {
+      const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
+      const { threads } = M.mergeLogs(all);
+      if (threads[target.thread_id] && threads[target.thread_id].order.includes(targetId)) {
         const { advanceCursor } = await import(pathToFileURL(join(lib, 'liaison-cursor.mjs')).href);
-        advanceCursor({
-          chDir, threads, threadId, upto: targetId,
+        await advanceCursor({
+          root, channel, chDir, threads, threadId: target.thread_id, upto: targetId,
           nowWall: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'), strict: false,
         });
       }
     } catch (e) {
-      // issue #108: o catch ficava vazio e o `OK ack` saía como se o cursor tivesse avançado — o
-      // efeito colateral falhava em silêncio. O ack em si é um ato de protocolo já PUBLICADO (a
-      // escrita em `targetFile` acima já aconteceu); reportar falha aqui reprovaria um ato que
+      // issue #108: o catch ficava vazio e o `OK ack` saía como se o cursor tivesse avançado —
+      // o efeito colateral falhava em silêncio. O ack em si é um ato de protocolo já PUBLICADO
+      // (a escrita do log próprio acima já aconteceu); reportar falha aqui reprovaria um ato que
       // funcionou por causa de um efeito colateral que não é o ato. Por isso WARN em stderr com
-      // rc 0, nunca `process.exit(1)`.
+      // rc 0, nunca process.exit(1).
       const motivo = (e && e.message) ? e.message : String(e);
       console.error(`WARN: ack publicado, mas o cursor não avançou (${motivo})`);
     }
   }
-  process.stdout.write(msgId);
+    process.stdout.write(msg.msg_id);
+  } catch (err) {
+    if (err instanceof AppendValidationError) console.error('envelope inválido: ' + err.errors.join('; '));
+    else if (err instanceof LockLostError) console.error(err.message);
+    else console.error(err && err.message ? err.message : String(err));
+    process.exit(1);
+  }
 })();
 NODEEOF
 )"
@@ -1117,12 +1094,12 @@ read)
   [ -n "$upto" ] || { echo "FAIL: --upto <msg_id> obrigatório" >&2; exit 1; }
 
   now_wall="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  out="$(node - "$LIBDIR" "$ch_dir" "$upto" "$now_wall" <<'NODEEOF'
-const { readFileSync, writeFileSync, readdirSync, existsSync, renameSync } = require('fs');
+  out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$channel" "$upto" "$now_wall" <<'NODEEOF'
+const { readFileSync, readdirSync, existsSync } = require('fs');
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, chDir, upto, nowWall] = process.argv;
+  const [, , lib, root, chDir, channel, upto, nowWall] = process.argv;
   const { mergeLogs } = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
   const logDir = join(chDir, 'log');
   const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
@@ -1138,7 +1115,7 @@ const { pathToFileURL } = require('url');
   // modo estrito: o operador PEDIU um alvo, e um pedido inválido tem de ser dito.
   const { advanceCursor } = await import(pathToFileURL(join(lib, 'liaison-cursor.mjs')).href);
   try {
-    advanceCursor({ chDir, threads, threadId, upto, nowWall, strict: true });
+    await advanceCursor({ root, channel, chDir, threads, threadId, upto, nowWall, strict: true });
   } catch (e) { console.error(e.message); process.exit(1); }
   process.stdout.write(threadId);
 })();
@@ -1385,13 +1362,13 @@ NODEEOF
       [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado" >&2; exit 1; }
       self="$(_read_self)"
       [ -n "$self" ] || { echo "FAIL: self não configurado" >&2; exit 1; }
-      out="$(node - "$LIBDIR" "$ch_dir" "$self" "$channel" "$div_sender" "$div_seq" "$(_git_date)" <<'NODEEOF'
-const { readFileSync, writeFileSync, readdirSync, existsSync, renameSync } = require('fs');
+      out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$self" "$channel" "$div_sender" "$div_seq" "$(_git_date)" <<'NODEEOF'
+const { readFileSync, existsSync } = require('fs');
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, chDir, self, channel, divSender, divSeqRaw, now] = process.argv;
-  const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
+  const [, , lib, root, chDir, self, channel, divSender, divSeqRaw, now] = process.argv;
+  const { appendOwn, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
   const I = await import(pathToFileURL(join(lib, 'liaison-import.mjs')).href);
   const divSeq = Number(divSeqRaw);
   const pos = I.readQuarantinedPositions(chDir).find((p) => p.sender === divSender && p.seq === divSeq);
@@ -1400,18 +1377,6 @@ const { pathToFileURL } = require('url');
   const rec = JSON.parse(readFileSync(join(chDir, 'conflicts', pos.file), 'utf8'));
   const inc = rec.incoming;
   if (!inc || !inc.thread_id) { console.error(`o registro conflicts/${pos.file} não carrega a mensagem recebida — nada a republicar`); process.exit(1); }
-
-  const logDir = join(chDir, 'log');
-  const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
-  const all = [];
-  for (const f of files) {
-    const text = readFileSync(join(logDir, f), 'utf8');
-    for (const line of text.split('\n')) { const t = line.trim(); if (t) all.push(JSON.parse(t)); }
-  }
-  const threadMsgs = all.filter((m) => m.thread_id === inc.thread_id);
-  if (!threadMsgs.some((m) => m.kind === 'thread-open')) {
-    console.error(`thread '${inc.thread_id}' desconhecida localmente — sincronize a abertura da thread antes de republicar`); process.exit(1);
-  }
   // Corpo em blob: o blob de uma posição RETIDA não é copiado pelo import (só o das mensagens
   // aplicadas), então pode não existir aqui. Republicar sem o corpo seria entregar um envelope
   // vazio dizendo que recuperou o conteúdo.
@@ -1419,32 +1384,36 @@ const { pathToFileURL } = require('url');
     console.error(`o corpo da posição está em ${inc.body_ref}, ausente em blobs/ — peça à origem o blob (ou republique você mesmo o conteúdo com 'send')`); process.exit(1);
   }
 
-  const own = all.filter((m) => m.sender === self);
-  const seq = M.nextSeq(own);
-  const lamport = M.nextLamport(threadMsgs);
-  const msgId = `${self}-${String(seq).padStart(4, '0')}`;
-  const msg = {
-    msg_id: msgId, channel, thread_id: inc.thread_id, sender: self, seq, lamport,
-    kind: 'note', in_reply_to: inc.in_reply_to || null, requires_ack: false,
-    subject: inc.subject,
-    ...(inc.body ? { body: inc.body } : {}),
-    ...(inc.body_ref ? { body_ref: inc.body_ref } : {}),
-    refs: inc.refs || { change_id: null, contract_files: [], commit: null },
-    authored_by: inc.sender,
-    via: 'divergence-resolve',
-    resolves: { sender: inc.sender, seq: divSeq, msg_id: inc.msg_id || null, content_sha: inc.content_sha || null, kind: inc.kind || null },
-    created_at: now,
-    trust: 'untrusted-peer',
-  };
-  msg.content_sha = M.computeContentSha(msg);
-  const errs = M.validateEnvelope(msg);
-  if (errs.length) { console.error('envelope inválido: ' + errs.join('; ')); process.exit(1); }
-  const target = join(logDir, `${self}.jsonl`);
-  const senderMsgs = own.concat([msg]).sort((a, b) => a.seq - b.seq);
-  writeFileSync(target + '.tmp', senderMsgs.map((m) => JSON.stringify(m)).join('\n') + '\n');
-  renameSync(target + '.tmp', target);
-  I.markResolved(chDir, divSender, divSeq, { msg_id: msgId, created_at: now });
-  process.stdout.write(`${msgId}\t${inc.msg_id || '?'}`);
+  try {
+    const { msg } = await appendOwn({
+      root, chDir, channel, self,
+      build: (all) => {
+        const threadMsgs = all.filter((m) => m.thread_id === inc.thread_id);
+        if (!threadMsgs.some((m) => m.kind === 'thread-open')) {
+          throw new Error(`thread '${inc.thread_id}' desconhecida localmente — sincronize a abertura da thread antes de republicar`);
+        }
+        return {
+          channel, thread_id: inc.thread_id, kind: 'note', in_reply_to: inc.in_reply_to || null,
+          requires_ack: false, subject: inc.subject,
+          ...(inc.body ? { body: inc.body } : {}),
+          ...(inc.body_ref ? { body_ref: inc.body_ref } : {}),
+          refs: inc.refs || { change_id: null, contract_files: [], commit: null },
+          authored_by: inc.sender,
+          via: 'divergence-resolve',
+          resolves: { sender: inc.sender, seq: divSeq, msg_id: inc.msg_id || null, content_sha: inc.content_sha || null, kind: inc.kind || null },
+          created_at: now,
+          trust: 'untrusted-peer',
+        };
+      },
+    });
+    I.markResolved(chDir, divSender, divSeq, { msg_id: msg.msg_id, created_at: now });
+    process.stdout.write(`${msg.msg_id}\t${inc.msg_id || '?'}`);
+  } catch (err) {
+    if (err instanceof AppendValidationError) console.error('envelope inválido: ' + err.errors.join('; '));
+    else if (err instanceof LockLostError) console.error(err.message);
+    else console.error(err && err.message ? err.message : String(err));
+    process.exit(1);
+  }
 })();
 NODEEOF
 )" || exit 1

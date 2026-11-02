@@ -328,12 +328,20 @@ done < <(grep -nE '(cp |mv |tee |>\s*)"?\$\{?(own|self)\}?\.jsonl' "$LIAISON_OPS
 [ "$static_fail" -eq 0 ] && echo "OK estática: nenhum cp/mv/tee/redirect direto ao log próprio" || fail=1
 
 # Dinâmica: preload grava toda escrita em log/<self>.jsonl com a origem na pilha; exige que a
-# origem seja sempre liaison-append.mjs quando o módulo existe.
+# origem seja sempre liaison-append.mjs quando o módulo existe. Cobre os quatro verbos que
+# escrevem no log próprio (send, ack, thread open, thread join) — conflicts resolve compartilha
+# o mesmo caminho de appendOwn que ack/send e não precisa de fixture própria aqui.
 if [ -f "$LIB/liaison-append.mjs" ]; then
   SCANLOG="$T/write-scan.jsonl"
   : > "$SCANLOG"
+  SCAN_MSGID="$(FORGE_WRITE_SCAN_LOG="$SCANLOG" NODE_OPTIONS="--require $PRELOAD" \
+    LG "$T/main" send "$CH" --thread t1 --kind note --subject "scan-probe" --body "x" 2>/dev/null | grep -oE '[a-z0-9._-]+-[0-9]{4}' | tail -1 || true)"
   FORGE_WRITE_SCAN_LOG="$SCANLOG" NODE_OPTIONS="--require $PRELOAD" \
-    LG "$T/main" send "$CH" --thread t1 --kind note --subject "scan-probe" --body "x" >/dev/null 2>&1 || true
+    LG "$T/main" ack "$CH" "$SCAN_MSGID" --subject "scan-probe-ack" >/dev/null 2>&1 || true
+  FORGE_WRITE_SCAN_LOG="$SCANLOG" NODE_OPTIONS="--require $PRELOAD" \
+    LG "$T/main" thread open "$CH" scan-probe-thread --subject "scan" --participants repo-a --body "x" >/dev/null 2>&1 || true
+  FORGE_WRITE_SCAN_LOG="$SCANLOG" NODE_OPTIONS="--require $PRELOAD" \
+    LG "$T/main" thread join "$CH" scan-probe-thread --subject "scan-join" >/dev/null 2>&1 || true
   bad="$(node -e "
     const fs=require('fs');
     let lines=[]; try { lines=fs.readFileSync('$SCANLOG','utf8').trim().split('\n').filter(Boolean).map(JSON.parse); } catch(e){}

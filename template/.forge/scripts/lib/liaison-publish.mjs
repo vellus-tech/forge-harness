@@ -21,6 +21,7 @@
 // mesmo trade-off que o comentário no topo de liaison-ops.sh já reserva para `state.json`.
 import { readFileSync, writeFileSync, existsSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
+import { withStateLock } from './liaison-lock.mjs';
 
 // Lê o log do próprio remetente em ordem de arquivo (append-only, um único escritor: a ordem no
 // arquivo É a ordem de seq) e devolve a lista de msg_id, mais antiga primeiro.
@@ -50,20 +51,28 @@ function writeState(chDir, state) {
   renameSync(`${stateFile}.tmp`, stateFile);
 }
 
-// markPublished({ chDir, self, nowWall }) — grava published[self]/published_at[self] depois de
-// um push bem-sucedido. NO-OP (não escreve nada) quando o próprio log está vazio — nada foi
-// publicado, então não há marca a gravar.
-export function markPublished({ chDir, self, nowWall }) {
-  const ids = ownMsgIds(chDir, self);
-  if (!ids.length) return null;
-  const lastId = ids[ids.length - 1];
-  const state = readState(chDir);
-  if (!state.published) state.published = {};
-  if (!state.published_at) state.published_at = {};
-  state.published[self] = lastId;
-  state.published_at[self] = nowWall;
-  writeState(chDir, state);
-  return { msgId: lastId, publishedAt: nowWall };
+// markPublished({ root, channel, chDir, self, nowWall }) — grava published[self]/
+// published_at[self] depois de um push bem-sucedido. NO-OP (não escreve nada) quando o próprio
+// log está vazio — nada foi publicado, então não há marca a gravar. `root`/`channel` (design
+// §2.4): leitura+escrita de `state.json` sob `withStateLock` (`<channel>@state.lock`), para que
+// o processo destacado da renovação e um `sync` manual concorrentes nunca percam a marca um do
+// outro. Quando `root`/`channel` não são passados (chamador antigo), roda sem trava — o
+// comportamento pré-existente, nunca uma regressão silenciosa; o aviso fica para a rule.
+export function markPublished({ root, channel, chDir, self, nowWall }) {
+  const write = () => {
+    const ids = ownMsgIds(chDir, self);
+    if (!ids.length) return null;
+    const lastId = ids[ids.length - 1];
+    const state = readState(chDir);
+    if (!state.published) state.published = {};
+    if (!state.published_at) state.published_at = {};
+    state.published[self] = lastId;
+    state.published_at[self] = nowWall;
+    writeState(chDir, state);
+    return { msgId: lastId, publishedAt: nowWall };
+  };
+  if (root && channel) return withStateLock({ root, channel }, write);
+  return write();
 }
 
 // unpublishedCount({ chDir, self }) — quantas mensagens PRÓPRIAS, no log local, estão depois da

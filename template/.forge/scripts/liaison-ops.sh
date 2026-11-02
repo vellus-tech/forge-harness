@@ -151,6 +151,35 @@ _reject_unknown() {  # _reject_unknown <subcomando> <flags aceitas> <argumento> 
   exit 1
 }
 
+# _baton_resolve_session <--session-value-ou-vazio> — REQ-10: --session ou, na ausência,
+# CLAUDE_CODE_SESSION_ID; sem nenhum dos dois, recusa dizendo que agentes sem essa variável
+# (Codex, Cursor, Gemini) precisam passar --session. Valida o padrão
+# ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ nos dois casos — autodeclarado, não autentica (a defesa é
+# que quem falsifica já tem escrita no repositório).
+_baton_resolve_session() {
+  local explicit="$1" session=""
+  if [ -n "$explicit" ]; then
+    session="$explicit"
+  elif [ -n "${CLAUDE_CODE_SESSION_ID:-}" ]; then
+    session="$CLAUDE_CODE_SESSION_ID"
+  else
+    echo "FAIL: nenhuma sessão — passe --session <id> (agentes sem CLAUDE_CODE_SESSION_ID, como Codex, Cursor ou Gemini, precisam declarar a sessão explicitamente)" >&2
+    return 1
+  fi
+  case "$session" in
+    [A-Za-z0-9]*) : ;;
+    *) echo "FAIL: session fora do padrão (precisa começar com letra ou dígito): '$session'" >&2; return 1 ;;
+  esac
+  if [ "${#session}" -gt 128 ]; then
+    echo "FAIL: session excede 128 caracteres: '$session'" >&2
+    return 1
+  fi
+  case "$session" in
+    *[!A-Za-z0-9._-]*) echo "FAIL: session fora do padrão (só [A-Za-z0-9._-] após o primeiro caractere): '$session'" >&2; return 1 ;;
+  esac
+  printf '%s' "$session"
+}
+
 _read_self() {
   [ -f "$CONFIG" ] || { printf ''; return 0; }
   node - "$LIBDIR" "$CONFIG" <<'NODEEOF'

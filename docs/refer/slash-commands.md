@@ -1,6 +1,6 @@
 # Relação de Slash Commands — Forge Harness
 
-> Catálogo gerado a partir dos frontmatters em `template/.forge/commands/`. **56 commands** em 10 grupos.
+> Catálogo gerado a partir dos frontmatters em `template/.forge/commands/`. **57 commands** em 10 grupos.
 
 Os `/forge:*` são entregues por um **plugin** do Claude Code (gerado de `.forge/commands/**` por `/forge:build-plugin` ou `bash .forge/scripts/build-plugin.sh`). O Claude Code (>= 2.x) reserva o namespace `:` para plugins — por isso os comandos vivem num plugin `name: forge`, não em `.claude/commands/`. O engine que eles chamam (`.forge/scripts/...`) vem do `.forge/` por projeto (instalado via `npx forge-harness init`).
 
@@ -13,7 +13,7 @@ No Claude Code digite `/` e o nome do command; argumentos vão na mesma linha. E
 - [Specs — SDD / Spec-Driven Development](#specs) — 13 commands
 - [Coding — Dev loop & entrega](#coding) — 4 commands
 - [Waves — Planejamento incremental](#waves) — 6 commands
-- [Graph — Knowledge graph & brownfield](#graph) — 8 commands
+- [Graph — Knowledge graph & brownfield](#graph) — 9 commands
 - [Docs — Documentação & ADRs](#docs) — 8 commands
 - [Git — Fluxo de entrega](#git) — 1 commands
 - [Harness — Manutenção do Forge](#harness) — 12 commands
@@ -89,6 +89,7 @@ _Descoberta, build, query e impacto sobre o grafo de conhecimento do repo._
 | `/forge:discover` | — | Inventário determinístico do repositório (modo lite, §16.1) — stack, comandos run/test/build, estrutura, boundaries, mudanças e fingerprints — gravado em .forge/graph/manifest.json. |
 | `/forge:impact` | `--change <id> \| --diff [<base>] \| --files a,b,c` | Análise de impacto de uma spec ou diff sobre o grafo de código — quais arquivos dependem (transitivamente) do que mudou. |
 | `/forge:onboard` | `[<módulo ou capability>]` | Tour de arquitetura e domínio para um agente/humano novo no repositório — camadas, módulos, fluxos de dependência e pontos de concentração, derivados do grafo de código. |
+| `/forge:kb` | `<consulta> \| build \| status \| eval <arquivo> \| semantic install\|remove\|status` | Busca unificada sobre o conhecimento acumulado (baseline, ADRs, specs arquivadas, ledger, planos, CHANGELOG, liaison próprio). Lexical zero-dep por padrão; camada semântica local opcional. Sem LLM, sem rede na busca. |
 | `/forge:query` | `<termo> \| path <de> <para>` | Consulta o grafo de código (nodes/edges/caminhos) antes de abrir arquivos crus — lookup barato para localizar módulos, dependências e caminhos de import. |
 | `/forge:update` | — | Atualiza o grafo de código incrementalmente — só reprocessa se os fingerprints estruturais mudaram. |
 

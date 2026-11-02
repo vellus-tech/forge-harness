@@ -55,6 +55,10 @@ archived:
     archived_at: "2026-10-31"
     kind: baseline_update
     path: 2026-10-31-add-liaison-native-bridge
+  - change_id: add-unified-knowledge-search
+    archived_at: "2026-10-31"
+    kind: baseline_update
+    path: 2026-10-31-add-unified-knowledge-search
   - change_id: add-migration-review-rule
     archived_at: "2026-11-01"
     kind: baseline_update

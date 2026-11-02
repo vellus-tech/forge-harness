@@ -1,0 +1,11 @@
+TASK-01 red=4173f78198 green=8687592dcd :: OK task — teste do verde falha por asserção sobre o vermelho 4173f78198ed (classificação: behavioral) e passa no verde 8687592dcd0b
+TASK-02 red=7e4b4bd43d green=5a4234bd5f :: OK task — teste do verde falha por asserção sobre o vermelho 7e4b4bd43da1 (classificação: behavioral) e passa no verde 5a4234bd5f2a
+TASK-03 red=b3bf0049e3 green=0b26397a2c :: OK task — teste do verde falha por asserção sobre o vermelho b3bf0049e33e (classificação: behavioral) e passa no verde 0b26397a2c4a
+TASK-04 red=e17493950c green=661c8b9031 :: OK task — teste do verde falha por asserção sobre o vermelho e17493950c8f (classificação: behavioral) e passa no verde 661c8b9031ae
+TASK-05 red=50ceb251b7 green=5a75f8487f :: OK task — teste do verde falha por asserção sobre o vermelho 50ceb251b781 (classificação: behavioral) e passa no verde 5a75f8487ff4
+TASK-06 red=cb29236500 green=6cb38dc8b3 :: OK task — teste do verde falha por asserção sobre o vermelho cb292365008b (classificação: behavioral) e passa no verde 6cb38dc8b3e1
+TASK-07 red=5ac61ef854 green=f295d0509f :: OK task — teste do verde falha por asserção sobre o vermelho 5ac61ef85411 (classificação: behavioral) e passa no verde f295d0509f1f
+TASK-08 red=7dc8a006ad green=efb75e85c6 :: OK task — teste do verde falha por asserção sobre o vermelho 7dc8a006adc8 (classificação: behavioral) e passa no verde efb75e85c69c
+TASK-09 red=cc2a648191 green=4e1d8dd7f9 :: OK task — teste do verde falha por asserção sobre o vermelho cc2a6481916d (classificação: behavioral) e passa no verde 4e1d8dd7f937
+TASK-10 red=e8f1d9d8d9 green=936c8444fe :: OK task — teste do verde falha por asserção sobre o vermelho e8f1d9d8d953 (classificação: behavioral) e passa no verde 936c8444fe59
+TASK-11 red=177c5035ba green=af64829f13 :: OK task — teste do verde falha por asserção sobre o vermelho 177c5035ba27 (classificação: behavioral) e passa no verde af64829f1349

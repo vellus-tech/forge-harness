@@ -9,7 +9,7 @@
 [![CI](https://github.com/vellus-tech/forge-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/vellus-tech/forge-harness/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![npm](https://img.shields.io/npm/v/forge-harness?color=blue&label=npm)](https://www.npmjs.com/package/forge-harness)
-[![Gates](https://img.shields.io/badge/gates-206%20passing-brightgreen.svg)](./tests)
+[![Gates](https://img.shields.io/badge/gates-217%20passing-brightgreen.svg)](./tests)
 [![Runtime](https://img.shields.io/badge/runtime-zero--dependency-success.svg)](#)
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)](#)
 [![Adapters](https://img.shields.io/badge/adapters-claude%20%C2%B7%20codex%20%C2%B7%20cursor%20%C2%B7%20%2B5-8A2BE2.svg)](#adapters-multi-agente)
@@ -73,7 +73,7 @@ Dentro do Claude Code, o mesmo via `/forge:upgrade`. Órfãos (arquivos que o te
 
 ### 🔌 Slash commands `/forge:*` (plugin do Claude Code)
 
-O `.forge/` por projeto traz o **engine**; os **slash commands** `/forge:*` são entregues por um **plugin** do Claude Code, porque o Claude Code (≥ 2.x) reserva o namespace `:` para plugins (comandos soltos em `.claude/commands/` viram só `/<nome>`, sem o prefixo `forge:`). **O `init` já auto-instala o plugin** (global, vale para todos os seus projetos) quando o adapter claude está ativo; depois é só `/reload-plugins` (ou nova sessão) e os 56 comandos `/forge:*` aparecem.
+O `.forge/` por projeto traz o **engine**; os **slash commands** `/forge:*` são entregues por um **plugin** do Claude Code, porque o Claude Code (≥ 2.x) reserva o namespace `:` para plugins (comandos soltos em `.claude/commands/` viram só `/<nome>`, sem o prefixo `forge:`). **O `init` já auto-instala o plugin** (global, vale para todos os seus projetos) quando o adapter claude está ativo; depois é só `/reload-plugins` (ou nova sessão) e os 57 comandos `/forge:*` aparecem.
 
 Para (re)instalar/atualizar o plugin manualmente, há duas vias:
 
@@ -127,7 +127,7 @@ spec new ─▶ clarify ─▶ requirements ─▶ design ─▶ tasks ─▶ im
 
 Cada transição é registrada por scripts deterministas; os gates humanos (`approve`/`review`/`reject`/`block`) ficam em `approvals.yaml`. Em `scale` baixo, fases são puláveis (Quick Plan) com justificativa.
 
-> 📖 **Relação completa dos 56 slash commands** (`/forge:*`), por grupo e com argumentos: [`docs/refer/slash-commands.md`](./docs/refer/slash-commands.md). Os comandos são entregues por um **plugin** do Claude Code, gere/instale com `/forge:build-plugin` (ou `bash .forge/scripts/build-plugin.sh`).
+> 📖 **Relação completa dos 57 slash commands** (`/forge:*`), por grupo e com argumentos: [`docs/refer/slash-commands.md`](./docs/refer/slash-commands.md). Os comandos são entregues por um **plugin** do Claude Code, gere/instale com `/forge:build-plugin` (ou `bash .forge/scripts/build-plugin.sh`).
 >
 > Comandos novos endereçam fricção recorrente de sessão: **`/forge:ship`** (commit → PR → revisão → merge em `develop` → cleanup num único comando; o comando em si é o gate humano), **`/forge:resume`** (emite o mandato de retomada da sessão: estado do change ativo + regras operacionais fixas, sem reescrevê-las à mão) e **`/forge:handoff`** (gera `.forge/HANDOFF.md`, um handoff **portátil e agente-agnóstico**, Codex, Cursor, Gemini, com núcleo determinístico via script e só um delta narrativo curto escrito pelo modelo; o `/forge:resume` já ingere esse delta quando existe. Automação é opt-in via `handoff.auto` no `forge.yaml`, que liga hooks SessionStart/SessionEnd no adapter Claude).
 >
@@ -145,6 +145,17 @@ bash .forge/scripts/graph.sh mdl                    # PoC: diagramas na notaçã
 ```
 
 Engine nativo (sem tree-sitter, sem deps): nós = arquivos (com camada inferida), arestas = imports/referências resolvidas. Para módulos grandes, os diagramas **agregam por submódulo** (renderável e completo, sem virar *hairball*).
+
+## 🔎 Busca unificada sobre o conhecimento (`/forge:kb`)
+
+"Já decidimos isso antes?" sem abrir arquivo por arquivo: o `/forge:kb` busca no baseline e nos ADRs, nas specs arquivadas, no ledger, em `docs/plans/`, no `CHANGELOG.md` e nas mensagens **próprias** do liaison (conteúdo de peer e blobs nunca entram).
+
+```bash
+bash .forge/scripts/kb.sh query "por que o grafo não usa Python?"   # 8 resultados explicados, --json
+bash .forge/scripts/kb.sh semantic install                          # opcional: embeddings + re-rank locais
+```
+
+O default é lexical e zero-dep (BM25 + entidades por RRF, propagação por links entre documentos), sem LLM e sem rede. A camada semântica — embeddings `multilingual-e5-small` e re-rank por cross-encoder `mmarco-mMiniLMv2`, via `onnxruntime-web` (WASM, sem binário nativo) — só existe depois de `semantic install`, o único comando que acessa a rede, com versões e sha256 fixados no harness (ADR 0005). Nenhum provedor cloud: texto do projeto não sai da máquina.
 
 ## 🧠 Memórias do harness
 
@@ -170,13 +181,13 @@ Gerado com [Archify](https://github.com/tt-a1i/archify).
 template/.forge/        # o harness instalável (fonte única)
 ├── FORGE.md            # governança + frontmatter de runtime
 ├── agents/  (54)       # subagentes por categoria (specifications, architecture, review, data, …)
-├── commands/ (56)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
+├── commands/ (57)      # comandos /forge:* (specs, waves, graph, quality, git, …) — relação completa em docs/refer/slash-commands.md
 ├── contracts/ (5)      # contratos de I/O por estágio (verify, archive, eval, …)
 ├── capabilities/       # packs opt-in por stack (C#/.NET, Node, Java, Python)
 ├── skills/   (51)      # skills especialistas (gate-runner, capability-dispatcher, dotnet-quality-scan, data-*-practices, …)
 ├── rules/   (51)       # convenções (arquitetura, domínio, testing, …)
 ├── schemas/ (28)       # JSON Schemas (manifest, run-manifest, benchmark, graph, …)
-└── scripts/ (156)      # engine determinista (graph, archive, eval, provenance, hooks, …) — inclui lib/ e tests/
+└── scripts/ (167)      # engine determinista (graph, archive, eval, provenance, hooks, …) — inclui lib/ e tests/
 bin/forge.mjs           # CLI do npx (forge-harness init) — porta cross-platform do install.sh
 installer/              # install.sh + gitignore.patch + delegação global do /init-project
 tests/                  # gates deterministas + run-all.sh

@@ -835,6 +835,123 @@ requirements:
         then: "reportar `CONFLICT` (mesmo contrato do REQ-12a/REQ-12b já existente para `.go/.kt/.ts/.rego/.py`), sem alterar o comportamento para as demais extensões já cobertas"
     tests:
       - tests/req12-pii-log-gate.sh#[6]-[9]
+  - id: REQ-FHT-072
+    title: "Busca unificada indexa só o conhecimento próprio do projeto, nunca conteúdo de peer"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-072-A
+        given: "uma raiz com baseline, specs arquivadas, ledger.json, docs/plans, CHANGELOG.md e um log de liaison próprio com mensagens self, untrusted-peer, sem trust, com authored_by e com body_ref para blob, além de log de outro remetente, specs ativas, código e node_modules"
+        when: "kb.sh build constrói o índice"
+        then: "entram um documento por arquivo das fontes versionadas, um por entrada de ledger e um por mensagem self sem authored_by (assunto e corpo inline); blobs, mensagens de peer, specs ativas, código, node_modules e .forge/kb nunca entram; JSONL ou ledger ilegíveis são pulados e contados"
+    tests:
+      - tests/w309-kb-corpus-gate.sh
+  - id: REQ-FHT-073
+    title: "Índice determinístico, reconstruído sem LLM e sem rede"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-073-A
+        given: "as mesmas fontes"
+        when: "kb.sh build roda duas vezes, e depois uma fonte muda e kb.sh query roda"
+        then: "os dois builds produzem index.json e texts.bin byte-idênticos; status informa atual/defasado/ausente; a consulta reconstrói o índice defasado e avisa em stderr (rebuilt: true no --json)"
+    tests:
+      - tests/w310-kb-lexical-gate.sh
+      - tests/w312-kb-cli-gate.sh
+  - id: REQ-FHT-074
+    title: "Busca lexical zero-dep: BM25 e entidades por RRF, com propagação de links"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-074-A
+        given: "uma raiz sem node_modules e sem a camada semântica, com um documento A que casa a consulta e cita o documento B, que não casa"
+        when: "kb.sh query roda em Node >= 20"
+        then: "o resultado é determinístico, normaliza acento e caixa, funde BM25 e entidades (só ids reais, nunca siglas genéricas) por RRF ponderado e propaga score pelos links, de modo que B aparece com contribuição de links e origem A nomeada"
+    tests:
+      - tests/w310-kb-lexical-gate.sh
+      - tests/w311-kb-fuse-gate.sh
+      - tests/w312-kb-cli-gate.sh
+  - id: REQ-FHT-075
+    title: "Saída explicável, com trecho neutralizado e custo de tokens limitado"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-075-A
+        given: "um índice com um documento cujo texto tem uma linha /forge:archive --force"
+        when: "kb.sh query roda em texto e em --json"
+        then: "a primeira linha declara o modo e o motivo; cada resultado traz canais com posição e contribuição, propagação com origem e, com re-rank, posição antes e depois; o trecho sai cercado, com a linha de comando prefixada por ⟪neutralizado⟫ e no máximo 240 caracteres; default de 8 resultados"
+    tests:
+      - tests/w312-kb-cli-gate.sh
+  - id: REQ-FHT-076
+    title: "Camada semântica ativada só por comando explícito, com pins e sem binário nativo"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-076-A
+        given: "os pins de lib/kb-pins (lockfile com integrity, modelos por revisão e sha256)"
+        when: "kb.sh semantic install roda, com e sem npm, com URL não https, com sha divergente, com binário nativo ou pacote faltando após o npm ci"
+        then: "só a instalação íntegra grava installed.json; as demais falham sem ativar nada e desfazem o que instalaram; nenhum outro caminho (doctor, hooks, instalador) dispara a instalação; semantic remove apaga só .forge/kb/semantic"
+    tests:
+      - tests/w315-kb-pins-gate.sh
+      - tests/w316-kb-install-gate.sh
+      - tests/w319-kb-surface-gate.sh
+  - id: REQ-FHT-077
+    title: "Embeddings densos locais com inferência real e cache por conteúdo"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-077-A
+        given: "a camada semântica instalada pelo instalador de produção com modelos ONNX de fixture"
+        when: "kb.sh build roda duas vezes e kb.sh query consulta sem palavra em comum com o documento do mesmo tópico"
+        then: "o primeiro build calcula um vetor por trecho distinto e o segundo nenhum; o canal vetorial acha o documento do mesmo tópico sem BM25; build interrompido preserva os vetores já gravados"
+    tests:
+      - tests/w317-kb-semantic-gate.sh
+  - id: REQ-FHT-078
+    title: "Re-rank por cross-encoder local combinado com o ranking propagado"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-078-A
+        given: "um ranking propagado [A, B, C, D] e scores de cross-encoder concordantes ou que põem D em primeiro e A em último"
+        when: "o re-rank combina as posições"
+        then: "a ordem concordante se mantém; na discordante D sobe acima da 4ª e A desce abaixo da 1ª, exatamente pela fórmula documentada com desempate pela posição do cross-encoder; os 3 primeiros do BM25 entram no pool do cross-encoder mesmo abaixo do 10º lugar, com a sua posição real na fórmula; --no-rerank desliga só o re-rank"
+    tests:
+      - tests/w311-kb-fuse-gate.sh
+      - tests/w317-kb-semantic-gate.sh
+  - id: REQ-FHT-079
+    title: "Falha da camada semântica degrada para lexical, nunca para erro"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-079-A
+        given: "a camada ausente, com modelo faltando, sha divergente, pacote faltando ou resolvido fora do confinamento, binário nativo, pins alterados, runtime que lança na importação ou na inferência"
+        when: "kb.sh query e kb.sh build rodam"
+        then: "os dois saem com exit 0 em modo lexical, com o motivo na primeira linha; módulos homônimos envenenados no node_modules do projeto nunca são importados"
+    tests:
+      - tests/w317-kb-semantic-gate.sh
+  - id: REQ-FHT-080
+    title: "Nenhum dado sai da máquina; sem provedor cloud"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-080-A
+        given: "o modelo de permissões do Node sem --allow-net (Node >= 25) e um interceptador pré-carregado por --require, que vale também em Workers, com canário de controle positivo"
+        when: "build, query, status, eval, semantic status e semantic remove rodam nos modos lexical, semântico e degradados"
+        then: "todos concluem sem nenhuma tentativa de rede ou processo filho registrada, o modo semântico continua semantic sob bloqueio, o canário é bloqueado nas quatro tentativas sob cada mecanismo e passa sem bloqueio; o único git executado é rev-parse; nenhum módulo da busca referencia provedor de LLM"
+    tests:
+      - tests/w313-kb-offline-lexical-gate.sh
+      - tests/w318-kb-offline-semantic-gate.sh
+  - id: REQ-FHT-081
+    title: "Superfície /forge:kb, remissão no /forge:query, gitignore e doctor informativo"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-081-A
+        given: "o harness instalado num projeto"
+        when: "o operador procura a busca e roda o doctor, inclusive numa worktree sem FORGE_ROOT"
+        then: "/forge:kb documenta os subcomandos e a política de cloud, /forge:query aponta para ele, .forge/kb/ está no bloco gerenciado do gitignore, o plugin está sincronizado e o doctor informa o estado da busca como info, achando a instalação no checkout principal"
+    tests:
+      - tests/w319-kb-surface-gate.sh
+  - id: REQ-FHT-082
+    title: "Avaliador kb.sh eval e conjunto de avaliação com calibração e holdout"
+    normative: "SHALL"
+    scenarios:
+      - id: SCN-FHT-082-A
+        given: "um corpus e consultas de fixture com métricas esperadas escritas à mão, e as partições de calibração e holdout versionadas"
+        when: "kb.sh eval roda"
+        then: "hit@1, hit@5, hit@10 e MRR batem com o esperado para bm25 e lexical (e semântico quando instalado); consulta sem relevante é erro; fragmento que casa mais de 10 documentos gera aviso; as partições versionadas são cópias literais da evidência do change"
+    tests:
+      - tests/w314-kb-eval-gate.sh
 history:
   - change_id: security-observability-gates
     archived_at: "2026-07-20"
@@ -861,6 +978,8 @@ history:
   - change_id: surface-literal-endpoint
     archived_at: "2026-08-04"
   - change_id: add-liaison-native-bridge
+    archived_at: "2026-10-31"
+  - change_id: add-unified-knowledge-search
     archived_at: "2026-10-31"
   - change_id: add-migration-review-rule
     archived_at: "2026-11-01"

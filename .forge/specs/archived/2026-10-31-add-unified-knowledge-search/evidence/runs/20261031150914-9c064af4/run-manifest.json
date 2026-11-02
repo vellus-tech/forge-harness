@@ -1,0 +1,150 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20261031150914-9c064af4",
+  "stage": "archive",
+  "status": "passed",
+  "started_at": "2026-10-31T15:09:13Z",
+  "finished_at": "2026-10-31T15:09:14.630Z",
+  "duration_ms": 1630,
+  "git": {
+    "repo": true,
+    "branch": "feat/harness/unified-knowledge-search",
+    "head_sha": "261878feacbcc9379650dbe2a86c52d7ddbfba57",
+    "dirty": true,
+    "changed_files": [
+      ".forge/ledger/LEDGER.md",
+      ".forge/ledger/ledger.json",
+      ".forge/product/current/CHANGELOG.md",
+      ".forge/product/current/capabilities/forge-harness-template/spec.yaml",
+      ".forge/specs/active/add-unified-knowledge-search/analysis.md",
+      ".forge/specs/active/add-unified-knowledge-search/approvals.yaml",
+      ".forge/specs/active/add-unified-knowledge-search/design.md",
+      ".forge/specs/active/add-unified-knowledge-search/epic_context.md",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/corpus-measurement.md",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/diagnostico-req06-2026-10-31.txt",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/pool-experimento-2026-10-31.txt",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/abl.mjs",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/diag.mjs",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/draft/grid-sem.mjs",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/draft/grid.mjs",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/draft/grid2.mjs",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/draft/grid3.mjs",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/draft/gridsem-calibration.txt",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/draft/kb-cli.mjs",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/draft/kb-corpus.mjs",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/draft/kb-fuse.mjs",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/draft/kb-install.mjs",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/draft/kb-lexical.mjs",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/draft/kb-semantic.mjs",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/eval-noprop.mjs",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/holdout.json",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/measure.mjs",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/measure2.mjs",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/mutation.sh",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/onnx-fixture.mjs",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/perq.mjs",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/pool.mjs",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/queries.json",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/task-red-green-sim.sh",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/prototype/task-red-green-sim.txt",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/remeasure-2026-10-31-pool.txt",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/remeasure-2026-10-31.txt",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/runs/20261031012839-bf56c35b/run-manifest.json",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/semantic-feasibility.md",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/task-red-proofs.txt",
+      ".forge/specs/active/add-unified-knowledge-search/evidence/verify-measurements.md",
+      ".forge/specs/active/add-unified-knowledge-search/impact.json",
+      ".forge/specs/active/add-unified-knowledge-search/manifest.yaml",
+      ".forge/specs/active/add-unified-knowledge-search/proposal.md",
+      ".forge/specs/active/add-unified-knowledge-search/requirements.md",
+      ".forge/specs/active/add-unified-knowledge-search/spec-delta.yaml",
+      ".forge/specs/active/add-unified-knowledge-search/stories/STORY-01.md",
+      ".forge/specs/active/add-unified-knowledge-search/stories/STORY-01.verification.yaml",
+      ".forge/specs/active/add-unified-knowledge-search/stories/STORY-02.md",
+      ".forge/specs/active/add-unified-knowledge-search/stories/STORY-02.verification.yaml",
+      ".forge/specs/active/add-unified-knowledge-search/stories/STORY-03.md",
+      ".forge/specs/active/add-unified-knowledge-search/stories/STORY-03.verification.yaml",
+      ".forge/specs/active/add-unified-knowledge-search/stories/STORY-04.md",
+      ".forge/specs/active/add-unified-knowledge-search/stories/STORY-04.verification.yaml",
+      ".forge/specs/active/add-unified-knowledge-search/tasks.md",
+      ".forge/specs/active/add-unified-knowledge-search/verification.md",
+      ".forge/specs/active/add-unified-knowledge-search/verification.yaml",
+      ".forge/specs/archived/2026-10-31-add-unified-knowledge-search/",
+      ".forge/specs/archived/index.yaml"
+    ],
+    "diff_stat": ".forge/ledger/LEDGER.md                            |  10 +-\n .forge/ledger/ledger.json                          | 208 ++++++++++\n .forge/product/current/CHANGELOG.md                |   6 +\n .../capabilities/forge-harness-template/spec.yaml  | 155 +++++++-\n .../add-unified-knowledge-search/analysis.md       |  38 --\n .../add-unified-knowledge-search/approvals.yaml    | 126 ------\n .../active/add-unified-knowledge-search/design.md  | 181 ---------\n .../add-unified-knowledge-search/epic_context.md   |  37 --\n .../evidence/corpus-measurement.md                 |  41 --\n .../evidence/diagnostico-req06-2026-10-31.txt      |  18 -\n .../evidence/pool-experimento-2026-10-31.txt       |  12 -\n .../evidence/prototype/abl.mjs                     |  18 -\n .../evidence/prototype/diag.mjs                    |  31 --\n .../evidence/prototype/draft/grid-sem.mjs          |  62 ---\n .../evidence/prototype/draft/grid.mjs              |  13 -\n .../evidence/prototype/draft/grid2.mjs             |  15 -\n .../evidence/prototype/draft/grid3.mjs             |  14 -\n .../prototype/draft/gridsem-calibration.txt        |  62 ---\n .../evidence/prototype/draft/kb-cli.mjs            | 292 --------------\n .../evidence/prototype/draft/kb-corpus.mjs         | 136 -------\n .../evidence/prototype/draft/kb-fuse.mjs           |  77 ----\n .../evidence/prototype/draft/kb-install.mjs        |  89 -----\n .../evidence/prototype/draft/kb-lexical.mjs        | 144 -------\n .../evidence/prototype/draft/kb-semantic.mjs       | 238 -----------\n .../evidence/prototype/eval-noprop.mjs             |  34 --\n .../evidence/prototype/holdout.json                |  20 -\n .../evidence/prototype/measure.mjs                 | 122 ------\n .../evidence/prototype/measure2.mjs                | 137 -------\n .../evidence/prototype/mutation.sh                 |  29 --\n .../evidence/prototype/onnx-fixture.mjs            |  25 --\n .../evidence/prototype/perq.mjs                    |   4 -\n .../evidence/prototype/pool.mjs                    |  38 --\n .../evidence/prototype/queries.json                |  37 --\n .../evidence/prototype/task-red-green-sim.sh       |  42 --\n .../evidence/prototype/task-red-green-sim.txt      |  10 -\n .../evidence/remeasure-2026-10-31-pool.txt         |  62 ---\n .../evidence/remeasure-2026-10-31.txt              |  68 ----\n .../runs/20261031012839-bf56c35b/run-manifest.json |  76 ----\n .../evidence/semantic-feasibility.md               | 140 -------\n .../evidence/task-red-proofs.txt                   |  11 -\n .../evidence/verify-measurements.md                | 184 ---------\n .../add-unified-knowledge-search/impact.json       | 435 ---------------------\n .../add-unified-knowledge-search/manifest.yaml     |  60 ---\n .../add-unified-knowledge-search/proposal.md       |  43 --\n .../add-unified-knowledge-search/requirements.md   | 173 --------\n .../add-unified-knowledge-search/spec-delta.yaml   | 189 ---------\n .../stories/STORY-01.md                            |  43 --\n .../stories/STORY-01.verification.yaml             |   1 -\n .../stories/STORY-02.md                            |  40 --\n .../stories/STORY-02.verification.yaml             |   1 -\n .../stories/STORY-03.md                            |  42 --\n .../stories/STORY-03.verification.yaml             |   1 -\n .../stories/STORY-04.md                            |  39 --\n .../stories/STORY-04.verification.yaml             |   1 -\n .../active/add-unified-knowledge-search/tasks.md   |  94 -----\n .../add-unified-knowledge-search/verification.md   |  85 ----\n .../add-unified-knowledge-search/verification.yaml |   9 -\n .forge/specs/archived/index.yaml                   |   4 +\n 58 files changed, 364 insertions(+), 3958 deletions(-)",
+    "diff_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "90d15d9e57bf92f656df2e259884367d8100547d6800c70efb2deab8a9accec7",
+      "bytes": 1666,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "26711ba2af2a67093b793d00f49f0bf9da06ed46453b8580d0d4e717b810ae8d",
+      "bytes": 12940,
+      "kind": "file"
+    },
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "54831623cf196a4dbca33643919f8c7bc9ff927ae2ffc67fc90843dd37fca677",
+      "bytes": 219,
+      "kind": "file"
+    },
+    {
+      "path": "spec-delta.yaml",
+      "exists": true,
+      "sha256": "42282592085bc799276f8c463408e9ee76e99b9f0b91abb2cc6dabca20dbfa04",
+      "bytes": 10482,
+      "kind": "file"
+    },
+    {
+      "path": "impact.json",
+      "exists": true,
+      "sha256": "b1e6cb047683d836d604cd44b6361cd370294d707790d2f98a94b72f04760652",
+      "bytes": 21334,
+      "kind": "file"
+    }
+  ],
+  "commands": [
+    {
+      "name": "archive-spec",
+      "command": "archive-spec.sh add-unified-knowledge-search",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "90d15d9e57bf92f656df2e259884367d8100547d6800c70efb2deab8a9accec7",
+      "bytes": 1666,
+      "kind": "file"
+    },
+    {
+      "path": "evidence/runs",
+      "exists": true,
+      "sha256": "79dc59ea30330c76d9a333450b0090962bb14bc4eb5101d3c002294a2bf7ddf2",
+      "bytes": null,
+      "kind": "directory"
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

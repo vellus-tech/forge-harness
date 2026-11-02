@@ -76,12 +76,14 @@
   - Teste (comando): `bash tests/liaison-baton-envelope-gate.sh`
   - Padrão de falha: `^FAIL \[`
   - Concluída em 2026-11-02. `foldBatons`/`stability` (REQ-04/REQ-05) e `readBatonConfig` (design §2.6) também entraram em liaison-baton.mjs nesta task, antecipando a TASK-15/16 — a bateria da dobra propriamente dita (tabela completa, 200 permutações, provisional/stable com três repositórios) fica para a TASK-15/16, que testa o que já está implementado aqui. Red-evidence: vermelho `7c631bc1`, verde `cfe7c6c8`, prova OK. Regressão completa de `tests/*liaison*-gate.sh` sem FAIL.
-- [ ] TASK-15 — Gate vermelho da dobra e da estabilidade: um caso por linha da tabela do REQ-04 (inclusive `wrong-thread`, `before-offer`, `not-an-offer`, `forked` em threads diferentes e `malformed` por `op` desconhecido), desempate, 200 permutações, duas réplicas em ordens diferentes, `provisional`/`stable` com três repositórios, buraco de `seq`, `eligible` restrito, `detectClockSkew` ignorando mensagens com `baton` e mantendo o aviso para as demais, dobra ≤ 500 ms p95 com 2.000 mensagens (rastreia: REQ-04, REQ-05, REQ-06, NFR-02; paths: `tests/wNNN-liaison-baton-fold-gate.sh`, `tests/fixtures/liaison-baton/fold/`; depende: TASK-14)
-  - Teste (comando): `bash tests/wNNN-liaison-baton-fold-gate.sh`
+- [X] TASK-15 — Gate vermelho da dobra e da estabilidade: um caso por linha da tabela do REQ-04 (inclusive `wrong-thread`, `before-offer`, `not-an-offer`, `forked` em threads diferentes e `malformed` por `op` desconhecido), desempate, 200 permutações, duas réplicas em ordens diferentes, `provisional`/`stable` com três repositórios, buraco de `seq`, `eligible` restrito, `detectClockSkew` ignorando mensagens com `baton` e mantendo o aviso para as demais, dobra ≤ 500 ms p95 com 2.000 mensagens (rastreia: REQ-04, REQ-05, REQ-06, NFR-02; paths: `tests/liaison-baton-fold-gate.sh`; depende: TASK-14)
+  - Teste (comando): `bash tests/liaison-baton-fold-gate.sh`
   - Padrão de falha: `^FAIL \[(veredito-[a-z-]+|permutacao|replicas|stable|clock-skew|perf-dobra)\]`
-- [ ] TASK-16 — `foldBatons` e `stability` em `liaison-baton.mjs`; `detectClockSkew` ignorando mensagens com `baton` (rastreia: REQ-04, REQ-05, REQ-06, design §2.3, §2.5, §2.6; paths: `template/.forge/scripts/lib/liaison-baton.mjs`, `template/.forge/scripts/lib/liaison-merge.mjs`; depende: TASK-15, TASK-03)
-  - Teste (comando): `bash tests/wNNN-liaison-baton-fold-gate.sh`
+  - Concluída em 2026-11-02. `foldBatons`/`stability` já existiam da TASK-14; o único vermelho real desta task foi `detectClockSkew` ainda não ignorar mensagens com `baton`.
+- [X] TASK-16 — `foldBatons` e `stability` em `liaison-baton.mjs`; `detectClockSkew` ignorando mensagens com `baton` (rastreia: REQ-04, REQ-05, REQ-06, design §2.3, §2.5, §2.6; paths: `template/.forge/scripts/lib/liaison-baton.mjs`, `template/.forge/scripts/lib/liaison-merge.mjs`; depende: TASK-15, TASK-03)
+  - Teste (comando): `bash tests/liaison-baton-fold-gate.sh`
   - Padrão de falha: `^FAIL \[`
+  - Concluída em 2026-11-02. Red-evidence: vermelho `19cdf94c`, verde `8dde5599`, prova OK. Fecha a Wave 2 (TASK-13–TASK-16) por completo.
 
 ## Wave 3 — CLI `baton`
 

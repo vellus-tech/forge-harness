@@ -58,6 +58,9 @@
 #   [H4] pull: blob com conteúdo que não confere com o sha256 do nome não é instalado (SEC-002)
 #   [R1] push: log próprio do hub é FIFO — recusa sem travar (NODE-201, SEC-204)
 #   [R2] push: log próprio do hub é hardlink de log confidencial — recusa, nada unido nem republicado
+#   [S1] status <canal>: log próprio do hub é symlink para arquivo da vítima — recusa citando
+#        SEC-001, marca de publicação intacta (PLAT-204)
+#   [S2] status <canal>: log próprio do hub é FIFO — recusa sem travar, marca intacta
 #   [E1] export: `log/` e `blobs/` do diretório de saída como symlink — recusa (ARCH-201)
 #   [E2] controle: export legítimo publica sem bit de execução e é importável
 #   [L1] corrida: nome final do log vira symlink-para-diretório entre a guarda e a instalação —
@@ -1010,6 +1013,47 @@ c_R2() {
   neutralizado; echo "OK [R2] — hardlink no log próprio do hub recusado, nada unido nem republicado"
 }
 c_R2
+
+# ───────────────────────────────────────────────────────────────────────────────────────────────
+# Cluster S — `status <canal>` relê o log próprio do hub para rebaixar a marca de publicação
+# (PLAT-204, checklist SEC-001). Montava o caminho, conferia com `[ -f ]` (que segue link) e o
+# markPublished lia por caminho: um link para um arquivo da vítima era lido e usado como
+# observação. A releitura passa pelo leitor seguro do push; leitura recusada não rebaixa nada.
+
+marca_v() { node -e 'const s=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log((s.published||{}).v||"")' "$LOC/state.json"; }
+
+# c_status_hub <id> <link|fifo> — troca o log próprio do hub e roda `status <canal>` com teto de 20 s.
+c_status_hub() {
+  local id="$1" modo="$2"
+  ataque
+  prepara "$id" fs
+  local antes; antes="$(marca_v)"
+  [ -n "$antes" ] || { falha "[$id]: pré-condição — a marca de publicação de v está vazia depois do push"; return 0; }
+  rm -f "$HC/log/v.jsonl"
+  if [ "$modo" = link ]; then
+    local vit="$T/$id/fora/arquivo-da-vitima.jsonl"; mkdir -p "$(dirname "$vit")"
+    printf '{"sender":"v","seq":1,"msg_id":"v-9999","content_sha":"x","subject":"arquivo da vítima"}\n' > "$vit"
+    ln -s "$vit" "$HC/log/v.jsonl"
+  else
+    mkfifo "$HC/log/v.jsonl"
+  fi
+  local saida="$T/$id/status.out" rcf="$T/$id/status.rc" pid
+  ( set +e; LG "$R" status "$CH" >"$saida" 2>&1; echo $? > "$rcf" ) & pid=$!
+  for _ in $(seq 1 40); do kill -0 "$pid" 2>/dev/null || break; perl -e 'select(undef,undef,undef,0.5)'; done
+  if kill -0 "$pid" 2>/dev/null; then
+    pkill -f "$T/$id/" 2>/dev/null || true; [ "$modo" = fifo ] && destrava_fifo "$HC/log/v.jsonl"; wait "$pid" 2>/dev/null || true
+    falha "[$id]: status TRAVOU por 20 s lendo o $modo plantado no log próprio do hub"; return 0
+  fi
+  wait "$pid" 2>/dev/null || true
+  local depois; depois="$(marca_v)"
+  [ "$depois" = "$antes" ] || { falha "[$id]: status seguiu o $modo e rebaixou a marca de publicação ($antes → ${depois:-vazia})"; return 0; }
+  grep -qF 'SEC-001' "$saida" || { falha "[$id]: status ignorou o $modo no log próprio do hub sem citar a recusa (SEC-001). Saída: $(head -3 "$saida")"; return 0; }
+  neutralizado; echo "OK [$id] — status recusa o $modo no log próprio do hub, sem travar e sem rebaixar a marca"
+}
+echo "[S1] status — log próprio do hub é symlink para arquivo da vítima: recusado, marca intacta"
+c_status_hub S1 link
+echo "[S2] status — log próprio do hub é FIFO: recusado sem travar, marca intacta"
+c_status_hub S2 fifo
 
 # ───────────────────────────────────────────────────────────────────────────────────────────────
 # Cluster E —`export` publica no diretório de saída pelos mesmos helpers do push (ARCH-201).

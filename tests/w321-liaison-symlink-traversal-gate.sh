@@ -578,8 +578,13 @@ publica() { # publica <id> — commit do índice atual do atacante, forçado na 
   c="$(git -C "$att" commit-tree -m "chore: ataque" "$tree")"
   git -C "$att" push -q -f "$T/$1/hub.git" "$c:refs/heads/liaison/$CH"
 }
-vitima_git() { # vitima_git <id> — réplica "v" com transporte git apontando para o remoto do cenário
+# vitima_git <id> — réplica "v" com transporte git apontando para o remoto do cenário. Define VC
+# (o clone ANTIGO `.forge/cache/liaison/<canal>`, que o transporte não escreve mais e só aparece
+# aqui como fixture de cache contaminado, [C5]) e VRUN (a base dos repositórios descartáveis por
+# execução, `.forge/cache/liaison-git-run`, onde o checkout de fato acontece).
+vitima_git() {
   R="$1/v"; LOC="$T/$1/v/.forge/liaison/$CH"; VC="$T/$1/v/.forge/cache/liaison/$CH"
+  VRUN="$T/$1/v/.forge/cache/liaison-git-run"
   mk_repo "$R"
   LG "$R" open "$CH" --self v --participants v,a >/dev/null
   LG "$R" transport set "$CH" --kind git --remote "$T/$1/hub.git" --branch "liaison/$CH" >/dev/null
@@ -587,6 +592,15 @@ vitima_git() { # vitima_git <id> — réplica "v" com transporte git apontando p
 links_no_cache() { # lista links simbólicos na árvore de trabalho do cache (fora de .git)
   [ -d "$1" ] || return 0
   find "$1" -path "$1/.git" -prune -o -type l -print
+}
+# residuos_run <base> — QLT-201/SEC-201: o que um sync RECUSADO deixou na base de execução do git:
+# todo link simbólico (em qualquer profundidade) e todo diretório de execução `<canal>@*`
+# remanescente. Cada caminho de recusa de `t_push`/`t_pull` apaga o próprio diretório; sobrar um é
+# checkout (ou link) esquecido no disco da vítima.
+residuos_run() {
+  [ -d "$1" ] || return 0
+  find "$1" -type l -print
+  find "$1" -mindepth 1 -maxdepth 1 -name "$CH@*" -print
 }
 
 # c_git_recusa <id> <rótulo> — a branch já publicada pelo cenário tem de ser recusada pela
@@ -598,12 +612,15 @@ c_git_recusa() {
   [ "$rc" -ne 0 ] || { falha "[$id]: pull aceitou a branch com $rot"; return 0; }
   grep -qF 'contém symlink ou submódulo' <<<"$out" \
     || { falha "[$id]: pull recusou sem a causa da varredura ($rot). Saída: $(head -3 <<<"$out")"; return 0; }
+  [ -z "$(residuos_run "$VRUN")" ] || { falha "[$id]: o pull recusado deixou resíduo na base de execução: $(residuos_run "$VRUN" | tr '\n' ' ')"; return 0; }
   LG "$R" thread open "$CH" t1 --subject abertura --participants v,a --body abertura >/dev/null
   set +e; out="$(LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
   [ "$rc" -ne 0 ] || { falha "[$id]: push aceitou a branch com $rot"; return 0; }
   grep -qF 'contém symlink ou submódulo' <<<"$out" \
     || { falha "[$id]: push recusou sem a causa da varredura ($rot). Saída: $(head -3 <<<"$out")"; return 0; }
-  [ -z "$(links_no_cache "$VC")" ] || { falha "[$id]: link simbólico no cache: $(links_no_cache "$VC" | tr '\n' ' ')"; return 0; }
+  [ -z "$(residuos_run "$VRUN")" ] || { falha "[$id]: o push recusado deixou resíduo na base de execução: $(residuos_run "$VRUN" | tr '\n' ' ')"; return 0; }
+  # O clone antigo só existe quando o cenário o planta ([C5a]); lá ele tem de sair sem link.
+  [ -z "$(links_no_cache "$VC")" ] || { falha "[$id]: link simbólico no clone antigo: $(links_no_cache "$VC" | tr '\n' ' ')"; return 0; }
   [ -z "$(ls -A "$fora" 2>/dev/null)" ] || { falha "[$id]: algo foi escrito fora do cache"; return 0; }
   neutralizado; echo "OK [$id] — $rot recusado no pull e no push, cache sem link"
 }
@@ -797,10 +814,14 @@ c_M34() {
   # MUTANTE (iv): além disso, core.symlinks=true — a checagem pós-checkout é a última camada.
   perl -0pi -e 's/config core\.symlinks false/config core.symlinks true/' "$gitsh"
   set +e; out="$(LG "$R" sync "$CH" --pull-only 2>&1)"; set -e
-  if [ -f "$VC/$CH/blobs" ] && [ ! -L "$VC/$CH/blobs" ]; then falha "[M4]: com core.symlinks=true o checkout ainda deu arquivo regular — [M3] não mede core.symlinks"; return 0; fi
   grep -qF 'materializou link simbólico no cache' <<<"$out" \
     || { falha "[M4]: o link materializado não foi recusado pela checagem pós-checkout. Saída: $(head -3 <<<"$out")"; return 0; }
-  [ -z "$(links_no_cache "$VC")" ] || { falha "[M4]: a checagem pós-checkout recusou mas deixou o link no cache"; return 0; }
+  # O link listado pela recusa tem de ser o do repositório descartável DESTA execução (não um
+  # resto do clone antigo): é a prova de que, com core.symlinks=true, o checkout deu link de
+  # verdade — e de que [M3] mede core.symlinks.
+  grep -qF "$VRUN/$CH@" <<<"$out" \
+    || { falha "[M4]: a recusa não listou link no repositório de execução ($VRUN/$CH@*) — [M3] não mede core.symlinks. Saída: $(head -4 <<<"$out")"; return 0; }
+  [ -z "$(residuos_run "$VRUN")" ] || { falha "[M4]: a checagem pós-checkout recusou mas deixou resíduo na base de execução: $(residuos_run "$VRUN" | tr '\n' ' ')"; return 0; }
   [ -z "$(ls -A "$T/M3/fora")" ] || { falha "[M4]: algo saiu do cache sob o mutante (iv)"; return 0; }
   # RECONTROLE: restaurado, a varredura volta a recusar com a causa própria.
   cp "$T/M3/git.orig" "$gitsh"

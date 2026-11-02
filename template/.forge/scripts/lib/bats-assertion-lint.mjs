@@ -29,7 +29,11 @@ export function findVulnerableTests(text) {
         startLine,
         endLine,
         bareCount: bare.length,
-        bareLines: bare.map(({ l, idx }) => ({ lineNo: startLine + idx + 1, text: l.trim() })),
+        // buf[0] é a linha IMEDIATAMENTE DEPOIS de "@test ... {" (linha startLine, 0-indexed);
+        // o 1-indexed de buf[idx] é, portanto, startLine + idx + 2 - não "+ 1" (bug real, achado
+        // ao implementar --fix: a fórmula antiga apontava uma linha pra cima, no "run ..." da
+        // linha anterior à asserção real).
+        bareLines: bare.map(({ l, idx }) => ({ lineNo: startLine + idx + 2, text: l.trim() })),
       });
     }
   }
@@ -57,6 +61,29 @@ export function findVulnerableTests(text) {
     }
   }
   return results;
+}
+
+// --fix: injeta "|| return 1" em toda linha de asserção sem guarda de todo @test vulnerável
+// (mesmo idioma já provado seguro no cenário [2] do w324 - guarda TODA linha de asserção, até a
+// última, por simplicidade e paridade exata com o idioma estabelecido). Só reescreve linhas que
+// o detector já marcou como "bare"; não toca em nenhuma outra linha do arquivo. É transformação
+// puramente sintática: não decide se a asserção, depois de guardada, passa a reprovar um defeito
+// real - isso é revisão humana por repositório, fora do escopo desta função.
+export function fixText(text) {
+  const vulnerable = findVulnerableTests(text);
+  if (vulnerable.length === 0) return { text, changed: 0 };
+  const lines = text.split('\n');
+  let changed = 0;
+  for (const v of vulnerable) {
+    for (const b of v.bareLines) {
+      const idx = b.lineNo - 1;
+      const original = lines[idx];
+      if (/\|\|\s*return\s+1\s*;?\s*$/.test(original)) continue; // já guardada (idempotência)
+      lines[idx] = `${original.replace(/\s+$/, '')} || return 1`;
+      changed += 1;
+    }
+  }
+  return { text: lines.join('\n'), changed };
 }
 
 export function collectBatsFiles(dir, fs) {

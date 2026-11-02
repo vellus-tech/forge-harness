@@ -4,7 +4,8 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
-import { findVulnerableTests, collectBatsFiles, parseAddedLines } from './bats-assertion-lint.mjs';
+import { writeFileSync } from 'node:fs';
+import { findVulnerableTests, collectBatsFiles, parseAddedLines, fixText } from './bats-assertion-lint.mjs';
 
 function run(cmd, args, opts = {}) {
   return spawnSync(cmd, args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, ...opts });
@@ -64,6 +65,23 @@ if (mode === 'path') {
     emitHits(f, vulnerable);
   }
   console.log(`SCANNED\t${files.length}`);
+} else if (mode === 'fix') {
+  const files = collectBatsFiles(arg, { readdirSync: (await import('node:fs')).readdirSync, statSync: (await import('node:fs')).statSync });
+  let totalFixed = 0;
+  let filesChanged = 0;
+  for (const f of files) {
+    let text;
+    try { text = readFileSync(f, 'utf8'); } catch { continue; }
+    const { text: fixed, changed } = fixText(text);
+    if (changed > 0) {
+      writeFileSync(f, fixed, 'utf8');
+      totalFixed += changed;
+      filesChanged += 1;
+      console.log(`FIXED\t${f}\t${changed}`);
+    }
+  }
+  console.log(`SCANNED\t${files.length}`);
+  console.log(`TOTALFIXED\t${totalFixed}\t${filesChanged}`);
 } else {
   console.error(`modo desconhecido: ${mode}`);
   process.exit(1);

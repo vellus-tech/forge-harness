@@ -19,6 +19,10 @@
 #   [8]  report: nunca reprova (exit 0) mesmo com violação real, e lista cada achado
 #   [9]  mutação: reduzir o limiar de "2+ assertivas sem guarda" pra "1+" faz o cenário [3]
 #        (seguro) passar a ser acusado - prova que o limiar de 2 não é vácuo/decorativo
+#   [10] --fix: injeta "|| return 1" só nas linhas de asserção sem guarda do @test vulnerável,
+#        nunca na linha "run ..." anterior (bug real achado construindo este cenário: a fórmula
+#        de lineNo apontava uma linha pra cima) e nunca num @test já seguro no mesmo arquivo
+#   [11] --fix é idempotente: rodar duas vezes não produz segunda mudança
 set -uo pipefail
 # Isolamento git (LDG-0201): GIT_DIR herdado faria os comandos git das fixtures obedecerem ao
 # repositório de quem invoca o gate.
@@ -185,5 +189,46 @@ sed -i.bak 's/bare\.length >= 2/bare.length >= 1/' "$T/scripts-mut/lib/bats-asse
 out="$(FORGE_ROOT="$T/repo" bash "$T/scripts-mut/check-bats-assertion-abort.sh" --path "$T/c3" 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] || { echo "FAIL [9]: mutação do limiar não mudou nada - o limiar de 2 pode ser decorativo (saída: '$out')"; exit 1; }
 echo "OK [9]"
+
+# ── [10] ─────────────────────────────────────────────────────────────────────────────────────
+echo "[10] --fix: guarda só as linhas de asserção sem guarda, nunca a linha 'run ...' anterior, nunca um @test já seguro"
+mkdir -p "$T/c10"
+cat > "$T/c10/x.bats" << 'EOF'
+#!/usr/bin/env bats
+@test "vulneravel" {
+  run echo x
+  [ "$status" -eq 0 ]
+  [[ "$output" == "nomatch" ]]
+}
+
+@test "ja seguro" {
+  run echo x
+  [ "$status" -eq 0 ] || return 1
+  [[ "$output" == "x" ]] || return 1
+}
+EOF
+cp "$T/c10/x.bats" "$T/c10/x.bats.orig"
+run_lint --fix "$T/c10"
+[ "$rc" -eq 0 ] || { echo "FAIL [10]: --fix saiu com rc != 0 (saída: '$out')"; exit 1; }
+grep -q "run echo x || return 1" "$T/c10/x.bats" && { echo "FAIL [10]: --fix guardou a linha 'run ...', que não é asserção"; exit 1; }
+grep -q '\[ "\$status" -eq 0 \] || return 1' "$T/c10/x.bats" || { echo "FAIL [10]: --fix não guardou a primeira asserção do teste vulnerável"; exit 1; }
+grep -q '\[\[ "\$output" == "nomatch" \]\] || return 1' "$T/c10/x.bats" || { echo "FAIL [10]: --fix não guardou a segunda asserção do teste vulnerável"; exit 1; }
+# o @test "ja seguro" não deve mudar NEM UM BYTE: compara o bloco inteiro antes/depois
+seguro_antes="$(awk '/@test "ja seguro"/,/^}/' "$T/c10/x.bats.orig")"
+seguro_depois="$(awk '/@test "ja seguro"/,/^}/' "$T/c10/x.bats")"
+[ "$seguro_antes" = "$seguro_depois" ] || { echo "FAIL [10]: --fix alterou o @test 'ja seguro', que já estava correto"; exit 1; }
+echo "OK [10]"
+
+# ── [11] ─────────────────────────────────────────────────────────────────────────────────────
+echo "[11] --fix é idempotente: rodar duas vezes não produz segunda mudança"
+run_lint --fix "$T/c10"
+[ "$rc" -eq 0 ] || { echo "FAIL [11]: segunda rodada de --fix saiu com rc != 0 (saída: '$out')"; exit 1; }
+case "$out" in
+  *"TOTALFIXED"*|*"0 asserção"*) : ;;
+esac
+if grep -q " || return 1 || return 1" "$T/c10/x.bats"; then
+  echo "FAIL [11]: --fix duplicou o guarda numa segunda rodada"; exit 1
+fi
+echo "OK [11]"
 
 echo "W324 bats-assertion-abort-gate: todos os cenários passaram"

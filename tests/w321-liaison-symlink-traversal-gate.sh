@@ -1,31 +1,35 @@
 #!/usr/bin/env bash
-# Gate W321 — o hub do liaison recusa symlink em vez de segui-lo para fora da árvore do canal.
+# Gate W321 — o hub do liaison nunca escreve fora da árvore do canal, nem por symlink plantado,
+# nem por temporário previsível, nem por troca de diretório durante o sync (SEC-001).
 #
-# POR QUE ESTE GATE EXISTE (SEC-001). `_dir_push`/`_dir_pull` (lib/transports/_common.sh) faziam
-# `mkdir -p "$hub/log" "$hub/blobs"` seguido de `cp`/`mv` sem nunca checar se o próprio hub, `log/`
-# ou `blobs/` eram links simbólicos. Um participante com push no canal (ou com acesso de escrita
-# ao diretório compartilhado, no transporte `fs`/`fs-union`) podia substituir `blobs` por um
-# symlink para fora da árvore do canal — por exemplo `../../../../.git/hooks` no transporte `git`,
-# onde o hub é um clone local dentro do próprio repositório da vítima (`.forge/cache/liaison/`).
-# `mkdir -p` sobre um symlink-para-diretório já existente é um no-op silencioso: o `cp`/`mv` que vem
-# depois obedece ao link e escreve fora da árvore do canal, com o bit de execução herdado — no caso
-# do git, dentro de `.git/hooks/` de quem sincroniza, executado no próximo commit da vítima.
+# POR QUE ESTE GATE EXISTE. `_dir_push`/`_dir_pull` (lib/transports/_common.sh) faziam
+# `mkdir -p "$hub/log" "$hub/blobs"` seguido de `cp`/`mv` sem nunca checar se o hub, `log/` ou
+# `blobs/` eram links simbólicos, e publicavam por um temporário de nome PREVISÍVEL dentro do hub
+# (`log/.<self>.jsonl.tmp`, `blobs/.<nome>.tmp`). Quem tem escrita no ponto de encontro (push na
+# branch do canal no transporte `git`, escrita no diretório compartilhado em `fs`/`fs-union`/
+# `manual`) planta um symlink num desses nomes e o próximo sync da vítima escreve onde o link
+# aponta — `.bashrc`, `.git/hooks/`, `.git/config` —, isto é, execução de código na máquina dela.
 #
-# A CORREÇÃO tem duas camadas independentes: (a) `_dir_reject_symlink` em `_common.sh`, chamada
-# antes de qualquer `mkdir`/`cp`/`mv` sobre hub/log/blobs — vale para TODO transporte baseado em
-# diretório (fs, fs-union, e o clone local do git); (b) o transporte `git` também recusa, ANTES do
-# checkout, qualquer entrada da árvore (`ls-tree -r`) com modo 120000 (symlink) ou 160000
-# (submódulo) dentro do diretório do canal, e fixa `core.symlinks=false` como segunda rede — um
-# symlink committed vira ARQUIVO DE TEXTO comum no checkout, nunca um link real do filesystem.
+# O QUE O GATE MEDE, sempre pelo canal de entrega real (`liaison-ops.sh sync`) e com a sentinela
+# FORA da árvore conferida. Cada cenário de ataque incrementa um contador medido; o [5] reprova
+# se nenhum ataque foi exercitado ou se algum deles não terminou neutralizado.
 #
-#   [1]  controle — push/pull normais por `fs` continuam funcionando (mensagem e blob chegam)
-#   [2]  ataque `fs`/push: hub `blobs/` é um symlink para fora — push RECUSADO, sentinela intacta
-#   [3]  ataque `fs`/pull: hub `log/` é um symlink para fora — pull RECUSADO, sentinela intacta
-#   [4]  ataque `git`: a branch do canal remoto tem `<canal>/blobs` como symlink (modo 120000) —
-#        sync RECUSADO antes do checkout, cache local nunca materializa o link
-#   [5]  contador de controle: universo vazio reprova
-#   [6]  mutação — remover a guarda de `_dir_push_blobs` faz [2] ser ACEITO (sentinela contaminada);
-#        restaurado, [2] volta a recusar (recontrole)
+#   [1]  controle — push/pull legítimos por `fs` continuam funcionando (mensagem e blob chegam)
+#   [2]  ataque `fs`/push: hub `blobs/` é symlink para fora — push RECUSADO, sentinela vazia
+#   [3]  ataque `fs`/pull: hub `log/` é symlink para fora — pull RECUSADO
+#   [4]  ataque `git`: branch do canal com `<canal>/blobs` symlink — sync RECUSADO antes do
+#        checkout, cache local nunca materializa o link
+#   [A1] `fs`: symlink plantado no antigo temporário do log (`log/.<self>.jsonl.tmp`) — o push da
+#        união escreve num temporário privado e publica com nome aleatório: sentinela intacta
+#   [A2] o mesmo pelo `fs-union`
+#   [A3] o mesmo no caminho de reparo (`--repair-own-log`)
+#   [A4] symlink plantado no antigo temporário de blob (`blobs/.<nome>.tmp`): sentinela intacta
+#   [A5] blob publicado a partir de origem com `+x` sai sem bit de execução no hub
+#   [A6] `log/<self>.jsonl` do hub é symlink — push RECUSADO citando SEC-001, sentinela intacta
+#   [A7] `blobs/<nome>` do hub é symlink — push RECUSADO (rc≠0), nunca `continue` silencioso
+#   [5]  contador de controle medido — ataques exercitados = ataques neutralizados, e > 0
+#   [M2] mutação pelo canal real — o helper de publicação volta a escrever num temporário
+#        previsível sem O_EXCL: [A1] passa a contaminar a sentinela; restaurado, volta a segurar
 set -euo pipefail
 # Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo obedecerem
 # ao repositório de quem invocou o gate, e não aos repositórios sintéticos criados aqui.
@@ -37,151 +41,296 @@ T="$(cd "$T" && pwd -P)"
 trap 'rm -rf "$T"' EXIT
 
 CH="ch"
-HUB="$T/hub"
-HUB_CH="$HUB/$CH"
+SENT_TXT='conteúdo original da sentinela — nada do liaison pode chegar aqui'
 
-mk_repo() { # mk_repo <dir-name> — réplica sintética própria, nunca o repositório real
+# Contadores MEDIDOS: cada cenário de ataque declara-se em `ataque` ao começar e em `neutralizado`
+# só depois de todas as suas asserções; uma falha registra e segue para o próximo cenário, para
+# que uma execução mostre todos os vermelhos de uma vez.
+FALHAS=0; ATAQUES=0; NEUTRALIZADOS=0
+falha() { echo "FAIL $*"; FALHAS=$((FALHAS + 1)); }
+ataque() { ATAQUES=$((ATAQUES + 1)); }
+neutralizado() { NEUTRALIZADOS=$((NEUTRALIZADOS + 1)); }
+
+mk_repo() { # mk_repo <dir-relativo> — réplica sintética própria, nunca o repositório real
   local dir="$T/$1"
   mkdir -p "$dir/.forge"
   cp -R "$WS/template/.forge/scripts" "$dir/.forge/"
   cp -R "$WS/template/.forge/templates" "$dir/.forge/"
   git -C "$dir" init -q
-  git -C "$dir" config user.email "$1@test"
-  git -C "$dir" config user.name "$1"
+  git -C "$dir" config user.email "teste@test"
+  git -C "$dir" config user.name "teste"
   git -C "$dir" config commit.gpgsign false
-  git -C "$dir" commit --allow-empty -qm init >/dev/null
+  git -C "$dir" commit --allow-empty -qm "chore: init" >/dev/null
 }
 
 LG() { local repo="$1"; shift; FORGE_ROOT="$T/$repo" bash "$T/$repo/.forge/scripts/liaison-ops.sh" "$@"; }
 
-echo "[1] controle fs — push normal popula o hub, pull normal traz mensagem e blob"
-mk_repo a; mk_repo b
-LG a open "$CH" --self a --participants a,b >/dev/null
-LG b open "$CH" --self b --participants a,b >/dev/null
-LG a transport set "$CH" --kind fs --path "$HUB" >/dev/null
-LG b transport set "$CH" --kind fs --path "$HUB" >/dev/null
-LG a thread open "$CH" t1 --subject abertura --participants a,b --body abertura >/dev/null
-printf 'corpo legitimo 1 — conteudo irrelevante\n' > "$T/corpo-1.md"
-LG a send "$CH" --thread t1 --kind note --subject "c1" --body-file "$T/corpo-1.md" >/dev/null
-LG a sync "$CH" --push-only >/dev/null \
-  || { echo "FAIL [1]: push normal (controle) reprovou"; exit 1; }
-[ -d "$HUB_CH/blobs" ] && [ -n "$(ls -A "$HUB_CH/blobs" 2>/dev/null)" ] \
-  || { echo "FAIL [1]: hub sem blob após push legítimo"; exit 1; }
-LG b sync "$CH" --pull-only >/dev/null \
-  || { echo "FAIL [1]: pull normal (controle) reprovou"; exit 1; }
-B_BLOBS="$T/b/.forge/liaison/$CH/blobs"
-[ -n "$(ls -A "$B_BLOBS" 2>/dev/null)" ] \
-  || { echo "FAIL [1]: b não recebeu o blob após pull legítimo"; exit 1; }
-echo "OK [1] — push/pull legítimos continuam funcionando"
+sentinela() { # sentinela <caminho-absoluto> — arquivo FORA do hub e do repositório, conteúdo conhecido
+  mkdir -p "$(dirname "$1")"
+  printf '%s\n' "$SENT_TXT" > "$1"
+}
+intacta() { [ -f "$1" ] && [ ! -L "$1" ] && [ "$(cat "$1")" = "$SENT_TXT" ]; }
 
-echo "[2] ataque fs/push — hub blobs/ é symlink para fora: push RECUSADO, sentinela intacta"
-SENTINEL_BLOBS="$T/sentinel-blobs"
-mkdir -p "$SENTINEL_BLOBS"
-rm -rf "$HUB_CH/blobs"
-ln -s "$SENTINEL_BLOBS" "$HUB_CH/blobs"
-printf 'corpo malicioso — nao deveria sair da arvore do canal\n' > "$T/corpo-2.md"
-LG a send "$CH" --thread t1 --kind note --subject "c2" --body-file "$T/corpo-2.md" >/dev/null
-set +e
-out2="$(LG a sync "$CH" --push-only 2>&1)"; rc2=$?
-set -e
-[ "$rc2" -ne 0 ] || { echo "FAIL [2]: push com hub/blobs symlink foi ACEITO (rc=0)"; exit 1; }
-grep -qi 'symlink' <<<"$out2" \
-  || { echo "FAIL [2]: recusou sem nomear a causa (symlink). Saída: $(head -3 <<<"$out2")"; exit 1; }
-[ -z "$(ls -A "$SENTINEL_BLOBS" 2>/dev/null)" ] \
-  || { echo "FAIL [2]: a sentinela fora da árvore recebeu arquivo — traversal aconteceu de verdade"; exit 1; }
-[ -L "$HUB_CH/blobs" ] || { echo "FAIL [2]: o symlink do hub foi alterado pelo push recusado"; exit 1; }
-echo "OK [2] — push recusado citando symlink, sentinela e link do hub intactos"
+tem_bit_x() { [ -n "$(find "$1" \( -perm -0100 -o -perm -0010 -o -perm -0001 \) -print)" ]; }
+
+# prepara <id> <kind> — réplica "v" (self v) com transporte <kind> num hub próprio do cenário,
+# thread aberta e um push legítimo já feito. Define R (repo, relativo a $T), H (raiz configurada
+# no `path`), HC (hub do canal), LOC (canal local da réplica).
+prepara() {
+  local id="$1" kind="$2"
+  R="$id/v"; H="$T/$id/hub"; HC="$H/$CH"; LOC="$T/$id/v/.forge/liaison/$CH"
+  mk_repo "$R"
+  LG "$R" open "$CH" --self v --participants v,x >/dev/null
+  if [ "$kind" = manual ]; then mkdir -p "$H"; HC="$H"; fi
+  LG "$R" transport set "$CH" --kind "$kind" --path "$H" >/dev/null
+  LG "$R" thread open "$CH" t1 --subject abertura --participants v,x --body "abertura" >/dev/null
+  LG "$R" sync "$CH" --push-only >/dev/null
+}
+
+# ───────────────────────────────────────────────────────────────────────────────────────────────
+echo "[1] controle fs — push normal popula o hub, pull normal traz mensagem e blob"
+mk_repo base1/a; mk_repo base1/b
+HUB1="$T/base1/hub"
+LG base1/a open "$CH" --self a --participants a,b >/dev/null
+LG base1/b open "$CH" --self b --participants a,b >/dev/null
+LG base1/a transport set "$CH" --kind fs --path "$HUB1" >/dev/null
+LG base1/b transport set "$CH" --kind fs --path "$HUB1" >/dev/null
+LG base1/a thread open "$CH" t1 --subject abertura --participants a,b --body abertura >/dev/null
+printf 'corpo legítimo — conteúdo irrelevante\n' > "$T/base1/corpo.md"
+LG base1/a send "$CH" --thread t1 --kind note --subject "c1" --body-file "$T/base1/corpo.md" >/dev/null
+if ! LG base1/a sync "$CH" --push-only >/dev/null; then
+  falha "[1]: push normal (controle) reprovou"
+elif [ -z "$(ls -A "$HUB1/$CH/blobs" 2>/dev/null)" ]; then
+  falha "[1]: hub sem blob após push legítimo"
+elif ! LG base1/b sync "$CH" --pull-only >/dev/null; then
+  falha "[1]: pull normal (controle) reprovou"
+elif [ -z "$(ls -A "$T/base1/b/.forge/liaison/$CH/blobs" 2>/dev/null)" ]; then
+  falha "[1]: b não recebeu o blob após pull legítimo"
+else
+  echo "OK [1] — push/pull legítimos continuam funcionando"
+fi
+
+# ───────────────────────────────────────────────────────────────────────────────────────────────
+echo "[2] ataque fs/push — hub blobs/ é symlink para fora: push RECUSADO, sentinela vazia"
+c_2() {
+  ataque
+  prepara base2 fs
+  local fora="$T/base2/fora-blobs"; mkdir -p "$fora"
+  rm -rf "$HC/blobs"; ln -s "$fora" "$HC/blobs"
+  printf 'corpo malicioso — não deveria sair da árvore do canal\n' > "$T/base2/corpo.md"
+  LG "$R" send "$CH" --thread t1 --kind note --subject "c2" --body-file "$T/base2/corpo.md" >/dev/null
+  local out rc
+  set +e; out="$(LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
+  [ "$rc" -ne 0 ] || { falha "[2]: push com hub/blobs symlink foi ACEITO (rc=0)"; return 0; }
+  grep -qF 'é um link simbólico — recusado (SEC-001)' <<<"$out" \
+    || { falha "[2]: recusou sem a causa da guarda (SEC-001). Saída: $(head -3 <<<"$out")"; return 0; }
+  [ -z "$(ls -A "$fora")" ] || { falha "[2]: a sentinela fora da árvore recebeu arquivo"; return 0; }
+  [ -L "$HC/blobs" ] || { falha "[2]: o symlink do hub foi alterado pelo push recusado"; return 0; }
+  neutralizado; echo "OK [2] — push recusado citando SEC-001, sentinela e link do hub intactos"
+}
+c_2
 
 echo "[3] ataque fs/pull — hub log/ é symlink para fora: pull RECUSADO"
-rm -f "$HUB_CH/blobs"
-mkdir -p "$HUB_CH/blobs"
-SENTINEL_LOG="$T/sentinel-log"
-mkdir -p "$SENTINEL_LOG"
-mv "$HUB_CH/log" "$T/log-real-backup"
-ln -s "$SENTINEL_LOG" "$HUB_CH/log"
-set +e
-out3="$(LG b sync "$CH" --pull-only 2>&1)"; rc3=$?
-set -e
-[ "$rc3" -ne 0 ] || { echo "FAIL [3]: pull com hub/log symlink foi ACEITO (rc=0)"; exit 1; }
-grep -qi 'symlink' <<<"$out3" \
-  || { echo "FAIL [3]: recusou sem nomear a causa (symlink). Saída: $(head -3 <<<"$out3")"; exit 1; }
-rm -f "$HUB_CH/log"
-mv "$T/log-real-backup" "$HUB_CH/log"
-echo "OK [3] — pull recusado citando symlink"
+c_3() {
+  ataque
+  prepara base3 fs
+  local fora="$T/base3/fora-log"; mkdir -p "$fora"
+  mv "$HC/log" "$T/base3/log-real"; ln -s "$fora" "$HC/log"
+  local out rc
+  set +e; out="$(LG "$R" sync "$CH" --pull-only 2>&1)"; rc=$?; set -e
+  [ "$rc" -ne 0 ] || { falha "[3]: pull com hub/log symlink foi ACEITO (rc=0)"; return 0; }
+  grep -qF 'é um link simbólico — recusado (SEC-001)' <<<"$out" \
+    || { falha "[3]: recusou sem a causa da guarda (SEC-001). Saída: $(head -3 <<<"$out")"; return 0; }
+  neutralizado; echo "OK [3] — pull recusado citando SEC-001"
+}
+c_3
 
 echo "[4] ataque git — branch do canal com <canal>/blobs symlink: sync recusado antes do checkout"
-git init -q --bare "$T/hub.git"
-git -C "$T/hub.git" symbolic-ref HEAD refs/heads/main 2>/dev/null || true
-mkdir -p "$T/attacker-clone"
-git -C "$T/attacker-clone" init -q
-git -C "$T/attacker-clone" remote add origin "$T/hub.git"
-git -C "$T/attacker-clone" config user.email "attacker@test"
-git -C "$T/attacker-clone" config user.name "attacker"
-git -C "$T/attacker-clone" config commit.gpgsign false
-git -C "$T/attacker-clone" checkout -q --orphan "liaison/$CH"
-mkdir -p "$T/attacker-clone/$CH/log"
-: > "$T/attacker-clone/$CH/log/.keep"
-git -C "$T/attacker-clone" add "$CH/log/.keep"
-# symlink committed como modo 120000 — não precisa resolver de verdade, a defesa age sobre o modo
-# da entrada na árvore, antes de qualquer checkout.
-ln -s "../../../../../../sentinel-git-attack" "$T/attacker-clone/$CH/blobs"
-git -C "$T/attacker-clone" add "$CH/blobs"
-git -C "$T/attacker-clone" commit -qm "liaison($CH): attacker" >/dev/null
-git -C "$T/attacker-clone" push -q origin "liaison/$CH"
+c_4() {
+  ataque
+  local att="$T/base4/att" bare="$T/base4/hub.git"
+  mkdir -p "$att"; git init -q --bare "$bare"
+  git -C "$att" init -q; git -C "$att" remote add origin "$bare"
+  git -C "$att" config user.email a@test; git -C "$att" config user.name a
+  git -C "$att" config commit.gpgsign false
+  git -C "$att" checkout -q --orphan "liaison/$CH"
+  mkdir -p "$att/$CH/log"; : > "$att/$CH/log/.keep"
+  ln -s "../../../../../../fora-git" "$att/$CH/blobs"
+  git -C "$att" add -A; git -C "$att" commit -qm "chore: ataque" >/dev/null
+  git -C "$att" push -q origin "liaison/$CH"
+  mk_repo base4/v
+  LG base4/v open "$CH" --self v --participants v,a >/dev/null
+  LG base4/v transport set "$CH" --kind git --remote "$bare" --branch "liaison/$CH" >/dev/null
+  local out rc
+  set +e; out="$(LG base4/v sync "$CH" --pull-only 2>&1)"; rc=$?; set -e
+  [ "$rc" -ne 0 ] || { falha "[4]: sync via git com symlink na branch foi ACEITO (rc=0)"; return 0; }
+  grep -qF 'contém symlink ou submódulo' <<<"$out" \
+    || { falha "[4]: recusou sem a causa da varredura da árvore. Saída: $(head -4 <<<"$out")"; return 0; }
+  [ ! -L "$T/base4/v/.forge/cache/liaison/$CH/$CH/blobs" ] \
+    || { falha "[4]: o cache local materializou o symlink de verdade"; return 0; }
+  neutralizado; echo "OK [4] — sync via git recusado antes do checkout, cache sem link"
+}
+c_4
 
-mk_repo victim
-LG victim open "$CH" --self victim --participants victim,a >/dev/null
-LG victim transport set "$CH" --kind git --remote "$T/hub.git" --branch "liaison/$CH" >/dev/null
-set +e
-out4="$(LG victim sync "$CH" --pull-only 2>&1)"; rc4=$?
-set -e
-[ "$rc4" -ne 0 ] || { echo "FAIL [4]: sync via git com symlink na branch foi ACEITO (rc=0)"; exit 1; }
-grep -qiE 'symlink|submódulo|sec-001' <<<"$out4" \
-  || { echo "FAIL [4]: recusou sem nomear a causa. Saída: $(head -4 <<<"$out4")"; exit 1; }
-VCACHE_CH="$T/victim/.forge/cache/liaison/$CH/$CH"
-[ -L "$VCACHE_CH/blobs" ] \
-  && { echo "FAIL [4]: o cache local materializou o symlink de verdade"; exit 1; }
-echo "OK [4] — sync via git recusado antes do checkout, cache local nunca materializou o link"
+# ───────────────────────────────────────────────────────────────────────────────────────────────
+# Cluster A — temporários previsíveis no hub (SEC-101/102, NODE-001, ARCH-001, LOG-001).
 
-echo "[5] contador de controle — universo vazio reprova"
+# c_tmp_log <id> <kind> — symlink plantado no antigo temporário do log. O push tem de seguir
+# funcionando (o nome plantado é inerte) e a sentinela tem de sair intacta.
+c_tmp_log() {
+  local id="$1" kind="$2"
+  ataque
+  prepara "$id" "$kind"
+  local alvo="$T/$id/fora/.bashrc"; sentinela "$alvo"
+  ln -s "$alvo" "$HC/log/.v.jsonl.tmp"
+  LG "$R" send "$CH" --thread t1 --kind note --subject "segunda" --body "segunda mensagem" >/dev/null
+  local out rc
+  set +e; out="$(LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
+  intacta "$alvo" || { falha "[$id]: a escrita do log seguiu o symlink plantado — sentinela fora do hub sobrescrita"; return 0; }
+  [ "$rc" -eq 0 ] || { falha "[$id]: push legítimo reprovou só porque havia um nome inerte plantado (rc=$rc): $(head -3 <<<"$out")"; return 0; }
+  [ -f "$HC/log/v.jsonl" ] && [ ! -L "$HC/log/v.jsonl" ] \
+    || { falha "[$id]: o log do hub não é um arquivo regular depois do push"; return 0; }
+  cmp -s "$HC/log/v.jsonl" "$LOC/log/v.jsonl" \
+    || { falha "[$id]: o log do hub não ficou igual à união local"; return 0; }
+  neutralizado; echo "OK [$id] — $kind: temporário privado + nome aleatório; sentinela intacta, log publicado"
+}
+echo "[A1] fs — symlink no antigo temporário do log não desvia a escrita da união"
+c_tmp_log A1 fs
+echo "[A2] fs-union — idem"
+c_tmp_log A2 fs-union
+
+echo "[A3] reparo (--repair-own-log) — symlink no antigo temporário do log não desvia a escrita"
+c_A3() {
+  ataque
+  prepara A3 fs
+  local alvo="$T/A3/fora/.zshrc"; sentinela "$alvo"
+  # Divergência real: o hub passa a ter content_sha diferente num msg_id que a réplica também tem.
+  perl -pi -e 's/("content_sha":")[0-9a-f]/${1}z/ if $. == 1' "$HC/log/v.jsonl"
+  ln -s "$alvo" "$HC/log/.v.jsonl.tmp"
+  local out rc
+  set +e; out="$(LG "$R" sync "$CH" --push-only --repair-own-log 2>&1)"; rc=$?; set -e
+  intacta "$alvo" || { falha "[A3]: o reparo seguiu o symlink plantado — sentinela sobrescrita"; return 0; }
+  [ "$rc" -eq 0 ] || { falha "[A3]: reparo declarado reprovou (rc=$rc): $(head -3 <<<"$out")"; return 0; }
+  [ ! -L "$HC/log/v.jsonl" ] || { falha "[A3]: o log do hub virou symlink depois do reparo"; return 0; }
+  cmp -s "$HC/log/v.jsonl" "$LOC/log/v.jsonl" \
+    || { falha "[A3]: o reparo não publicou a versão local"; return 0; }
+  neutralizado; echo "OK [A3] — reparo publica por nome aleatório; sentinela intacta"
+}
+c_A3
+
+echo "[A4] blob — symlink no antigo temporário de blob não desvia a escrita"
+c_A4() {
+  ataque
+  prepara A4 fs
+  printf 'touch %s/A4/PWNED\n' "$T" > "$T/A4/anexo.sh"
+  LG "$R" send "$CH" --thread t1 --kind note --subject anexo --body-file "$T/A4/anexo.sh" >/dev/null
+  LG "$R" sync "$CH" --push-only >/dev/null
+  local x; x="$(ls "$HC/blobs")"
+  [ -n "$x" ] || { falha "[A4]: pré-condição — o push não publicou o blob"; return 0; }
+  local alvo="$T/A4/fora/.zshrc"; sentinela "$alvo"
+  rm -f "$HC/blobs/$x"; ln -s "$alvo" "$HC/blobs/.$x.tmp"
+  local out rc
+  set +e; out="$(LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
+  intacta "$alvo" || { falha "[A4]: a cópia do blob seguiu o symlink plantado — sentinela sobrescrita"; return 0; }
+  [ "$rc" -eq 0 ] || { falha "[A4]: push legítimo reprovou (rc=$rc): $(head -3 <<<"$out")"; return 0; }
+  cmp -s "$HC/blobs/$x" "$LOC/blobs/$x" || { falha "[A4]: o blob não foi republicado no hub"; return 0; }
+  neutralizado; echo "OK [A4] — blob republicado por nome aleatório; sentinela intacta"
+}
+c_A4
+
+echo "[A5] blob com +x na origem sai sem bit de execução no hub"
+c_A5() {
+  prepara A5 fs
+  printf '#!/bin/sh\necho anexo\n' > "$T/A5/anexo.sh"
+  LG "$R" send "$CH" --thread t1 --kind note --subject anexo --body-file "$T/A5/anexo.sh" >/dev/null
+  local b; for b in "$LOC"/blobs/*; do chmod 0755 "$b"; done
+  LG "$R" sync "$CH" --push-only >/dev/null || { falha "[A5]: push legítimo reprovou"; return 0; }
+  local x; x="$(ls "$HC/blobs")"
+  [ -n "$x" ] || { falha "[A5]: o push não publicou o blob"; return 0; }
+  if tem_bit_x "$HC/blobs/$x"; then falha "[A5]: blob publicado no hub com bit de execução"; return 0; fi
+  echo "OK [A5] — blob publicado sem bit de execução"
+}
+c_A5
+
+echo "[A6] log/<self>.jsonl do hub é symlink — push RECUSADO"
+c_A6() {
+  ataque
+  prepara A6 fs
+  local alvo="$T/A6/fora/.profile"; sentinela "$alvo"
+  rm -f "$HC/log/v.jsonl"; ln -s "$alvo" "$HC/log/v.jsonl"
+  LG "$R" send "$CH" --thread t1 --kind note --subject "segunda" --body "segunda" >/dev/null
+  local out rc
+  set +e; out="$(LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
+  intacta "$alvo" || { falha "[A6]: a sentinela apontada por log/v.jsonl foi sobrescrita"; return 0; }
+  [ "$rc" -ne 0 ] || { falha "[A6]: push com log/v.jsonl symlink foi ACEITO"; return 0; }
+  grep -qF 'é um link simbólico — recusado (SEC-001)' <<<"$out" \
+    || { falha "[A6]: recusou sem a causa da guarda. Saída: $(head -3 <<<"$out")"; return 0; }
+  neutralizado; echo "OK [A6] — push recusado citando SEC-001, sentinela intacta"
+}
+c_A6
+
+echo "[A7] blobs/<nome> do hub é symlink — push RECUSADO com rc≠0"
+c_A7() {
+  ataque
+  prepara A7 fs
+  printf 'anexo legítimo\n' > "$T/A7/anexo.md"
+  LG "$R" send "$CH" --thread t1 --kind note --subject anexo --body-file "$T/A7/anexo.md" >/dev/null
+  local x; x="$(ls "$LOC/blobs")"
+  local alvo="$T/A7/fora/alvo"; sentinela "$alvo"
+  mkdir -p "$HC/blobs"; ln -s "$alvo" "$HC/blobs/$x"
+  local out rc
+  set +e; out="$(LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
+  intacta "$alvo" || { falha "[A7]: a sentinela apontada por blobs/<nome> foi sobrescrita"; return 0; }
+  [ "$rc" -ne 0 ] || { falha "[A7]: push com blobs/<nome> symlink terminou rc=0 — a recusa foi engolida"; return 0; }
+  grep -qF 'é um link simbólico — recusado (SEC-001)' <<<"$out" \
+    || { falha "[A7]: recusou sem a causa da guarda. Saída: $(head -3 <<<"$out")"; return 0; }
+  neutralizado; echo "OK [A7] — push recusado com rc≠0 citando SEC-001"
+}
+c_A7
+
+# ───────────────────────────────────────────────────────────────────────────────────────────────
+echo "[M2] mutação — publicação volta a usar temporário previsível sem O_EXCL: [A1] contamina"
+c_M2() {
+  prepara M2 fs
+  local common="$T/M2/v/.forge/scripts/lib/transports/_common.sh"
+  cp "$common" "$T/M2/common.orig"
+  # Âncora única: a linha que cria o temporário de publicação (nome aleatório + noclobber).
+  perl -0pi -e 's/tmp="\.liaison-publica\.\$\$\.\$RANDOM\$RANDOM\.tmp"; set -C/tmp=".\$nome.tmp"; set +C/' "$common"
+  if cmp -s "$common" "$T/M2/common.orig"; then falha "[M2]: a mutação não alterou _common.sh — âncora do perl não casou"; return 0; fi
+  local alvo="$T/M2/fora/.bashrc"; sentinela "$alvo"
+  ln -s "$alvo" "$HC/log/.v.jsonl.tmp"
+  LG "$R" send "$CH" --thread t1 --kind note --subject "mutante" --body "mutante" >/dev/null
+  set +e; LG "$R" sync "$CH" --push-only >/dev/null 2>&1; set -e
+  if intacta "$alvo"; then falha "[M2]: sem nome aleatório nem O_EXCL a sentinela ficou intacta — [A1] não mede o helper"; return 0; fi
+  cp "$T/M2/common.orig" "$common"
+  cmp -s "$common" "$T/M2/common.orig" || { falha "[M2]: restauração não bateu byte a byte"; return 0; }
+  # RECONTROLE: restaurado, o mesmo ataque volta a ser neutralizado.
+  sentinela "$alvo"; rm -f "$HC/log/.v.jsonl.tmp" "$HC/log/v.jsonl"
+  ln -s "$alvo" "$HC/log/.v.jsonl.tmp"
+  LG "$R" send "$CH" --thread t1 --kind note --subject "recontrole" --body "recontrole" >/dev/null
+  set +e; LG "$R" sync "$CH" --push-only >/dev/null 2>&1; set -e
+  intacta "$alvo" || { falha "[M2]: recontrole — restaurado o helper, a sentinela ainda foi sobrescrita"; return 0; }
+  echo "OK [M2] — mutante contamina a sentinela; restaurado, volta a segurar"
+}
+c_M2
+
+# ───────────────────────────────────────────────────────────────────────────────────────────────
+echo "[5] contador de controle — ataques exercitados = ataques neutralizados, e > 0"
 # shellcheck source=/dev/null
 . "$WS/template/.forge/scripts/lib/gate-universe.sh"
-forge_universe_check "w321/ataques-recusados" 4 "ataque(s) recusado(s)" "[2]+[3]+[4]+controle" "$WS" \
-  || { echo "FAIL [5]"; exit 1; }
+if ! forge_universe_check "w321/ataques-neutralizados" "$NEUTRALIZADOS" "ataque(s) neutralizado(s)" \
+     "cenários de ataque deste gate, medidos em execução" "$WS"; then
+  falha "[5]: nenhum ataque neutralizado foi medido"
+fi
+[ "$ATAQUES" -gt 0 ] && [ "$NEUTRALIZADOS" -eq "$ATAQUES" ] \
+  || falha "[5]: $NEUTRALIZADOS de $ATAQUES ataque(s) exercitado(s) terminaram neutralizados"
 set +e
-out5="$(forge_universe_check "w321/ataques-recusados" 0 "ataque(s)" "contrapositiva" "$WS" 2>&1)"; rc5=$?
+out5="$(forge_universe_check "w321/ataques-neutralizados" 0 "ataque(s)" "contrapositiva" "$WS" 2>&1)"; rc5=$?
 set -e
-[ "$rc5" -ne 0 ] || { echo "FAIL [5]: universo vazio aprovou — $out5"; exit 1; }
-echo "OK [5]"
+[ "$rc5" -ne 0 ] || falha "[5]: universo vazio aprovou — $out5"
 
-echo "[6] mutação — remover a guarda de _dir_push_blobs aceita o ataque; restaurada, volta a recusar"
-MCOMMON="$T/a/.forge/scripts/lib/transports/_common.sh"
-cp "$MCOMMON" "$T/common.orig"
-perl -0pi -e 's/_dir_reject_symlink "\$hub\/blobs" \|\| return 1\n(\s*local b name)/\1/' "$MCOMMON"
-cmp -s "$MCOMMON" "$T/common.orig" && { echo "FAIL [6]: a mutação não alterou _common.sh — o alvo do perl não casou"; exit 1; }
-
-MHUB="$T/mut-hub"; rm -rf "$MHUB"; mkdir -p "$MHUB/log"
-SENTINEL_MUT="$T/sentinel-mut"; rm -rf "$SENTINEL_MUT"; mkdir -p "$SENTINEL_MUT"
-ln -s "$SENTINEL_MUT" "$MHUB/blobs"
-MREP="$T/mut-rep"; rm -rf "$MREP"; mkdir -p "$MREP/blobs"
-printf 'payload da mutacao\n' > "$MREP/blobs/payload.txt"
-set +e
-( LIAISON_CHANNEL_DIR="$MREP" LIAISON_SELF="a" \
-    bash -c ". \"$MCOMMON\"; _dir_push_blobs \"$MHUB\" \"$MREP\"" ) >/dev/null 2>&1
-set -e
-[ -f "$SENTINEL_MUT/payload.txt" ] \
-  || { echo "FAIL [6]: sem a guarda, o ataque NÃO contaminou a sentinela — [2] não mede a guarda certa"; exit 1; }
-cp "$T/common.orig" "$MCOMMON"
-cmp -s "$MCOMMON" "$T/common.orig" || { echo "FAIL [6]: restauração não bateu byte a byte"; exit 1; }
-
-# RECONTROLE: restaurado, o mesmo ataque volta a ser recusado.
-rm -rf "$SENTINEL_MUT"; mkdir -p "$SENTINEL_MUT"
-set +e
-( LIAISON_CHANNEL_DIR="$MREP" LIAISON_SELF="a" \
-    bash -c ". \"$MCOMMON\"; _dir_push_blobs \"$MHUB\" \"$MREP\"" ) >/dev/null 2>&1
-set -e
-[ -z "$(ls -A "$SENTINEL_MUT" 2>/dev/null)" ] \
-  || { echo "FAIL [6]: recontrole — restaurada a guarda, a sentinela ainda foi contaminada"; exit 1; }
-echo "OK [6] — sem a guarda o ataque passa; restaurada, volta a ser recusado"
-
-echo "PASS w321-liaison-symlink-traversal"
+if [ "$FALHAS" -ne 0 ]; then
+  echo "FAIL w321-liaison-symlink-traversal — $FALHAS falha(s); $NEUTRALIZADOS/$ATAQUES ataque(s) neutralizado(s)"
+  exit 1
+fi
+echo "PASS w321-liaison-symlink-traversal — $NEUTRALIZADOS/$ATAQUES ataque(s) neutralizado(s)"

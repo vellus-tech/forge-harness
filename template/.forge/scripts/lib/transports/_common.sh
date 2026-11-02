@@ -7,24 +7,121 @@
 # participante nunca republica o log de terceiro — se o fizesse, publicaria a versão (possivelmente
 # atrasada) que ele conhece, regredindo o hub e fazendo o dono do log perder mensagens já enviadas.
 
+# SEC-001 — O HUB É ESCRITO POR TERCEIROS. Quem tem push na branch do canal (`git`) ou escrita no
+# diretório compartilhado (`fs`, `fs-union`, `manual`) controla tudo o que existe abaixo do ponto
+# de encontro: pode plantar um symlink no lugar de `log/`, de `blobs/`, de um arquivo dentro
+# deles, ou num nome temporário que o sync vá usar, e pode trocar um diretório por um link ENTRE a
+# conferência e a escrita. Um único `cp`/`mv`/`writeFileSync` que siga um desses links escreve
+# fora da árvore do canal — `.bashrc`, `.git/hooks/`, `.git/config` — e vira execução de código na
+# máquina de quem sincroniza. As defesas abaixo são camadas independentes, e todas valem para
+# todo transporte baseado em diretório:
+#
+#   1. `_dir_reject_symlink` recusa link já plantado em hub, `log/`, `blobs/` e nos arquivos-alvo;
+#   2. o caminho FÍSICO é fixado uma vez (`_dir_phys_expected`): a raiz configurada é confiável e
+#      pode ser symlink legítimo; abaixo dela, toda escrita entra no diretório por `cd -P` e
+#      confere `pwd -P` contra o esperado (`_dir_anchor`), escrevendo só por nome RELATIVO;
+#   3. nenhum temporário mora no hub com nome previsível: a união é calculada num diretório
+#      PRIVADO (`mktemp -d`), e a publicação (`_dir_publish_file`) cria um temporário de nome
+#      aleatório com `set -C` (O_EXCL: recusa nome existente, inclusive symlink pendente), sob
+#      `umask 022` (nunca executável), e o instala por `rename(2)` — que substitui a entrada sem
+#      segui-la e recusa diretório no destino.
+#
+# RISCO RESIDUAL, declarado: depois de `cd -P`, o processo está preso ao inode do diretório. Quem
+# renomeia esse diretório para outro lugar no meio do sync só consegue movê-lo para onde ele mesmo
+# já tem escrita (rename exige escrita nos dois pais, no mesmo filesystem) — não alcança arquivo da
+# vítima. As LEITURAS do hub seguem por caminho: um link trocado no meio do pull faz a vítima ler
+# um arquivo local dela para o staging privado; o que o import aceita dali é limitado pelo formato
+# (JSON com remetente próprio) e pela conferência do blob (follow-up SEC-002). Em hub `fs`
+# compartilhado entre usuários, aplique sticky bit (`chmod +t`) — ver `fs.sh`.
+
 # _dir_reject_symlink <path> — recusa se <path> EXISTIR como link simbólico (arquivo ou
-# diretório). SEC-001: o hub (`log`, `blobs` ou o próprio diretório do canal) é um ponto de
-# encontro escrito por quem tem acesso de push ao canal — um participante malicioso pode
-# commitar/colocar lá um symlink do tipo `blobs -> ../../../../.git/hooks`. Sem esta guarda,
-# `mkdir -p` sobre um symlink-para-diretório já existente é um no-op silencioso, e todo `cp`/`mv`
-# que viria depois escreve OBEDECENDO o link, fora da árvore do canal — no caso do git transport,
-# dentro de `.git/hooks/` de quem sincroniza, com execução no próximo commit. Ausência do caminho
-# não é recusada: é o estado normal de primeiro push/pull.
+# diretório). Sem esta guarda, `mkdir -p` sobre um symlink-para-diretório já existente é um no-op
+# silencioso, e todo `cp`/`mv` que viria depois escreve OBEDECENDO o link. Ausência do caminho não
+# é recusada: é o estado normal de primeiro push/pull.
 _dir_reject_symlink() {
   local p="$1"
   if [ -L "$p" ]; then
-    echo "FAIL: '$p' é um link simbólico — recusado. Um ponto de encontro do liaison (o diretório" >&2
-    echo "      do canal, 'log/' ou 'blobs/') nunca pode ser symlink: segui-lo escreveria fora da" >&2
-    echo "      árvore do canal (SEC-001). Se isto é inesperado, o canal pode estar comprometido —" >&2
-    echo "      não sincronize até investigar quem publicou isto." >&2
+    echo "FAIL: '$p' é um link simbólico — recusado (SEC-001). Um ponto de encontro do liaison" >&2
+    echo "      (o diretório do canal, 'log/', 'blobs/' ou um arquivo dentro deles) nunca pode ser" >&2
+    echo "      symlink: segui-lo escreveria fora da árvore do canal. Se isto é inesperado, o canal" >&2
+    echo "      pode estar comprometido — não sincronize até investigar quem publicou isto." >&2
     return 1
   fi
   return 0
+}
+
+# _dir_phys_expected <path> — o caminho FÍSICO esperado de <path>: o diretório-pai resolvido com
+# `cd -P` (é configuração do operador ou diretório do próprio harness, e pode conter symlink
+# legítimo) seguido do último componente LITERAL. O último componente nunca é resolvido aqui: é
+# justamente ele que quem escreve no hub pode ter trocado por um link.
+_dir_phys_expected() {
+  local p="${1%/}" pai base
+  pai="$(dirname -- "$p")"; base="$(basename -- "$p")"
+  pai="$(cd -P -- "$pai" 2>/dev/null && pwd -P)" \
+    || { echo "FAIL: diretório inacessível: $(dirname -- "$p")" >&2; return 1; }
+  [ "$pai" = / ] && pai=""
+  printf '%s/%s' "$pai" "$base"
+}
+
+# _dir_anchor <dir_phys> — para uso DENTRO de subshell: entra em <dir_phys> por `cd -P` e confere
+# que o diretório físico em que entrou é exatamente o esperado. Daí em diante só se escreve por
+# nome relativo, presos ao inode conferido — trocar um componente do caminho por um link depois
+# deste ponto não muda mais para onde a escrita vai.
+_dir_anchor() {
+  cd -P -- "$1" 2>/dev/null \
+    || { echo "FAIL: não foi possível entrar em '$1' — recusado sem escrever nada (SEC-001)." >&2; return 1; }
+  if [ "$(pwd -P)" != "$1" ]; then
+    echo "FAIL: '$1' não é o diretório físico esperado (SEC-001) — um componente do caminho virou" >&2
+    echo "      link simbólico ou foi trocado durante o sync; recusado sem escrever nada." >&2
+    return 1
+  fi
+}
+
+# _dir_ensure_subdir <dir_phys> <nome> — garante <dir_phys>/<nome> como diretório REAL, criado
+# por nome relativo dentro do diretório ancorado. Nunca `mkdir -p` sobre o caminho inteiro.
+_dir_ensure_subdir() {
+  ( _dir_anchor "$1" || exit 1
+    if [ -L "$2" ]; then
+      echo "FAIL: '$1/$2' é symlink na conferência ancorada — recusado (SEC-001)." >&2
+      exit 1
+    fi
+    [ -d "$2" ] || mkdir -- "$2" 2>/dev/null || [ -d "$2" ] \
+      || { echo "FAIL: não foi possível criar o diretório '$1/$2' do hub." >&2; exit 1; }
+    if [ -L "$2" ]; then
+      echo "FAIL: '$1/$2' é symlink na conferência ancorada — recusado (SEC-001)." >&2
+      exit 1
+    fi
+  )
+}
+
+# _dir_publish_file <src> <dir_phys> <nome> — publica o conteúdo de <src> como <dir_phys>/<nome>,
+# atomicamente e sem seguir link nenhum dentro do hub. <src> é sempre um arquivo da réplica local
+# ou do diretório privado de trabalho, nunca do hub. O temporário tem nome aleatório e de
+# comprimento FIXO, independente de <nome> (um blob de 250 caracteres com sufixo acrescentado
+# estouraria NAME_MAX — ENAMETOOLONG, w219 [8]). Ele é criado com `set -C` (noclobber: O_EXCL
+# quando o nome não existe; recusa quando existe, inclusive como symlink pendente), sob
+# `umask 022` — sai 0644, sem `chmod` por caminho depois (chmod por caminho segue link). A
+# instalação é `rename(2)` por nome relativo, via node: substitui um link plantado no nome final
+# sem segui-lo e RECUSA quando o nome final é diretório — `mv` moveria o arquivo para DENTRO dele,
+# e de um symlink-para-diretório, para fora do hub.
+_dir_publish_file() {
+  local src="$1" dir="$2" nome="$3"
+  case "$src" in /*) ;; *) src="$PWD/$src" ;; esac
+  ( _dir_anchor "$dir" || exit 1
+    umask 022
+    tmp=".liaison-publica.$$.$RANDOM$RANDOM.tmp"; set -C
+    if ! cat -- "$src" > "$tmp"; then
+      rm -f -- "$tmp" 2>/dev/null
+      echo "FAIL: não foi possível criar o temporário de publicação em '$dir' (SEC-001: nada publicado)." >&2
+      exit 1
+    fi
+    set +C
+    if ! node -e 'require("fs").renameSync(process.argv[1], process.argv[2])' -- "$tmp" "$nome"; then
+      rm -f -- "$tmp" 2>/dev/null
+      echo "FAIL: não foi possível instalar '$dir/$nome' (nome final ocupado por diretório?) — nada publicado." >&2
+      exit 1
+    fi
+  )
 }
 
 # _dir_push_classify <hub_dir> <own_file> — em que RELAÇÃO o log do hub está com o local.
@@ -132,8 +229,14 @@ _dir_push_classify() {
 # Delega o cálculo (e a detecção de bifurcação) a lib/liaison-push-union.mjs: um só predicado de
 # divergência no repositório, o mesmo que o `import` usa para decidir quarentena. Sem `node` não
 # há união possível, e publicar sem unir é justamente o dano da issue #101 — então recusa.
+#
+# SEC-001: a união é escrita num diretório PRIVADO (`mktemp -d`, fora do hub) e só então publicada
+# por `_dir_publish_file`. Antes, o node gravava `log/.<self>.jsonl.tmp` DENTRO do hub com
+# `writeFileSync`, que segue link — um symlink plantado nesse nome previsível desviava a união para
+# fora. A réplica local recebe a cópia do temporário privado, nunca relida do hub.
 _dir_push_union() {
   local hub="$1" own="$2"
+  hub="$(_dir_phys_expected "$hub")" || return 1
   local hubf="$hub/log/$LIAISON_SELF.jsonl"
   _dir_reject_symlink "$hub/log" || return 1
   _dir_reject_symlink "$hubf" || return 1
@@ -148,19 +251,27 @@ _dir_push_union() {
     echo "      motivo de rigor, não de publicação." >&2
     return 1
   fi
-  local tmp="$hub/log/.$LIAISON_SELF.jsonl.tmp"
+  local priv
+  priv="$(mktemp -d "${TMPDIR:-/tmp}/forge-liaison-uniao.XXXXXX")" \
+    || { echo "FAIL: push RECUSADO — não foi possível criar o diretório privado da união." >&2; return 1; }
+  local tmp="$priv/uniao.jsonl"
   if ! node "$mod" "$own" "$hubf" "$tmp" "$LIAISON_SELF"; then
-    rm -f "$tmp"
+    rm -rf "$priv"
     return 1
   fi
-  mv "$tmp" "$hubf"
-  # Nunca executável: um log é sempre dado, nunca código. Mesmo sem symlink no caminho, um blob
-  # de conteúdo com bit de execução herdado não deveria sobreviver à publicação (SEC-001, defesa
-  # em profundidade — a guarda real é `_dir_reject_symlink` acima).
-  chmod 0644 "$hubf" 2>/dev/null || true
+  if ! _dir_publish_file "$tmp" "$hub/log" "$LIAISON_SELF.jsonl"; then
+    rm -rf "$priv"
+    return 1
+  fi
   # A réplica local passa a conter a união também: sem isso ela continuaria atrás do hub que ela
-  # mesma acabou de escrever, e o próximo push repetiria o trabalho.
-  cp "$hubf" "$own"
+  # mesma acabou de escrever, e o próximo push repetiria o trabalho. A cópia vem do temporário
+  # PRIVADO — reler do hub seria ler de novo um lugar que terceiros escrevem.
+  if ! cp "$tmp" "$own"; then
+    rm -rf "$priv"
+    echo "FAIL: a união foi publicada, mas não foi possível atualizar a réplica local '$own'." >&2
+    return 1
+  fi
+  rm -rf "$priv"
   return 0
 }
 
@@ -170,31 +281,42 @@ _dir_push_union() {
 # `blobs/` (o `try/catch` que faz `unlinkSync` de melhor esforço não sobrevive à morte do
 # processo) — sem a exclusão aqui, `find "$src/blobs" -type f` o varre como qualquer outro blob e
 # `_dir_push` o publicaria no hub, contaminando toda réplica que sincronizar depois.
+#
+# SEC-001: um symlink em `blobs/<nome>` é RECUSA com rc≠0, nunca `continue` silencioso — engolir a
+# recusa deixava o sync verde e gravava marca d'água de publicação para o que não foi publicado. A
+# cópia passa por `_dir_publish_file`: nada de `blobs/.<nome>.tmp` previsível, nada de bit de
+# execução herdado da origem.
 _dir_push_blobs() {
   local hub="$1" src="$2"
   [ -d "$src/blobs" ] || return 0
+  hub="$(_dir_phys_expected "$hub")" || return 1
   _dir_reject_symlink "$hub/blobs" || return 1
+  _dir_ensure_subdir "$hub" blobs || return 1
   local b name
   while IFS= read -r b; do
     [ -n "$b" ] || continue
     name="$(basename "$b")"
+    _dir_reject_symlink "$hub/blobs/$name" || return 1
     [ -f "$hub/blobs/$name" ] && continue
-    _dir_reject_symlink "$hub/blobs/$name" || continue
-    cp "$b" "$hub/blobs/.$name.tmp" \
-      && mv "$hub/blobs/.$name.tmp" "$hub/blobs/$name" \
-      && chmod 0644 "$hub/blobs/$name" 2>/dev/null
+    _dir_publish_file "$b" "$hub/blobs" "$name" || return 1
   done < <(find "$src/blobs" -type f ! -name '.recover-*.tmp' 2>/dev/null | LC_ALL=C sort)
+  return 0
 }
 
 # _dir_push <hub_dir> — publica log/<self>.jsonl e os blobs locais no ponto de encontro.
-# Escrita atômica (tmp + mv) porque outro participante pode estar lendo o hub ao mesmo tempo.
+# Escrita atômica (temporário aleatório + rename) porque outro participante pode estar lendo o hub
+# ao mesmo tempo. O hub é fixado no caminho físico uma vez; `log/` e `blobs/` são criados por nome
+# relativo dentro dele, nunca por `mkdir -p` sobre o caminho inteiro.
 _dir_push() {
   local hub="$1"
   local src="$LIAISON_CHANNEL_DIR"
   _dir_reject_symlink "$hub" || return 1
   _dir_reject_symlink "$hub/log" || return 1
   _dir_reject_symlink "$hub/blobs" || return 1
-  mkdir -p "$hub/log" "$hub/blobs"
+  hub="$(_dir_phys_expected "$hub")" || return 1
+  _dir_ensure_subdir "$(dirname -- "$hub")" "$(basename -- "$hub")" || return 1
+  _dir_ensure_subdir "$hub" log || return 1
+  _dir_ensure_subdir "$hub" blobs || return 1
   local own="$src/log/$LIAISON_SELF.jsonl"
   if [ -f "$own" ]; then
     local verdict cls_rc=0
@@ -208,7 +330,7 @@ _dir_push() {
         if ! _dir_push_union "$hub" "$own"; then
           return 1
         fi
-        _dir_push_blobs "$hub" "$src"
+        _dir_push_blobs "$hub" "$src" || return 1
         return 0
         ;;
       1)
@@ -222,7 +344,7 @@ _dir_push() {
         if ! _dir_push_union "$hub" "$own"; then
           return 1
         fi
-        _dir_push_blobs "$hub" "$src"
+        _dir_push_blobs "$hub" "$src" || return 1
         return 0
         ;;
       2)
@@ -259,11 +381,12 @@ _dir_push() {
     # Só o REPARO DECLARADO (caso 2 sob --repair-own-log) chega aqui: é o único caminho em que a
     # substituição integral é o efeito pretendido, porque o operador afirmou por flag que esta
     # árvore é a autoridade sobre o log e viu por extenso o que está descartando.
-    cp "$own" "$hub/log/.$LIAISON_SELF.jsonl.tmp"
-    mv "$hub/log/.$LIAISON_SELF.jsonl.tmp" "$hub/log/$LIAISON_SELF.jsonl"
-    chmod 0644 "$hub/log/$LIAISON_SELF.jsonl" 2>/dev/null || true
+    # Publicação pelo mesmo helper da união: temporário aleatório com O_EXCL e rename, nunca o
+    # `log/.<self>.jsonl.tmp` previsível que um symlink plantado desviava para fora (SEC-001).
+    _dir_publish_file "$own" "$hub/log" "$LIAISON_SELF.jsonl" || return 1
   fi
-  _dir_push_blobs "$hub" "$src"
+  _dir_push_blobs "$hub" "$src" || return 1
+  return 0
 }
 
 # _dir_pull <hub_dir> <staging_dir> — materializa os logs ALHEIOS e os blobs do ponto de encontro

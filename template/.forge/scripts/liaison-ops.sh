@@ -2199,8 +2199,11 @@ const { pathToFileURL } = require('url');
       console.error('FAIL: ' + result.reason);
       process.exit(typeof result.rc === 'number' ? result.rc : 1);
     }
+    // LGC-002: a claim registrada é a C da dobra (a renovação não muda C), nunca o msg_id da
+    // própria renovação — senão a perda tardia acusaria a sessão de ter perdido para si mesma.
+    const renewedBaton = result.fold.fold.batons.get(batonId);
     await recordWon({
-      root, channel, chDir, self, batonId, msgId: result.msg.msg_id, session,
+      root, channel, chDir, self, batonId, msgId: (renewedBaton && renewedBaton.holderClaimMsgId) || result.msg.msg_id, session,
       leaseSeconds: wonLeaseSeconds, leaseUntil: wonLeaseUntil,
     });
     const offerMsgAfter = result.all.find((m) => m.msg_id === batonId);
@@ -2294,7 +2297,7 @@ const { pathToFileURL } = require('url');
       console.error('FAIL: ' + result.reason);
       process.exit(typeof result.rc === 'number' ? result.rc : 1);
     }
-    await removeHolder({ root, channel, self, batonId });
+    await removeHolder({ root, channel, self, batonId, dropClaim: true });
     console.log(`OK baton ${op} — ${result.msg.msg_id}`);
     process.exit(0);
   } catch (err) {
@@ -2386,7 +2389,7 @@ const { pathToFileURL } = require('url');
       console.error('FAIL: ' + result.reason);
       process.exit(typeof result.rc === 'number' ? result.rc : 1);
     }
-    await removeHolder({ root, channel, self, batonId });
+    await removeHolder({ root, channel, self, batonId, dropClaim: true });
     console.log(`OK baton withdraw — ${result.msg.msg_id}`);
     process.exit(0);
   } catch (err) {
@@ -2490,10 +2493,18 @@ const { pathToFileURL } = require('url');
     for (const [batonId, claim] of Object.entries(local.claims || {})) {
       const b = batons.get(batonId);
       if (!b) continue;
-      if (!b.holder || b.holderClaimMsgId !== claim.msgId) {
-        const winnerTxt = b.holder ? `${b.holder.sender}/${b.holder.session}` : 'nenhuma';
-        lateLosses.push({ baton_id: batonId, our_msg_id: claim.msgId, winner: winnerTxt });
-      }
+      if (b.holder && b.holderClaimMsgId === claim.msgId) continue;
+      // LGC-002: a própria sessão ainda é a titular (cache gravado por versão anterior, em que o
+      // renew sobrescrevia o msgId da claim com o da renovação) — não é perda.
+      if (b.holder && b.holder.sender === self && b.holder.session === claim.session) continue;
+      // LGC-002: a mesma sessão liberou, concluiu ou retirou DEPOIS da claim registrada — abriu
+      // mão por ato próprio (design §2.5), não perdeu.
+      const claimIdx = b.history.findIndex((h) => h.msgId === claim.msgId);
+      const ownExit = b.history.some((h, i) => i > claimIdx && h.sender === self && h.session === claim.session
+        && (h.verdict === 'released' || h.verdict === 'completed' || h.verdict === 'withdrawn'));
+      if (claimIdx >= 0 && ownExit) continue;
+      const winnerTxt = b.holder ? `${b.holder.sender}/${b.holder.session}` : 'nenhuma';
+      lateLosses.push({ baton_id: batonId, our_msg_id: claim.msgId, winner: winnerTxt });
     }
   }
 

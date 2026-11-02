@@ -65,6 +65,9 @@ export function nextRenewAtFor(leaseUntil, leaseSeconds) {
 }
 
 // recordWon({root, channel, chDir, self, batonId, msgId, session, leaseSeconds, leaseUntil})
+// `msgId` é SEMPRE o da claim que deu a posse (a claim C da dobra, `holderClaimMsgId`), inclusive
+// quando quem chama é o renew (LGC-002): a perda tardia compara este msgId com o
+// `holderClaimMsgId` corrente, e a renovação não muda C.
 export async function recordWon({ root, channel, chDir, self, batonId, msgId, session, leaseSeconds, leaseUntil }) {
   if (!root || !channel || !chDir || !self || !batonId || !msgId || !session || !leaseSeconds || !leaseUntil) {
     throw new Error('recordWon: root/channel/chDir/self/batonId/msgId/session/leaseSeconds/leaseUntil obrigatórios');
@@ -81,9 +84,12 @@ export async function recordWon({ root, channel, chDir, self, batonId, msgId, se
   });
 }
 
-// removeHolder({root, channel, self, batonId}) — release/complete (TASK-21/22) removem a entrada
-// do índice de titulares; o histórico em `claims` permanece (é o que a perda tardia consulta).
-export async function removeHolder({ root, channel, self, batonId }) {
+// removeHolder({root, channel, self, batonId, dropClaim}) — tira a entrada do índice de titulares.
+// Por padrão o histórico em `claims` permanece (é o que a perda tardia consulta): é o caso do
+// gancho de renovação diante de perda real. `dropClaim: true` é o caso de release/complete/withdraw
+// PRÓPRIOS (LGC-002): a sessão abriu mão do bastão por ato dela, então a claim registrada deixa de
+// ser candidata a perda tardia — o design §2.5 manda não acusar perda nesse caso.
+export async function removeHolder({ root, channel, self, batonId, dropClaim = false }) {
   if (!root || !channel || !self || !batonId) {
     throw new Error('removeHolder: root/channel/self/batonId obrigatórios');
   }
@@ -91,6 +97,7 @@ export async function removeHolder({ root, channel, self, batonId }) {
     const path = filePath(root, channel);
     const state = readState(path);
     delete state.holders[batonId];
+    if (dropClaim) delete state.claims[batonId];
     writeState(path, state);
     return state;
   });

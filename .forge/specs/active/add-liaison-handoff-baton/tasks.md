@@ -52,16 +52,19 @@
   - Teste (comando): `bash tests/liaison-publish-git-gate.sh`
   - Padrão de falha: `^FAIL \[`
   - Concluída em 2026-11-02. Red-evidence: vermelho `9e6b6560`, verde `e21c182c`, prova OK. 28 gates isolados verdes (incluindo w111, que já exercitava o transporte git ida e volta entre dois participantes). `_common.sh` não precisou de mudança nesta task — toda a infraestrutura que o git usa (`_liaison_push_deadline_s`, `_liaison_test_barrier`, `_liaison_unique_suffix`, `_dir_push_blobs`, `_dir_push_classify`) já veio pronta da TASK-07.
-- [ ] TASK-10 — Gate vermelho do escritor de versão antiga: worktree de fixture com a maquinaria antiga gravando durante uma claim; diário do `appendOwn` gravado só depois do `rename` (gravação abortada não gera aviso); aviso no `status` e no `baton status` (este último só depois da TASK-24, coberto lá); `doctor` nomeando a worktree sem a sentinela `# forge-liaison: own-log-lock v1` e silencioso para a worktree com ela (rastreia: REQ-09, design §2.4; paths: `tests/wNNN-liaison-own-log-journal-gate.sh`; depende: TASK-07)
-  - Teste (comando): `bash tests/wNNN-liaison-own-log-journal-gate.sh`
+- [X] TASK-10 — Gate vermelho do escritor de versão antiga: worktree de fixture com a maquinaria antiga gravando durante uma claim; diário do `appendOwn` gravado só depois do `rename` (gravação abortada não gera aviso); aviso no `status` e no `baton status` (este último só depois da TASK-24, coberto lá); `doctor` nomeando a worktree sem a sentinela `# forge-liaison: own-log-lock v1` e silencioso para a worktree com ela (rastreia: REQ-09, design §2.4; paths: `tests/liaison-own-log-journal-gate.sh`; depende: TASK-07)
+  - Teste (comando): `bash tests/liaison-own-log-journal-gate.sh`
   - Padrão de falha: `^FAIL \[(diario|status-reescrito|doctor-worktree)\]`
-- [ ] TASK-11 — Diário de gravações em `appendOwn`, conferência no `status`, sentinela no `liaison-ops.sh` e aviso no `doctor` (rastreia: REQ-09, design §2.4, §5; paths: `template/.forge/scripts/lib/liaison-append.mjs`, `template/.forge/scripts/liaison-ops.sh`, `template/.forge/scripts/doctor.sh`; depende: TASK-10)
-  - Teste (comando): `bash tests/wNNN-liaison-own-log-journal-gate.sh`
+  - Concluída em 2026-11-02. `baton status` não existe ainda (Wave 3) — a cobertura desse aviso específico fica para a TASK-23, como a própria task já previa ("este último só depois da TASK-24, coberto lá").
+- [X] TASK-11 — Diário de gravações em `appendOwn`, conferência no `status`, sentinela no `liaison-ops.sh` e aviso no `doctor` (rastreia: REQ-09, design §2.4, §5; paths: `template/.forge/scripts/lib/liaison-append.mjs`, `template/.forge/scripts/liaison-ops.sh`, `template/.forge/scripts/doctor.sh`; depende: TASK-10)
+  - Teste (comando): `bash tests/liaison-own-log-journal-gate.sh`
   - Padrão de falha: `^FAIL \[`
-- [ ] TASK-12 — Todos os gates existentes do liaison verdes depois da troca de desempate, da trava e da publicação sem trava (rastreia: REQ-11; paths: —; depende: TASK-03, TASK-09, TASK-11)
+  - Concluída em 2026-11-02. Red-evidence: vermelho `c74318fb`, verde `a5f73719`, prova OK. 32 gates isolados verdes (incluindo w158/w191/w251 do doctor).
+- [X] TASK-12 — Todos os gates existentes do liaison verdes depois da troca de desempate, da trava e da publicação sem trava (rastreia: REQ-11; paths: —; depende: TASK-03, TASK-09, TASK-11)
   - Teste (comando): `for g in tests/*liaison*-gate.sh; do bash "$g" || { echo "FAIL [$g] regressão"; exit 1; }; done`
   - Padrão de falha: `^FAIL \[`
   - Isenta de par vermelho/verde (regressão de suítes existentes).
+  - Concluída em 2026-11-02: comando literal rodado sobre `tests/*liaison*-gate.sh` (inclui os gates novos deste change e todos os pré-existentes), sem nenhuma linha `FAIL`. Fecha a Wave 0 e a Wave 1 por completo (TASK-01–TASK-12).
 
 ## Wave 2 — Forma da mensagem e dobra
 

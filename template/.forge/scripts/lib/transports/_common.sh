@@ -26,13 +26,19 @@
 #      `umask 022` (nunca executável), e o instala por `rename(2)` — que substitui a entrada sem
 #      segui-la e recusa diretório no destino.
 #
+#   4. a LEITURA do hub (pull) também é do módulo: `readdirSync` em vez de `find | while read` (um
+#      nome com `\n` não vira duas entradas), nome filtrado por regex estrita, `open` com
+#      O_NOFOLLOW|O_NONBLOCK e conferência no DESCRITOR (arquivo regular, um vínculo, teto), com a
+#      cópia saindo do mesmo fd (SEC-201, SEC-202, SEC-105);
+#   5. o import confere o sha256 embutido no nome do blob também na mensagem NOVA, não só na
+#      recuperação: um corpo que não confere não é instalado (defesa do SEC-002).
+#
 # RISCO RESIDUAL, declarado: depois de `cd -P`, o processo está preso ao inode do diretório. Quem
 # renomeia esse diretório para outro lugar no meio do sync só consegue movê-lo para onde ele mesmo
 # já tem escrita (rename exige escrita nos dois pais, no mesmo filesystem) — não alcança arquivo da
-# vítima. As LEITURAS do hub seguem por caminho: um link trocado no meio do pull faz a vítima ler
-# um arquivo local dela para o staging privado; o que o import aceita dali é limitado pelo formato
-# (JSON com remetente próprio) e pela conferência do blob (follow-up SEC-002). Em hub `fs`
-# compartilhado entre usuários, aplique sticky bit (`chmod +t`) — ver `fs.sh`.
+# vítima. O que ainda segue caminho é o `import --from <bundle>` manual, cujo diretório é escolhido
+# pelo operador (follow-up NODE-002 no ledger). Em hub `fs` compartilhado entre usuários, aplique
+# sticky bit (`chmod +t`) — ver `fs.sh`.
 
 # _dir_reject_symlink <path> — recusa se <path> EXISTIR como link simbólico (arquivo ou
 # diretório). Sem esta guarda, `mkdir -p` sobre um symlink-para-diretório já existente é um no-op
@@ -99,6 +105,23 @@ _dir_ensure_subdir() {
       exit 1
     fi
   )
+}
+
+# _liaison_hub_io — imprime o caminho de `lib/liaison-hub-io.mjs`, o módulo por onde passa toda
+# leitura e publicação no hub, depois de conferir que `node` existe. Derivado do BASH_SOURCE deste
+# arquivo, como o `liaison-push-union.mjs`, para não depender de quem fez o source. Sem node não há
+# E/S segura no hub, e o sync recusa em vez de cair para `cp`.
+_liaison_hub_io() {
+  local libdir
+  libdir="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)" || return 1
+  if ! command -v node >/dev/null 2>&1; then
+    echo "FAIL: o liaison lê e publica no hub pelo módulo '$libdir/liaison-hub-io.mjs', que exige node no PATH —" >&2
+    echo "      node não foi encontrado. Nada foi lido nem publicado (SEC-001: sem E/S segura não há fallback para cp)." >&2
+    return 1
+  fi
+  [ -f "$libdir/liaison-hub-io.mjs" ] \
+    || { echo "FAIL: módulo de E/S do hub ausente: $libdir/liaison-hub-io.mjs — nada foi lido nem publicado." >&2; return 1; }
+  printf '%s' "$libdir/liaison-hub-io.mjs"
 }
 
 # _liaison_unique_suffix — imprime um sufixo único e imprevisível para nome de temporário (PID +
@@ -424,34 +447,21 @@ _dir_pull() {
   return 0
 }
 
-# _dir_pull_copy <dir_phys> <destino> <log|blobs> — copia as entradas regulares de <dir_phys> para
-# <destino>, lendo por nome relativo de dentro do diretório ancorado. Em `log`, só `*.jsonl` e
-# nunca o próprio log.
+# _dir_pull_copy <dir_phys> <destino> <log|blobs> — copia as entradas aceitas de <dir_phys> para
+# <destino> (o staging privado), de DENTRO do diretório ancorado. Em `log`, só `<id>.jsonl` e
+# nunca o próprio log; em `blobs`, só nomes no alfabeto de `body_ref`.
 #
-# SEC-105 (parcial): só entra entrada com UM vínculo (`-links 1`). Um hardlink no hub (nlink>1)
-# aponta para o mesmo inode de um arquivo que pode estar fora dele — quem escreve no hub cria
-# `blobs/<nome>` como hardlink de um segredo da vítima no mesmo filesystem, e a cópia levaria o
-# segredo para a réplica, de onde o próximo push o publicaria. Hardlink é ignorado com aviso.
+# SEC-201, SEC-202, SEC-105: a enumeração e a leitura são do módulo `liaison-hub-io.mjs`, nunca
+# `find | while read` + `cp`. Nome com `\n` não vira duas entradas, a leitura não segue link
+# (O_NOFOLLOW), e o que se confere (arquivo regular, UM vínculo, teto de tamanho) é conferido no
+# mesmo descritor de onde se copia — a troca regular→symlink entre a enumeração e a leitura não tem
+# mais janela. Hardlink, link, FIFO, nome fora do padrão e arquivo acima do teto são ignorados com
+# aviso; o pull segue com o resto.
 _dir_pull_copy() {
-  local dir="$1" dest="$2" tipo="$3"
+  local dir="$1" dest="$2" tipo="$3" mod
   case "$dest" in /*) ;; *) dest="$PWD/$dest" ;; esac
+  mod="$(_liaison_hub_io)" || return 1
   ( _dir_anchor "$dir" || exit 1
-    padrao='*'; [ "$tipo" = log ] && padrao='*.jsonl'
-    while IFS= read -r f; do
-      [ -n "$f" ] || continue
-      echo "WARN: '$dir/${f#./}' ignorado — tem mais de um vínculo (hardlink) no hub e pode ser" >&2
-      echo "      um arquivo de fora da árvore do canal (SEC-001). Investigue quem o publicou." >&2
-    done < <(find . -type f -links +1 -name "$padrao" 2>/dev/null | LC_ALL=C sort)
-    while IFS= read -r f; do
-      [ -n "$f" ] || continue
-      name="$(basename "$f")"
-      [ "$tipo" = log ] && [ "$name" = "$LIAISON_SELF.jsonl" ] && continue
-      if ! cp -- "$f" "$dest/$name"; then
-        echo "WARN: não foi possível copiar '$dir/${f#./}' do hub — entrada ignorada neste pull." >&2
-        continue
-      fi
-      chmod 0644 "$dest/$name" 2>/dev/null || true
-    done < <(find . -type f -links 1 -name "$padrao" 2>/dev/null | LC_ALL=C sort)
-    exit 0
+    node "$mod" pull "$tipo" "$dest" "$LIAISON_SELF" "$dir"
   )
 }

@@ -112,6 +112,21 @@ export function markResolved(chDir, sender, seq, resolvedAs) {
 
 // Aplica o bundle em fromDir sobre o canal em chDir. Retorna contadores + a lista de POSIÇÕES
 // divergentes quarentenadas (vazia = nada reescreveu história).
+// conferirShaDoNome <nome> <bytes> — o nome `<sha256>-<base>` é o compromisso da mensagem sobre o
+// corpo. Devolve null quando confere (ou quando o nome não traz sha), e a causa quando não confere.
+// issue #117: o nome é o sha256 real dos BYTES desde a correção de `_write_body_blob`
+// (`liaison-ops.sh`), mas nomes antigos (anteriores à correção) foram calculados dos bytes
+// convertidos para string latin1 antes do hash — divergente para qualquer byte > 0x7F. Um blob do
+// hub pode ser nomeado por qualquer uma das duas fórmulas, então aceita as duas em vez de só a nova
+// (que rejeitaria todo blob antigo acentuado).
+function conferirShaDoNome(blobName, buf) {
+  const shaMatch = /^([0-9a-f]{64})-/.exec(blobName);
+  if (!shaMatch) return null;
+  const actualBytes = createHash('sha256').update(buf).digest('hex');
+  if (actualBytes === shaMatch[1] || M.sha256Hex(buf.toString('binary')) === shaMatch[1]) return null;
+  return `blob do hub não confere com o body_ref (esperado ${shaMatch[1]}, obtido ${actualBytes})`;
+}
+
 export function applyBundle({ chDir, fromDir, self }) {
   const logDir = join(chDir, 'log');
   const conflictsDir = join(chDir, 'conflicts');
@@ -227,6 +242,11 @@ export function applyBundle({ chDir, fromDir, self }) {
   const accepted = [...batch.values()].reduce((n, arr) => n + arr.length, 0);
 
   // --- escrita, atômica por arquivo de remetente ---------------------------------------------
+  // Declarados aqui (e não na passada de recuperação) porque a cópia de blob de mensagem NOVA,
+  // logo abaixo, também rejeita blob que não confere — com o mesmo tratamento e o mesmo relato.
+  let blobsRecovered = 0;
+  const blobsMissingBoth = [];
+  const blobsRejected = [];
   for (const [sender, toAdd] of batch) {
     const target = join(logDir, `${sender}.jsonl`);
     const existing = existsSync(target) ? readJsonl(target) : [];
@@ -239,7 +259,19 @@ export function applyBundle({ chDir, fromDir, self }) {
       if (m.body_ref) {
         const blobName = m.body_ref.slice('blobs/'.length);
         const dest = join(blobsDir, blobName);
-        if (!existsSync(dest)) copyFileSync(join(fromBlobs, blobName), dest);
+        if (existsSync(dest)) continue;
+        // SEC-002 (defesa em profundidade do SEC-001): o hub é escrito por terceiros, e o nome
+        // `<sha256>-<base>` é o compromisso que a mensagem carrega sobre o corpo. Antes, só a
+        // passada de recuperação conferia esse compromisso; a mensagem NOVA instalava o que
+        // estivesse no bundle com aquele nome — inclusive o conteúdo de um link trocado no meio do
+        // pull. Os bytes são lidos UMA vez, conferidos e escritos a partir do mesmo buffer.
+        const buf = readFileSync(join(fromBlobs, blobName));
+        const veredito = conferirShaDoNome(blobName, buf);
+        if (veredito) {
+          blobsRejected.push({ msg_id: m.msg_id, kind: 'sha-mismatch', reason: veredito });
+          continue;
+        }
+        writeFileSync(dest, buf);
       }
     }
   }
@@ -279,9 +311,6 @@ export function applyBundle({ chDir, fromDir, self }) {
       try { unlinkSync(join(blobsDir, f)); } catch { /* melhor esforço: não interrompe a recuperação */ }
     }
   }
-  let blobsRecovered = 0;
-  const blobsMissingBoth = [];
-  const blobsRejected = [];
   const localSenderFiles = existsSync(logDir)
     ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl'))
     : [];
@@ -308,18 +337,10 @@ export function applyBundle({ chDir, fromDir, self }) {
         blobsRejected.push({ msg_id: m.msg_id, kind: 'oversize', reason: `blob do hub excede ${M.BLOB_MAX_BYTES} bytes (${size})` });
         continue;
       }
-      const shaMatch = /^([0-9a-f]{64})-/.exec(blobName);
-      if (shaMatch) {
-        // issue #117: o nome é o sha256 real dos BYTES desde a correção de `_write_body_blob`
-        // (`liaison-ops.sh`), mas nomes antigos (anteriores à correção) foram calculados do bytes
-        // convertidos para string latin1 antes do hash — divergente para qualquer byte > 0x7F. Um
-        // blob recuperado do hub pode ser nomeado por qualquer uma das duas fórmulas, então aceita
-        // as duas em vez de só a nova (que rejeitaria toda recuperação de blob antigo acentuado).
-        const buf = readFileSync(src);
-        const actualBytes = createHash('sha256').update(buf).digest('hex');
-        const actualLegacy = M.sha256Hex(buf.toString('binary'));
-        if (actualBytes !== shaMatch[1] && actualLegacy !== shaMatch[1]) {
-          blobsRejected.push({ msg_id: m.msg_id, kind: 'sha-mismatch', reason: `blob do hub não confere com o body_ref (esperado ${shaMatch[1]}, obtido ${actualBytes})` });
+      if (/^[0-9a-f]{64}-/.test(blobName)) {
+        const veredito = conferirShaDoNome(blobName, readFileSync(src));
+        if (veredito) {
+          blobsRejected.push({ msg_id: m.msg_id, kind: 'sha-mismatch', reason: veredito });
           continue;
         }
       }

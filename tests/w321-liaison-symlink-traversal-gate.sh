@@ -673,6 +673,106 @@ c_G1() {
 c_G1
 
 # ───────────────────────────────────────────────────────────────────────────────────────────────
+# Cluster H — a LEITURA do hub no pull (SEC-201, SEC-202, SEC-105, defesa do SEC-002).
+#
+# O pull enumerava com `find … | while read` e copiava com `cp` por caminho: um nome com `\n`
+# injetava uma segunda linha que nunca passou pelos filtros (`-type f`, `-links 1`), e a troca entre
+# a enumeração e a leitura seguia o link. O segredo da vítima entrava na réplica, de onde o push
+# seguinte o publicava no hub.
+
+# par_fs <id> — participantes v (vítima) e x (atacante) num hub `fs`; x abre a thread, manda um anexo
+# e publica. Define HB (blobs/ do hub), X (nome do blob publicado), SEG (segredo da vítima, fora do
+# hub e do repositório) e COPIA (onde o blob chegaria na réplica de v).
+par_fs() {
+  local id="$1" r
+  mk_repo "$id/v"; mk_repo "$id/x"
+  for r in v x; do
+    LG "$id/$r" open "$CH" --self "$r" --participants v,x >/dev/null
+    LG "$id/$r" transport set "$CH" --kind fs --path "$T/$id/hub" >/dev/null
+  done
+  LG "$id/x" thread open "$CH" t1 --subject abertura --participants v,x --body abertura >/dev/null
+  printf 'isca legítima do anexo\n' > "$T/$id/isca.md"
+  LG "$id/x" send "$CH" --thread t1 --kind note --subject anexo --body-file "$T/$id/isca.md" >/dev/null
+  LG "$id/x" sync "$CH" --push-only >/dev/null
+  HB="$T/$id/hub/$CH/blobs"; X="$(ls "$HB")"
+  SEG="$T/$id/fora/.ssh/id_ed25519"; mkdir -p "$(dirname "$SEG")"
+  printf 'SEGREDO-DA-VÍTIMA\n' > "$SEG"; chmod 600 "$SEG"
+  COPIA="$T/$id/v/.forge/liaison/$CH/blobs/$X"
+}
+
+# c_nl <id> <symlink|hardlink> — o atacante troca o blob por um link para o segredo e planta um
+# arquivo REGULAR cujo nome é `a\n<blob>`: a linha injetada aponta para o link.
+c_nl() {
+  local id="$1" modo="$2"
+  ataque
+  par_fs "$id"
+  rm -f "$HB/$X"
+  if [ "$modo" = symlink ]; then ln -s "$SEG" "$HB/$X"; else ln "$SEG" "$HB/$X"; fi
+  : > "$HB/a
+$X"
+  local out rc
+  set +e; out="$(LG "$id/v" sync "$CH" --pull-only 2>&1)"; rc=$?; set -e
+  if [ -f "$COPIA" ] && grep -q 'SEGREDO' "$COPIA"; then
+    falha "[$id]: o nome com \\n injetou o $modo e o segredo entrou na réplica da vítima (rc=$rc)"; return 0
+  fi
+  local causa='link simbólico no hub (SEC-001)'; [ "$modo" = hardlink ] && causa='mais de um vínculo (hardlink)'
+  grep -qF "$causa" <<<"$out" || { falha "[$id]: o $modo foi ignorado sem aviso. Saída: $(head -3 <<<"$out")"; return 0; }
+  grep -qF 'nome fora do padrão' <<<"$out" || { falha "[$id]: o nome com \\n foi ignorado sem aviso. Saída: $(head -3 <<<"$out")"; return 0; }
+  neutralizado; echo "OK [$id] — nome com \\n não injeta entrada; o $modo é recusado com aviso"
+}
+echo "[H1] pull — nome com \\n + symlink para o segredo da vítima: nada entra na réplica"
+c_nl H1 symlink
+echo "[H2] pull — nome com \\n + hardlink para o segredo da vítima: idem"
+c_nl H2 hardlink
+
+echo "[H3] pull — a entrada vira symlink entre a enumeração e a leitura: o link nunca é seguido"
+# Determinístico como o [B3]: um shim de `cp` E de `node` troca o blob regular por um link para o
+# segredo na primeira chamada feita DE DENTRO de `blobs/` do hub. Na leitura por `find | cp` isso
+# cai entre a enumeração e a cópia; na leitura pelo módulo node a enumeração e a abertura sem
+# seguir link são o mesmo processo, então a troca mais tardia possível é antes dele — e o
+# resultado exigido é o mesmo: o link nunca é seguido.
+c_H3() {
+  ataque
+  par_fs H3
+  local bin="$T/H3/bin" marca="$T/H3/trocou" prog real; mkdir -p "$bin"
+  for prog in cp node; do
+    real="$(command -v "$prog")"
+    cat > "$bin/$prog" <<SHIM
+#!/bin/sh
+if [ "\$(pwd -P)" = "$HB" ] && [ ! -e "$marca" ]; then
+  : > "$marca"; rm -f "$HB/$X"; ln -s "$SEG" "$HB/$X"
+fi
+exec "$real" "\$@"
+SHIM
+    chmod +x "$bin/$prog"
+  done
+  local out rc
+  set +e; out="$(PATH="$bin:$PATH" LG H3/v sync "$CH" --pull-only 2>&1)"; rc=$?; set -e
+  [ -e "$marca" ] || { falha "[H3]: pré-condição — a troca não aconteceu (o shim não rodou em blobs/)"; return 0; }
+  if [ -f "$COPIA" ] && grep -q 'SEGREDO' "$COPIA"; then
+    falha "[H3]: a troca entre a enumeração e a leitura levou o segredo para a réplica (rc=$rc)"; return 0
+  fi
+  neutralizado; echo "OK [H3] — a troca regular→symlink no meio do pull não é seguida"
+}
+c_H3
+
+echo "[H4] pull — blob do hub com conteúdo que não confere com o sha256 do nome: não é instalado"
+c_H4() {
+  ataque
+  par_fs H4
+  printf 'conteúdo ADULTERADO no hub\n' > "$T/H4/adulterado"
+  mv -f "$T/H4/adulterado" "$HB/$X"
+  local out rc
+  set +e; out="$(LG H4/v sync "$CH" --pull-only 2>&1)"; rc=$?; set -e
+  if [ -f "$COPIA" ] && grep -q 'ADULTERADO' "$COPIA"; then
+    falha "[H4]: o blob adulterado (sha256 do nome não confere) foi instalado na réplica (rc=$rc)"; return 0
+  fi
+  grep -qF 'não confere' <<<"$out" || { falha "[H4]: o blob adulterado foi descartado sem aviso. Saída: $(head -3 <<<"$out")"; return 0; }
+  neutralizado; echo "OK [H4] — blob com sha divergente recusado com aviso, nada instalado"
+}
+c_H4
+
+# ───────────────────────────────────────────────────────────────────────────────────────────────
 echo "[M1] mutação — sem a guarda de topo de _dir_push sobre blobs/, a recusa perde a causa dela"
 # Pelo transporte `manual`, cujo probe não confere o hub: a primeira camada a ver o `blobs/` symlink
 # é a guarda de topo de `_dir_push`, e a causa dela traz o caminho do hub por extenso. Sem ela, a

@@ -25,10 +25,16 @@
 #   [A3] o mesmo no caminho de reparo (`--repair-own-log`)
 #   [A4] symlink plantado no antigo temporário de blob (`blobs/.<nome>.tmp`): sentinela intacta
 #   [A5] blob publicado a partir de origem com `+x` sai sem bit de execução no hub
+#   [A5b] o mesmo sob `umask 000`: blob e log publicados sem escrita para grupo/outros (QUAL-203)
 #   [A6] `log/<self>.jsonl` do hub é symlink — push RECUSADO citando SEC-001, sentinela intacta
 #   [A7] `blobs/<nome>` do hub é symlink — push RECUSADO (rc≠0), nunca `continue` silencioso
+#   [A8] temporário de publicação adivinhado e plantado como symlink para FIFO: a abertura
+#        exclusiva recusa, nada atravessa (SEC-203 — `set -C` não era O_EXCL)
+#   [A9] temporário de publicação órfão na réplica nunca é publicado como blob (LOG-202)
+#   [A10] nome final do log ocupado por diretório: recusa, nada movido para dentro, sem órfão
 #   [B1] o diretório do canal inteiro é symlink — push e pull RECUSADOS, nada criado fora
 #   [B2] `path` configurado como symlink legítimo (manual e fs) continua funcionando (ARCH-004)
+#   [B5] CDPATH no ambiente não desvia um `path` relativo (fs e manual — LOG-204)
 #   [B3] TOCTOU tornado determinístico: `log/` vira symlink entre as guardas e a escrita (um shim
 #        de `node` troca o diretório na chamada da união) — a âncora física recusa, nada sai
 #   [B4] `transport probe` de fs e fs-union recusa canal symlink ANTES de criar diretório
@@ -41,16 +47,30 @@
 #        materializado: recusa e limpa; (b) branch limpa com link não rastreado herdado: a árvore
 #        herdada é descartada e o push publica sem link
 #   [C6] git: recusa do `_dir_push` (divergência) propaga — rc≠0 e nenhuma marca d'água falsa
+#   [C6b] o mesmo no caminho de corrida do `t_push` (primeiro push rejeitado por shim, divergência
+#        plantada entre as tentativas) — QUAL-202
 #   [F1] `fs-union` recusa, antes de publicar, um `_common.sh` do tronco sem `_dir_publish_file` ou
 #        sem `_dir_reject_symlink` (tronco anterior a SEC-001)
 #   [G1] pull: entrada do hub com hardlink (nlink>1) para um segredo da vítima é ignorada com aviso
+#   [H1] pull: nome com `\n` + symlink para o segredo — a linha injetada não vira entrada (SEC-201)
+#   [H2] pull: nome com `\n` + hardlink para o segredo — idem (SEC-202)
+#   [H3] pull: entrada regular vira symlink entre a enumeração e a leitura (shim) — SEC-105
+#   [H4] pull: blob com conteúdo que não confere com o sha256 do nome não é instalado (SEC-002)
+#   [R1] push: log próprio do hub é FIFO — recusa sem travar (NODE-201, SEC-204)
+#   [R2] push: log próprio do hub é hardlink de log confidencial — recusa, nada unido nem republicado
+#   [E1] export: `log/` e `blobs/` do diretório de saída como symlink — recusa (ARCH-201)
+#   [E2] controle: export legítimo publica sem bit de execução e é importável
+#   [L1] corrida: nome final do log vira symlink-para-diretório entre a guarda e a instalação —
+#        `rename(2)` substitui o link, nada sai do hub (LOG-201)
 #   [5]  contador de controle medido — ataques exercitados = ataques neutralizados, e > 0
 #   [M1] mutação pelo canal real (transporte `manual`) — sem a guarda de topo de `_dir_push` sobre
 #        `blobs/`, a causa exclusiva dela some (a camada ancorada ainda recusa); restaurada, volta
-#   [M2] mutação pelo canal real — o helper de publicação volta a escrever num temporário
-#        previsível sem O_EXCL: [A1] passa a contaminar a sentinela; restaurado, volta a segurar
+#   [M2] mutação pelo canal real — nome do temporário FIXO com a abertura exclusiva mantida: recusa e
+#        sentinela intacta; sem a exclusividade, contamina; restaurado, volta a segurar (QUAL-201)
 #   [M5] mutação pelo canal real — a âncora deixa de conferir `pwd -P`: a corrida de [B3] volta a
 #        escrever fora da árvore; restaurada, volta a segurar
+#   [M6] mutação pelo canal real — a instalação troca `rename(2)` por `mv -f`: a corrida de [L1]
+#        escreve fora; restaurado, volta a segurar
 #   [M3] mutação pelo canal real — varredura `ls-tree` desligada: a causa exclusiva dela some (cenário
 #        igual ao [4]) e `core.symlinks=false` ainda materializa o link como arquivo regular
 #   [M4] mutação — além disso `core.symlinks=true`: o link materializa e só a checagem

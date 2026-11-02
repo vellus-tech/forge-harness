@@ -313,6 +313,81 @@ c_A7() {
 }
 c_A7
 
+# fixa_nome_tmp <_common.sh> <liaison-hub-io.mjs> — fixture: simula o atacante que ADIVINHOU o nome
+# do temporário de publicação, tornando-o constante ($TMP_FIXO) na cópia da réplica, onde quer que
+# ele seja gerado (no módulo node por `randomBytes`, ou no shell antigo por `_liaison_unique_suffix`).
+TMP_FIXO='.liaison-publica.PREVISTO.tmp'
+fixa_nome_tmp() {
+  local common="$1" mod="$2"
+  if [ -f "$mod" ] && grep -qF "randomBytes(16).toString('hex')" "$mod"; then
+    perl -pi -e "s/randomBytes\\(16\\)\\.toString\\('hex'\\)/'PREVISTO'/" "$mod"
+    grep -qF "'PREVISTO'" "$mod"; return
+  fi
+  if grep -q '^_liaison_unique_suffix()' "$common"; then
+    perl -pi -e 's/^_liaison_unique_suffix\(\) \{.*\}$/_liaison_unique_suffix() { printf PREVISTO; }/' "$common"
+    grep -qF 'printf PREVISTO' "$common"; return
+  fi
+  return 1
+}
+# destrava_fifo <fifo> — abre o FIFO para escrita sem bloquear, para que um leitor ainda à espera
+# receba EOF; sem leitor (ele já terminou), a abertura falha e nada acontece.
+destrava_fifo() {
+  node -e 'const f=require("fs");try{f.closeSync(f.openSync(process.argv[1],f.constants.O_WRONLY|f.constants.O_NONBLOCK))}catch{}' "$1"
+}
+
+echo "[A8] temporário de publicação adivinhado e plantado como symlink para FIFO: nada atravessa"
+# SEC-203: `set -C` não é O_EXCL — o noclobber do bash só recusa nome existente que seja arquivo
+# REGULAR; um symlink para FIFO (ou dispositivo) é aberto e escrito. Com o nome adivinhado (o
+# `$RANDOM` do bash 3.2 é quase linear), o conteúdo publicado atravessa o link.
+c_A8() {
+  ataque
+  prepara A8 fs
+  fixa_nome_tmp "$T/A8/v/.forge/scripts/lib/transports/_common.sh" "$T/A8/v/.forge/scripts/lib/liaison-hub-io.mjs" \
+    || { falha "[A8]: fixture — não foi possível fixar o nome do temporário"; return 0; }
+  local fifo="$T/A8/fora/fifo" cap="$T/A8/fora/capturado" leitor out rc
+  mkdir -p "$T/A8/fora"; mkfifo "$fifo"; : > "$cap"
+  ( cat "$fifo" > "$cap" ) & leitor=$!
+  ln -s "$fifo" "$HC/log/$TMP_FIXO"
+  LG "$R" send "$CH" --thread t1 --kind note --subject "segunda" --body "segunda mensagem" >/dev/null
+  set +e; out="$(LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
+  destrava_fifo "$fifo"; wait "$leitor" 2>/dev/null || true
+  [ ! -s "$cap" ] || { falha "[A8]: a publicação atravessou o symlink plantado no temporário e escreveu no FIFO (rc=$rc)"; return 0; }
+  [ ! -L "$HC/log/v.jsonl" ] || { falha "[A8]: o log do hub virou symlink depois do push"; return 0; }
+  [ "$rc" -ne 0 ] || { falha "[A8]: push com o temporário ocupado por symlink terminou rc=0"; return 0; }
+  grep -qF 'SEC-001' <<<"$out" || { falha "[A8]: recusou sem a causa. Saída: $(head -3 <<<"$out")"; return 0; }
+  neutralizado; echo "OK [A8] — temporário ocupado por symlink é recusado pela abertura exclusiva; nada atravessa"
+}
+c_A8
+
+echo "[A9] temporário de publicação órfão na réplica local nunca é publicado no hub (LOG-202)"
+c_A9() {
+  prepara A9 fs
+  mkdir -p "$LOC/blobs"; printf 'resto de publicação interrompida\n' > "$LOC/blobs/.liaison-publica.0123abcd.tmp"
+  printf 'anexo legítimo\n' > "$T/A9/anexo.md"
+  LG "$R" send "$CH" --thread t1 --kind note --subject anexo --body-file "$T/A9/anexo.md" >/dev/null
+  LG "$R" sync "$CH" --push-only >/dev/null || { falha "[A9]: push legítimo reprovou"; return 0; }
+  [ ! -e "$HC/blobs/.liaison-publica.0123abcd.tmp" ] || { falha "[A9]: o temporário órfão foi publicado no hub como se fosse blob"; return 0; }
+  [ -n "$(ls "$HC/blobs")" ] || { falha "[A9]: o blob legítimo não foi publicado"; return 0; }
+  echo "OK [A9] — temporário órfão ignorado, blob legítimo publicado"
+}
+c_A9
+
+echo "[A10] nome final do log ocupado por diretório: push RECUSADO e nenhum temporário fica no hub"
+c_A10() {
+  ataque
+  prepara A10 fs
+  rm -f "$HC/log/v.jsonl"; mkdir "$HC/log/v.jsonl"; : > "$HC/log/v.jsonl/x"
+  LG "$R" send "$CH" --thread t1 --kind note --subject "segunda" --body "segunda" >/dev/null
+  local out rc
+  set +e; out="$(LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
+  [ "$rc" -ne 0 ] || { falha "[A10]: push com o nome final ocupado por diretório terminou rc=0"; return 0; }
+  [ -z "$(find "$HC/log" -maxdepth 2 -name '.liaison-publica.*' -print)" ] \
+    || { falha "[A10]: o caminho de erro deixou temporário no hub: $(find "$HC/log" -maxdepth 2 -name '.liaison-publica.*' -print | tr '\n' ' ')"; return 0; }
+  [ -z "$(ls -A "$HC/log/v.jsonl" | grep -v '^x$' || true)" ] || { falha "[A10]: algo foi movido para DENTRO do diretório plantado"; return 0; }
+  neutralizado; echo "OK [A10] — recusado, nada movido para dentro do diretório, nenhum temporário órfão"
+}
+c_A10
+
 
 # ───────────────────────────────────────────────────────────────────────────────────────────────
 # Cluster B — caminho físico fixado uma vez (SEC-103, ARCH-004) e guardas do probe (SEC-108).
@@ -802,28 +877,38 @@ c_M1() {
 }
 c_M1
 
-echo "[M2] mutação — publicação volta a usar temporário previsível sem O_EXCL: [A1] contamina"
+echo "[M2] mutação — nome do temporário fixo: com abertura exclusiva recusa; sem ela, contamina"
+# QUAL-201: separa as duas camadas da publicação. Fixar o nome do temporário (o atacante "adivinhou")
+# MANTENDO a abertura exclusiva tem de continuar seguro — recusa, sentinela intacta: é a prova de que
+# a garantia é a exclusividade, não a imprevisibilidade. Tirar também a exclusividade contamina. O
+# recontrole restaura o módulo e o mesmo nome plantado volta a ser inerte.
 c_M2() {
   prepara M2 fs
-  local common="$T/M2/v/.forge/scripts/lib/transports/_common.sh"
-  cp "$common" "$T/M2/common.orig"
-  # Âncora única: a linha que cria o temporário de publicação (nome aleatório + noclobber).
-  perl -0pi -e 's/tmp="\.liaison-publica\.\$\(_liaison_unique_suffix\)\.tmp"; set -C/tmp=".\$nome.tmp"; set +C/' "$common"
-  if cmp -s "$common" "$T/M2/common.orig"; then falha "[M2]: a mutação não alterou _common.sh — âncora do perl não casou"; return 0; fi
-  local alvo="$T/M2/fora/.bashrc"; sentinela "$alvo"
-  ln -s "$alvo" "$HC/log/.v.jsonl.tmp"
-  LG "$R" send "$CH" --thread t1 --kind note --subject "mutante" --body "mutante" >/dev/null
+  local mod="$T/M2/v/.forge/scripts/lib/liaison-hub-io.mjs" common="$T/M2/v/.forge/scripts/lib/transports/_common.sh"
+  [ -f "$mod" ] || { falha "[M2]: módulo de publicação ausente ($mod) — a publicação não passa pelo módulo node"; return 0; }
+  cp "$mod" "$T/M2/mod.orig"
+  local alvo="$T/M2/fora/.bashrc" out rc
+  # MUTANTE (i): nome fixo, abertura exclusiva mantida.
+  fixa_nome_tmp "$common" "$mod" || { falha "[M2]: a fixação do nome não casou no módulo"; return 0; }
+  sentinela "$alvo"; ln -s "$alvo" "$HC/log/$TMP_FIXO"
+  LG "$R" send "$CH" --thread t1 --kind note --subject "mutante-i" --body "mutante-i" >/dev/null
+  set +e; out="$(LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
+  intacta "$alvo" || { falha "[M2]: com o nome fixo e a abertura exclusiva a sentinela foi sobrescrita — a exclusividade não segura"; return 0; }
+  [ "$rc" -ne 0 ] || { falha "[M2]: com o nome fixo ocupado por symlink o push terminou rc=0"; return 0; }
+  # MUTANTE (ii): além disso, a abertura deixa de ser exclusiva.
+  perl -0pi -e "s/openSync\\(candidato, 'wx', 0o644\\)/openSync(candidato, 'w', 0o644)/" "$mod"
+  grep -qF "openSync(candidato, 'w', 0o644)" "$mod" || { falha "[M2]: a mutação (ii) não casou no módulo"; return 0; }
   set +e; LG "$R" sync "$CH" --push-only >/dev/null 2>&1; set -e
-  if intacta "$alvo"; then falha "[M2]: sem nome aleatório nem O_EXCL a sentinela ficou intacta — [A1] não mede o helper"; return 0; fi
-  cp "$T/M2/common.orig" "$common"
-  cmp -s "$common" "$T/M2/common.orig" || { falha "[M2]: restauração não bateu byte a byte"; return 0; }
-  # RECONTROLE: restaurado, o mesmo ataque volta a ser neutralizado.
-  sentinela "$alvo"; rm -f "$HC/log/.v.jsonl.tmp" "$HC/log/v.jsonl"
-  ln -s "$alvo" "$HC/log/.v.jsonl.tmp"
+  if intacta "$alvo"; then falha "[M2]: sem a abertura exclusiva a sentinela ficou intacta — [M2](i) não mede a exclusividade"; return 0; fi
+  # RECONTROLE
+  cp "$T/M2/mod.orig" "$mod"
+  cmp -s "$mod" "$T/M2/mod.orig" || { falha "[M2]: restauração não bateu byte a byte"; return 0; }
+  sentinela "$alvo"; rm -f "$HC/log/$TMP_FIXO" "$HC/log/v.jsonl"; ln -s "$alvo" "$HC/log/$TMP_FIXO"
   LG "$R" send "$CH" --thread t1 --kind note --subject "recontrole" --body "recontrole" >/dev/null
-  set +e; LG "$R" sync "$CH" --push-only >/dev/null 2>&1; set -e
-  intacta "$alvo" || { falha "[M2]: recontrole — restaurado o helper, a sentinela ainda foi sobrescrita"; return 0; }
-  echo "OK [M2] — mutante contamina a sentinela; restaurado, volta a segurar"
+  set +e; out="$(LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
+  intacta "$alvo" || { falha "[M2]: recontrole — restaurado o módulo, a sentinela ainda foi sobrescrita"; return 0; }
+  [ "$rc" -eq 0 ] || { falha "[M2]: recontrole — push legítimo reprovou (rc=$rc): $(head -3 <<<"$out")"; return 0; }
+  echo "OK [M2] — nome fixo + exclusividade recusa; sem exclusividade contamina; restaurado, volta a segurar"
 }
 c_M2
 

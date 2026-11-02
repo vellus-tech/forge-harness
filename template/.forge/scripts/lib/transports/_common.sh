@@ -21,10 +21,13 @@
 #      pode ser symlink legítimo; abaixo dela, toda escrita entra no diretório por `cd -P` e
 #      confere `pwd -P` contra o esperado (`_dir_anchor`), escrevendo só por nome RELATIVO;
 #   3. nenhum temporário mora no hub com nome previsível: a união é calculada num diretório
-#      PRIVADO (`mktemp -d`), e a publicação (`_dir_publish_file`) cria um temporário de nome
-#      aleatório com `set -C` (O_EXCL: recusa nome existente, inclusive symlink pendente), sob
-#      `umask 022` (nunca executável), e o instala por `rename(2)` — que substitui a entrada sem
-#      segui-la e recusa diretório no destino.
+#      PRIVADO (`mktemp -d`), e a publicação é do módulo `lib/liaison-hub-io.mjs`
+#      (`_dir_publish_file`, `_dir_publish_dir`): temporário de `randomBytes(16)` criado com
+#      O_CREAT|O_EXCL (`'wx'` — recusa QUALQUER nome existente, link para FIFO incluído, sem
+#      segui-lo; `set -C` não fazia isso), modo 0644 por `fchmod` qualquer que seja o umask,
+#      `fsync` e `rename(2)` — que substitui a entrada sem segui-la e recusa diretório no destino.
+#      Órfão de SIGKILL desse temporário não é limpável com segurança (no hub ele é indistinguível
+#      do temporário em voo de outro participante); todo leitor o ignora por nome (LOG-202);
 #
 #   4. a LEITURA do hub (pull) também é do módulo: `readdirSync` em vez de `find | while read` (um
 #      nome com `\n` não vira duas entradas), nome filtrado por regex estrita, `open` com
@@ -48,8 +51,8 @@
 # POR QUE ESTA GUARDA SOZINHA NÃO BASTA: `[ -L ]` é conferir-e-depois-usar. Quem escreve no hub
 # planta o link ENTRE a conferência e a escrita, e a escrita segue o link do mesmo jeito. Ela
 # serve de diagnóstico e de falha rápida para o link já plantado; a GARANTIA vem da estrutura — o
-# `cd -P` conferido por `pwd -P` (`_dir_anchor`) e o temporário de nome imprevisível criado de forma
-# EXCLUSIVA (`_dir_publish_file`). Não troque nenhum ponto de escrita no hub por "checa `-L` e
+# `cd -P` conferido por `pwd -P` (`_dir_anchor`) e o temporário criado com O_EXCL pelo módulo
+# `liaison-hub-io.mjs` (`_dir_publish_file`). Não troque nenhum ponto de escrita no hub por "checa `-L` e
 # copia": é exatamente a corrida que a correção fechou.
 _dir_reject_symlink() {
   local p="$1"
@@ -124,40 +127,42 @@ _liaison_hub_io() {
   printf '%s' "$libdir/liaison-hub-io.mjs"
 }
 
-# _liaison_unique_suffix — imprime um sufixo único e imprevisível para nome de temporário (PID +
-# 30 bits de `$RANDOM`). Imprevisibilidade não é a garantia, é a primeira camada: a exclusividade
-# vem do `set -C` na criação, que recusa qualquer nome já existente, link incluído. Helper único e
-# reutilizável para todo temporário do liaison (log da união, reparo e blobs) — a mesma assinatura
-# usada na branch do baton (#254), para que o merge una as duas versões em vez de duplicá-las.
-_liaison_unique_suffix() { printf '%s.%s%s' "$$" "$RANDOM" "$RANDOM"; }
+# ARCH-203 — não há mais sufixo de temporário gerado em shell. O `_liaison_unique_suffix` que existia
+# aqui (`$$.$RANDOM$RANDOM` sob `set -C`) não era O_EXCL nem imprevisível no bash 3.2; o nome do
+# temporário de publicação passou a ser gerado pelo módulo node (`randomBytes(16)`), e o helper saiu.
+# A branch do baton (#254) define um `_liaison_unique_suffix` PRÓPRIO, com corpo diferente, para
+# nomear o diretório de execução do cache git — o merge com ela NÃO "une as duas versões": tem de
+# manter UMA só definição (a dela, que não protege nada no hub) e nenhum temporário DENTRO do hub
+# pode voltar a usar sufixo de shell (item de reconciliação P1 no ledger).
 
 # _dir_publish_file <src> <dir_phys> <nome> — publica o conteúdo de <src> como <dir_phys>/<nome>,
 # atomicamente e sem seguir link nenhum dentro do hub. <src> é sempre um arquivo da réplica local
-# ou do diretório privado de trabalho, nunca do hub. O temporário tem nome aleatório e de
-# comprimento LIMITADO, independente de <nome> (um blob de 250 caracteres com sufixo acrescentado
-# estouraria NAME_MAX — ENAMETOOLONG, w219 [8]). Ele é criado com `set -C` (noclobber: O_EXCL
-# quando o nome não existe; recusa quando existe, inclusive como symlink pendente), sob
-# `umask 022` — sai 0644, sem `chmod` por caminho depois (chmod por caminho segue link). A
-# instalação é `rename(2)` por nome relativo, via node: substitui um link plantado no nome final
-# sem segui-lo e RECUSA quando o nome final é diretório — `mv` moveria o arquivo para DENTRO dele,
-# e de um symlink-para-diretório, para fora do hub.
+# ou do diretório privado de trabalho, nunca do hub. A publicação é do módulo `liaison-hub-io.mjs`
+# (ver o cabeçalho dele): temporário de nome aleatório e comprimento LIMITADO, independente de
+# <nome> (um blob de 250 caracteres com sufixo estouraria NAME_MAX — w219 [8]), criado com
+# O_CREAT|O_EXCL, modo 0644 por `fchmod`, `fsync` e `rename(2)` relativo ao diretório ancorado —
+# que substitui um link plantado no nome final sem segui-lo e RECUSA quando o nome final é
+# diretório (`mv` moveria o arquivo para DENTRO dele, e de um symlink-para-diretório, para fora).
 _dir_publish_file() {
-  local src="$1" dir="$2" nome="$3"
+  local src="$1" dir="$2" nome="$3" mod
   case "$src" in /*) ;; *) src="$PWD/$src" ;; esac
+  mod="$(_liaison_hub_io)" || return 1
   ( _dir_anchor "$dir" || exit 1
-    umask 022
-    tmp=".liaison-publica.$(_liaison_unique_suffix).tmp"; set -C
-    if ! cat -- "$src" > "$tmp"; then
-      rm -f -- "$tmp" 2>/dev/null
-      echo "FAIL: não foi possível criar o temporário de publicação em '$dir' (SEC-001: nada publicado)." >&2
-      exit 1
-    fi
-    set +C
-    if ! node -e 'require("fs").renameSync(process.argv[1], process.argv[2])' -- "$tmp" "$nome"; then
-      rm -f -- "$tmp" 2>/dev/null
-      echo "FAIL: não foi possível instalar '$dir/$nome' (nome final ocupado por diretório?) — nada publicado." >&2
-      exit 1
-    fi
+    node "$mod" publish "$src" "$nome" "$dir"
+  )
+}
+
+# _dir_publish_dir <src_dir> <dir_phys> <log|blobs> <mantem|substitui> — publica as entradas de
+# <src_dir> em <dir_phys> numa ÚNICA invocação do módulo (um processo por diretório, não por
+# arquivo). Os nomes vêm de `readdirSync`, nunca de `find | while read`; temporários
+# (`.recover-*.tmp`, `.liaison-publica.*.tmp`) são ignorados. `mantem` pula o que o hub já tem e
+# recusa nome que é link; `substitui` republica tudo.
+_dir_publish_dir() {
+  local src="$1" dir="$2" tipo="$3" modo="$4" mod
+  case "$src" in /*) ;; *) src="$PWD/$src" ;; esac
+  mod="$(_liaison_hub_io)" || return 1
+  ( _dir_anchor "$dir" || exit 1
+    node "$mod" publish-dir "$src" "$tipo" "$modo" "$dir"
   )
 }
 
@@ -313,31 +318,26 @@ _dir_push_union() {
 }
 
 # _dir_push_blobs <hub_dir> <src> — copia os blobs locais que o hub ainda não tem.
-# Exclui `.recover-*.tmp`: nome temporário da passada de recuperação (liaison-import.mjs), nunca
-# um blob de verdade. Um SIGKILL a meio de uma recuperação pode deixar esse arquivo órfão em
-# `blobs/` (o `try/catch` que faz `unlinkSync` de melhor esforço não sobrevive à morte do
-# processo) — sem a exclusão aqui, `find "$src/blobs" -type f` o varre como qualquer outro blob e
-# `_dir_push` o publicaria no hub, contaminando toda réplica que sincronizar depois.
+# Ignora `.recover-*.tmp` (temporário da passada de recuperação, liaison-import.mjs) e
+# `.liaison-publica.*.tmp` (temporário desta publicação): um SIGKILL a meio de qualquer dos dois
+# deixa o órfão para trás, e publicá-lo como blob contaminaria toda réplica que sincronizar depois
+# (LOG-202). O filtro por nome é do módulo, junto com a enumeração.
 #
 # SEC-001: um symlink em `blobs/<nome>` é RECUSA com rc≠0, nunca `continue` silencioso — engolir a
 # recusa deixava o sync verde e gravava marca d'água de publicação para o que não foi publicado. A
-# cópia passa por `_dir_publish_file`: nada de `blobs/.<nome>.tmp` previsível, nada de bit de
-# execução herdado da origem.
+# cópia é em lote pelo módulo (`_dir_publish_dir … mantem`): nada de temporário previsível, nada de
+# bit de execução herdado da origem.
+#
+# QUAL-204: não há guarda `_dir_reject_symlink "$hub/blobs"` aqui. O único chamador é `_dir_push`,
+# que já a aplicou e já garantiu `blobs/` real por `_dir_ensure_subdir`; o `_dir_ensure_subdir`
+# abaixo é a conferência ANCORADA (a que vale contra corrida), mantida para que a função não dependa
+# da ordem do chamador. A guarda de topo repetida só duplicava a mensagem.
 _dir_push_blobs() {
   local hub="$1" src="$2"
   [ -d "$src/blobs" ] || return 0
   hub="$(_dir_phys_expected "$hub")" || return 1
-  _dir_reject_symlink "$hub/blobs" || return 1
   _dir_ensure_subdir "$hub" blobs || return 1
-  local b name
-  while IFS= read -r b; do
-    [ -n "$b" ] || continue
-    name="$(basename "$b")"
-    _dir_reject_symlink "$hub/blobs/$name" || return 1
-    [ -f "$hub/blobs/$name" ] && continue
-    _dir_publish_file "$b" "$hub/blobs" "$name" || return 1
-  done < <(find "$src/blobs" -type f ! -name '.recover-*.tmp' 2>/dev/null | LC_ALL=C sort)
-  return 0
+  _dir_publish_dir "$src/blobs" "$hub/blobs" blobs mantem
 }
 
 # _dir_push <hub_dir> — publica log/<self>.jsonl e os blobs locais no ponto de encontro.

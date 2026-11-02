@@ -329,7 +329,7 @@ cp "$LEDGER" "$LEDGERORIG"
 
 _help_check_script "$LEDGER" >/dev/null 2>&1 || { echo "FAIL [HM]: pré-condição — ledger-ops.sh não passa em [H] antes da mutação"; exit 1; }
 
-perl -0pi -e 's/case "\$cmd" in\n  -h\|--help\|help\) echo "Usage: ledger-ops\.sh add\|update\|note\|verify\|resolve\|promote\|harvest\|render\|status\|list\|show\|stale \[args\.\.\.\]"; exit 0 ;;\nesac\n//' "$LEDGER"
+perl -0pi -e 's/case "\$cmd" in\n  -h\|--help\|help\) echo "Usage: ledger-ops\.sh add\|update\|note\|verify\|resolve\|promote\|assign\|pause\|resume\|harvest\|render\|status\|list\|show\|stale \[args\.\.\.\]"; exit 0 ;;\nesac\n//' "$LEDGER"
 cmp -s "$LEDGER" "$LEDGERORIG" && { echo "FAIL [HM]: perl não alterou ledger-ops.sh — regex não casou"; exit 1; }
 
 hm_ledger_ok=1

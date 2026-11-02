@@ -13,21 +13,45 @@
 # CONFIDENCIALIDADE: quem alcança o hub lê o canal inteiro, todas as threads. A lista de
 # participantes de uma thread roteia e cobra ack — não confina leitura. Separação real é canal
 # separado, com hub separado.
+#
+# SEC-001 — CONFIANÇA. A RAIZ (`path` no liaison.yaml) é configuração do operador e é confiável:
+# pode ser um symlink legítimo (`~/shared -> /Volumes/...`), e é resolvida uma vez por `cd -P`.
+# Tudo ABAIXO dela — o diretório do canal, `log/`, `blobs/` e os arquivos — é escrito pelos
+# demais participantes e não é confiável: link ali é recusado, e toda escrita entra no diretório
+# por `cd -P`, confere `pwd -P` e usa nome relativo (ver `_common.sh`). Risco residual: um
+# participante que renomeia o diretório já fixado no meio do sync só consegue movê-lo para onde ele
+# mesmo tem escrita. Num hub compartilhado entre USUÁRIOS diferentes do sistema, aplique sticky bit
+# na raiz e nos diretórios do canal (`chmod +t <path> <path>/<canal> <path>/<canal>/log
+# <path>/<canal>/blobs`): sem ele, qualquer usuário com escrita no diretório pode apagar ou
+# renomear o arquivo de outro.
 
 # shellcheck source=./_common.sh
 . "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 
-_fs_hub() { printf '%s/%s' "$LIAISON_T_PATH" "$LIAISON_CHANNEL"; }
+# _fs_raiz — a raiz configurada, criada se faltar e resolvida no caminho físico. Falha fechada.
+_fs_raiz() {
+  mkdir -p -- "$LIAISON_T_PATH" 2>/dev/null || true
+  (CDPATH='' cd -P -- "$LIAISON_T_PATH" 2>/dev/null && pwd -P) \
+    || { echo "FAIL: não foi possível resolver o hub em $LIAISON_T_PATH (permissão? caminho inválido?)" >&2; return 1; }
+}
+
+_fs_hub() { local raiz; raiz="$(_fs_raiz)" || return 1; printf '%s/%s' "$raiz" "$LIAISON_CHANNEL"; }
 
 t_probe() {
   [ -n "${LIAISON_T_PATH:-}" ] || { echo "FAIL: transporte fs exige 'path' no liaison.yaml" >&2; return 1; }
-  local hub; hub="$(_fs_hub)"
-  mkdir -p "$hub/log" "$hub/blobs" 2>/dev/null \
+  local hub; hub="$(_fs_hub)" || return 1
+  # As guardas vêm ANTES de criar qualquer coisa: `mkdir -p` sobre um canal que é symlink criaria
+  # `log/` e `blobs/` onde o link aponta (SEC-108).
+  _dir_reject_symlink "$hub" || return 1
+  _dir_reject_symlink "$hub/log" || return 1
+  _dir_reject_symlink "$hub/blobs" || return 1
+  { _dir_ensure_subdir "$(dirname -- "$hub")" "$LIAISON_CHANNEL" \
+      && _dir_ensure_subdir "$hub" log && _dir_ensure_subdir "$hub" blobs; } \
     || { echo "FAIL: não foi possível criar o hub em $hub (permissão? caminho inválido?)" >&2; return 1; }
   [ -w "$hub/log" ] || { echo "FAIL: hub sem permissão de escrita: $hub/log" >&2; return 1; }
   return 0
 }
 
-t_push() { _dir_push "$(_fs_hub)"; }
+t_push() { local hub; hub="$(_fs_hub)" || return 1; _dir_push "$hub"; }
 
-t_pull() { _dir_pull "$(_fs_hub)" "$1"; }
+t_pull() { local hub; hub="$(_fs_hub)" || return 1; _dir_pull "$hub" "$1"; }

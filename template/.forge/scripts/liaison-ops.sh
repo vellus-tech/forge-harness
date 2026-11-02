@@ -1304,10 +1304,28 @@ export)
   out_dir=""
   while [ $# -gt 0 ]; do case "$1" in --out) forge_reject_flag_as_value export --out "${2-}" "--out"; out_dir="$2"; shift 2 ;; *) _reject_unknown "export" "--out" "$1" ;; esac; done
   [ -n "$out_dir" ] || { echo "FAIL: --out <dir> obrigatório" >&2; exit 1; }
-  mkdir -p "$out_dir/log" "$out_dir/blobs"
-  if [ -d "$ch_dir/log" ]; then find "$ch_dir/log" -type f -name '*.jsonl' -exec cp {} "$out_dir/log/" \; ; fi
-  if [ -d "$ch_dir/blobs" ]; then find "$ch_dir/blobs" -type f -exec cp {} "$out_dir/blobs/" \; 2>/dev/null || true; fi
-  n="$(find "$out_dir/log" -type f -name '*.jsonl' 2>/dev/null | wc -l | tr -d ' ')" || n=0
+  # ARCH-201 (SEC-001): o diretório de saída tem o layout do transporte `manual` e costuma ser
+  # compartilhado (pendrive, diretório de VPN) — `log/` e `blobs/` dentro dele podem ter sido
+  # escritos por terceiros. O `mkdir -p` + `cp` que havia aqui seguia um symlink plantado em
+  # `blobs/` e escrevia fora (execução de código na máquina de quem exporta). Agora o export publica
+  # pelos MESMOS helpers do `_dir_push`: a raiz `--out` é configuração do operador, confiável e
+  # resolvida por `cd -P`; abaixo dela, guarda de symlink, subdiretório criado por nome relativo no
+  # diretório ancorado e publicação exclusiva + rename por arquivo, pelo módulo node. Sem a união:
+  # o bundle é a fotografia da réplica, inclusive dos logs alheios.
+  # shellcheck source=lib/transports/_common.sh
+  . "$LIBDIR/transports/_common.sh"
+  mkdir -p -- "$out_dir" 2>/dev/null || true
+  out_phys="$(CDPATH='' cd -P -- "$out_dir" 2>/dev/null && pwd -P)" \
+    || { echo "FAIL: diretório de saída inacessível: $out_dir" >&2; exit 1; }
+  _dir_reject_symlink "$out_phys/log" || exit 1
+  _dir_reject_symlink "$out_phys/blobs" || exit 1
+  _dir_ensure_subdir "$out_phys" log || exit 1
+  _dir_ensure_subdir "$out_phys" blobs || exit 1
+  _dir_publish_dir "$ch_dir/log" "$out_phys/log" log substitui || { echo "FAIL: export do canal $channel interrompido — log não publicado em $out_dir" >&2; exit 1; }
+  if [ -d "$ch_dir/blobs" ]; then
+    _dir_publish_dir "$ch_dir/blobs" "$out_phys/blobs" blobs substitui || { echo "FAIL: export do canal $channel interrompido — blobs não publicados em $out_dir" >&2; exit 1; }
+  fi
+  n="$(find "$out_phys/log" -type f -name '*.jsonl' 2>/dev/null | wc -l | tr -d ' ')" || n=0
   echo "OK export — canal $channel exportado para $out_dir ($n arquivo(s) de log)"
   ;;
 

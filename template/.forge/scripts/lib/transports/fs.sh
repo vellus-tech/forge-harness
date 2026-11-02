@@ -31,7 +31,7 @@
 # _fs_raiz — a raiz configurada, criada se faltar e resolvida no caminho físico. Falha fechada.
 _fs_raiz() {
   mkdir -p -- "$LIAISON_T_PATH" 2>/dev/null || true
-  (cd -P -- "$LIAISON_T_PATH" 2>/dev/null && pwd -P) \
+  (CDPATH='' cd -P -- "$LIAISON_T_PATH" 2>/dev/null && pwd -P) \
     || { echo "FAIL: não foi possível resolver o hub em $LIAISON_T_PATH (permissão? caminho inválido?)" >&2; return 1; }
 }
 

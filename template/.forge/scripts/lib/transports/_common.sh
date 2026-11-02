@@ -70,10 +70,15 @@ _dir_reject_symlink() {
 # `cd -P` (é configuração do operador ou diretório do próprio harness, e pode conter symlink
 # legítimo) seguido do último componente LITERAL. O último componente nunca é resolvido aqui: é
 # justamente ele que quem escreve no hub pode ter trocado por um link.
+#
+# LOG-204: todo `cd` que RESOLVE caminho no liaison (aqui, em `_dir_anchor`, nas raízes de `fs`,
+# `fs-union` e `manual`) roda com `CDPATH=''`. Com CDPATH no ambiente, `cd -P -- hubrel` procura
+# `hubrel` primeiro nos diretórios do CDPATH e ainda imprime o destino no stdout, poluindo o
+# `$(cd … && pwd -P)`: o sync publicaria onde o operador nunca configurou, ou reprovaria sem causa.
 _dir_phys_expected() {
   local p="${1%/}" pai base
   pai="$(dirname -- "$p")"; base="$(basename -- "$p")"
-  pai="$(cd -P -- "$pai" 2>/dev/null && pwd -P)" \
+  pai="$(CDPATH='' cd -P -- "$pai" 2>/dev/null && pwd -P)" \
     || { echo "FAIL: diretório inacessível: $(dirname -- "$p")" >&2; return 1; }
   [ "$pai" = / ] && pai=""
   printf '%s/%s' "$pai" "$base"
@@ -84,7 +89,7 @@ _dir_phys_expected() {
 # nome relativo, presos ao inode conferido — trocar um componente do caminho por um link depois
 # deste ponto não muda mais para onde a escrita vai.
 _dir_anchor() {
-  cd -P -- "$1" 2>/dev/null \
+  CDPATH='' cd -P -- "$1" 2>/dev/null \
     || { echo "FAIL: não foi possível entrar em '$1' — recusado sem escrever nada (SEC-001)." >&2; return 1; }
   if [ "$(pwd -P)" != "$1" ]; then
     echo "FAIL: '$1' não é o diretório físico esperado (SEC-001) — um componente do caminho virou" >&2

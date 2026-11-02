@@ -50,15 +50,15 @@
 # terceira camada nem a recusa fora de git: com um tronco que não une, ele publica pelo `cp` cru.
 
 if ! declare -F forge_main_root >/dev/null 2>&1; then
-  _fsu_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  _fsu_lib="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
   # shellcheck source=../forge-root.sh
   . "$_fsu_lib/forge-root.sh"
 fi
 
 # `forge_main_root` lê `$(pwd)`: o `cd` no subshell ancora a resolução na PRÓPRIA localização deste
 # arquivo, e não no cwd de quem chamou `liaison-ops.sh`, sem alterar o cwd do processo pai.
-_fsu_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if ! _fsu_tronco="$(cd "$_fsu_dir" && forge_main_root)"; then
+_fsu_dir="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if ! _fsu_tronco="$(CDPATH='' cd "$_fsu_dir" && forge_main_root)"; then
   echo "FAIL fs-union: exige um checkout git para resolver o checkout principal, e nenhum repositório" >&2
   echo "                git é alcançável a partir de $_fsu_dir. Fora de git, use o kind fs." >&2
   return 1
@@ -101,7 +101,7 @@ fi
 # confiável e resolvida por `cd -P`; tudo abaixo dela é escrito por terceiros e verificado.
 _fsu_raiz() {
   mkdir -p -- "$LIAISON_T_PATH" 2>/dev/null || true
-  (cd -P -- "$LIAISON_T_PATH" 2>/dev/null && pwd -P) \
+  (CDPATH='' cd -P -- "$LIAISON_T_PATH" 2>/dev/null && pwd -P) \
     || { echo "FAIL: não foi possível resolver o hub em $LIAISON_T_PATH (permissão? caminho inválido?)" >&2; return 1; }
 }
 

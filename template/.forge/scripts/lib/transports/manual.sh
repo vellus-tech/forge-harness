@@ -28,7 +28,7 @@ t_probe() {
 # `_common.sh`. Recusar o próprio `path` por ser symlink (ARCH-004) quebrava configuração legítima
 # sem proteger nada: quem escreveu o link foi o próprio operador.
 _manual_hub() {
-  (cd -P -- "$LIAISON_T_PATH" 2>/dev/null && pwd -P) \
+  (CDPATH='' cd -P -- "$LIAISON_T_PATH" 2>/dev/null && pwd -P) \
     || { echo "FAIL: ponto de encontro inacessível: $LIAISON_T_PATH" >&2; return 1; }
 }
 

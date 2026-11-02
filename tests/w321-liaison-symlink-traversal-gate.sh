@@ -449,6 +449,34 @@ c_B2() {
 }
 c_B2
 
+echo "[B5] CDPATH no ambiente não desvia a resolução de um path relativo (fs e manual — LOG-204)"
+# Com CDPATH definido, `cd -P -- hubrel` procura `hubrel` primeiro nos diretórios do CDPATH (e
+# imprime o destino no stdout, poluindo o `$(cd … && pwd -P)`): o sync publicaria onde o operador
+# nunca configurou. Toda resolução de caminho do liaison roda com `CDPATH=''`.
+c_B5() {
+  local kind ok=1
+  for kind in fs manual; do
+    ataque
+    local base="B5-$kind"; mk_repo "$base/v"; mkdir -p "$T/$base/outro/hubrel"
+    [ "$kind" = manual ] && mkdir -p "$T/$base/v/hubrel"
+    local out rc dest
+    set +e
+    out="$(cd "$T/$base/v" \
+      && LG "$base/v" open "$CH" --self v --participants v,x >/dev/null \
+      && LG "$base/v" transport set "$CH" --kind "$kind" --path hubrel >/dev/null \
+      && LG "$base/v" thread open "$CH" t1 --subject abertura --participants v,x --body abertura >/dev/null \
+      && CDPATH="$T/$base/outro" LG "$base/v" sync "$CH" --push-only 2>&1)"; rc=$?
+    set -e
+    if [ "$kind" = manual ]; then dest="$T/$base/v/hubrel/log/v.jsonl"; else dest="$T/$base/v/hubrel/$CH/log/v.jsonl"; fi
+    [ -z "$(find "$T/$base/outro" -type f -print)" ] || { falha "[B5]: $kind com CDPATH publicou no diretório do CDPATH: $(find "$T/$base/outro" -type f -print | tr '\n' ' ')"; ok=0; continue; }
+    [ "$rc" -eq 0 ] || { falha "[B5]: $kind com CDPATH reprovou (rc=$rc): $(head -3 <<<"$out")"; ok=0; continue; }
+    [ -f "$dest" ] || { falha "[B5]: $kind com CDPATH não publicou no path relativo configurado ($dest)"; ok=0; continue; }
+    neutralizado
+  done
+  [ "$ok" -eq 0 ] || echo "OK [B5] — CDPATH não desvia fs nem manual"
+}
+c_B5
+
 echo "[B3] TOCTOU — log/ vira symlink entre a guarda e a escrita: nada sai da árvore"
 c_B3() {
   ataque

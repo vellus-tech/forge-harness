@@ -6,6 +6,14 @@
 # entrar em PR de feature. A branch é órfã — sem ancestral comum com o código — então nunca é
 # candidata a merge por engano.
 #
+# PLAT-204 — A BRANCH CONFIGURADA PRECISA SER DEDICADA AO LIAISON, e não só "não ser a de código":
+# a varredura de SEC-001 (camada 1 em `_git_sync_clone`) olha a árvore INTEIRA da branch, sem
+# pathspec, e recusa symlink (120000) ou gitlink/submódulo (160000) em QUALQUER lugar dela, não só
+# abaixo de `<canal>/`. Apontar `branch` para uma branch que carregue symlink ou submódulo legítimo
+# (uma branch de código, uma branch de docs com link) faz todo sync desse canal reprovar. A
+# restrição é deliberada: o pathspec por canal diferencia maiúsculas e o filesystem pode não
+# diferenciar, e foi por ali que `CH/blobs` escapava da varredura.
+#
 # O clone de trabalho vive em `.forge/cache/liaison/<channel>`, sob `cache/`, que é descartável
 # por definição: apagar o cache custa um clone, nunca uma mensagem — a fonte da verdade do log
 # local é `.forge/liaison/`, e a do log alheio é a branch remota.

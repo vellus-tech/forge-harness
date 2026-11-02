@@ -1,0 +1,53 @@
+id: adopt-ub-mode-practices
+type: feature
+mode: brownfield
+rigor: spec-anchored
+scale: 2
+status: tasks-ready
+created_at: "2026-11-02"
+updated_at: "2026-11-02"
+owner: "milton"
+parent:
+  baseline: .forge/product/current
+affected_capabilities:
+  - forge-harness-template
+affected_paths:
+  - template/.forge/scripts/check-attack-premise.sh
+  - template/.forge/scripts/check-suppression-reference.sh
+  - template/.forge/commands/specs/implement.md
+  - template/.forge/commands/specs/verify.md
+  - template/.forge/commands/specs/archive.md
+  - template/.forge/commands/git/ship.md
+  - template/.forge/agents/coding/task-coder.md
+  - template/.forge/commands/coding/coding-loop.md
+  - template/.forge/commands/coding/coding-status.md
+  - template/.forge/rules/conventions/session-discipline.md
+  - template/.forge/rules/testing/quality-gates.md
+  - template/.forge/skills/gate-runner/SKILL.md
+  - template/.forge/hooks/git/pre-push
+  - template/.forge/scripts/lib/red-evidence-ops.mjs
+  - template/.forge/skills/frontend-ui-review/scripts/scan-native-controls.py
+  - tools/spike-complexity-duplication.mjs
+  - tests/adopt-ub-mode-practices-gate.sh
+  - .forge/product/current/adr/
+  - .forge/ledger/ledger.json
+dependencies:
+  specs: []
+  code: []
+gates:
+  requirements_reviewed: true
+  design_reviewed: true
+  tasks_reviewed: true
+  implementation_verified: false
+  human_archive_approval: false
+dev_loop:
+  sharded: false
+  stories_path: stories/
+  epic_context_compiled: false
+quick_plan:
+  enabled: false
+  skipped_phases: []
+  justification:
+archive:
+  eligible: false
+  reason: "tasks not implemented"

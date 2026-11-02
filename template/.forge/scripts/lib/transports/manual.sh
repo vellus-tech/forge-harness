@@ -22,6 +22,16 @@ t_probe() {
   return 0
 }
 
-t_push() { _dir_push "$LIAISON_T_PATH"; }
+# SEC-001: aqui o hub É o `path` configurado — configuração confiável do operador, que pode ser um
+# symlink legítimo (`~/pendrive -> /Volumes/...`). Ele é resolvido uma vez para o caminho físico;
+# o que fica ABAIXO dele (`log/`, `blobs/`, os arquivos) é escrito por terceiros e verificado em
+# `_common.sh`. Recusar o próprio `path` por ser symlink (ARCH-004) quebrava configuração legítima
+# sem proteger nada: quem escreveu o link foi o próprio operador.
+_manual_hub() {
+  (cd -P -- "$LIAISON_T_PATH" 2>/dev/null && pwd -P) \
+    || { echo "FAIL: ponto de encontro inacessível: $LIAISON_T_PATH" >&2; return 1; }
+}
 
-t_pull() { _dir_pull "$LIAISON_T_PATH" "$1"; }
+t_push() { local hub; hub="$(_manual_hub)" || return 1; _dir_push "$hub"; }
+
+t_pull() { local hub; hub="$(_manual_hub)" || return 1; _dir_pull "$hub" "$1"; }

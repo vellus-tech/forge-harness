@@ -38,6 +38,13 @@
 # diretório). Sem esta guarda, `mkdir -p` sobre um symlink-para-diretório já existente é um no-op
 # silencioso, e todo `cp`/`mv` que viria depois escreve OBEDECENDO o link. Ausência do caminho não
 # é recusada: é o estado normal de primeiro push/pull.
+#
+# POR QUE ESTA GUARDA SOZINHA NÃO BASTA: `[ -L ]` é conferir-e-depois-usar. Quem escreve no hub
+# planta o link ENTRE a conferência e a escrita, e a escrita segue o link do mesmo jeito. Ela
+# serve de diagnóstico e de falha rápida para o link já plantado; a GARANTIA vem da estrutura — o
+# `cd -P` conferido por `pwd -P` (`_dir_anchor`) e o temporário de nome imprevisível criado de forma
+# EXCLUSIVA (`_dir_publish_file`). Não troque nenhum ponto de escrita no hub por "checa `-L` e
+# copia": é exatamente a corrida que a correção fechou.
 _dir_reject_symlink() {
   local p="$1"
   if [ -L "$p" ]; then
@@ -94,10 +101,17 @@ _dir_ensure_subdir() {
   )
 }
 
+# _liaison_unique_suffix — imprime um sufixo único e imprevisível para nome de temporário (PID +
+# 30 bits de `$RANDOM`). Imprevisibilidade não é a garantia, é a primeira camada: a exclusividade
+# vem do `set -C` na criação, que recusa qualquer nome já existente, link incluído. Helper único e
+# reutilizável para todo temporário do liaison (log da união, reparo e blobs) — a mesma assinatura
+# usada na branch do baton (#254), para que o merge una as duas versões em vez de duplicá-las.
+_liaison_unique_suffix() { printf '%s.%s%s' "$$" "$RANDOM" "$RANDOM"; }
+
 # _dir_publish_file <src> <dir_phys> <nome> — publica o conteúdo de <src> como <dir_phys>/<nome>,
 # atomicamente e sem seguir link nenhum dentro do hub. <src> é sempre um arquivo da réplica local
 # ou do diretório privado de trabalho, nunca do hub. O temporário tem nome aleatório e de
-# comprimento FIXO, independente de <nome> (um blob de 250 caracteres com sufixo acrescentado
+# comprimento LIMITADO, independente de <nome> (um blob de 250 caracteres com sufixo acrescentado
 # estouraria NAME_MAX — ENAMETOOLONG, w219 [8]). Ele é criado com `set -C` (noclobber: O_EXCL
 # quando o nome não existe; recusa quando existe, inclusive como symlink pendente), sob
 # `umask 022` — sai 0644, sem `chmod` por caminho depois (chmod por caminho segue link). A
@@ -109,7 +123,7 @@ _dir_publish_file() {
   case "$src" in /*) ;; *) src="$PWD/$src" ;; esac
   ( _dir_anchor "$dir" || exit 1
     umask 022
-    tmp=".liaison-publica.$$.$RANDOM$RANDOM.tmp"; set -C
+    tmp=".liaison-publica.$(_liaison_unique_suffix).tmp"; set -C
     if ! cat -- "$src" > "$tmp"; then
       rm -f -- "$tmp" 2>/dev/null
       echo "FAIL: não foi possível criar o temporário de publicação em '$dir' (SEC-001: nada publicado)." >&2
@@ -391,25 +405,43 @@ _dir_push() {
 
 # _dir_pull <hub_dir> <staging_dir> — materializa os logs ALHEIOS e os blobs do ponto de encontro
 # num staging cru. Nunca traz de volta o próprio log: a réplica local é a fonte da verdade dele.
+#
+# SEC-001: o hub é fixado no caminho físico e cada diretório (`log/`, `blobs/`) é lido de DENTRO,
+# por `cd -P` conferido — a varredura não atravessa um `log/` trocado por link no meio do pull. O
+# staging é privado; os `chmod` nele são cosméticos e nunca derrubam o rc do laço.
 _dir_pull() {
   local hub="$1" staging="$2"
   _dir_reject_symlink "$hub" || return 1
   _dir_reject_symlink "$hub/log" || return 1
   _dir_reject_symlink "$hub/blobs" || return 1
-  mkdir -p "$staging/log" "$staging/blobs"
+  mkdir -p "$staging/log" "$staging/blobs" || return 1
   [ -d "$hub/log" ] || return 0
-  local f name
-  while IFS= read -r f; do
-    [ -n "$f" ] || continue
-    name="$(basename "$f")"
-    [ "$name" = "$LIAISON_SELF.jsonl" ] && continue
-    cp "$f" "$staging/log/$name" && chmod 0644 "$staging/log/$name" 2>/dev/null
-  done < <(find "$hub/log" -type f -name '*.jsonl' 2>/dev/null | LC_ALL=C sort)
+  hub="$(_dir_phys_expected "$hub")" || return 1
+  _dir_pull_copy "$hub/log" "$staging/log" log || return 1
   if [ -d "$hub/blobs" ]; then
+    _dir_pull_copy "$hub/blobs" "$staging/blobs" blobs || return 1
+  fi
+  return 0
+}
+
+# _dir_pull_copy <dir_phys> <destino> <log|blobs> — copia as entradas regulares de <dir_phys> para
+# <destino>, lendo por nome relativo de dentro do diretório ancorado. Em `log`, só `*.jsonl` e
+# nunca o próprio log.
+_dir_pull_copy() {
+  local dir="$1" dest="$2" tipo="$3"
+  case "$dest" in /*) ;; *) dest="$PWD/$dest" ;; esac
+  ( _dir_anchor "$dir" || exit 1
+    padrao='*'; [ "$tipo" = log ] && padrao='*.jsonl'
     while IFS= read -r f; do
       [ -n "$f" ] || continue
       name="$(basename "$f")"
-      cp "$f" "$staging/blobs/$name" && chmod 0644 "$staging/blobs/$name" 2>/dev/null
-    done < <(find "$hub/blobs" -type f 2>/dev/null | LC_ALL=C sort)
-  fi
+      [ "$tipo" = log ] && [ "$name" = "$LIAISON_SELF.jsonl" ] && continue
+      if ! cp -- "$f" "$dest/$name"; then
+        echo "WARN: não foi possível copiar '$dir/${f#./}' do hub — entrada ignorada neste pull." >&2
+        continue
+      fi
+      chmod 0644 "$dest/$name" 2>/dev/null || true
+    done < <(find . -type f -name "$padrao" 2>/dev/null | LC_ALL=C sort)
+    exit 0
+  )
 }

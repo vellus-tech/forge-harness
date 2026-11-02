@@ -27,9 +27,16 @@
 #   [A5] blob publicado a partir de origem com `+x` sai sem bit de execução no hub
 #   [A6] `log/<self>.jsonl` do hub é symlink — push RECUSADO citando SEC-001, sentinela intacta
 #   [A7] `blobs/<nome>` do hub é symlink — push RECUSADO (rc≠0), nunca `continue` silencioso
+#   [B1] o diretório do canal inteiro é symlink — push e pull RECUSADOS, nada criado fora
+#   [B2] `path` configurado como symlink legítimo (manual e fs) continua funcionando (ARCH-004)
+#   [B3] TOCTOU tornado determinístico: `log/` vira symlink entre as guardas e a escrita (um shim
+#        de `node` troca o diretório na chamada da união) — a âncora física recusa, nada sai
+#   [B4] `transport probe` de fs e fs-union recusa canal symlink ANTES de criar diretório
 #   [5]  contador de controle medido — ataques exercitados = ataques neutralizados, e > 0
 #   [M2] mutação pelo canal real — o helper de publicação volta a escrever num temporário
 #        previsível sem O_EXCL: [A1] passa a contaminar a sentinela; restaurado, volta a segurar
+#   [M5] mutação pelo canal real — a âncora deixa de conferir `pwd -P`: a corrida de [B3] volta a
+#        escrever fora da árvore; restaurada, volta a segurar
 set -euo pipefail
 # Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo obedecerem
 # ao repositório de quem invocou o gate, e não aos repositórios sintéticos criados aqui.
@@ -288,6 +295,103 @@ c_A7() {
 }
 c_A7
 
+
+# ───────────────────────────────────────────────────────────────────────────────────────────────
+# Cluster B — caminho físico fixado uma vez (SEC-103, ARCH-004) e guardas do probe (SEC-108).
+
+echo "[B1] diretório do canal inteiro é symlink — push e pull RECUSADOS"
+c_B1() {
+  ataque
+  prepara B1 fs
+  local fora="$T/B1/fora-canal"; mkdir -p "$fora"
+  mv "$HC" "$T/B1/canal-real"; ln -s "$fora" "$HC"
+  LG "$R" send "$CH" --thread t1 --kind note --subject "segunda" --body "segunda" >/dev/null
+  local out rc
+  set +e; out="$(LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
+  [ "$rc" -ne 0 ] || { falha "[B1]: push com o diretório do canal symlink foi ACEITO"; return 0; }
+  grep -qF 'é um link simbólico — recusado (SEC-001)' <<<"$out" \
+    || { falha "[B1]: push recusado sem a causa da guarda. Saída: $(head -3 <<<"$out")"; return 0; }
+  set +e; out="$(LG "$R" sync "$CH" --pull-only 2>&1)"; rc=$?; set -e
+  [ "$rc" -ne 0 ] || { falha "[B1]: pull com o diretório do canal symlink foi ACEITO"; return 0; }
+  grep -qF 'é um link simbólico — recusado (SEC-001)' <<<"$out" \
+    || { falha "[B1]: pull recusado sem a causa da guarda. Saída: $(head -3 <<<"$out")"; return 0; }
+  [ -z "$(ls -A "$fora")" ] || { falha "[B1]: algo foi criado fora da árvore: $(ls -A "$fora" | tr '\n' ' ')"; return 0; }
+  neutralizado; echo "OK [B1] — push e pull recusados, nada criado fora"
+}
+c_B1
+
+echo "[B2] path configurado como symlink legítimo continua funcionando (manual e fs — ARCH-004)"
+c_B2() {
+  local kind
+  for kind in manual fs; do
+    local base="$T/B2-$kind" real atalho
+    real="$base/real"; atalho="$base/atalho"
+    mk_repo "B2-$kind/v"; mkdir -p "$real"; ln -s "$real" "$atalho"
+    LG "B2-$kind/v" open "$CH" --self v --participants v,x >/dev/null
+    LG "B2-$kind/v" transport set "$CH" --kind "$kind" --path "$atalho" >/dev/null
+    LG "B2-$kind/v" thread open "$CH" t1 --subject abertura --participants v,x --body abertura >/dev/null
+    local out rc dest
+    set +e; out="$(LG "B2-$kind/v" sync "$CH" 2>&1)"; rc=$?; set -e
+    [ "$rc" -eq 0 ] || { falha "[B2]: $kind com path symlink legítimo reprovou (rc=$rc): $(head -3 <<<"$out")"; return 0; }
+    if [ "$kind" = manual ]; then dest="$real/log/v.jsonl"; else dest="$real/$CH/log/v.jsonl"; fi
+    [ -f "$dest" ] || { falha "[B2]: $kind não publicou no destino real do symlink ($dest)"; return 0; }
+  done
+  echo "OK [B2] — manual e fs com path symlink (configuração confiável) publicam e puxam"
+}
+c_B2
+
+echo "[B3] TOCTOU — log/ vira symlink entre a guarda e a escrita: nada sai da árvore"
+c_B3() {
+  ataque
+  prepara B3 fs
+  local fora="$T/B3/fora-toctou"; mkdir -p "$fora"
+  local realnode; realnode="$(command -v node)"
+  mkdir -p "$T/B3/bin"
+  # Interpõe-se ao `node` só na chamada da união: troca `log/` do hub por um symlink para fora no
+  # instante seguinte às guardas e anterior a qualquer escrita — a corrida, tornada determinística.
+  cat > "$T/B3/bin/node" <<EOF
+#!/bin/sh
+case "\$1" in
+  */liaison-push-union.mjs)
+    if [ -d "$HC/log" ] && [ ! -L "$HC/log" ]; then
+      mv "$HC/log" "$HC/log.real" && ln -s "$fora" "$HC/log"
+    fi ;;
+esac
+exec "$realnode" "\$@"
+EOF
+  chmod +x "$T/B3/bin/node"
+  LG "$R" send "$CH" --thread t1 --kind note --subject "segunda" --body "segunda" >/dev/null
+  local out rc
+  set +e; out="$(PATH="$T/B3/bin:$PATH" LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
+  [ -L "$HC/log" ] || { falha "[B3]: pré-condição — a troca do log/ não aconteceu (o shim não rodou)"; return 0; }
+  [ -z "$(ls -A "$fora")" ] || { falha "[B3]: escrita fora da árvore pela corrida: $(ls -A "$fora" | tr '\n' ' ')"; return 0; }
+  [ "$rc" -ne 0 ] || { falha "[B3]: push terminou rc=0 com o log/ trocado no meio"; return 0; }
+  grep -qF 'não é o diretório físico esperado (SEC-001)' <<<"$out" \
+    || { falha "[B3]: recusou sem a causa da âncora física. Saída: $(head -3 <<<"$out")"; return 0; }
+  neutralizado; echo "OK [B3] — a âncora física recusa a troca no meio do sync, nada sai da árvore"
+}
+c_B3
+
+echo "[B4] transport probe (fs e fs-union) recusa canal symlink antes de criar diretório"
+c_B4() {
+  local kind ok=1
+  for kind in fs fs-union; do
+    ataque
+    prepara "B4-$kind" "$kind"
+    local fora="$T/B4-$kind/fora-probe"; mkdir -p "$fora"
+    rm -rf "$HC"; ln -s "$fora" "$HC"
+    local out rc
+    set +e; out="$(LG "$R" transport probe "$CH" 2>&1)"; rc=$?; set -e
+    [ -z "$(ls -A "$fora")" ] || { falha "[B4]: $kind probe criou diretório fora da árvore: $(ls -A "$fora" | tr '\n' ' ')"; ok=0; continue; }
+    [ "$rc" -ne 0 ] || { falha "[B4]: $kind probe aprovou um canal que é symlink"; ok=0; continue; }
+    grep -qF 'é um link simbólico — recusado (SEC-001)' <<<"$out" \
+      || { falha "[B4]: $kind probe recusou sem a causa. Saída: $(head -3 <<<"$out")"; ok=0; continue; }
+    neutralizado
+  done
+  [ "$ok" -eq 0 ] || echo "OK [B4] — probe recusa antes do mkdir (fs e fs-union)"
+}
+c_B4
+
 # ───────────────────────────────────────────────────────────────────────────────────────────────
 echo "[M2] mutação — publicação volta a usar temporário previsível sem O_EXCL: [A1] contamina"
 c_M2() {
@@ -295,7 +399,7 @@ c_M2() {
   local common="$T/M2/v/.forge/scripts/lib/transports/_common.sh"
   cp "$common" "$T/M2/common.orig"
   # Âncora única: a linha que cria o temporário de publicação (nome aleatório + noclobber).
-  perl -0pi -e 's/tmp="\.liaison-publica\.\$\$\.\$RANDOM\$RANDOM\.tmp"; set -C/tmp=".\$nome.tmp"; set +C/' "$common"
+  perl -0pi -e 's/tmp="\.liaison-publica\.\$\(_liaison_unique_suffix\)\.tmp"; set -C/tmp=".\$nome.tmp"; set +C/' "$common"
   if cmp -s "$common" "$T/M2/common.orig"; then falha "[M2]: a mutação não alterou _common.sh — âncora do perl não casou"; return 0; fi
   local alvo="$T/M2/fora/.bashrc"; sentinela "$alvo"
   ln -s "$alvo" "$HC/log/.v.jsonl.tmp"
@@ -313,6 +417,50 @@ c_M2() {
   echo "OK [M2] — mutante contamina a sentinela; restaurado, volta a segurar"
 }
 c_M2
+
+
+echo "[M5] mutação — a âncora física deixa de conferir pwd -P: [B3] volta a escrever fora"
+# toctou_push <id> — prepara a réplica, instala o shim que troca log/ na chamada da união e roda o
+# push pelo canal real. Deixa em $FORA o diretório-alvo da troca.
+toctou_push() {
+  local id="$1" realnode; realnode="$(command -v node)"
+  FORA="$T/$id/fora-toctou"; mkdir -p "$FORA" "$T/$id/bin"
+  cat > "$T/$id/bin/node" <<SHIM
+#!/bin/sh
+case "\$1" in
+  */liaison-push-union.mjs)
+    if [ -d "$HC/log" ] && [ ! -L "$HC/log" ]; then
+      mv "$HC/log" "$HC/log.real.\$\$" && ln -s "$FORA" "$HC/log"
+    fi ;;
+esac
+exec "$realnode" "\$@"
+SHIM
+  chmod +x "$T/$id/bin/node"
+  LG "$R" send "$CH" --thread t1 --kind note --subject "toctou" --body "toctou" >/dev/null
+  set +e; PATH="$T/$id/bin:$PATH" LG "$R" sync "$CH" --push-only >/dev/null 2>&1; set -e
+}
+restaura_log() { rm -f "$HC/log"; local d; for d in "$HC"/log.real.*; do mv "$d" "$HC/log"; break; done; rm -rf "${FORA:?}"/* "${FORA:?}"/.[!.]* 2>/dev/null || true; }
+c_M5() {
+  prepara M5 fs
+  local common="$T/M5/v/.forge/scripts/lib/transports/_common.sh"
+  cp "$common" "$T/M5/common.orig"
+  # CONTROLE: com a âncora, a troca no meio do sync não escreve fora.
+  toctou_push M5
+  [ -z "$(ls -A "$FORA")" ] || { falha "[M5]: controle — escrita fora mesmo com a âncora"; return 0; }
+  restaura_log
+  perl -0pi -e 's/if \[ "\$\(pwd -P\)" != "\$1" \]; then/if false; then/' "$common"
+  if cmp -s "$common" "$T/M5/common.orig"; then falha "[M5]: a mutação não alterou _common.sh — âncora do perl não casou"; return 0; fi
+  toctou_push M5
+  [ -n "$(ls -A "$FORA")" ] || { falha "[M5]: sem a conferência de pwd -P nada saiu da árvore — [B3] não mede a âncora"; return 0; }
+  restaura_log
+  cp "$T/M5/common.orig" "$common"
+  cmp -s "$common" "$T/M5/common.orig" || { falha "[M5]: restauração não bateu byte a byte"; return 0; }
+  # RECONTROLE
+  toctou_push M5
+  [ -z "$(ls -A "$FORA")" ] || { falha "[M5]: recontrole — restaurada a âncora, ainda escreveu fora"; return 0; }
+  echo "OK [M5] — sem a conferência de pwd -P a corrida escreve fora; restaurada, segura"
+}
+c_M5
 
 # ───────────────────────────────────────────────────────────────────────────────────────────────
 echo "[5] contador de controle — ataques exercitados = ataques neutralizados, e > 0"

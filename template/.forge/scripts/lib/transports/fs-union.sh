@@ -82,17 +82,31 @@ case "$(declare -f _dir_push)" in
     ;;
 esac
 
-_fsu_hub() { printf '%s/%s' "$LIAISON_T_PATH" "$LIAISON_CHANNEL"; }
+# SEC-001: mesma regra de confiança do `fs` (ver o cabeçalho de `fs.sh`): a raiz configurada é
+# confiável e resolvida por `cd -P`; tudo abaixo dela é escrito por terceiros e verificado.
+_fsu_raiz() {
+  mkdir -p -- "$LIAISON_T_PATH" 2>/dev/null || true
+  (cd -P -- "$LIAISON_T_PATH" 2>/dev/null && pwd -P) \
+    || { echo "FAIL: não foi possível resolver o hub em $LIAISON_T_PATH (permissão? caminho inválido?)" >&2; return 1; }
+}
+
+_fsu_hub() { local raiz; raiz="$(_fsu_raiz)" || return 1; printf '%s/%s' "$raiz" "$LIAISON_CHANNEL"; }
 
 t_probe() {
   [ -n "${LIAISON_T_PATH:-}" ] || { echo "FAIL: transporte fs-union exige 'path' no liaison.yaml" >&2; return 1; }
-  local hub; hub="$(_fsu_hub)"
-  mkdir -p "$hub/log" "$hub/blobs" 2>/dev/null \
+  local hub; hub="$(_fsu_hub)" || return 1
+  # Guardas ANTES de criar qualquer coisa (SEC-108): `mkdir -p` sobre um canal que é symlink
+  # criaria `log/` e `blobs/` onde o link aponta.
+  _dir_reject_symlink "$hub" || return 1
+  _dir_reject_symlink "$hub/log" || return 1
+  _dir_reject_symlink "$hub/blobs" || return 1
+  { _dir_ensure_subdir "$(dirname -- "$hub")" "$LIAISON_CHANNEL" \
+      && _dir_ensure_subdir "$hub" log && _dir_ensure_subdir "$hub" blobs; } \
     || { echo "FAIL: não foi possível criar o hub em $hub (permissão? caminho inválido?)" >&2; return 1; }
   [ -w "$hub/log" ] || { echo "FAIL: hub sem permissão de escrita: $hub/log" >&2; return 1; }
   return 0
 }
 
-t_push() { _dir_push "$(_fsu_hub)"; }
+t_push() { local hub; hub="$(_fsu_hub)" || return 1; _dir_push "$hub"; }
 
-t_pull() { _dir_pull "$(_fsu_hub)" "$1"; }
+t_pull() { local hub; hub="$(_fsu_hub)" || return 1; _dir_pull "$hub" "$1"; }

@@ -4016,10 +4016,10 @@
       "id": "LDG-0232",
       "type": "follow-up",
       "title": "Reconciliar o PR #254 (baton, branch feat/harness/liaison-handoff-baton) com o hotfix SEC-001 do PR #256: o transporte git do baton contorna as camadas de SEC-001",
-      "detail": "O PR #254 reescreve o transporte git do liaison em torno de um repositório descartável por execução (_git_run_dir/_git_init_run) e de um t_pull por 'git archive | tar', e publica no hub por temporários '$hub/log/.$SELF.jsonl.tmp.$(_liaison_unique_suffix)' gerados em shell. Esse caminho não passa por nenhuma das camadas do hotfix (varredura ls-tree sem pathspec, core.symlinks=false, varredura pós-checkout, leitura e publicação por lib/liaison-hub-io.mjs com O_NOFOLLOW/O_EXCL/rename) e reabre a classe SEC-001 no merge. Checklist: (1) o hotfix (#256) mergeia primeiro em develop; (2) o #254 porta a varredura 'git ls-tree -r' da árvore INTEIRA sem pathspec, com saída capturada e falha fechada, antes de qualquer checkout/archive; (3) core.symlinks=false no repositório de execução; (4) varredura pós-checkout/pós-extração recusando qualquer link e descartando a árvore; (5) toda leitura do hub (pull e o log próprio lido pelo push) e toda publicação passam por lib/liaison-hub-io.mjs (read/pull/publish/publish-dir) dentro do diretório ancorado por _dir_anchor, nunca por 'tar', 'cp', 'cat >' ou temporário com sufixo de shell; (6) UMA só definição de _liaison_unique_suffix no resultado do merge (a do #254, só para nomear o diretório de execução fora do hub) — os corpos diferem e o merge textual não as une; (7) tests/w321-liaison-symlink-traversal-gate.sh roda verde sobre o resultado do merge, sob /bin/bash, incluindo C1–C6b e M3/M4 contra o transporte novo.",
+      "detail": "O PR #254 reescreve o transporte git do liaison em torno de um repositório descartável por execução (_git_run_dir/_git_init_run) e de um t_pull por 'git archive | tar', e publica no hub por temporários '$hub/log/.$SELF.jsonl.tmp.$(_liaison_unique_suffix)' gerados em shell. Esse caminho não passa por nenhuma das camadas do hotfix (varredura ls-tree sem pathspec, core.symlinks=false, varredura pós-checkout, leitura e publicação por lib/liaison-hub-io.mjs com O_NOFOLLOW/O_EXCL/rename) e reabre a classe SEC-001 no merge. Checklist: (1) o hotfix (#256) mergeia primeiro em develop; (2) o #254 porta a varredura 'git ls-tree -r' da árvore INTEIRA sem pathspec, com saída capturada e falha fechada, antes de qualquer checkout/archive; (3) core.symlinks=false no repositório de execução; (4) varredura pós-checkout/pós-extração recusando qualquer link e descartando a árvore; (5) toda leitura do hub (pull e o log próprio lido pelo push) e toda publicação passam por lib/liaison-hub-io.mjs (read/pull/publish/publish-dir) dentro do diretório ancorado por _dir_anchor, nunca por 'tar', 'cp', 'cat >' ou temporário com sufixo de shell; (6) UMA só definição de _liaison_unique_suffix no resultado do merge (a do #254, só para nomear o diretório de execução fora do hub) — os corpos diferem e o merge textual não as une; (7) tests/w321-liaison-symlink-traversal-gate.sh roda verde sobre o resultado do merge, sob /bin/bash, incluindo C1–C6b e M3/M4 contra o transporte novo. — Resolvido: Checklist atendido no merge f4dfbf4d do PR #254 (develop com o hotfix SEC-001 trazido para a branch do bastão): varredura git ls-tree -r da árvore inteira sem pathspec com falha fechada antes do checkout (_git_scan_tree), core.symlinks=false no repositório de execução, recusa de link pós-checkout com descarte da árvore, toda leitura e publicação do hub por lib/liaison-hub-io.mjs dentro de _dir_anchor (inclusive a releitura do status <canal>, PLAT-204 no round 3), uma só definição de _liaison_unique_suffix (só para o diretório de execução fora do hub), w321 verde (37/37) e confirmado pelo security-reviewer do round 2 com o ataque original reproduzido contra git e fs.",
       "severity": "HIGH",
       "priority": "P1",
-      "status": "open",
+      "status": "resolved",
       "source": {
         "change_id": null,
         "origin": "manual",
@@ -4032,8 +4032,8 @@
         "promoted_to": null
       },
       "created_at": "2026-11-02T14:26:49-03:00",
-      "updated_at": null,
-      "resolved_at": null,
+      "updated_at": "2026-11-02T18:31:18-03:00",
+      "resolved_at": "2026-11-02T18:31:18-03:00",
       "dedup_key": "manual:LDG-0232"
     },
     {
@@ -4088,7 +4088,7 @@
       "id": "LDG-0235",
       "type": "tech-debt",
       "title": "Custo do descarte da árvore do cache git a cada sync (PLAT-201): find+rm -rf de toda a árvore antes do checkout",
-      "detail": "_git_descarta_arvore (lib/transports/git.sh) apaga toda a árvore de trabalho do cache antes de cada checkout para que nenhum link materializado por versão anterior sobreviva; em canal grande isso reescreve o checkout inteiro a cada sync. Alternativa medida a avaliar: 'git clean -ffdxq' + 'git checkout -f' (remove não rastreados, inclusive links herdados, sem reescrever o que está limpo), mantendo a varredura pós-checkout como rede. Medir antes de trocar.",
+      "detail": "_git_descarta_arvore (lib/transports/git.sh) apaga toda a árvore de trabalho do cache antes de cada checkout para que nenhum link materializado por versão anterior sobreviva; em canal grande isso reescreve o checkout inteiro a cada sync. Alternativa medida a avaliar: 'git clean -ffdxq' + 'git checkout -f' (remove não rastreados, inclusive links herdados, sem reescrever o que está limpo), mantendo a varredura pós-checkout como rede. Medir antes de trocar.\n\nCORREÇÃO DE REGISTRO (2026-11-02): Depois do merge do PR #254, o transporte git não faz mais checkout no cache compartilhado .forge/cache/liaison/<canal>: cada execução usa um repositório descartável próprio em .forge/cache/liaison-git-run/, e a árvore do cache antigo só é descartada uma vez (o .git dele fica como alternates). A premissa deste item (custo do find+rm -rf da árvore do cache a cada sync) deixou de valer; o custo relevante agora é o checkout completo por execução num canal grande.",
       "severity": "LOW",
       "priority": "P3",
       "status": "open",
@@ -4104,7 +4104,7 @@
         "promoted_to": null
       },
       "created_at": "2026-11-02T14:26:49-03:00",
-      "updated_at": null,
+      "updated_at": "2026-11-02T18:31:18-03:00",
       "resolved_at": null,
       "dedup_key": "manual:LDG-0235"
     },
@@ -4285,6 +4285,30 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "add-liaison-handoff-baton:PR #254 code-evaluator round 1"
+    },
+    {
+      "id": "LDG-0243",
+      "type": "known-bug",
+      "title": "import --from segue symlink e FIFO em blobs/ do bundle e pode exfiltrar arquivo local da vítima pelo sync seguinte",
+      "detail": "Pré-existente em develop (d449cad9), não introduzido pelo PR #254. 'liaison-ops.sh import <canal> --from <dir>' chama applyBundle direto sobre o diretório informado (em geral compartilhado: pendrive, VPN), sem o staging de lib/liaison-hub-io.mjs. Na mensagem nova, readFileSync(join(fromBlobs, blobName)) segue o link; na passada de recuperação, existsSync/statSync/copyFileSync (liaison-import.mjs ~365) também seguem. A conferência de sha só ocorre quando o nome tem prefixo <sha256>-, e BODY_REF_RE (^blobs/[A-Za-z0-9._-]+$) não o exige. Reproduzido num clone em ae3ee1bf: bundle com blobs/notas.txt -> <arquivo-segredo> e mensagem válida de peer com body_ref blobs/notas.txt dão accepted=1, e ch/blobs/notas.txt fica com o conteúdo do segredo; o push seguinte o publica no hub como blob regular (exfiltração). FIFO no mesmo lugar trava o readFileSync (negação de serviço). Correção proposta: copiar o bundle para staging privado pelo mesmo 'liaison-hub-io.mjs pull log|blobs' do sync (O_NOFOLLOW, fstat, nlink 1, teto) dentro de _dir_anchor antes do applyBundle; nos dois caminhos de blob, abrir com O_NOFOLLOW|O_NONBLOCK e escrever a partir do buffer conferido, nunca copyFileSync por caminho; cenário novo no w321. O dono decidiu tratar em hotfix separado contra develop, no mesmo padrão do SEC-001.",
+      "severity": "HIGH",
+      "priority": "P1",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": "PR #254 code-evaluator round 2 / NODE-201"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-02T18:31:18-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0243"
     }
   ]
 }

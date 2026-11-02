@@ -63,7 +63,7 @@ out="$(node --input-type=module -e "
   // appendOwn tentar — appendOwn adquire sua PRÓPRIA trava normalmente (não há contenção aqui);
   // para forçar LockLostError de verdade, o teste abaixo chama appendOwn e, se não lançar,
   // confere que o diário cresceu normalmente (caminho feliz) — o caminho de aborto já é
-  // coberto pelo gate da trava (w323-liaison-own-log-lock-gate.sh, stillOwned recusa nonce velho);
+  // coberto pelo gate da trava (w326-liaison-own-log-lock-gate.sh, stillOwned recusa nonce velho);
   // aqui confirmamos que o diário só cresce quando a gravação REALMENTE aconteceu.
   const before = (await import('fs')).existsSync('$journal_file') ? JSON.parse((await import('fs')).readFileSync('$journal_file','utf8')).length : 0;
   await appendOwn({ root, chDir, channel, self, build: (all) => {

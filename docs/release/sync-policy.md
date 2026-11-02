@@ -5,45 +5,34 @@ Como propagar atualizações do harness para projetos e para o `/init-project` g
 ## Fontes
 
 - **Fonte de verdade do harness:** `forge-harness/template/.forge/` (este repo).
-- **Release congelado:** tag `v0.1.0` — o que o `/init-project` global instala.
-- **Snapshot de contrato:** `snapshot/project-bootstrap/` — referência imutável do adapter Claude
-  (gate `tests/snapshot/verify-manifest.sh` + `claude-contract.bats` source mode).
+- **Release congelado:** tag `v0.1.0`, o que o `/init-project` global instala.
+- **Snapshot de contrato:** `snapshot/project-bootstrap/`, referência imutável do adapter Claude (gate `tests/snapshot/verify-manifest.sh` + `claude-contract.bats` source mode).
 
 ## Quando propagar
 
 1. Mudança no `template/.forge/**` entra por wave + gate verde (`tests/run-all.sh` 100%).
 2. Merge em `develop` → `main`.
 3. **Cortar/mover o tag** de release (`v0.x.y`) no `main` quando a mudança for liberada.
-4. O `/init-project` global aponta para o tag — novos projetos recebem a versão liberada.
+4. O `/init-project` global aponta para o tag, novos projetos recebem a versão liberada.
 
 ## Como atualizar um projeto já onboarded
 
-Não há `forge update` ainda (achado **W2-A** dos pilotos). Procedimento manual até existir:
+O achado **W2-A** dos pilotos (ausência de `forge update`) já foi resolvido: `npx forge-harness update` (ou `/forge:upgrade` dentro do Claude Code) faz overlay cirúrgico e aditivo da maquinaria (commands/agents/contracts/hooks/scripts/schemas/rules/templates), preservando `specs/`, o baseline `product/current/` e a config do `forge.yaml`. Ver a seção "Atualizar o harness" do README principal para o comando e as flags.
+
+O procedimento manual abaixo, validado no piloto W8.2 (azim-crm), é o que o `update` substitui; fica como referência histórica e como alternativa para quem precisa reinstalar do zero em vez de fazer overlay:
 
 1. Branch + snapshot do estado atual (`git commit -am "wip: pre-update"`).
-2. Preservar estado do projeto: `FORGE.md`, `forge.yaml`, `.forge/product/`, `.forge/specs/`,
-   `.forge/custom/`, `constitution.md`, `context.md` e rules editadas.
+2. Preservar estado do projeto: `FORGE.md`, `forge.yaml`, `.forge/product/`, `.forge/specs/`, `.forge/custom/`, `constitution.md`, `context.md` e rules editadas.
 3. Remover a maquinaria (`.forge` machinery, `.claude`, `AGENTS.md`, `CLAUDE.md`, `QWEN.md`).
 4. Reinstalar do tag: `installer/install.sh --target <proj> --slug … --name … --desc …`.
 5. Re-aplicar os hand-edits de estado e re-`sync-adapters --set <lista>`.
 6. `doctor` limpo + `validate-spec` no baseline.
 
-Validado no piloto W8.2 (azim-crm). Um `forge update` que automatize isto é change candidato pós-v0.1.0.
-
 ## Versionamento
 
-O harness segue **SemVer 2.0.0**. A regra abaixo existe porque a prática divergiu dela: entre
-2026-06-12 e 2026-07-29 saíram **24 tags `v0.1.0-rc*`** e nenhum `0.1.0`. Formalmente
-`0.1.0-rc24` é SemVer válido — o hífen introduz um identificador de pré-lançamento e a precedência
-está bem definida. O problema é semântico: um *release candidate* é, por definição, candidato a
-virar o release, e vinte e quatro candidatos significam que cada `rc` virou release de
-desenvolvimento com nome de candidato.
+O harness segue **SemVer 2.0.0**. A regra abaixo existe porque a prática divergiu dela: entre 2026-06-12 e 2026-07-29 saíram **24 tags `v0.1.0-rc*`** e nenhum `0.1.0`. Formalmente `0.1.0-rc24` é SemVer válido (o hífen introduz um identificador de pré-lançamento e a precedência está bem definida). O problema é semântico: um *release candidate* é, por definição, candidato a virar o release, e vinte e quatro candidatos significam que cada `rc` virou release de desenvolvimento com nome de candidato.
 
-O custo disso é concreto. O número da versão deveria responder **o que mudou e o que pode
-quebrar**, e `rc23 → rc24` não responde: aquele incremento carregou o Red-first, o subsistema
-liaison inteiro e a proibição de assinatura de IA — três features — sob a mesma forma que uma
-correção de typo teria. Quem lê o carimbo `template_version` num projeto adotante não consegue
-inferir se a atualização é segura.
+O custo disso é concreto. O número da versão deveria responder **o que mudou e o que pode quebrar**, e `rc23 → rc24` não responde: aquele incremento carregou o Red-first, o subsistema liaison inteiro e a proibição de assinatura de IA, três features, sob a mesma forma que uma correção de typo teria. Quem lê o carimbo `template_version` num projeto adotante não consegue inferir se a atualização é segura.
 
 **A partir de `v0.2.0`:**
 
@@ -51,24 +40,18 @@ inferir se a atualização é segura.
 |---|---|---|
 | Feature nova, subsistema novo, capability nova | `MINOR` (`0.x`) | liaison, Red-first, harness de PBT |
 | Correção, ajuste de gate, doc | `PATCH` | sincronizar a versão do marketplace |
-| Quebra da superfície de `.forge/` que exige ação do adotante | `MINOR` em `0.x` — **com nota explícita** no CHANGELOG | remoção de comando, mudança de formato do `forge.yaml` |
+| Quebra da superfície de `.forge/` que exige ação do adotante | `MINOR` em `0.x`, **com nota explícita** no CHANGELOG | remoção de comando, mudança de formato do `forge.yaml` |
 | Validação antes de um release que se quer estável | `-rc<N>`, **um ou dois**, nunca uma série | `0.3.0-rc1` |
 
-`0.x.y` declara, por SemVer, que a superfície pública é instável e pode quebrar — o que é honesto
-enquanto `MACHINERY_DIRS`, o formato do `forge.yaml` e os schemas ainda mudam de forma. **`1.0.0`
-sai quando a superfície de `.forge/` for algo que o projeto se compromete a não quebrar sem aviso**,
-não quando "parecer maduro".
+`0.x.y` declara, por SemVer, que a superfície pública é instável e pode quebrar, o que é honesto enquanto `MACHINERY_DIRS`, o formato do `forge.yaml` e os schemas ainda mudam de forma. **`1.0.0` sai quando a superfície de `.forge/` for algo que o projeto se compromete a não quebrar sem aviso**, não quando "parecer maduro".
 
-Ganho prático imediato: com faixas `MINOR` distintas, uma instrução de migração passa a ter
-endereço. `LDG-0009` (repos com o managed-block do `.gitignore` congelado) vira "reconcilie ao
-subir de `0.1.x` para `0.2.x`", em vez de "reconcilie em algum ponto entre `rc17` e `rc24`".
+Ganho prático imediato: com faixas `MINOR` distintas, uma instrução de migração passa a ter endereço. `LDG-0009` (repos com o managed-block do `.gitignore` congelado) vira "reconcilie ao subir de `0.1.x` para `0.2.x`", em vez de "reconcilie em algum ponto entre `rc17` e `rc24`".
+
+Na prática, desde `v0.2.0` nenhum release precisou do passo `-rc<N>`: as versões `0.14.0` a `0.18.0` saíram direto como release estável, sem candidato intermediário, porque a suíte e os gates determinísticos já davam o sinal de pronto antes do corte do tag.
 
 ## Guarda
 
 - `tests/snapshot/verify-manifest.sh` → snapshot íntegro.
 - `tests/run-all.sh` → suíte 100% antes de mover qualquer tag.
-- O `package.json`, o `plugin/forge/.claude-plugin/plugin.json` e o `.claude-plugin/marketplace.json`
-  precisam declarar a **mesma** versão — conferido por `tests/plugin-sync-gate.sh`, e sincronizado
-  automaticamente por `npm run build:plugin` (o marketplace já saiu uma versão atrás por ser passo
-  manual atrelado a bump).
+- O `package.json`, o `plugin/forge/.claude-plugin/plugin.json` e o `.claude-plugin/marketplace.json` precisam declarar a **mesma** versão, conferido por `tests/plugin-sync-gate.sh`, e sincronizado automaticamente por `npm run build:plugin` (o marketplace já saiu uma versão atrás por ser passo manual atrelado a bump).
 - `template/machinery-history.json` → histórico dos sha256 da maquinaria em cada versão publicada, que o `forge update` usa para provar que um arquivo sem entrada no `machinery.lock` está intocado (revisão da DH-1). O PR de release roda `node tools/build-machinery-history.mjs --release vX.Y.Z` e commita o arquivo, para que a versão publicada já carregue os próprios shas; `tests/w239-update-preserva-deriva-gate.sh` [12] reprova quando alguma tag `v*` alcançável de HEAD não está no histórico versionado (regenerar sem `--release` é seguro: o gerador une com o arquivo existente e nunca remove entrada).

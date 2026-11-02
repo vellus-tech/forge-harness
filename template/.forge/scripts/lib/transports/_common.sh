@@ -7,6 +7,26 @@
 # participante nunca republica o log de terceiro — se o fizesse, publicaria a versão (possivelmente
 # atrasada) que ele conhece, regredindo o hub e fazendo o dono do log perder mensagens já enviadas.
 
+# _dir_reject_symlink <path> — recusa se <path> EXISTIR como link simbólico (arquivo ou
+# diretório). SEC-001: o hub (`log`, `blobs` ou o próprio diretório do canal) é um ponto de
+# encontro escrito por quem tem acesso de push ao canal — um participante malicioso pode
+# commitar/colocar lá um symlink do tipo `blobs -> ../../../../.git/hooks`. Sem esta guarda,
+# `mkdir -p` sobre um symlink-para-diretório já existente é um no-op silencioso, e todo `cp`/`mv`
+# que viria depois escreve OBEDECENDO o link, fora da árvore do canal — no caso do git transport,
+# dentro de `.git/hooks/` de quem sincroniza, com execução no próximo commit. Ausência do caminho
+# não é recusada: é o estado normal de primeiro push/pull.
+_dir_reject_symlink() {
+  local p="$1"
+  if [ -L "$p" ]; then
+    echo "FAIL: '$p' é um link simbólico — recusado. Um ponto de encontro do liaison (o diretório" >&2
+    echo "      do canal, 'log/' ou 'blobs/') nunca pode ser symlink: segui-lo escreveria fora da" >&2
+    echo "      árvore do canal (SEC-001). Se isto é inesperado, o canal pode estar comprometido —" >&2
+    echo "      não sincronize até investigar quem publicou isto." >&2
+    return 1
+  fi
+  return 0
+}
+
 # _dir_push_classify <hub_dir> <own_file> — em que RELAÇÃO o log do hub está com o local.
 #
 # O push era `cp` + `mv` INCONDICIONAL — issue #101: uma réplica atrasada substituía o log do hub
@@ -115,6 +135,8 @@ _dir_push_classify() {
 _dir_push_union() {
   local hub="$1" own="$2"
   local hubf="$hub/log/$LIAISON_SELF.jsonl"
+  _dir_reject_symlink "$hub/log" || return 1
+  _dir_reject_symlink "$hubf" || return 1
   # O `lib/` é o diretório-pai deste arquivo (`lib/transports/_common.sh`) — derivado do próprio
   # BASH_SOURCE em vez de variável exportada, para não depender de quem fez o source.
   local libdir; libdir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -132,6 +154,10 @@ _dir_push_union() {
     return 1
   fi
   mv "$tmp" "$hubf"
+  # Nunca executável: um log é sempre dado, nunca código. Mesmo sem symlink no caminho, um blob
+  # de conteúdo com bit de execução herdado não deveria sobreviver à publicação (SEC-001, defesa
+  # em profundidade — a guarda real é `_dir_reject_symlink` acima).
+  chmod 0644 "$hubf" 2>/dev/null || true
   # A réplica local passa a conter a união também: sem isso ela continuaria atrás do hub que ela
   # mesma acabou de escrever, e o próximo push repetiria o trabalho.
   cp "$hubf" "$own"
@@ -147,12 +173,16 @@ _dir_push_union() {
 _dir_push_blobs() {
   local hub="$1" src="$2"
   [ -d "$src/blobs" ] || return 0
+  _dir_reject_symlink "$hub/blobs" || return 1
   local b name
   while IFS= read -r b; do
     [ -n "$b" ] || continue
     name="$(basename "$b")"
     [ -f "$hub/blobs/$name" ] && continue
-    cp "$b" "$hub/blobs/.$name.tmp" && mv "$hub/blobs/.$name.tmp" "$hub/blobs/$name"
+    _dir_reject_symlink "$hub/blobs/$name" || continue
+    cp "$b" "$hub/blobs/.$name.tmp" \
+      && mv "$hub/blobs/.$name.tmp" "$hub/blobs/$name" \
+      && chmod 0644 "$hub/blobs/$name" 2>/dev/null
   done < <(find "$src/blobs" -type f ! -name '.recover-*.tmp' 2>/dev/null | LC_ALL=C sort)
 }
 
@@ -161,6 +191,9 @@ _dir_push_blobs() {
 _dir_push() {
   local hub="$1"
   local src="$LIAISON_CHANNEL_DIR"
+  _dir_reject_symlink "$hub" || return 1
+  _dir_reject_symlink "$hub/log" || return 1
+  _dir_reject_symlink "$hub/blobs" || return 1
   mkdir -p "$hub/log" "$hub/blobs"
   local own="$src/log/$LIAISON_SELF.jsonl"
   if [ -f "$own" ]; then
@@ -228,22 +261,18 @@ _dir_push() {
     # árvore é a autoridade sobre o log e viu por extenso o que está descartando.
     cp "$own" "$hub/log/.$LIAISON_SELF.jsonl.tmp"
     mv "$hub/log/.$LIAISON_SELF.jsonl.tmp" "$hub/log/$LIAISON_SELF.jsonl"
+    chmod 0644 "$hub/log/$LIAISON_SELF.jsonl" 2>/dev/null || true
   fi
-  if [ -d "$src/blobs" ]; then
-    local b name
-    while IFS= read -r b; do
-      [ -n "$b" ] || continue
-      name="$(basename "$b")"
-      [ -f "$hub/blobs/$name" ] && continue
-      cp "$b" "$hub/blobs/.$name.tmp" && mv "$hub/blobs/.$name.tmp" "$hub/blobs/$name"
-    done < <(find "$src/blobs" -type f ! -name '.recover-*.tmp' 2>/dev/null | LC_ALL=C sort)
-  fi
+  _dir_push_blobs "$hub" "$src"
 }
 
 # _dir_pull <hub_dir> <staging_dir> — materializa os logs ALHEIOS e os blobs do ponto de encontro
 # num staging cru. Nunca traz de volta o próprio log: a réplica local é a fonte da verdade dele.
 _dir_pull() {
   local hub="$1" staging="$2"
+  _dir_reject_symlink "$hub" || return 1
+  _dir_reject_symlink "$hub/log" || return 1
+  _dir_reject_symlink "$hub/blobs" || return 1
   mkdir -p "$staging/log" "$staging/blobs"
   [ -d "$hub/log" ] || return 0
   local f name
@@ -251,12 +280,13 @@ _dir_pull() {
     [ -n "$f" ] || continue
     name="$(basename "$f")"
     [ "$name" = "$LIAISON_SELF.jsonl" ] && continue
-    cp "$f" "$staging/log/$name"
+    cp "$f" "$staging/log/$name" && chmod 0644 "$staging/log/$name" 2>/dev/null
   done < <(find "$hub/log" -type f -name '*.jsonl' 2>/dev/null | LC_ALL=C sort)
   if [ -d "$hub/blobs" ]; then
     while IFS= read -r f; do
       [ -n "$f" ] || continue
-      cp "$f" "$staging/blobs/$(basename "$f")"
+      name="$(basename "$f")"
+      cp "$f" "$staging/blobs/$name" && chmod 0644 "$staging/blobs/$name" 2>/dev/null
     done < <(find "$hub/blobs" -type f 2>/dev/null | LC_ALL=C sort)
   fi
 }

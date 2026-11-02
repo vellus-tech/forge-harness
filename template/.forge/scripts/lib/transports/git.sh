@@ -35,7 +35,20 @@ _git_sync_clone() {
   git -C "$cache" config user.email "liaison@forge.local"
   git -C "$cache" config user.name "forge-liaison"
   git -C "$cache" config commit.gpgsign false
+  # SEC-001: um participante com push na branch do canal poderia commitar um symlink (modo git
+  # 120000) ou submódulo (160000) dentro de "$LIAISON_CHANNEL/" — ex. `blobs -> ../../../.git/hooks`.
+  # `core.symlinks=false` faz o checkout materializar symlink como ARQUIVO DE TEXTO comum (conteúdo
+  # = destino do link), nunca como link real do filesystem — neutraliza o vetor mesmo que a
+  # checagem de árvore abaixo seja contornada por algum caminho não previsto.
+  git -C "$cache" config core.symlinks false
   if git -C "$cache" fetch -q origin "$branch" 2>/dev/null; then
+    if git -C "$cache" ls-tree -r FETCH_HEAD -- "$LIAISON_CHANNEL" 2>/dev/null \
+         | awk '{print $1}' | grep -qE '^(120000|160000)$'; then
+      echo "FAIL: a branch do canal '$branch' contém symlink ou submódulo dentro de '$LIAISON_CHANNEL/'" >&2
+      echo "      — recusado (SEC-001, possível traversal). Não sincronize até remover o commit" >&2
+      echo "      malicioso da branch remota e identificar quem o publicou." >&2
+      return 1
+    fi
     git -C "$cache" checkout -q -B "$branch" FETCH_HEAD || return 1
     git -C "$cache" reset -q --hard FETCH_HEAD || return 1
   else

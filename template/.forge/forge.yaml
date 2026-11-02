@@ -97,6 +97,17 @@ liaison:
   #          dos outros, senão o participante mais lento trava o trabalho de todo mundo.
   auto: false
   enforce: warn
+  # baton: bastão de dono único entre sessões de repositórios distintos (add-liaison-handoff-
+  # baton). Sub-bloco aditivo — ausente, usa os defaults abaixo; forge update preserva este
+  # forge.yaml, então consumidores existentes continuam nos defaults até declararem o bloco.
+  # Só offer/claim leem esta configuração (e o gancho de renovação, para auto_renew); os demais
+  # verbos, leitores e a dobra nunca a leem — o estado calculado nunca muda com a configuração
+  # local (design §2.6).
+  # baton:
+  #   default_lease_seconds: 1800    # [60, max_lease_seconds] — prazo do lease sem --lease
+  #   max_lease_seconds: 14400       # [60, 86400] — prazo máximo que uma oferta aceita
+  #   skew_tolerance_seconds: 120    # [0, 3600] — folga antes de outra sessão tomar por vencimento
+  #   auto_renew: true               # renovação automática enquanto a sessão titular está ativa
 secrets:
   # Gate mecânico contra segredo hardcoded em arquivo VERSIONADO (check-secrets.sh, rule
   # conventions/no-hardcoded-secrets.md). Roda no pre-commit sobre o índice, no CI sobre o diff do

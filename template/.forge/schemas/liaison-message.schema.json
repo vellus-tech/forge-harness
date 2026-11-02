@@ -120,7 +120,7 @@
     },
     "created_at": {
       "type": "string",
-      "description": "Data do commit HEAD (git log -1 --format=%cI) no momento do envio — NUNCA usado para ordenar (ordem é lamport/sender/seq)."
+      "description": "Data do commit HEAD (git log -1 --format=%cI) no momento do envio — NUNCA usado para ordenar (ordem é lamport/sender/seq). A exceção declarada é `baton.stamped_at` (relógio de parede de quem grava, usado só para vencimento de lease, nunca para ordenar)."
     },
     "content_sha": {
       "type": "string",
@@ -183,6 +183,60 @@
         },
         "origin_verified": {
           "type": "boolean"
+        }
+      }
+    },
+    "baton": {
+      "type": "object",
+      "required": [
+        "op"
+      ],
+      "description": "Operação de bastão de dono único (add-liaison-handoff-baton, REQ-01): uma das seis operações `offer | claim | renew | release | complete | withdraw`, sempre em `kind: note` com `requires_ack: false`. Camada de ENVELOPE (a única que este schema impõe): `op` precisa casar `^[a-z][a-z-]{0,31}$`, sem enum fechado e sem `additionalProperties: false` — uma operação de versão futura do harness entra na réplica sem virar conflito nem buraco de `seq`. A validação COMPLETA (subcampos obrigatórios/proibidos por `op`, limites, aritmética do lease, `in_reply_to`) é a de `validateBaton` (lib/liaison-baton.mjs); mensagem que falha nela entra na réplica e recebe `malformed` na dobra, nunca conflito no import. `stamped_at`, abaixo, é a exceção declarada ao invariante de que nada no envelope usa relógio de parede (`created_at` é a data do HEAD).",
+      "properties": {
+        "op": {
+          "type": "string",
+          "pattern": "^[a-z][a-z-]{0,31}$",
+          "description": "offer | claim | renew | release | complete | withdraw. Padrão aberto (camada de envelope); o conjunto fechado das seis operações é conferido por `validateBaton`."
+        },
+        "session": {
+          "type": "string",
+          "description": "Identificador da sessão titular que age (REQ-10): `--session` ou `CLAUDE_CODE_SESSION_ID`. Autodeclarado — não autentica."
+        },
+        "stamped_at": {
+          "type": "string",
+          "description": "Instante de relógio de parede de quem grava, ISO 8601 UTC com sufixo Z. Exceção declarada: `created_at` (acima) é a data do HEAD e nunca usado para ordenar; `stamped_at` decide vencimento de lease e NUNCA entra na ordem da thread."
+        },
+        "eligible": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "description": "Só em offer: repositórios que podem reivindicar, gravados na oferta (nunca recalculados)."
+        },
+        "max_lease_seconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 86400,
+          "description": "Só em offer: prazo máximo de lease que esta oferta aceita."
+        },
+        "skew_tolerance_seconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3600,
+          "description": "Só em offer: folga de relógio antes de outra sessão poder tomar por vencimento."
+        },
+        "lease_seconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 86400,
+          "description": "Só em claim/renew: duração do lease a partir de stamped_at."
+        },
+        "lease_until": {
+          "type": "string",
+          "description": "Só em claim/renew: stamped_at + lease_seconds, ISO 8601 UTC com sufixo Z."
         }
       }
     },
@@ -300,6 +354,24 @@
         "properties": {
           "via": {
             "const": "cross-session"
+          }
+        }
+      }
+    },
+    {
+      "$comment": "add-liaison-handoff-baton, REQ-01: baton presente exige kind: note e requires_ack: false — a mesma regra que validateEnvelope impõe na camada de envelope.",
+      "if": {
+        "required": [
+          "baton"
+        ]
+      },
+      "then": {
+        "properties": {
+          "kind": {
+            "const": "note"
+          },
+          "requires_ack": {
+            "const": false
           }
         }
       }

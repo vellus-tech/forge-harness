@@ -58,6 +58,9 @@
 #   [H4] pull: blob com conteúdo que não confere com o sha256 do nome não é instalado (SEC-002)
 #   [R1] push: log próprio do hub é FIFO — recusa sem travar (NODE-201, SEC-204)
 #   [R2] push: log próprio do hub é hardlink de log confidencial — recusa, nada unido nem republicado
+#   [S1] status <canal>: log próprio do hub é symlink para arquivo da vítima — recusa citando
+#        SEC-001, marca de publicação intacta (PLAT-204)
+#   [S2] status <canal>: log próprio do hub é FIFO — recusa sem travar, marca intacta
 #   [E1] export: `log/` e `blobs/` do diretório de saída como symlink — recusa (ARCH-201)
 #   [E2] controle: export legítimo publica sem bit de execução e é importável
 #   [L1] corrida: nome final do log vira symlink-para-diretório entre a guarda e a instalação —
@@ -584,8 +587,13 @@ publica() { # publica <id> — commit do índice atual do atacante, forçado na 
   c="$(git -C "$att" commit-tree -m "chore: ataque" "$tree")"
   git -C "$att" push -q -f "$T/$1/hub.git" "$c:refs/heads/liaison/$CH"
 }
-vitima_git() { # vitima_git <id> — réplica "v" com transporte git apontando para o remoto do cenário
+# vitima_git <id> — réplica "v" com transporte git apontando para o remoto do cenário. Define VC
+# (o clone ANTIGO `.forge/cache/liaison/<canal>`, que o transporte não escreve mais e só aparece
+# aqui como fixture de cache contaminado, [C5]) e VRUN (a base dos repositórios descartáveis por
+# execução, `.forge/cache/liaison-git-run`, onde o checkout de fato acontece).
+vitima_git() {
   R="$1/v"; LOC="$T/$1/v/.forge/liaison/$CH"; VC="$T/$1/v/.forge/cache/liaison/$CH"
+  VRUN="$T/$1/v/.forge/cache/liaison-git-run"
   mk_repo "$R"
   LG "$R" open "$CH" --self v --participants v,a >/dev/null
   LG "$R" transport set "$CH" --kind git --remote "$T/$1/hub.git" --branch "liaison/$CH" >/dev/null
@@ -593,6 +601,15 @@ vitima_git() { # vitima_git <id> — réplica "v" com transporte git apontando p
 links_no_cache() { # lista links simbólicos na árvore de trabalho do cache (fora de .git)
   [ -d "$1" ] || return 0
   find "$1" -path "$1/.git" -prune -o -type l -print
+}
+# residuos_run <base> — QLT-201/SEC-201: o que um sync RECUSADO deixou na base de execução do git:
+# todo link simbólico (em qualquer profundidade) e todo diretório de execução `<canal>@*`
+# remanescente. Cada caminho de recusa de `t_push`/`t_pull` apaga o próprio diretório; sobrar um é
+# checkout (ou link) esquecido no disco da vítima.
+residuos_run() {
+  [ -d "$1" ] || return 0
+  find "$1" -type l -print
+  find "$1" -mindepth 1 -maxdepth 1 -name "$CH@*" -print
 }
 
 # c_git_recusa <id> <rótulo> — a branch já publicada pelo cenário tem de ser recusada pela
@@ -604,12 +621,15 @@ c_git_recusa() {
   [ "$rc" -ne 0 ] || { falha "[$id]: pull aceitou a branch com $rot"; return 0; }
   grep -qF 'contém symlink ou submódulo' <<<"$out" \
     || { falha "[$id]: pull recusou sem a causa da varredura ($rot). Saída: $(head -3 <<<"$out")"; return 0; }
+  [ -z "$(residuos_run "$VRUN")" ] || { falha "[$id]: o pull recusado deixou resíduo na base de execução: $(residuos_run "$VRUN" | tr '\n' ' ')"; return 0; }
   LG "$R" thread open "$CH" t1 --subject abertura --participants v,a --body abertura >/dev/null
   set +e; out="$(LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
   [ "$rc" -ne 0 ] || { falha "[$id]: push aceitou a branch com $rot"; return 0; }
   grep -qF 'contém symlink ou submódulo' <<<"$out" \
     || { falha "[$id]: push recusou sem a causa da varredura ($rot). Saída: $(head -3 <<<"$out")"; return 0; }
-  [ -z "$(links_no_cache "$VC")" ] || { falha "[$id]: link simbólico no cache: $(links_no_cache "$VC" | tr '\n' ' ')"; return 0; }
+  [ -z "$(residuos_run "$VRUN")" ] || { falha "[$id]: o push recusado deixou resíduo na base de execução: $(residuos_run "$VRUN" | tr '\n' ' ')"; return 0; }
+  # O clone antigo só existe quando o cenário o planta ([C5a]); lá ele tem de sair sem link.
+  [ -z "$(links_no_cache "$VC")" ] || { falha "[$id]: link simbólico no clone antigo: $(links_no_cache "$VC" | tr '\n' ' ')"; return 0; }
   [ -z "$(ls -A "$fora" 2>/dev/null)" ] || { falha "[$id]: algo foi escrito fora do cache"; return 0; }
   neutralizado; echo "OK [$id] — $rot recusado no pull e no push, cache sem link"
 }
@@ -787,20 +807,30 @@ c_M34() {
   # MUTANTE (iii): a varredura nunca acha nada.
   perl -0pi -e 's/END\{exit !f\}/END{exit 1}/' "$gitsh"
   if cmp -s "$gitsh" "$T/M3/git.orig"; then falha "[M3]: a mutação (iii) não alterou git.sh — âncora do perl não casou"; return 0; fi
-  set +e; out="$(LG "$R" sync "$CH" --pull-only 2>&1)"; set -e
+  local rc3
+  set +e; out="$(LG "$R" sync "$CH" --pull-only 2>&1)"; rc3=$?; set -e
   if grep -qF 'contém symlink ou submódulo' <<<"$out"; then falha "[M3]: sem a varredura a causa dela continuou aparecendo — a âncora não distingue a camada"; return 0; fi
   # Com a varredura desligada, `core.symlinks=false` ainda segura: o link vira arquivo de texto.
-  [ -f "$VC/$CH/blobs" ] && [ ! -L "$VC/$CH/blobs" ] \
-    || { falha "[M3]: sem a varredura, core.symlinks=false não materializou o link como arquivo regular"; return 0; }
+  # O checkout acontece no repositório descartável da execução (design do bastão, #254), apagado
+  # ao fim — o arquivo regular não fica no disco para ser inspecionado. Observa-se pelo efeito: a
+  # checagem pós-checkout não precisou disparar (não havia link) e o pull terminou rc 0. O [M4]
+  # abaixo é o contrafactual: com symlinks ligados, a mesma árvore produz a recusa pós-checkout.
+  if grep -qF 'materializou link simbólico no cache' <<<"$out" || [ "$rc3" -ne 0 ]; then
+    falha "[M3]: sem a varredura, core.symlinks=false não materializou o link como arquivo regular (rc=$rc3). Saída: $(head -3 <<<"$out")"; return 0
+  fi
   [ -z "$(ls -A "$T/M3/fora")" ] || { falha "[M3]: algo saiu do cache sob o mutante (iii)"; return 0; }
   echo "OK [M3] — sem a varredura a causa some; core.symlinks=false ainda segura (arquivo regular)"
   # MUTANTE (iv): além disso, core.symlinks=true — a checagem pós-checkout é a última camada.
   perl -0pi -e 's/config core\.symlinks false/config core.symlinks true/' "$gitsh"
   set +e; out="$(LG "$R" sync "$CH" --pull-only 2>&1)"; set -e
-  if [ -f "$VC/$CH/blobs" ] && [ ! -L "$VC/$CH/blobs" ]; then falha "[M4]: com core.symlinks=true o checkout ainda deu arquivo regular — [M3] não mede core.symlinks"; return 0; fi
   grep -qF 'materializou link simbólico no cache' <<<"$out" \
     || { falha "[M4]: o link materializado não foi recusado pela checagem pós-checkout. Saída: $(head -3 <<<"$out")"; return 0; }
-  [ -z "$(links_no_cache "$VC")" ] || { falha "[M4]: a checagem pós-checkout recusou mas deixou o link no cache"; return 0; }
+  # O link listado pela recusa tem de ser o do repositório descartável DESTA execução (não um
+  # resto do clone antigo): é a prova de que, com core.symlinks=true, o checkout deu link de
+  # verdade — e de que [M3] mede core.symlinks.
+  grep -qF "$VRUN/$CH@" <<<"$out" \
+    || { falha "[M4]: a recusa não listou link no repositório de execução ($VRUN/$CH@*) — [M3] não mede core.symlinks. Saída: $(head -4 <<<"$out")"; return 0; }
+  [ -z "$(residuos_run "$VRUN")" ] || { falha "[M4]: a checagem pós-checkout recusou mas deixou resíduo na base de execução: $(residuos_run "$VRUN" | tr '\n' ' ')"; return 0; }
   [ -z "$(ls -A "$T/M3/fora")" ] || { falha "[M4]: algo saiu do cache sob o mutante (iv)"; return 0; }
   # RECONTROLE: restaurado, a varredura volta a recusar com a causa própria.
   cp "$T/M3/git.orig" "$gitsh"
@@ -1013,6 +1043,47 @@ c_R2() {
   neutralizado; echo "OK [R2] — hardlink no log próprio do hub recusado, nada unido nem republicado"
 }
 c_R2
+
+# ───────────────────────────────────────────────────────────────────────────────────────────────
+# Cluster S — `status <canal>` relê o log próprio do hub para rebaixar a marca de publicação
+# (PLAT-204, checklist SEC-001). Montava o caminho, conferia com `[ -f ]` (que segue link) e o
+# markPublished lia por caminho: um link para um arquivo da vítima era lido e usado como
+# observação. A releitura passa pelo leitor seguro do push; leitura recusada não rebaixa nada.
+
+marca_v() { node -e 'const s=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log((s.published||{}).v||"")' "$LOC/state.json"; }
+
+# c_status_hub <id> <link|fifo> — troca o log próprio do hub e roda `status <canal>` com teto de 20 s.
+c_status_hub() {
+  local id="$1" modo="$2"
+  ataque
+  prepara "$id" fs
+  local antes; antes="$(marca_v)"
+  [ -n "$antes" ] || { falha "[$id]: pré-condição — a marca de publicação de v está vazia depois do push"; return 0; }
+  rm -f "$HC/log/v.jsonl"
+  if [ "$modo" = link ]; then
+    local vit="$T/$id/fora/arquivo-da-vitima.jsonl"; mkdir -p "$(dirname "$vit")"
+    printf '{"sender":"v","seq":1,"msg_id":"v-9999","content_sha":"x","subject":"arquivo da vítima"}\n' > "$vit"
+    ln -s "$vit" "$HC/log/v.jsonl"
+  else
+    mkfifo "$HC/log/v.jsonl"
+  fi
+  local saida="$T/$id/status.out" rcf="$T/$id/status.rc" pid
+  ( set +e; LG "$R" status "$CH" >"$saida" 2>&1; echo $? > "$rcf" ) & pid=$!
+  for _ in $(seq 1 40); do kill -0 "$pid" 2>/dev/null || break; perl -e 'select(undef,undef,undef,0.5)'; done
+  if kill -0 "$pid" 2>/dev/null; then
+    pkill -f "$T/$id/" 2>/dev/null || true; [ "$modo" = fifo ] && destrava_fifo "$HC/log/v.jsonl"; wait "$pid" 2>/dev/null || true
+    falha "[$id]: status TRAVOU por 20 s lendo o $modo plantado no log próprio do hub"; return 0
+  fi
+  wait "$pid" 2>/dev/null || true
+  local depois; depois="$(marca_v)"
+  [ "$depois" = "$antes" ] || { falha "[$id]: status seguiu o $modo e rebaixou a marca de publicação ($antes → ${depois:-vazia})"; return 0; }
+  grep -qF 'SEC-001' "$saida" || { falha "[$id]: status ignorou o $modo no log próprio do hub sem citar a recusa (SEC-001). Saída: $(head -3 "$saida")"; return 0; }
+  neutralizado; echo "OK [$id] — status recusa o $modo no log próprio do hub, sem travar e sem rebaixar a marca"
+}
+echo "[S1] status — log próprio do hub é symlink para arquivo da vítima: recusado, marca intacta"
+c_status_hub S1 link
+echo "[S2] status — log próprio do hub é FIFO: recusado sem travar, marca intacta"
+c_status_hub S2 fifo
 
 # ───────────────────────────────────────────────────────────────────────────────────────────────
 # Cluster E —`export` publica no diretório de saída pelos mesmos helpers do push (ARCH-201).

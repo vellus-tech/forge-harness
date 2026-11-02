@@ -19,6 +19,10 @@ set -uo pipefail
 # redirecionam escrita (o repositório sintético continua sendo o gravado), e carregam config
 # legítima — o `git -c chave=valor` de quem invocou e a proteção contra gc declarada abaixo.
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
+# Mesmo vazamento, vindo do agente: a sessão do Claude Code exporta CLAUDE_CODE_SESSION_ID, que o
+# liaison usa como identidade de sessão do bastão quando falta --session. O runner do CI não a tem;
+# rodar a suíte de dentro de uma sessão sem este unset produz verde que o CI não reproduz.
+unset CLAUDE_CODE_SESSION_ID
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$WS"

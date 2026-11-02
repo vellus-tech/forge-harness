@@ -22,6 +22,14 @@
 
 {{THREAD_VIEWS}}
 
+## Bastões (dono único de uma unidade de trabalho)
+
+> Estado calculado pela dobra (REQ-04), só a partir do que está gravado nas mensagens — nunca do
+> relógio de quem lê. Sem rótulo `expired`: ele depende do instante de leitura e por isso só
+> aparece em `liaison-ops.sh status`/`baton status`, nunca aqui.
+
+{{BATONS}}
+
 ## Quarentena (thread-open ainda não recebido)
 
 {{QUARANTINE}}

@@ -6,6 +6,68 @@
 # Invariante que estes helpers preservam: o push publica APENAS o log do próprio remetente. Um
 # participante nunca republica o log de terceiro — se o fizesse, publicaria a versão (possivelmente
 # atrasada) que ele conhece, regredindo o hub e fazendo o dono do log perder mensagens já enviadas.
+#
+# PUBLICAÇÃO SEM TRAVA (design §2.4, opção C — causa raiz escolhida pelo dono em 2026-10-30):
+# dois pushes do mesmo `self` em paralelo não são serializados por uma trava de rede (ela trouxe
+# caso de vivacidade do dono em três rodadas seguidas de revisão). Em vez disso, cada tentativa
+# usa tmp ÚNICO no hub, e depois do `mv` relê o arquivo do hub e o log próprio local NAQUELE
+# INSTANTE, conferindo que o hub contém, como prefixo contíguo e com `content_sha` igual, tudo
+# que o log próprio relido tem — se não contém, repete a tentativa inteira (nova leitura, nova
+# união, novo `mv`) até o prazo (`FORGE_LIAISON_PUSH_DEADLINE_S`, default 300 s). `union-own` (em
+# vez do antigo `cp "$hubf" "$own"`) garante que o log próprio é sempre superconjunto de tudo que
+# qualquer push concorrente poderia ter escrito, então o ÚLTIMO push a fazer `mv` sempre encontra
+# e repara a falta deixada por um concorrente mais antigo. `LIAISON_OBSERVED_FILE` carrega o
+# conteúdo relido no hub depois da conferência bem-sucedida — `markPublished({ observedFile })`
+# grava só o que foi visto lá, nunca o que o processo local acha que escreveu.
+
+# _liaison_push_deadline_s — honra FORGE_LIAISON_PUSH_DEADLINE_S; default 300 s (sync manual). O
+# processo destacado da renovação exporta 25 s antes de chamar `sync --push-only` (TASK-27).
+_liaison_push_deadline_s() {
+  local v="${FORGE_LIAISON_PUSH_DEADLINE_S:-300}"
+  case "$v" in ''|*[!0-9]*) v=300 ;; esac
+  printf '%s' "$v"
+}
+
+# _liaison_test_barrier <ponto> — ponto de injeção SÓ PARA TESTES (design §2.4, "verificação
+# determinística das corridas"). Sem FORGE_LIAISON_TEST_BARRIER, não faz nada — custo zero fora
+# de teste. Com a variável (um diretório), cria `<dir>/<ponto>.<pid>.ready` e espera (até 30 s)
+# `<dir>/<ponto>.<pid>.go`, permitindo que o gate force intercalações específicas (push morto
+# entre mv e conferência, push mais antigo fazendo o último mv, send entre blobs e união).
+_liaison_test_barrier() {
+  local point="$1"
+  [ -n "${FORGE_LIAISON_TEST_BARRIER:-}" ] || return 0
+  local dir="$FORGE_LIAISON_TEST_BARRIER"
+  mkdir -p "$dir" 2>/dev/null || true
+  local ready="$dir/$point.$$.ready" go="$dir/$point.$$.go"
+  : > "$ready" 2>/dev/null || true
+  local deadline=$(( $(date +%s) + 30 ))
+  while [ ! -f "$go" ]; do
+    [ "$(date +%s)" -lt "$deadline" ] || break
+    sleep 0.1
+  done
+  rm -f "$ready" "$go" 2>/dev/null || true
+}
+
+# _dir_push_cleanup_own_tmp <hub_dir> — remove tmp ÓRFÃO do PRÓPRIO self no hub com mais de 10
+# minutos (design §2.4): o vigia da renovação pode matar um push no meio, e o tmp único de cada
+# tentativa não é recolhido por ninguém além do próximo push deste mesmo self. NUNCA toca tmp de
+# outro remetente — o glob é `.${LIAISON_SELF}.jsonl.tmp.*`, que não casa com o de terceiro.
+#
+# Depois de SEC-001 a publicação não cria mais tmp com esse nome no hub (a união é calculada num diretório privado e instalada por `_dir_publish_file`, pelo módulo `liaison-hub-io.mjs`, cujo temporário `.liaison-publica.<hex>.tmp` não é deste glob e nunca é limpo por idade — ver o cabeçalho do módulo); a limpeza continua recolhendo o órfão deixado por uma versão anterior. Ela roda ANCORADA (`cd -P` conferido por `pwd -P`, nome relativo, `-type f`): um `log/` trocado por link no hub nunca leva o `rm` para fora da árvore do canal. Âncora recusada = nada a limpar, nunca erro de push.
+_dir_push_cleanup_own_tmp() {
+  local hub="$1"
+  [ -d "$hub/log" ] && [ ! -L "$hub/log" ] || return 0
+  ( _dir_anchor "$hub/log" 2>/dev/null || exit 0
+    now="$(date +%s)"
+    cutoff=$(( now - 600 ))
+    while IFS= read -r f; do
+      [ -n "$f" ] || continue
+      mtime="$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f" 2>/dev/null || echo "$now")"
+      if [ "$mtime" -lt "$cutoff" ]; then rm -f -- "$f" 2>/dev/null || true; fi
+    done < <(find . -maxdepth 1 -type f -name ".${LIAISON_SELF}.jsonl.tmp.*" 2>/dev/null)
+    exit 0
+  )
+}
 
 # SEC-001 — O HUB É ESCRITO POR TERCEIROS. Quem tem push na branch do canal (`git`) ou escrita no
 # diretório compartilhado (`fs`, `fs-union`, `manual`) controla tudo o que existe abaixo do ponto
@@ -110,6 +172,11 @@ _dir_ensure_subdir() {
   )
 }
 
+# _liaison_unique_suffix — imprime um sufixo único (PID + tempo + 30 bits de `$RANDOM`) para NOMEAR o diretório de execução do transporte `git` (`_git_run_dir`), que mora FORA do hub, em `.forge/cache/liaison-git-run/`, e é criado de forma exclusiva (`mkdir` sem `-p` no último nível, em `_git_init_run`). O tempo entra para que nenhuma combinação de execuções concorrentes (ou um pid reaproveitado) produza nome colidente (design §2.4 do bastão). Esta é a ÚNICA definição no liaison, e ela não protege nada no hub: nenhum temporário DENTRO do hub usa sufixo gerado em shell — o da publicação é do módulo `liaison-hub-io.mjs` (`randomBytes(16)` + O_EXCL), ver ARCH-203 logo abaixo.
+_liaison_unique_suffix() {
+  printf '%s.%s.%s%s' "$$" "$(date +%s%N 2>/dev/null || date +%s)" "$RANDOM" "$RANDOM"
+}
+
 # _liaison_hub_io — imprime o caminho de `lib/liaison-hub-io.mjs`, o módulo por onde passa toda
 # leitura e publicação no hub, depois de conferir que `node` existe. Derivado do BASH_SOURCE deste
 # arquivo, como o `liaison-push-union.mjs`, para não depender de quem fez o source. Sem node não há
@@ -127,13 +194,7 @@ _liaison_hub_io() {
   printf '%s' "$libdir/liaison-hub-io.mjs"
 }
 
-# ARCH-203 — não há mais sufixo de temporário gerado em shell. O `_liaison_unique_suffix` que existia
-# aqui (`$$.$RANDOM$RANDOM` sob `set -C`) não era O_EXCL nem imprevisível no bash 3.2; o nome do
-# temporário de publicação passou a ser gerado pelo módulo node (`randomBytes(16)`), e o helper saiu.
-# A branch do baton (#254) define um `_liaison_unique_suffix` PRÓPRIO, com corpo diferente, para
-# nomear o diretório de execução do cache git — o merge com ela NÃO "une as duas versões": tem de
-# manter UMA só definição (a dela, que não protege nada no hub) e nenhum temporário DENTRO do hub
-# pode voltar a usar sufixo de shell (item de reconciliação P1 no ledger).
+# ARCH-203 — não há sufixo de temporário DO HUB gerado em shell. O sufixo `$$.$RANDOM$RANDOM` sob `set -C` que o hotfix SEC-001 usava antes não era O_EXCL nem imprevisível no bash 3.2; o nome do temporário de publicação passou a ser gerado pelo módulo node (`randomBytes(16)`). O `_liaison_unique_suffix` acima é o do bastão (#254), mantido como definição única e usado só para nomear o diretório de execução do `git`, fora do hub (reconciliação P1 do ledger).
 
 # _dir_publish_file <src> <dir_phys> <nome> — publica o conteúdo de <src> como <dir_phys>/<nome>,
 # atomicamente e sem seguir link nenhum dentro do hub. <src> é sempre um arquivo da réplica local
@@ -285,15 +346,37 @@ _dir_push_classify() {
   ' "$hubf" "$own"
 }
 
-# _dir_push_union <hub_dir> <own_file> — publica a UNIÃO do log do hub com o local, atomicamente.
-# Delega o cálculo (e a detecção de bifurcação) a lib/liaison-push-union.mjs: um só predicado de
-# divergência no repositório, o mesmo que o `import` usa para decidir quarentena. Sem `node` não
-# há união possível, e publicar sem unir é justamente o dano da issue #101 — então recusa.
+# _liaison_conference_ok <arquivo_observado> <log_proprio> — rc 0 se TODA mensagem do log próprio
+# (relido agora) está no observado com o MESMO content_sha, na mesma posição relativa (prefixo
+# contíguo: a ordem das linhas de um log append-only já é a ordem de seq). Sem node não há como
+# conferir — trata como falha de conferência (nunca marca publicado sem saber).
+_liaison_conference_ok() {
+  local observed="$1" own="$2"
+  command -v node >/dev/null 2>&1 || return 1
+  node -e "
+    const fs = require('fs');
+    function recs(p) {
+      if (!fs.existsSync(p)) return [];
+      return fs.readFileSync(p, 'utf8').split('\n').map((l) => l.trim()).filter(Boolean)
+        .map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+    }
+    const observed = recs(process.argv[1]);
+    const own = recs(process.argv[2]);
+    const bySha = new Map(observed.map((m) => [m.msg_id, m.content_sha]));
+    for (const m of own) {
+      if (!bySha.has(m.msg_id) || bySha.get(m.msg_id) !== m.content_sha) process.exit(1);
+    }
+    process.exit(0);
+  " "$observed" "$own"
+}
+
+# _dir_push_union <hub_dir> <own_snapshot_file> — publica a UNIÃO do log do hub com o
+# INSTANTÂNEO local, atomicamente (design §2.4). Delega o cálculo (e a detecção de bifurcação) a
+# lib/liaison-push-union.mjs: um só predicado de divergência no repositório, o mesmo que o
+# `import` usa para decidir quarentena. Sem `node` não há união possível, e publicar sem unir é
+# justamente o dano da issue #101 — então recusa.
 #
-# SEC-001: a união é escrita num diretório PRIVADO (`mktemp -d`, fora do hub) e só então publicada
-# por `_dir_publish_file`. Antes, o node gravava `log/.<self>.jsonl.tmp` DENTRO do hub com
-# `writeFileSync`, que segue link — um symlink plantado nesse nome previsível desviava a união para
-# fora. A réplica local recebe a cópia do temporário privado, nunca relida do hub.
+# SEC-001: a união é escrita num diretório PRIVADO (`mktemp -d`, fora do hub) e só então publicada por `_dir_publish_file` (módulo `liaison-hub-io.mjs`: temporário de `randomBytes(16)` com O_EXCL + `rename(2)`). Antes, o node gravava `log/.<self>.jsonl.tmp` DENTRO do hub com `writeFileSync`, que segue link — um symlink plantado nesse nome previsível desviava a união para fora. O log próprio é sincronizado de volta por `union-own` (sob a trava do log próprio, fora do hub) a partir do temporário PRIVADO (o que acabou de ser publicado), nunca relido do hub — reler do hub seria ler de novo um lugar que terceiros escrevem.
 #
 # NODE-201, SEC-204: o log do hub entra na união pela cópia privada <hub_copy> (3º argumento), lida
 # UMA vez pelo leitor seguro. Antes o node lia `hub/log/<self>.jsonl` por caminho: um FIFO
@@ -330,16 +413,24 @@ _dir_push_union() {
     rm -rf "$priv"
     return 1
   fi
+  _liaison_test_barrier after-union
+  # A instalação no hub (o antigo `mv`) é o rename do helper de publicação: temporário aleatório
+  # criado com O_EXCL dentro do `log/` ancorado, depois `rename(2)` por nome relativo.
   if ! _dir_publish_file "$tmp" "$hub/log" "$LIAISON_SELF.jsonl"; then
     rm -rf "$priv"
     return 1
   fi
-  # A réplica local passa a conter a união também: sem isso ela continuaria atrás do hub que ela
-  # mesma acabou de escrever, e o próximo push repetiria o trabalho. A cópia vem do temporário
-  # PRIVADO — reler do hub seria ler de novo um lugar que terceiros escrevem.
-  if ! cp "$tmp" "$own"; then
+  _liaison_test_barrier after-mv
+  # Escritor único do log próprio (design §2.4, "Escritor único da gravação"): em vez do antigo
+  # `cp "$hubf" "$own"`, usa `liaison-append.mjs union-own` SOB A TRAVA do log próprio — relê o
+  # log ATUAL (que pode ter avançado desde o instantâneo desta tentativa, por um `send`
+  # concorrente) e une com o que acabou de ir para o hub, sem perder nada gravado nesse
+  # intervalo. A fonte é o temporário PRIVADO da união (SEC-001), byte a byte o que foi publicado.
+  # `FORGE_ROOT` já está exportado por quem chamou `liaison-ops.sh`.
+  local append_mod="$libdir/liaison-append.mjs"
+  if ! node "$append_mod" union-own "$LIAISON_CHANNEL_DIR" "$LIAISON_SELF" "$tmp" >/dev/null; then
     rm -rf "$priv"
-    echo "FAIL: a união foi publicada, mas não foi possível atualizar a réplica local '$own'." >&2
+    echo "FAIL: union-own falhou ao sincronizar o log próprio de volta — o hub foi atualizado, mas a réplica local pode ficar atrás até o próximo sync" >&2
     return 1
   fi
   rm -rf "$priv"
@@ -369,10 +460,23 @@ _dir_push_blobs() {
   _dir_publish_dir "$src/blobs" "$hub/blobs" blobs mantem
 }
 
-# _dir_push <hub_dir> — publica log/<self>.jsonl e os blobs locais no ponto de encontro.
-# Escrita atômica (temporário aleatório + rename) porque outro participante pode estar lendo o hub
-# ao mesmo tempo. O hub é fixado no caminho físico uma vez; `log/` e `blobs/` são criados por nome
-# relativo dentro dele, nunca por `mkdir -p` sobre o caminho inteiro.
+# _dir_push <hub_dir> — publica log/<self>.jsonl e os blobs locais no ponto de encontro, SEM
+# trava de rede (design §2.4, opção C). Cada tentativa segue a mesma sequência: (1) instantâneo
+# do log próprio; (2) blobs que o instantâneo referencia (aqui, todos os blobs locais — cópia
+# idempotente e content-addressed, então copiar de mais nunca corrompe); (3) união do
+# instantâneo com o hub relido, num diretório privado; (4) instalação atômica no hub
+# (temporário aleatório com O_EXCL + `rename(2)`, SEC-001). Depois da instalação, relê o hub E o
+# log próprio ATUAL (pode ter avançado durante a tentativa) e confere que o hub contém, como
+# prefixo contíguo com `content_sha` igual, tudo que o log próprio relido tem. Sem a conferência
+# bem-sucedida, repete a tentativa inteira até `FORGE_LIAISON_PUSH_DEADLINE_S` (default 300 s).
+# Exporta `LIAISON_OBSERVED_FILE` (conteúdo observado no hub, para `markPublished`),
+# `LIAISON_PUSH_ATTEMPTS` e `LIAISON_PUSH_REPAIRS`, e avisa em stderr
+# "publicação: N tentativa(s), M reparo(s)".
+#
+# SEC-001: o hub é fixado no caminho físico uma vez; `log/` e `blobs/` são criados por nome
+# relativo dentro dele, nunca por `mkdir -p` sobre o caminho inteiro. Toda recusa (symlink, âncora
+# física, blob) PROPAGA com rc≠0 — engolida, o sync gravaria marca d'água de publicação para o que
+# não foi publicado.
 _dir_push() {
   local hub="$1"
   local src="$LIAISON_CHANNEL_DIR"
@@ -384,48 +488,50 @@ _dir_push() {
   _dir_ensure_subdir "$hub" log || return 1
   _dir_ensure_subdir "$hub" blobs || return 1
   local own="$src/log/$LIAISON_SELF.jsonl"
-  if [ -f "$own" ]; then
-    # NODE-201, SEC-204: o log próprio do hub é lido UMA vez, pelo leitor seguro, para um diretório
-    # privado; a classificação e a união olham essa cópia, nunca o hub por caminho. Todo caminho de
-    # saída daqui em diante apaga o diretório privado.
-    local priv hubcopy
+  local attempts=0 repairs=0 rc=1
+  local deadline; deadline=$(( $(date +%s) + $(_liaison_push_deadline_s) ))
+  LIAISON_OBSERVED_FILE=""
+
+  if [ ! -f "$own" ]; then
+    # Nada próprio a publicar ainda — mas blobs soltos (ex. de uma gravação anterior
+    # interrompida) continuam indo, como no comportamento pré-existente. A recusa de blob
+    # propaga (SEC-001).
+    export LIAISON_PUSH_ATTEMPTS=0 LIAISON_PUSH_REPAIRS=0
+    _dir_push_blobs "$hub" "$src" || return 1
+    return 0
+  fi
+
+  while :; do
+    attempts=$((attempts + 1))
+    _dir_push_cleanup_own_tmp "$hub"
+
+    # Diretório PRIVADO desta tentativa (fora do hub): guarda o instantâneo do log próprio e a cópia do log próprio do hub. Todo caminho de saída da tentativa o apaga.
+    local priv snap hubcopy
     priv="$(mktemp -d "${TMPDIR:-/tmp}/forge-liaison-push.XXXXXX")" \
       || { echo "FAIL: push RECUSADO — não foi possível criar o diretório privado do push." >&2; return 1; }
-    hubcopy="$priv/hub-$LIAISON_SELF.jsonl"
+    snap="$priv/instantaneo.jsonl"; hubcopy="$priv/hub-$LIAISON_SELF.jsonl"
+    if ! cp -- "$own" "$snap"; then
+      echo "FAIL: push RECUSADO — não foi possível tirar o instantâneo do log próprio." >&2
+      rm -rf "$priv"; return 1
+    fi
+    if ! _dir_push_blobs "$hub" "$src"; then
+      rm -rf "$priv"
+      return 1
+    fi
+    _liaison_test_barrier after-blobs
+
+    # NODE-201, SEC-204: o log próprio do hub é lido UMA vez por tentativa, pelo leitor seguro do módulo (`_dir_read_hub_own_log`: O_NOFOLLOW|O_NONBLOCK, arquivo regular, um vínculo, teto), para o diretório privado; a classificação e a união olham essa cópia, nunca o hub por caminho. A leitura vem DEPOIS de `after-blobs`, como a releitura do hub sempre veio no laço do bastão: um push concorrente que instalou a união nesse intervalo entra nesta tentativa.
     if ! _dir_reject_symlink "$hub/log/$LIAISON_SELF.jsonl" || ! _dir_read_hub_own_log "$hub" "$hubcopy"; then
       rm -rf "$priv"; return 1
     fi
     local verdict cls_rc=0
-    verdict="$(_dir_push_classify "$hub" "$own" "$hubcopy")" || cls_rc=$?
+    verdict="$(_dir_push_classify "$hub" "$snap" "$hubcopy")" || cls_rc=$?
+    local did_union=1
     case "$cls_rc" in
-      0)
-        # `ff` também passa pela união. Quando o local é superconjunto do hub o resultado é o
-        # mesmo do `cp` que havia aqui — mas o caminho ganha a validação de UM ESCRITOR POR
-        # ARQUIVO, que o `cp` nunca fez: um log próprio contaminado com mensagem de terceiro era
-        # publicado com rc 0, sobrescrevendo no hub a versão do dono por uma cópia alheia.
-        if ! _dir_push_union "$hub" "$own" "$hubcopy"; then
-          rm -rf "$priv"; return 1
-        fi
-        rm -rf "$priv"
-        _dir_push_blobs "$hub" "$src" || return 1
-        return 0
-        ;;
-      1)
-        # Réplica ATRASADA: o hub tem mensagem que esta árvore não tem. NÃO se recusa — UNE-SE.
-        # Recusar também evitaria a perda, mas transformaria toda réplica atrasada em push que
-        # reprova, e réplica atrasada é o estado NORMAL de uma máquina com worktrees; além disso
-        # "sincronize primeiro" não é operação que o participante consiga executar sozinho,
-        # porque `_dir_pull` não traz o próprio log de volta, por desenho. A união publica o que
-        # esta árvore tem de novo sem derrubar o que só o hub tem, e a recusa fica reservada à
-        # bifurcação real, que o próprio módulo detecta por `detectForks`.
-        if ! _dir_push_union "$hub" "$own" "$hubcopy"; then
-          rm -rf "$priv"; return 1
-        fi
-        rm -rf "$priv"
-        _dir_push_blobs "$hub" "$src" || return 1
-        return 0
-        ;;
+      0) : ;; # ff/equal — une de qualquer forma (valida um escritor por arquivo)
+      1) repairs=$((repairs + 1)) ;; # réplica atrasada: a união REPARA o hub
       2)
+        did_union=0
         if [ "${LIAISON_PUSH_REPAIR:-0}" = "1" ]; then
           # Reparo DECLARADO, e declarado por extenso: reparo silencioso é indistinguível da
           # sobrescrita que a issue #101 fechou. O operador precisa ver o que está descartando
@@ -436,6 +542,15 @@ _dir_push() {
           echo "      Você está afirmando que este log é a autoridade sobre '$LIAISON_SELF'. Se a" >&2
           echo "      divergência vier de outra réplica sua que publicou mensagem distinta no mesmo" >&2
           echo "      seq, ela se perde aqui." >&2
+          # Publicação pelo mesmo helper da união (módulo `liaison-hub-io.mjs`): temporário
+          # aleatório com O_EXCL e rename, nunca um `log/.<self>.jsonl.tmp` que um symlink plantado
+          # desviava para fora (SEC-001).
+          if ! _dir_publish_file "$snap" "$hub/log" "$LIAISON_SELF.jsonl"; then
+            rm -rf "$priv"
+            return 1
+          fi
+          _liaison_test_barrier after-mv
+          repairs=$((repairs + 1))
         else
           echo "FAIL: push RECUSADO — DIVERGÊNCIA: o hub tem conteúdo diferente em posição(ões) que esta árvore também tem:" >&2
           echo "     ${verdict#diverged}" >&2
@@ -448,24 +563,51 @@ _dir_push() {
           echo "      Só o dono do log sabe qual é. Confirme e, se for (a), repare com:" >&2
           echo "        liaison-ops.sh sync <canal> --push-only --repair-own-log" >&2
           echo "      Hub: $hub/log/$LIAISON_SELF.jsonl" >&2
-          rm -rf "$priv"; return 1
+          rm -rf "$priv"
+          return 1
         fi
         ;;
       *)
         echo "FAIL: push RECUSADO — não foi possível classificar o log do hub (rc $cls_rc). Não saber ler o ponto de encontro é motivo de rigor, não de publicação." >&2
-        rm -rf "$priv"; return 1
+        rm -rf "$priv"
+        return 1
         ;;
     esac
-    # Só o REPARO DECLARADO (caso 2 sob --repair-own-log) chega aqui: é o único caminho em que a
-    # substituição integral é o efeito pretendido, porque o operador afirmou por flag que esta
-    # árvore é a autoridade sobre o log e viu por extenso o que está descartando.
-    # Publicação pelo mesmo helper da união: temporário aleatório com O_EXCL e rename, nunca o
-    # `log/.<self>.jsonl.tmp` previsível que um symlink plantado desviava para fora (SEC-001).
-    _dir_publish_file "$own" "$hub/log" "$LIAISON_SELF.jsonl" || { rm -rf "$priv"; return 1; }
+    if [ "$did_union" -eq 1 ]; then
+      if ! _dir_push_union "$hub" "$snap" "$hubcopy"; then
+        rm -rf "$priv"
+        return 1
+      fi
+    fi
     rm -rf "$priv"
-  fi
-  _dir_push_blobs "$hub" "$src" || return 1
-  return 0
+
+    # Conferência pós-publicação: o hub relido AGORA tem de conter, como prefixo contíguo com content_sha igual, o log próprio relido AGORA (não o instantâneo — pode ter avançado). A releitura passa pelo MESMO leitor seguro do módulo (SEC-001: ancorada, O_NOFOLLOW, arquivo regular de um vínculo), para um diretório privado; link, FIFO ou hardlink no lugar do log vira leitura vazia, que reprova a conferência e faz a tentativa se repetir (a tentativa seguinte recusa na leitura inicial), em vez de ler um arquivo da vítima.
+    local obsdir obs
+    obsdir="$(mktemp -d "${TMPDIR:-/tmp}/liaison-push-obs.XXXXXX")" \
+      || { echo "FAIL: push RECUSADO — não foi possível criar o diretório privado da conferência." >&2; return 1; }
+    obs="$obsdir/observado.jsonl"
+    if ! _dir_read_hub_own_log "$hub" "$obs" 2>/dev/null; then
+      echo "WARN: conferência — o log próprio no hub não pôde ser relido pelo leitor seguro (link, FIFO, hardlink ou teto); a tentativa se repete." >&2
+      rm -f -- "$obs"
+    fi
+    [ -f "$obs" ] || : > "$obs"
+    if _liaison_conference_ok "$obs" "$own"; then
+      LIAISON_OBSERVED_FILE="$obs"
+      export LIAISON_OBSERVED_FILE
+      rc=0
+      break
+    fi
+    rm -rf "$obsdir"
+    if [ "$(date +%s)" -ge "$deadline" ]; then
+      rc=1
+      echo "FAIL: push esgotou o prazo ($(_liaison_push_deadline_s)s) sem confirmar que o hub contém o log próprio" >&2
+      break
+    fi
+  done
+
+  export LIAISON_PUSH_ATTEMPTS="$attempts" LIAISON_PUSH_REPAIRS="$repairs"
+  echo "publicação: $attempts tentativa(s), $repairs reparo(s)" >&2
+  return "$rc"
 }
 
 # _dir_pull <hub_dir> <staging_dir> — materializa os logs ALHEIOS e os blobs do ponto de encontro

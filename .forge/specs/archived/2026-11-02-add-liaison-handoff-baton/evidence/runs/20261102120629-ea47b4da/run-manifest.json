@@ -1,0 +1,76 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20261102120629-ea47b4da",
+  "stage": "verify",
+  "status": "passed",
+  "started_at": "2026-11-02T12:06:29Z",
+  "finished_at": "2026-11-02T12:06:29.438Z",
+  "duration_ms": 438,
+  "git": {
+    "repo": true,
+    "branch": "feat/harness/liaison-handoff-baton",
+    "head_sha": "3052565b9f8928c86f8fbe1798a3c51e9c860654",
+    "dirty": true,
+    "changed_files": [
+      ".forge/graph/cache/fingerprints.json",
+      ".forge/graph/graph.json",
+      ".forge/graph/report.md",
+      ".forge/specs/active/add-liaison-handoff-baton/impact.json",
+      ".forge/specs/active/add-liaison-handoff-baton/manifest.yaml",
+      ".forge/specs/active/add-liaison-handoff-baton/spec-delta.yaml",
+      ".forge/specs/active/add-liaison-handoff-baton/verification.yaml"
+    ],
+    "diff_stat": ".forge/graph/cache/fingerprints.json               |  53 +++-\n .forge/graph/graph.json                            | 320 ++++++++++++++++++---\n .forge/graph/report.md                             |  12 +-\n .../active/add-liaison-handoff-baton/manifest.yaml |  11 +-\n .../add-liaison-handoff-baton/spec-delta.yaml      | 254 +++++++++++++++-\n 5 files changed, 571 insertions(+), 79 deletions(-)",
+    "diff_sha256": "ffcbda6a381c499afe55b827688b3891bc16c4532f04877a9a22167bad817735"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "4ccf9977f77e25875d013e173fd1b2a64572f7514749b462488afd5b4a1afcc3",
+      "bytes": 1586,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "af5be6b50a5d4932b67e0e42845d37974b77fcd26a052e360ec134c7c4cb4f81",
+      "bytes": 54323,
+      "kind": "file"
+    },
+    {
+      "path": "traceability.yaml",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "commands": [
+    {
+      "name": "spec-verify",
+      "command": "spec-verify.sh add-liaison-handoff-baton",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "62f6371b50fb2517666c0aa43d1dd283dd5148821da4649d49dfe518f1ab7db9",
+      "bytes": 219,
+      "kind": "file"
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

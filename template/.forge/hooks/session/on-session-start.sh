@@ -2,6 +2,11 @@
 # Forge SessionStart (opt-in via forge.yaml handoff.auto / ledger.auto) — surfaces the portable
 # handoff and/or the durable ledger's top open items at the start of the session. Rule-based, no LLM.
 set -u
+# Lido UMA VEZ, no topo: o payload stdin do próprio evento SessionStart (mesma convenção do
+# PostToolUse) é consumido aqui para extrair `session_id` (REQ-13, add-liaison-handoff-baton) —
+# nenhum outro trecho deste script lê stdin, então capturar antes de qualquer outra coisa é
+# seguro e não precisa reabrir o descritor depois.
+_hook_input="$(cat 2>/dev/null || true)"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 
 # Handoff (handoff.auto): inject the portable handoff verbatim if present.
@@ -77,5 +82,87 @@ if [ "$(_yaml_auto liaison)" = "true" ] && [ -f "$ROOT/.forge/scripts/liaison-op
   if [ -n "$pending" ] && [ "$pending" != "native check --pending: nenhum relatório pendente" ]; then
     printf '\n## LIAISON — mensagens nativas recebidas (relatório do fim da sessão anterior)\n\n%s\n' "$pending"
   fi
+
+  # Bastão (add-liaison-handoff-baton, REQ-13, design §2.9): ofertas disponíveis em que este
+  # repositório é elegível, bastões detidos por sessões deste repositório, e perdas tardias
+  # (REQ-05) ainda não exibidas. `session_id` vem do próprio payload do SessionStart (mesma
+  # convenção do PostToolUse); sem ele, a nota "detido por você" vs "detido por outra sessão"
+  # não tem como decidir — cai para "detido por outra sessão" com segurança (nunca afirma "você"
+  # sem confirmação).
+  _baton_session_id="$(printf '%s' "$_hook_input" | node -e '
+let d=""; process.stdin.on("data",c=>d+=c); process.stdin.on("end",()=>{
+  try { process.stdout.write(JSON.parse(d).session_id || ""); } catch { process.stdout.write(""); }
+});' 2>/dev/null)"
+  _baton_self="$(awk '/^self:/{f=1;next} f && /^[ ]+id:/{sub(/^[ ]+id:[ ]*/,"");print;exit}' "$LIAISON_ROOT/.forge/liaison/liaison.yaml" 2>/dev/null)"
+  while IFS= read -r ch; do
+    [ -n "$ch" ] || continue
+    _baton_out="$(FORGE_ROOT="$LIAISON_ROOT" bash "$ROOT/.forge/scripts/liaison-ops.sh" baton list "$ch" --json 2>&1)"
+    _baton_rc=$?
+    if [ "$_baton_rc" -ne 0 ]; then
+      _baton_firstline="$(printf '%s\n' "$_baton_out" | head -1)"
+      printf '\n! LIAISON baton: falhou — %s\n' "$_baton_firstline"
+      continue
+    fi
+    # O JSON vai por ARQUIVO, nunca por stdin: o heredoc abaixo JÁ ocupa o stdin do próprio
+    # `node -` como fonte do script (é assim que `node -` lê o programa a executar) — tentar
+    # also piped reabriria o mesmo descritor para dois papéis.
+    _baton_json_file="$(mktemp "${TMPDIR:-/tmp}/forge-baton-session-start.XXXXXX")"
+    printf '%s' "$_baton_out" > "$_baton_json_file"
+    LIBDIR="$ROOT/.forge/scripts/lib" node - "$LIAISON_ROOT" "$ch" "$_baton_self" "${_baton_session_id:-}" "$_baton_json_file" <<'NODEEOF' 2>/dev/null
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const fs = require('fs');
+  const [, , root, channel, self, sessionId, jsonFile] = process.argv;
+  let data;
+  try { data = JSON.parse(fs.readFileSync(jsonFile, 'utf8')); } catch { return; } finally { try { fs.unlinkSync(jsonFile); } catch {} }
+  const lines = [];
+  for (const b of data.batons || []) {
+    if (b.state === 'available' && (b.eligible || []).includes(self)) {
+      lines.push(`- oferta disponível \`${b.baton_id}\` — ${b.subject}`);
+    }
+  }
+  for (const b of data.batons || []) {
+    if (b.state !== 'held' || !b.holder || b.holder.sender !== self) continue;
+    const exp = b.expired ? ' · expired' : '';
+    const stabTxt = b.stable === false ? ` · provisional (faltam: ${(b.missing || []).join(', ')})` : b.stable ? ' · stable' : '';
+    if (sessionId && b.holder.session === sessionId) {
+      lines.push(`- bastão \`${b.baton_id}\` detido por VOCÊ (sessão ${b.holder.session}) — lease até ${b.lease_until}${stabTxt}${exp}`);
+    } else {
+      lines.push(`- bastão \`${b.baton_id}\` detido por outra sessão (${b.holder.session}); se ela terminou, libere com \`baton release ${channel} ${b.baton_id} --session ${b.holder.session}\` ou aguarde o vencimento (lease até ${b.lease_until})`);
+    }
+  }
+  // Perda tardia (REQ-05/REQ-13): exibida uma única vez — marcada como entregue em
+  // baton-local.json (estado local não versionado), sob a MESMA disciplina de concorrência
+  // (withLocalLock) que qualquer outro escritor desse arquivo.
+  if ((data.late_losses || []).length) {
+    const { withLocalLock } = await import(pathToFileURL(join(process.env.LIBDIR, 'liaison-lock.mjs')).href);
+    const { batonLocalPath } = await import(pathToFileURL(join(process.env.LIBDIR, 'liaison-baton-local.mjs')).href);
+    await withLocalLock({ root, channel, self }, () => {
+      const path = batonLocalPath(root, channel);
+      let state = { claims: {}, holders: {}, lateLossShown: {} };
+      try { state = JSON.parse(fs.readFileSync(path, 'utf8')); } catch { /* sem cache ainda */ }
+      state.lateLossShown = state.lateLossShown || {};
+      for (const l of data.late_losses) {
+        if (state.lateLossShown[l.baton_id]) continue;
+        lines.push(`- perda tardia: \`${l.baton_id}\` (nossa claim ${l.our_msg_id}) — titular agora: ${l.winner}`);
+        state.lateLossShown[l.baton_id] = true;
+      }
+      const tmp = path + '.tmp.' + process.pid + '.' + Date.now();
+      fs.mkdirSync(join(path, '..'), { recursive: true });
+      fs.writeFileSync(tmp, JSON.stringify(state));
+      fs.renameSync(tmp, path);
+    });
+  }
+  for (const r of data.rewritten || []) {
+    lines.push(`- ! log próprio reescrito por escritor sem trava: ${r.msg_id}${r.baton_id ? ` (bastão ${r.baton_id})` : ''}`);
+  }
+  if (lines.length) {
+    console.log(`\n## LIAISON — bastões em ${channel}\n`);
+    console.log(lines.join('\n'));
+  }
+})();
+NODEEOF
+  done < <(find "$LIAISON_ROOT/.forge/liaison" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | LC_ALL=C sort | while IFS= read -r d; do basename "$d"; done)
 fi
 exit 0

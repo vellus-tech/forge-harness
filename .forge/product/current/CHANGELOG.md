@@ -2,6 +2,12 @@
 
 > One entry per archived change (newest first). Maintained by `/forge:archive` — do not edit by hand.
 
+## 2026-11-02 — add-liaison-handoff-baton
+
+- **Capabilities:** forge-harness-template
+- **Operações:** 16
+- **Pasta:** `.forge/specs/archived/2026-11-02-add-liaison-handoff-baton/`
+
 ## 2026-11-01 — add-unify-changelog-skill
 
 - **Capabilities:** changelog-authoring post-merge-automation

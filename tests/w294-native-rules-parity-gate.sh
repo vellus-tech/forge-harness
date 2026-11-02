@@ -145,13 +145,15 @@ else
   fail "validate-rules.sh (FORGE_ROOT=template) reprovou ou relatou drift — rc=$rc_vr saída: $out_vr (rule|classes)"
 fi
 
-# last_reviewed atualizado nas duas rules (data deste change: 2026-10-31)
+# last_reviewed atualizado nas duas rules: no mínimo a data deste change (2026-10-31). Igualdade
+# exata reprovaria qualquer change posterior que revise a mesma rule (o add-liaison-handoff-baton
+# levou o liaison-protocol.md a 2026-11-02); datas ISO comparam corretamente como texto.
 for arq_lr in "$RULE_PROTOCOL" "$RULE_UNTRUSTED"; do
   lr="$(sed -n 's/^last_reviewed: \(.*\)$/\1/p' "$arq_lr" | head -1)"
-  if [ "$lr" = "2026-10-31" ]; then
+  if printf '%s' "$lr" | grep -qE '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' && [[ ! "$lr" < "2026-10-31" ]]; then
     ok "last_reviewed atualizado em $(basename "$arq_lr") ($lr)"
   else
-    fail "last_reviewed NÃO atualizado em $(basename "$arq_lr") — obtido '$lr', esperado '2026-10-31' (last_reviewed)"
+    fail "last_reviewed NÃO atualizado em $(basename "$arq_lr") — obtido '$lr', esperado data ISO igual ou posterior a '2026-10-31' (last_reviewed)"
   fi
 done
 

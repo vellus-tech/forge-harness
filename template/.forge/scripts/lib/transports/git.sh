@@ -326,14 +326,26 @@ t_push() {
       done < <(find "$hub/blobs" -type f 2>/dev/null)
     fi
 
+    local append_mod="$libdir/liaison-append.mjs"
     if git -C "$run_dir" diff --cached --quiet; then
       # nada novo sobre o que já está na branch — a observação é o que acabou de ser buscado.
       LIAISON_OBSERVED_FILE="$(mktemp "${TMPDIR:-/tmp}/liaison-git-observed.XXXXXX")"
       git -C "$run_dir" show "$base_commit:$LIAISON_CHANNEL/log/$LIAISON_SELF.jsonl" > "$LIAISON_OBSERVED_FILE" 2>/dev/null || : > "$LIAISON_OBSERVED_FILE"
       export LIAISON_OBSERVED_FILE
       _liaison_test_barrier after-mv
-      rc=0
       rm -rf "$run_dir"
+      # LGC-201: "nada novo a commitar" não quer dizer "réplica local em dia". Quando o log local é
+      # prefixo do da branch (réplica atrasada do mesmo self, classificação `behind`), a união sai
+      # igual ao arquivo da branch e não há commit — mas o log próprio local continua atrás, e o
+      # próximo `send` reusaria um seq que a branch já tem (DIVERGÊNCIA permanente, issue #101).
+      # Mesma disciplina de `_dir_push_union`: o observado (cópia privada, fora da árvore
+      # descartável) volta para o log próprio por `union-own`, sob a trava, e a falha propaga.
+      if ! node "$append_mod" union-own "$src" "$LIAISON_SELF" "$LIAISON_OBSERVED_FILE" >/dev/null; then
+        echo "FAIL: union-own falhou ao sincronizar o log próprio de volta — o hub foi atualizado, mas a réplica local pode ficar atrás até o próximo sync" >&2
+        rc=1
+        break
+      fi
+      rc=0
       break
     fi
 
@@ -348,11 +360,16 @@ t_push() {
       git -C "$run_dir" show "HEAD:$LIAISON_CHANNEL/log/$LIAISON_SELF.jsonl" > "$LIAISON_OBSERVED_FILE" 2>/dev/null || : > "$LIAISON_OBSERVED_FILE"
       export LIAISON_OBSERVED_FILE
       # sincroniza o log próprio local de volta, sob a trava, com o que foi de fato enviado —
-      # mesma disciplina de escritor único que os transportes de diretório (design §2.4).
-      local append_mod="$libdir/liaison-append.mjs"
-      node "$append_mod" union-own "$src" "$LIAISON_SELF" "$LIAISON_OBSERVED_FILE" >/dev/null || true
-      rc=0
+      # mesma disciplina de escritor único que os transportes de diretório (design §2.4). LGC-201:
+      # a falha (trava ocupada ou perdida) RECUSA, como em `_dir_push_union` — antes um `|| true`
+      # devolvia rc 0 com a réplica local atrás do que acabou de ser publicado.
       rm -rf "$run_dir"
+      if ! node "$append_mod" union-own "$src" "$LIAISON_SELF" "$LIAISON_OBSERVED_FILE" >/dev/null; then
+        echo "FAIL: union-own falhou ao sincronizar o log próprio de volta — o hub foi atualizado, mas a réplica local pode ficar atrás até o próximo sync" >&2
+        rc=1
+        break
+      fi
+      rc=0
       break
     fi
 

@@ -971,7 +971,7 @@ requirements:
     contracts:
       - template/.forge/schemas/ledger.schema.json
     tests:
-      - tests/w309-ledger-evidence-aging-gate.sh
+      - tests/w320-ledger-evidence-aging-gate.sh
   - id: REQ-FHT-084
     title: "Sinal determinístico de idade de item do ledger, advisory e fiado no ciclo de vida"
     normative: "SHALL"
@@ -987,7 +987,7 @@ requirements:
     contracts:
       - template/.forge/schemas/forge.schema.json
     tests:
-      - tests/w309-ledger-evidence-aging-gate.sh
+      - tests/w320-ledger-evidence-aging-gate.sh
   - id: REQ-FHT-085
     title: "Supersessão de item do ledger com elo bidirecional e cadeia consultável"
     normative: "SHALL"
@@ -1007,7 +1007,7 @@ requirements:
     contracts:
       - template/.forge/schemas/ledger.schema.json
     tests:
-      - tests/w309-ledger-evidence-aging-gate.sh
+      - tests/w320-ledger-evidence-aging-gate.sh
 history:
   - change_id: security-observability-gates
     archived_at: "2026-07-20"

@@ -1,6 +1,6 @@
 {
   "schema": "graph/v0",
-  "generated_at": "2026-11-02T02:49:14.407Z",
+  "generated_at": "2026-11-02T03:09:35.877Z",
   "engine": "native",
   "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/ledger-evidence-aging",
   "stats": {
@@ -4085,14 +4085,6 @@
       "summary": null
     },
     {
-      "id": "tests/w309-ledger-evidence-aging-gate.sh",
-      "lang": "shell",
-      "loc": 741,
-      "fingerprint": "da34cca49f27da4a6f75853298b0e665b94792617e9d9b974d582b8e13cfdba4",
-      "layer": "test",
-      "summary": null
-    },
-    {
       "id": "tests/w31-validators-gate.sh",
       "lang": "shell",
       "loc": 8,
@@ -4185,6 +4177,14 @@
       "lang": "shell",
       "loc": 350,
       "fingerprint": "63a9ab6c17e30ffa261a1056a99e081692e892aa116bbc517ad7ee102a81f810",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w320-ledger-evidence-aging-gate.sh",
+      "lang": "shell",
+      "loc": 741,
+      "fingerprint": "da34cca49f27da4a6f75853298b0e665b94792617e9d9b974d582b8e13cfdba4",
       "layer": "test",
       "summary": null
     },

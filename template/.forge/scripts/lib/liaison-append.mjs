@@ -175,8 +175,12 @@ export async function appendOwnDecided({ root, chDir, channel, self, decide, wai
     const logDir = join(chDir, 'log');
     const all = readAllMessages(logDir);
     const decision = await decide(all);
+    // Passa adiante TODO campo extra de uma recusa (ex.: rc e already do bastão, design §2.7) —
+    // não só reason/fold. decide(all) é o único lugar que sabe o SIGNIFICADO da recusa (pré-
+    // condição inócua vs. sessão já titular); esta função é infraestrutura compartilhada e não
+    // deve conhecer esses significados para repassá-los.
     if (decision && decision.refuse) {
-      return { refused: true, reason: decision.reason, fold: decision.fold };
+      return { ...decision, refused: true };
     }
     if (!decision || !decision.envelope) {
       throw new Error('appendOwnDecided: decide(all) precisa devolver { refuse } ou { envelope }');

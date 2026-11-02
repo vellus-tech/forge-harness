@@ -180,6 +180,21 @@ _baton_resolve_session() {
   printf '%s' "$session"
 }
 
+# _baton_flags <verbo> — devolve, separado por ", ", as flags aceitas do verbo, lidas de
+# BATON_VERB_FLAGS em liaison-baton.mjs (design §2.2/§2.7: fonte única, sem segunda tabela
+# aqui — o gate de documentação, REQ-16, confere que esta função nunca diverge do módulo).
+_baton_flags() {
+  node - "$LIBDIR" "$1" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, verb] = process.argv;
+  const { BATON_VERB_FLAGS } = await import(pathToFileURL(join(lib, 'liaison-baton.mjs')).href);
+  process.stdout.write((BATON_VERB_FLAGS[verb] || []).join(', '));
+})();
+NODEEOF
+}
+
 _read_self() {
   [ -f "$CONFIG" ] || { printf ''; return 0; }
   node - "$LIBDIR" "$CONFIG" <<'NODEEOF'
@@ -1764,6 +1779,281 @@ NODEEOF
 )" || exit 1
   echo "$pointer_out"
   echo "to: $to"
+  ;;
+
+# ---------------------------------------------------------------------------------------------
+# baton — bastão de dono único sobre o liaison (add-liaison-handoff-baton, REQ-01..REQ-11,
+# design §2.7). Verbos offer/claim nesta revisão (TASK-19/20); renew/release/complete/withdraw
+# (TASK-21/22) e status/list (TASK-23/24) ainda não existem — recusam nomeando a task.
+baton)
+  baton_verb="${1:-}"; shift || true
+  case "$baton_verb" in
+
+  offer)
+    channel="${1:-}"; shift || true
+    [ -n "$channel" ] || { echo "FAIL: <channel> obrigatório" >&2; exit 1; }
+    ch_dir="$LIAISON_DIR/$channel"
+    [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado (rode 'open' primeiro)" >&2; exit 1; }
+    self="$(_read_self)"
+    [ -n "$self" ] || { echo "FAIL: self não configurado (rode 'open' primeiro)" >&2; exit 1; }
+
+    thread_id=""; subject=""; body=""; body_file=""; from_handoff="false"; for_arg=""; max_lease_arg=""; session_arg=""
+    OFFER_FLAGS="$(_baton_flags offer)"
+    while [ $# -gt 0 ]; do case "$1" in
+      --thread) forge_reject_flag_as_value "baton offer" --thread "${2-}" "$OFFER_FLAGS"; thread_id="$2"; shift 2 ;;
+      --subject) forge_reject_flag_as_value "baton offer" --subject "${2-}" "$OFFER_FLAGS"; subject="$2"; shift 2 ;;
+      --body) forge_reject_flag_as_value "baton offer" --body "${2-}" "$OFFER_FLAGS"; body="$2"; shift 2 ;;
+      --body-file) forge_reject_flag_as_value "baton offer" --body-file "${2-}" "$OFFER_FLAGS"; body_file="$2"; shift 2 ;;
+      --from-handoff) from_handoff="true"; shift ;;
+      --for) forge_reject_flag_as_value "baton offer" --for "${2-}" "$OFFER_FLAGS"; for_arg="$2"; shift 2 ;;
+      --max-lease) forge_reject_flag_as_value "baton offer" --max-lease "${2-}" "$OFFER_FLAGS"; max_lease_arg="$2"; shift 2 ;;
+      --session) forge_reject_flag_as_value "baton offer" --session "${2-}" "$OFFER_FLAGS"; session_arg="$2"; shift 2 ;;
+      *) _reject_unknown "baton offer" "$OFFER_FLAGS" "$1" ;;
+    esac; done
+
+    session="$(_baton_resolve_session "$session_arg")" || exit 1
+    [ -n "$thread_id" ] || { echo "FAIL: --thread obrigatório" >&2; exit 1; }
+    [ -n "$subject" ] || { echo "FAIL: --subject obrigatório" >&2; exit 1; }
+    if [ -n "$body" ] && [ -n "$body_file" ]; then echo "FAIL: use --body OU --body-file, não os dois" >&2; exit 1; fi
+    if [ "$from_handoff" = "true" ]; then
+      if [ -n "$body" ] || [ -n "$body_file" ]; then
+        echo "FAIL: --from-handoff é exclusivo de --body/--body-file" >&2; exit 1
+      fi
+      # TASK-30 implementa o fluxo completo (handoff gerado na hora quando ausente, teto de
+      # 64 KB, varredura de segredo própria). Até lá, recusa sem gravar nada.
+      echo "FAIL: --from-handoff ainda não implementado nesta revisão (ver tasks.md TASK-30)" >&2
+      exit 1
+    fi
+
+    _scan_secret_or_fail "$body" "$body_file" || exit 1
+    body_ref=""
+    if [ -n "$body_file" ]; then
+      body_ref="$(_write_body_blob "$ch_dir" "$body_file")" || exit 1
+      body=""
+    fi
+
+    FORGE_YAML="$ROOT/.forge/forge.yaml"
+    out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$self" "$channel" "$thread_id" "$subject" "$body" "$body_ref" \
+      "${for_arg:-}" "${max_lease_arg:-}" "$session" "$(_git_date)" "$FORGE_YAML" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, chDir, self, channel, threadId, subject, body, bodyRef,
+    forArg, maxLeaseArg, session, now, forgeYamlPath] = process.argv;
+  const { appendOwn, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
+  const { mergeLogs } = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
+  const { readBatonConfig } = await import(pathToFileURL(join(lib, 'liaison-baton.mjs')).href);
+  function nowWall() { return new Date().toISOString().replace(/\.\d+Z$/, 'Z'); }
+  try {
+    const { msg } = await appendOwn({
+      root, chDir, channel, self,
+      build: (all) => {
+        const threadMsgs = all.filter((m) => m.thread_id === threadId);
+        if (!threadMsgs.some((m) => m.kind === 'thread-open')) {
+          throw new Error(`thread '${threadId}' desconhecida localmente (abra ou aguarde o thread-open chegar)`);
+        }
+        const { threads } = mergeLogs(all);
+        const participants = (threads[threadId] && threads[threadId].participants) || [self];
+        let eligible;
+        if (forArg) {
+          const ids = forArg.split(',').map((s) => s.trim()).filter(Boolean);
+          for (const id of ids) {
+            if (!participants.includes(id)) {
+              throw new Error(`--for cita '${id}', que não é participante da thread '${threadId}'`);
+            }
+          }
+          eligible = [...new Set(ids)];
+        } else {
+          eligible = [...participants];
+        }
+        if (!eligible.some((id) => id !== self)) {
+          throw new Error(`eligible resultante sem nenhum repositório além de '${self}' — coordenação só dentro do repositório não é material de liaison (ver rule liaison-protocol)`);
+        }
+        const cfg = readBatonConfig(forgeYamlPath);
+        if (cfg.errors.length) throw new Error(cfg.errors.join('; '));
+        let maxLease = cfg.maxLeaseSeconds;
+        if (maxLeaseArg) {
+          maxLease = Number(maxLeaseArg);
+          if (!Number.isInteger(maxLease) || maxLease < 60 || maxLease > cfg.maxLeaseSeconds) {
+            throw new Error(`--max-lease fora de [60, ${cfg.maxLeaseSeconds}]: ${maxLeaseArg}`);
+          }
+        }
+        return {
+          channel, thread_id: threadId, kind: 'note', requires_ack: false,
+          in_reply_to: null, subject,
+          ...(body ? { body } : {}), ...(bodyRef ? { body_ref: bodyRef } : {}),
+          created_at: now, trust: 'self',
+          baton: {
+            op: 'offer', session, stamped_at: nowWall(),
+            eligible, max_lease_seconds: maxLease, skew_tolerance_seconds: cfg.skewToleranceSeconds,
+          },
+        };
+      },
+    });
+    process.stdout.write(msg.msg_id);
+  } catch (err) {
+    if (err instanceof AppendValidationError) console.error('envelope inválido: ' + err.errors.join('; '));
+    else if (err instanceof LockLostError) console.error(err.message);
+    else console.error(err && err.message ? err.message : String(err));
+    process.exit(1);
+  }
+})();
+NODEEOF
+)" || exit 1
+    _render "$channel"
+    echo "OK baton offer — $out"
+    echo "liaison-ops.sh sync $channel"
+    transport_line="$(_read_transport "$channel" 2>/dev/null || true)"
+    if [ -n "$transport_line" ]; then
+      echo "liaison-ops.sh notify $channel $out --to <destino>"
+    fi
+    ;;
+
+  claim)
+    channel="${1:-}"; shift || true
+    baton_id="${1:-}"; shift || true
+    [ -n "$channel" ] && [ -n "$baton_id" ] || { echo "FAIL: uso: baton claim <channel> <baton_id> [--lease <s>] [--session <id>]" >&2; exit 1; }
+    ch_dir="$LIAISON_DIR/$channel"
+    [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado (rode 'open' primeiro)" >&2; exit 1; }
+    self="$(_read_self)"
+    [ -n "$self" ] || { echo "FAIL: self não configurado (rode 'open' primeiro)" >&2; exit 1; }
+
+    lease_arg=""; session_arg=""
+    CLAIM_FLAGS="$(_baton_flags claim)"
+    while [ $# -gt 0 ]; do case "$1" in
+      --lease) forge_reject_flag_as_value "baton claim" --lease "${2-}" "$CLAIM_FLAGS"; lease_arg="$2"; shift 2 ;;
+      --session) forge_reject_flag_as_value "baton claim" --session "${2-}" "$CLAIM_FLAGS"; session_arg="$2"; shift 2 ;;
+      *) _reject_unknown "baton claim" "$CLAIM_FLAGS" "$1" ;;
+    esac; done
+
+    session="$(_baton_resolve_session "$session_arg")" || exit 1
+    if [ -n "$lease_arg" ]; then
+      printf '%s' "$lease_arg" | grep -Eq '^[0-9]+$' || { echo "FAIL: --lease precisa ser inteiro positivo: '$lease_arg'" >&2; exit 1; }
+    fi
+
+    FORGE_YAML="$ROOT/.forge/forge.yaml"
+    PULLED_AT_FILE="$ROOT/.forge/cache/liaison-baton/$channel/sync-local.json"
+    set +e
+    claim_out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$self" "$channel" "$baton_id" "$session" "${lease_arg:-}" \
+      "$(_git_date)" "$FORGE_YAML" "$PULLED_AT_FILE" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+const { existsSync, readFileSync } = require('fs');
+(async () => {
+  const [, , lib, root, chDir, self, channel, batonId, session, leaseArg, now, forgeYamlPath, pulledAtPath] = process.argv;
+  const { appendOwnDecided, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
+  const { foldBatons, validateBaton, readBatonConfig, stability } = await import(pathToFileURL(join(lib, 'liaison-baton.mjs')).href);
+  function nowWall() { return new Date().toISOString().replace(/\.\d+Z$/, 'Z'); }
+  let reduced = false;
+  let syncWarning = '';
+  try {
+    const result = await appendOwnDecided({
+      root, chDir, channel, self,
+      decide: (all) => {
+        const offerMsg = all.find((m) => m.msg_id === batonId && m.baton && m.baton.op === 'offer');
+        if (!offerMsg) return { refuse: true, rc: 1, reason: `oferta '${batonId}' desconhecida localmente` };
+        const cfg = readBatonConfig(forgeYamlPath);
+        if (cfg.errors.length) return { refuse: true, rc: 1, reason: cfg.errors.join('; ') };
+        let leaseSeconds;
+        if (leaseArg) {
+          leaseSeconds = Number(leaseArg);
+          if (!Number.isInteger(leaseSeconds) || leaseSeconds < 60 || leaseSeconds > offerMsg.baton.max_lease_seconds) {
+            return { refuse: true, rc: 1, reason: `--lease fora de [60, ${offerMsg.baton.max_lease_seconds}]: ${leaseArg}` };
+          }
+        } else {
+          leaseSeconds = cfg.defaultLeaseSeconds;
+          if (leaseSeconds > offerMsg.baton.max_lease_seconds) {
+            leaseSeconds = offerMsg.baton.max_lease_seconds;
+            reduced = true;
+          }
+        }
+        const { batons } = foldBatons(all);
+        const baton = batons.get(batonId);
+        if (baton && baton.state === 'held' && baton.holder && baton.holder.sender === self && baton.holder.session === session) {
+          const T = Date.parse(baton.leaseUntil);
+          if (Date.now() <= T) {
+            return { refuse: true, rc: 0, reason: `sessão já detém o bastão '${batonId}' (lease até ${baton.leaseUntil}) — use 'baton renew' para renovar`, already: true };
+          }
+        }
+        if (baton && baton.state === 'held' && baton.holder && baton.holder.sender !== self) {
+          const T = Date.parse(baton.leaseUntil);
+          const skew = (offerMsg.baton.skew_tolerance_seconds || 0) * 1000;
+          if (Date.now() >= T + skew) {
+            let pulledAt = null;
+            if (existsSync(pulledAtPath)) {
+              try { pulledAt = JSON.parse(readFileSync(pulledAtPath, 'utf8')).pulled_at || null; } catch { /* sem registro */ }
+            }
+            if (!pulledAt || Date.parse(pulledAt) < T) {
+              syncWarning = `aviso: uma renovação de '${baton.holder.sender}' pode estar publicada e ainda não importada — rode 'sync' antes de reivindicar por vencimento`;
+            }
+          }
+        }
+        const stampedAt = nowWall();
+        const leaseUntil = new Date(Date.parse(stampedAt) + leaseSeconds * 1000).toISOString().replace(/\.\d+Z$/, 'Z');
+        const envelope = {
+          channel, thread_id: offerMsg.thread_id, kind: 'note', requires_ack: false,
+          in_reply_to: batonId, subject: `baton claim: ${offerMsg.subject}`.slice(0, 200),
+          created_at: now, trust: 'self',
+          baton: { op: 'claim', session, stamped_at: stampedAt, lease_seconds: leaseSeconds, lease_until: leaseUntil },
+        };
+        const verrs = validateBaton(envelope);
+        if (verrs.length) return { refuse: true, rc: 1, reason: verrs.join('; ') };
+        return { envelope, afterWrite: (allWithNew) => foldBatons(allWithNew) };
+      },
+    });
+    if (result.refused) {
+      if (result.already) {
+        console.log(result.reason);
+        process.exit(0);
+      }
+      console.error('FAIL: ' + result.reason);
+      process.exit(typeof result.rc === 'number' ? result.rc : 1);
+    }
+    const { batons } = result.fold;
+    const baton = batons.get(batonId);
+    const hist = baton.history.find((h) => h.msgId === result.msg.msg_id);
+    if (hist.verdict === 'won') {
+      const stab = stability(baton, result.all);
+      console.log(`OK baton claim — ${result.msg.msg_id} won (${stab.stable ? 'stable' : 'provisional'})`);
+      if (!stab.stable) console.error(`provisional — faltam: ${stab.missing.join(', ')}`);
+      if (reduced) console.error('aviso: lease reduzido ao máximo da oferta');
+      if (syncWarning) console.error(syncWarning);
+      process.exit(0);
+    }
+    const holderTxt = baton.holder ? `${baton.holder.sender}/${baton.holder.session}` : 'nenhuma';
+    console.error(`FAIL: baton claim — veredito '${hist.verdict}', titular: ${holderTxt} (${hist.reason})`);
+    process.exit(3);
+  } catch (err) {
+    if (err instanceof AppendValidationError) console.error('FAIL: envelope inválido: ' + err.errors.join('; '));
+    else if (err instanceof LockLostError) console.error('FAIL: ' + err.message);
+    else console.error('FAIL: ' + (err && err.message ? err.message : String(err)));
+    process.exit(1);
+  }
+})();
+NODEEOF
+)"
+    claim_rc=$?
+    set -e
+    _render "$channel" >/dev/null 2>&1 || true
+    echo "$claim_out"
+    exit "$claim_rc"
+    ;;
+
+  renew|release|complete|withdraw|status|list)
+    echo "FAIL: 'baton $baton_verb' ainda não implementado nesta revisão (ver tasks.md TASK-21 em diante)" >&2
+    exit 1
+    ;;
+
+  "")
+    echo "FAIL: uso: baton offer|claim|renew|release|complete|withdraw|status|list ..." >&2
+    exit 1
+    ;;
+
+  *)
+    echo "FAIL: verbo de bastão desconhecido '$baton_verb' (offer|claim|renew|release|complete|withdraw|status|list)" >&2
+    exit 1
+    ;;
+  esac
   ;;
 
 # ---------------------------------------------------------------------------------------------

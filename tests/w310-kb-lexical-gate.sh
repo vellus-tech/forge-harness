@@ -45,6 +45,10 @@ for (const want of ['ldg-0012', 'w283', 'spec-new.sh', '/forge:kb', 'adr-0005', 
 // siglas genéricas não são entidade (emenda do REQ-03, 2026-10-31): eram a causa medida da perda do lexical
 const g = X.entities('README TDD MVP GIT_DIR API CLI PCI DSS');
 if (g.length) { console.log('siglas viraram entidade:', g); process.exit(1); }
+// nomes genéricos de artefato e nomes de tecnologia não são entidade (LOG-001, code-evaluator PR #252):
+// casavam qualquer documento chamado design.md/tasks.md/README.md/package.json ou que citasse Node.js/Next.js
+const n = X.entities('ver design.md, tasks.md, README.md, CHANGELOG.md, proposal.md, package.json, Node.js 20 e Next.js');
+if (n.length) { console.log('nomes genéricos viraram entidade:', n); process.exit(1); }
 const idx = X.buildIndex([D('a.md', 'plan', 'trata do LDG-0012'), D('b.md', 'plan', 'trata do LDG-0013')]).index;
 const r = X.entityMatch(idx, 'o que diz LDG-0012?');
 if (r.length !== 1 || idx.chunks[r[0][0]].doc !== 'a.md') process.exit(1);

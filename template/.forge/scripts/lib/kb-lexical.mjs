@@ -8,9 +8,13 @@
 import { createHash } from 'node:crypto';
 import { chunk, fingerprint, CHUNK_MAX } from './kb-corpus.mjs';
 
-// Formato 2: siglas genéricas deixaram de ser entidade (emenda do REQ-03, 2026-10-31); índices de
-// formato 1 são reconstruídos sozinhos na próxima consulta.
-export const INDEX_FORMAT = 2;
+// Formato 3: nomes genéricos de artefato (design.md, tasks.md, README.md, package.json…) e nomes de
+// tecnologia (node.js, next.js) deixaram de ser entidade (code-evaluator do PR #252, achado LOG-001:
+// medido no corpus real, o empate de idf entre dezenas de trechos com esses nomes subia documento
+// irrelevante do BM25 #20 para o #3 do RRF só pela ordem alfabética do desempate). Formato 2: siglas
+// genéricas em caixa alta deixaram de ser entidade (emenda do REQ-03, 2026-10-31). Índices de formato
+// anterior são reconstruídos sozinhos na próxima consulta.
+export const INDEX_FORMAT = 3;
 export const BM25_K1 = 1.2;
 export const BM25_B = 0.75;
 
@@ -36,9 +40,20 @@ export function tokenize(s) {
 // genéricas em caixa alta (README, TDD, API…) NÃO são entidade: medido no verify, casavam documentos
 // errados e eram a causa da perda do lexical contra o BM25 isolado.
 const ENTITY_RE = /(?<![A-Za-z0-9_./:-])(LDG-\d{4}|ADR[ -]?\d{4}|REQ-[A-Z0-9][A-Z0-9-]*|TASK-\d+|STORY-\d+|w\d{2,3}(?:-[a-z0-9]+)*|[A-Za-z0-9_.-]+\.(?:sh|mjs|cjs|js|md|ya?ml|json)|\/forge:[a-z-]+)(?![A-Za-z0-9_])/g;
+
+// Nomes genéricos de artefato (qualquer documento pode se chamar assim) e nomes de tecnologia cujo
+// radical é palavra comum — nenhum dos dois identifica um documento específico, então não deveriam
+// virar entidade (LOG-001): o canal de entidades existe para ids reais, não para rótulos repetidos
+// em centenas de trechos.
+const GENERIC_ENTITY = /^(proposal|design|tasks|requirements|manifest|approvals|verification|analysis|readme|changelog|spec|spec-delta|bugfix|refactor|epic_context|index|package|package-lock|tsconfig|node|next)\.(?:sh|mjs|cjs|js|md|ya?ml|json)$/i;
+
 export function entities(s) {
   const out = new Set();
-  for (const m of String(s).matchAll(ENTITY_RE)) out.add(m[1].toLowerCase().replace(/^adr[ -]?/, 'adr-'));
+  for (const m of String(s).matchAll(ENTITY_RE)) {
+    const raw = m[1];
+    if (GENERIC_ENTITY.test(raw)) continue;
+    out.add(raw.toLowerCase().replace(/^adr[ -]?/, 'adr-'));
+  }
   return [...out].sort();
 }
 

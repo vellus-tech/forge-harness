@@ -62,6 +62,14 @@ export const BATON_VERB_FLAGS = {
 const SENDER_ID_RE = /^[a-z0-9][a-z0-9._-]*$/;
 const SESSION_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const WALL_CLOCK_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+
+// isWallClock(v) — true só para carimbo ISO 8601 UTC com segundo (o formato que o harness grava).
+// NODE-003: quem MOSTRA `stamped_at` (CHANNEL.md, `baton status`, aviso de carimbo no futuro) usa
+// isto antes de interpolar — o valor vem do peer, e `Date.parse` do V8 aceita texto arbitrário
+// com quebra de linha ('Jan 1 2099 (\n## x)'), então "parseia" não é prova de forma.
+export function isWallClock(v) {
+  return typeof v === 'string' && WALL_CLOCK_RE.test(v) && Number.isFinite(Date.parse(v));
+}
 const LEASE_MIN = 60;
 const LEASE_MAX = 86400;
 const SKEW_MIN = 0;
@@ -76,6 +84,13 @@ const LEASE_FIELDS = ['lease_seconds', 'lease_until'];
 // ANTES de gravar (nunca grava bastão inválido) e pela dobra (foldBatons) para dar `malformed`
 // a toda mensagem com `baton` que falhe aqui — nunca pelo validateEnvelope, que só impõe a
 // camada de envelope (op no padrão aberto, sem o conjunto fechado dos seis valores).
+//
+// NODE-003: as mensagens de erro NUNCA ecoam valor vindo da mensagem (só o nome do campo e o
+// motivo). Elas viram o `reason` de `malformed` na dobra, e o reason é impresso por `baton status`
+// e pelo render fora da moldura untrusted-render — um `session` de peer com quebra de linha
+// entraria cru no contexto de quem lê. A exceção são valores já conferidos contra um padrão
+// fechado antes de aparecerem na mensagem (id repetido de `eligible`, que casou SENDER_ID_RE; o
+// `lease_until` esperado, calculado aqui).
 export function validateBaton(msg) {
   const errors = [];
   if (!msg || typeof msg !== 'object') return ['mensagem não é um objeto'];
@@ -84,7 +99,7 @@ export function validateBaton(msg) {
 
   const op = b.op;
   if (typeof op !== 'string' || !BATON_OPS.includes(op)) {
-    errors.push(`baton.op fora do conjunto fechado: ${op}`);
+    errors.push('baton.op fora do conjunto fechado');
     // Sem op válido não há como saber quais campos são obrigatórios/proibidos — para aqui.
     return errors;
   }
@@ -92,13 +107,13 @@ export function validateBaton(msg) {
   if (b.session === undefined || b.session === null || b.session === '') {
     errors.push('baton.session obrigatório ausente');
   } else if (typeof b.session !== 'string' || !SESSION_RE.test(b.session)) {
-    errors.push(`baton.session fora do padrão: ${b.session}`);
+    errors.push('baton.session fora do padrão');
   }
 
   if (b.stamped_at === undefined || b.stamped_at === null || b.stamped_at === '') {
     errors.push('baton.stamped_at obrigatório ausente');
   } else if (typeof b.stamped_at !== 'string' || !WALL_CLOCK_RE.test(b.stamped_at) || !Number.isFinite(Date.parse(b.stamped_at))) {
-    errors.push(`baton.stamped_at fora do padrão ISO 8601 UTC com segundo: ${b.stamped_at}`);
+    errors.push('baton.stamped_at fora do padrão ISO 8601 UTC com segundo');
   }
 
   const isOffer = op === 'offer';
@@ -120,16 +135,16 @@ export function validateBaton(msg) {
       }
       const seen = new Set();
       for (const id of b.eligible) {
-        if (typeof id !== 'string' || !SENDER_ID_RE.test(id)) errors.push(`baton.eligible com id fora do padrão: ${id}`);
-        if (seen.has(id)) errors.push(`baton.eligible com id repetido: ${id}`);
+        if (typeof id !== 'string' || !SENDER_ID_RE.test(id)) errors.push('baton.eligible com id fora do padrão');
+        else if (seen.has(id)) errors.push(`baton.eligible com id repetido: ${id}`);
         seen.add(id);
       }
     }
     if (b.max_lease_seconds !== undefined && (!Number.isInteger(b.max_lease_seconds) || b.max_lease_seconds < LEASE_MIN || b.max_lease_seconds > LEASE_MAX)) {
-      errors.push(`baton.max_lease_seconds fora de [${LEASE_MIN}, ${LEASE_MAX}]: ${b.max_lease_seconds}`);
+      errors.push(`baton.max_lease_seconds fora de [${LEASE_MIN}, ${LEASE_MAX}]`);
     }
     if (b.skew_tolerance_seconds !== undefined && (!Number.isInteger(b.skew_tolerance_seconds) || b.skew_tolerance_seconds < SKEW_MIN || b.skew_tolerance_seconds > SKEW_MAX)) {
-      errors.push(`baton.skew_tolerance_seconds fora de [${SKEW_MIN}, ${SKEW_MAX}]: ${b.skew_tolerance_seconds}`);
+      errors.push(`baton.skew_tolerance_seconds fora de [${SKEW_MIN}, ${SKEW_MAX}]`);
     }
   }
 
@@ -141,11 +156,11 @@ export function validateBaton(msg) {
   }
   if (needsLease) {
     if (b.lease_seconds !== undefined && (!Number.isInteger(b.lease_seconds) || b.lease_seconds < LEASE_MIN || b.lease_seconds > LEASE_MAX)) {
-      errors.push(`baton.lease_seconds fora de [${LEASE_MIN}, ${LEASE_MAX}]: ${b.lease_seconds}`);
+      errors.push(`baton.lease_seconds fora de [${LEASE_MIN}, ${LEASE_MAX}]`);
     }
     if (b.lease_until !== undefined) {
       if (typeof b.lease_until !== 'string' || !WALL_CLOCK_RE.test(b.lease_until) || !Number.isFinite(Date.parse(b.lease_until))) {
-        errors.push(`baton.lease_until fora do padrão ISO 8601 UTC com segundo: ${b.lease_until}`);
+        errors.push('baton.lease_until fora do padrão ISO 8601 UTC com segundo');
       } else if (typeof b.stamped_at === 'string' && WALL_CLOCK_RE.test(b.stamped_at) && Number.isInteger(b.lease_seconds)) {
         const expected = Date.parse(b.stamped_at) + b.lease_seconds * 1000;
         if (Date.parse(b.lease_until) !== expected) {

@@ -2433,7 +2433,7 @@ const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
   const [, , lib, root, chDir, channel, self, mode, batonIdFilter, jsonFlag, nowWall] = process.argv;
-  const { foldBatons, stability } = await import(pathToFileURL(join(lib, 'liaison-baton.mjs')).href);
+  const { foldBatons, stability, isWallClock } = await import(pathToFileURL(join(lib, 'liaison-baton.mjs')).href);
   const { renderUntrusted } = await import(pathToFileURL(join(lib, 'untrusted-render.mjs')).href);
   const { checkJournalIntegrity } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
   const { readBatonLocal } = await import(pathToFileURL(join(lib, 'liaison-baton-local.mjs')).href);
@@ -2468,7 +2468,10 @@ const { pathToFileURL } = require('url');
       history: b.history.map((h) => ({
         msg_id: h.msgId, sender: h.sender,
         session: h.sender !== self ? renderUntrusted(String(h.session), h.sender) : h.session,
-        op: h.op, stamped_at: h.stampedAt, verdict: h.verdict, reason: h.reason,
+        // NODE-003: stamped_at vem do peer — só sai (texto e --json) com a forma de relógio de
+        // parede; fora dela vai null (o texto mostra '?'). O reason não carrega valor de peer
+        // (validateBaton só nomeia o campo).
+        op: h.op, stamped_at: isWallClock(h.stampedAt) ? h.stampedAt : null, verdict: h.verdict, reason: h.reason,
       })),
     };
   }
@@ -2515,7 +2518,8 @@ const { pathToFileURL } = require('url');
   for (const [batonId, b] of batons) {
     const skewMs = (b.offer.baton.skew_tolerance_seconds || 0) * 1000;
     for (const h of b.history) {
-      if (!h.stampedAt) continue;
+      // NODE-003: só carimbo com forma de relógio de parede — Date.parse aceita texto arbitrário.
+      if (!isWallClock(h.stampedAt)) continue;
       const diff = Date.parse(h.stampedAt) - nowMs;
       if (Number.isFinite(diff) && diff > skewMs) futureStamps.push({ baton_id: batonId, msg_id: h.msgId, stamped_at: h.stampedAt });
     }

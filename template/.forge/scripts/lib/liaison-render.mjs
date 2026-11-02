@@ -14,7 +14,7 @@ import { renderUntrusted } from './untrusted-render.mjs';
 import { join } from 'node:path';
 import { mergeLogs, formatSkew } from './liaison-merge.mjs';
 import { readQuarantinedPositions } from './liaison-import.mjs';
-import { foldBatons } from './liaison-baton.mjs';
+import { foldBatons, isWallClock } from './liaison-baton.mjs';
 
 const env = process.env;
 const channel = env.LIAISON_CHANNEL;
@@ -81,7 +81,10 @@ function renderMessage(m) {
   if (m.baton) {
     const verdict = verdictByMsgId.get(m.msg_id) || '?';
     const sessionText = m.sender !== self ? renderUntrusted(String(m.baton.session), m.sender) : m.baton.session;
-    const lines = [`- **${m.msg_id}** [baton ${m.baton.op}] \`${m.sender}\` sessão ${sessionText} · ${m.baton.stamped_at} → ${verdict}`];
+    // NODE-003: stamped_at é dado do peer e sai fora da moldura nesta linha — só é interpolado
+    // quando tem a forma de relógio de parede; senão sai '?' (a mensagem é `malformed` na dobra).
+    const stampText = isWallClock(m.baton.stamped_at) ? m.baton.stamped_at : '?';
+    const lines = [`- **${m.msg_id}** [baton ${m.baton.op}] \`${m.sender}\` sessão ${sessionText} · ${stampText} → ${verdict}`];
     if (m.in_reply_to) lines.push(`  ↳ em resposta a \`${m.in_reply_to}\``);
     if (m.body) lines.push(...renderUntrusted(m.body, m.sender).split('\n').map((l) => `  ${l}`));
     else if (m.body_ref) lines.push(`  corpo em \`${m.body_ref}\``);

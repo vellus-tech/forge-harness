@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**55 itens ativos** · roadmap 8 · tech-debt 29 · known-bug 11 · follow-up 7 · (108 encerrados)
+**59 itens ativos** · roadmap 8 · tech-debt 29 · known-bug 11 · follow-up 11 · (108 encerrados)
 
 ## Roadmap
 
@@ -140,6 +140,10 @@ _Encerrados: 37 (resolved 36 · wont-fix 1)_
 - **LDG-0229** [open] — O `red-evidence.sh task` roda o teste num worktree efêmero sem `node_modules`; gate que depende de `ajv` (dependência de desenvolvimento) só prova o vermelho com `--setup-command` ligando o `node_modu · via `add-ledger-evidence-aging`#verify-1
 - **LDG-0230** [open] — Renomear `tests/ledger-evidence-aging-gate.sh` para o ordinal `wNNN` na hora do merge (critério de nome do REQ-09; convenção do projeto de decidir o ordinal só no merge), atualizando junto o teste cit · via `add-ledger-evidence-aging`#verify-2
 - **LDG-0231** [open] — Reverificar os 38 itens ativos do ledger deste repositório com `ledger-ops.sh verify` (todos aparecem envelhecidos; a reverificação é trabalho de curadoria fora do escopo do change, e o ledger do tron · via `add-ledger-evidence-aging`#verify-3
+- **LDG-0233** [open] — Registrar `LDG-NNNN` (limite de 9.999 mensagens por `msg_id`) no ledger do tronco durante o `/forge:ship`, depois do rebase final — texto completo já redigido na nota de conclusão da TASK-34 em `tasks · via `add-liaison-handoff-baton`#verify-1
+- **LDG-0234** [open] — Medir `pgrep -g` confirmando zero descendentes vivos após o vigia de 30s/5s do processo destacado de renovação (REQ-12) — exige ~35s reais de espera por amostra; não bloqueante para este merge. · via `add-liaison-handoff-baton`#verify-2
+- **LDG-0235** [open] — Fixture dedicada para o texto exato do aviso de transporte `manual`/`gh` sem publicação automática (REQ-12). · via `add-liaison-handoff-baton`#verify-3
+- **LDG-0236** [open] — Medição end-to-end do "caminho que renova" do gancho `PostToolUse` como UMA chamada só (em vez de decomposta em duas partes medidas separadamente) para o relatório de NFR-02, se uma rodada futura quis · via `add-liaison-handoff-baton`#verify-4
 
 _Encerrados: 11 (resolved 9 · wont-fix 2)_
 

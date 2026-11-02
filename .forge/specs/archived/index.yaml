@@ -71,3 +71,7 @@ archived:
     archived_at: "2026-11-01"
     kind: baseline_update
     path: 2026-11-01-add-unify-changelog-skill
+  - change_id: add-liaison-handoff-baton
+    archived_at: "2026-11-02"
+    kind: baseline_update
+    path: 2026-11-02-add-liaison-handoff-baton

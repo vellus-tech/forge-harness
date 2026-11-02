@@ -4037,6 +4037,110 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0232"
+    },
+    {
+      "id": "LDG-0233",
+      "type": "follow-up",
+      "title": "Registrar `LDG-NNNN` (limite de 9.999 mensagens por `msg_id`) no ledger do tronco durante o `/forge:ship`, depois do rebase final — texto completo já redigido na nota de conclusão da TASK-34 em `tasks",
+      "detail": "",
+      "severity": null,
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-handoff-baton",
+        "origin": "archive",
+        "ref": "verify-1"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-handoff-baton"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-02T10:35:54-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "add-liaison-handoff-baton:verify-1"
+    },
+    {
+      "id": "LDG-0234",
+      "type": "follow-up",
+      "title": "Medir `pgrep -g` confirmando zero descendentes vivos após o vigia de 30s/5s do processo destacado de renovação (REQ-12) — exige ~35s reais de espera por amostra; não bloqueante para este merge.",
+      "detail": "",
+      "severity": null,
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-handoff-baton",
+        "origin": "archive",
+        "ref": "verify-2"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-handoff-baton"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-02T10:35:54-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "add-liaison-handoff-baton:verify-2"
+    },
+    {
+      "id": "LDG-0235",
+      "type": "follow-up",
+      "title": "Fixture dedicada para o texto exato do aviso de transporte `manual`/`gh` sem publicação automática (REQ-12).",
+      "detail": "",
+      "severity": null,
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-handoff-baton",
+        "origin": "archive",
+        "ref": "verify-3"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-handoff-baton"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-02T10:35:54-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "add-liaison-handoff-baton:verify-3"
+    },
+    {
+      "id": "LDG-0236",
+      "type": "follow-up",
+      "title": "Medição end-to-end do \"caminho que renova\" do gancho `PostToolUse` como UMA chamada só (em vez de decomposta em duas partes medidas separadamente) para o relatório de NFR-02, se uma rodada futura quis",
+      "detail": "",
+      "severity": null,
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "add-liaison-handoff-baton",
+        "origin": "archive",
+        "ref": "verify-4"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-liaison-handoff-baton"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-02T10:35:54-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "add-liaison-handoff-baton:verify-4"
     }
   ]
 }

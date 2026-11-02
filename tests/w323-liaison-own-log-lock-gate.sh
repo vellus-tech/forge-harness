@@ -335,28 +335,70 @@ done < <(grep -nE '(cp |mv |tee |>\s*)"?\$\{?(own|self)\}?\.jsonl' "$LIAISON_OPS
 # origem seja sempre liaison-append.mjs quando o módulo existe. Cobre os quatro verbos que
 # escrevem no log próprio (send, ack, thread open, thread join) — conflicts resolve compartilha
 # o mesmo caminho de appendOwn que ack/send e não precisa de fixture própria aqui.
+#
+# QLT-001: a varredura não pode passar por vacuidade. Cada verbo roda com o PRÓPRIO arquivo de
+# varredura e precisa terminar com rc 0 (sem `|| true`) e deixar ao menos uma entrada nele — um
+# preload que não carrega, um verbo que falha antes de escrever ou um caminho de escrita que o
+# preload não intercepta dão "nenhuma escrita fora" sem ter observado escrita nenhuma. O
+# recontrole, no fim, prova que o filtro acusa uma escrita direta feita fora de liaison-append.mjs.
+# FORGE_WRITE_SCAN_PRELOAD só existe para provar a vacuidade com um preload no-op; fora disso é o
+# preload real.
+SCAN_PRELOAD="${FORGE_WRITE_SCAN_PRELOAD:-$PRELOAD}"
+scan_bad() { # scan_bad <arquivo-de-varredura> -> JSON das entradas com origem fora de liaison-append.mjs
+  node -e '
+    const fs = require("fs");
+    let lines = [];
+    try { lines = fs.readFileSync(process.argv[1], "utf8").trim().split("\n").filter(Boolean).map(JSON.parse); } catch (e) {}
+    console.log(JSON.stringify(lines.filter((l) => !/liaison-append\.mjs$/.test(l.origin))));
+  ' "$1"
+}
+scan_count() { # scan_count <arquivo-de-varredura> -> número de entradas
+  if [ -s "$1" ]; then wc -l < "$1" | tr -d ' '; else echo 0; fi
+}
 if [ -f "$LIB/liaison-append.mjs" ]; then
-  SCANLOG="$T/write-scan.jsonl"
-  : > "$SCANLOG"
-  SCAN_MSGID="$(FORGE_WRITE_SCAN_LOG="$SCANLOG" NODE_OPTIONS="--require $PRELOAD" \
-    LG "$T/main" send "$CH" --thread t1 --kind note --subject "scan-probe" --body "x" 2>/dev/null | grep -oE '[a-z0-9._-]+-[0-9]{4}' | tail -1 || true)"
-  FORGE_WRITE_SCAN_LOG="$SCANLOG" NODE_OPTIONS="--require $PRELOAD" \
-    LG "$T/main" ack "$CH" "$SCAN_MSGID" --subject "scan-probe-ack" >/dev/null 2>&1 || true
-  FORGE_WRITE_SCAN_LOG="$SCANLOG" NODE_OPTIONS="--require $PRELOAD" \
-    LG "$T/main" thread open "$CH" scan-probe-thread --subject "scan" --participants repo-a --body "x" >/dev/null 2>&1 || true
-  FORGE_WRITE_SCAN_LOG="$SCANLOG" NODE_OPTIONS="--require $PRELOAD" \
-    LG "$T/main" thread join "$CH" scan-probe-thread --subject "scan-join" >/dev/null 2>&1 || true
-  bad="$(node -e "
-    const fs=require('fs');
-    let lines=[]; try { lines=fs.readFileSync('$SCANLOG','utf8').trim().split('\n').filter(Boolean).map(JSON.parse); } catch(e){}
-    const bad=lines.filter(l=>!/liaison-append\.mjs\$/.test(l.origin));
-    console.log(JSON.stringify(bad));
-  ")"
-  if [ "$bad" != "[]" ]; then
-    echo "FAIL [escrita-fora]: escrita dinâmica fora de liaison-append.mjs: $bad"
-    fail=1
+  dyn_fail=0
+  SCAN_DIR="$T/write-scan"; mkdir -p "$SCAN_DIR"
+  scan_run() { # scan_run <verbo> <args...> -> roda sob o preload, com a varredura em $SCAN_DIR/<verbo>.jsonl
+    local verb="$1"; shift
+    : > "$SCAN_DIR/$verb.jsonl"
+    FORGE_WRITE_SCAN_LOG="$SCAN_DIR/$verb.jsonl" NODE_OPTIONS="--require $SCAN_PRELOAD" LG "$T/main" "$@"
+  }
+  send_out="$(scan_run send send "$CH" --thread t1 --kind note --subject "scan-probe" --body "x" 2>&1)"; rc_send=$?
+  SCAN_MSGID="$(grep -oE '[a-z0-9._-]+-[0-9]{4}' <<<"$send_out" | tail -1)"
+  scan_run ack ack "$CH" "$SCAN_MSGID" --subject "scan-probe-ack" >/dev/null 2>&1; rc_ack=$?
+  scan_run thread-open thread open "$CH" scan-probe-thread --subject "scan" --participants repo-a --body "x" >/dev/null 2>&1; rc_topen=$?
+  scan_run thread-join thread join "$CH" scan-probe-thread --subject "scan-join" >/dev/null 2>&1; rc_tjoin=$?
+  for pair in "send:$rc_send" "ack:$rc_ack" "thread-open:$rc_topen" "thread-join:$rc_tjoin"; do
+    verb="${pair%%:*}"; vrc="${pair#*:}"
+    n="$(scan_count "$SCAN_DIR/$verb.jsonl")"
+    if [ "$vrc" -ne 0 ]; then
+      echo "FAIL [escrita-fora]: o verbo '$verb' falhou (rc $vrc) sob a varredura — sem a escrita não há o que conferir"
+      dyn_fail=1
+    elif [ "$n" -eq 0 ]; then
+      echo "FAIL [escrita-fora]: o verbo '$verb' terminou sem nenhuma escrita observada pela varredura — o preload não viu nada (vacuidade)"
+      dyn_fail=1
+    fi
+    bad="$(scan_bad "$SCAN_DIR/$verb.jsonl")"
+    if [ "$bad" != "[]" ]; then
+      echo "FAIL [escrita-fora]: escrita dinâmica fora de liaison-append.mjs no verbo '$verb': $bad"
+      dyn_fail=1
+    fi
+  done
+  # Recontrole: escrita direta em log/<self>.jsonl por um script que NÃO é liaison-append.mjs
+  # precisa aparecer como 'bad' — sem isto, um filtro que nunca acusa nada passaria.
+  mkdir -p "$T/rogue/log"
+  printf '%s\n' "import { writeFileSync } from 'node:fs';" "writeFileSync(process.argv[2], '{\"rogue\":true}\\n');" > "$T/rogue/rogue-writer.mjs"
+  : > "$SCAN_DIR/rogue.jsonl"
+  FORGE_WRITE_SCAN_LOG="$SCAN_DIR/rogue.jsonl" NODE_OPTIONS="--require $SCAN_PRELOAD" node "$T/rogue/rogue-writer.mjs" "$T/rogue/log/repo-a.jsonl"
+  rogue_bad="$(scan_bad "$SCAN_DIR/rogue.jsonl")"
+  if [ "$rogue_bad" = "[]" ]; then
+    echo "FAIL [escrita-fora]: recontrole — a escrita direta de rogue-writer.mjs em log/repo-a.jsonl não foi acusada"
+    dyn_fail=1
+  fi
+  if [ "$dyn_fail" -eq 0 ]; then
+    echo "OK dinâmica: send, ack, thread open e thread join escreveram (rc 0, ao menos uma escrita observada cada) e toda escrita em log/<self>.jsonl veio de liaison-append.mjs; o recontrole acusa escrita direta fora dele"
   else
-    echo "OK dinâmica: toda escrita em log/<self>.jsonl veio de liaison-append.mjs"
+    fail=1
   fi
 else
   echo "FAIL [escrita-fora]: liaison-append.mjs ainda não existe — send não pode estar roteado por ele"

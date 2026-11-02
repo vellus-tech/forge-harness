@@ -268,3 +268,5 @@ Termos usados abaixo.
 - Autenticação de sessão e de carimbo: ambos são autodeclarados (REQ-06, REQ-10).
 - Envio de mensagem entre sessões por script ou gancho.
 - Servidor, banco ou daemon externo de coordenação.
+
+**Atualização no `ship` (2026-11-02, round 1 do code-evaluator, ARCH-001):** o `baton renew` recusado deixou de sair sempre com rc 1. Perda real (sessão que não é a titular corrente, ou lease vencido) sai com rc 4; "ainda não é hora", só com `FORGE_BATON_RENEW_IF_DUE=1`, sai com rc 5; erro ou transitório (trava ocupada ou perdida, oferta desconhecida, argumento inválido) continua com rc 1. Onde o REQ-07 acima diz rc 1 para o renew, vale este contrato, registrado no baseline como SCN-FHT-092-C. O gancho de renovação automática só trata como perda o rc 4.

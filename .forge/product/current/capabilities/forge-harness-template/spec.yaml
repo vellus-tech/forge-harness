@@ -1110,7 +1110,11 @@ requirements:
       - id: SCN-FHT-092-B
         given: "a mesma operação, mas com a dobra local considerando-a inválida no momento (sessão não é titular, lease ainda vigente para `withdraw`, etc.)"
         when: "o comando roda"
-        then: "recusa sem gravar (rc 1), nomeando o motivo e a titular corrente quando houver"
+        then: "recusa sem gravar, nomeando o motivo e a titular corrente quando houver: rc 1 para `release`/`complete`/`withdraw`; para `renew`, o código de saída do SCN-FHT-092-C"
+      - id: SCN-FHT-092-C
+        given: "uma sessão rodando `baton renew` (manual, ou o gancho de renovação automática com `FORGE_BATON_RENEW_IF_DUE=1`)"
+        when: "o renew é recusado"
+        then: "o código de saída distingue o motivo: rc 4 para perda real (não é a titular corrente, ou o lease venceu, e a retomada é `baton claim`), rc 5 para ainda não é hora (só com `FORGE_BATON_RENEW_IF_DUE=1`, antes da metade do prazo) e rc 1 para erro ou transitório (trava ocupada ou perdida, oferta desconhecida, argumento inválido); o gancho só trata como perda o rc 4"
     tests:
       - tests/w335-liaison-baton-lifecycle-gate.sh
   - id: REQ-FHT-093

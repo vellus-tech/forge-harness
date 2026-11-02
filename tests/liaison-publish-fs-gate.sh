@@ -297,6 +297,42 @@ else
   [ "$has_pulled_at" = "true" ] && echo "OK [pulled-at]: sync-local.json tem pulled_at" || { echo "FAIL [pulled-at]: sync-local.json sem campo pulled_at"; fail=1; }
 fi
 
+# === [reparo] push morto ENTRE mv e conferência é restaurado pelo push seguinte ===
+# O mv já aconteceu (hub tem o conteúdo) quando o processo morre antes de confirmar — o hub
+# nunca fica corrompido (mv é atômico), e o próximo push/status confirma e grava a marca.
+mkdir -p "$T/hub8"
+setup_repo_with_hub i "$T/hub8"
+LG "$T/i" send "$CH" --thread t1 --kind note --subject m1 --body x >/dev/null
+BARRIER_DIR4="$T/barrier-dead"
+mkdir -p "$BARRIER_DIR4"
+( FORGE_LIAISON_TEST_BARRIER="$BARRIER_DIR4" LG "$T/i" sync "$CH" --push-only >"$T/dead-push.out" 2>&1 ) &
+PID_DEAD=$!
+pidtagD="$(wait_for_barrier_point "$BARRIER_DIR4" after-mv)"
+if [ -z "$pidtagD" ]; then
+  echo "FAIL [reparo]: push não sinalizou after-mv antes de ser morto"
+  fail=1
+  kill "$PID_DEAD" 2>/dev/null || true; wait "$PID_DEAD" 2>/dev/null || true
+else
+  # o mv já aconteceu (estamos DEPOIS do after-mv) — mata o processo ANTES da conferência/marca.
+  kill -9 "$PID_DEAD" 2>/dev/null || true
+  wait "$PID_DEAD" 2>/dev/null || true
+  hub_lines_after_death="$(wc -l < "$T/hub8/$CH/log/repo-a.jsonl" 2>/dev/null | tr -d ' ')"
+  if [ "$hub_lines_after_death" != "2" ]; then
+    echo "FAIL [reparo]: hub não tem o conteúdo do mv após a morte do push (esperava 2 linhas, achei ${hub_lines_after_death:-0}) — mv não deveria corromper"
+    fail=1
+  else
+    published_before="$(node -e "try{console.log(JSON.parse(require('fs').readFileSync('$T/i/.forge/liaison/$CH/state.json','utf8')).published['repo-a']||'');}catch(e){console.log('');}")"
+    LG "$T/i" sync "$CH" --push-only >/dev/null 2>&1
+    published_after="$(node -e "console.log(JSON.parse(require('fs').readFileSync('$T/i/.forge/liaison/$CH/state.json','utf8')).published['repo-a'])")"
+    if [ "$published_after" != "repo-a-0002" ]; then
+      echo "FAIL [reparo]: push seguinte não restaurou/confirmou a marca após a morte do anterior (antes='$published_before' depois='$published_after')"
+      fail=1
+    else
+      echo "OK [reparo]: push morto entre mv e conferência não corrompeu o hub; o push seguinte confirmou a marca"
+    fi
+  fi
+fi
+
 # === [fs-union] recusa com tronco anterior a este change ===
 mkdir -p "$T/hub7"
 mk_repo h

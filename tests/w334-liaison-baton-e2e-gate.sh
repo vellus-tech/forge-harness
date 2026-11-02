@@ -13,6 +13,10 @@
 # de offer/claim existirem) para a prova ficar registrada, já que o plano original previa
 # escrevê-la logo depois da TASK-18 e só este checkpoint a retomou depois da TASK-24.
 set -uo pipefail
+# Hermético quanto à sessão: a sessão de um agente (Claude Code) exporta CLAUDE_CODE_SESSION_ID para
+# todo processo filho e o runner do CI não tem a variável. Sem este unset o gate passa dentro do
+# agente e reprova no CI (ou o inverso); quem precisa de sessão a declara explicitamente.
+unset CLAUDE_CODE_SESSION_ID
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

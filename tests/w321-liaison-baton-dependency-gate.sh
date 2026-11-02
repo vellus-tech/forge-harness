@@ -10,6 +10,10 @@
 #   [7] fixture de identidade de sessão (tests/fixtures/liaison-baton/session-identity/) existe e
 #       documenta as quatro medições exigidas pela TASK-01
 set -euo pipefail
+# Hermético quanto à sessão: a sessão de um agente (Claude Code) exporta CLAUDE_CODE_SESSION_ID para
+# todo processo filho e o runner do CI não tem a variável. Sem este unset o gate passa dentro do
+# agente e reprova no CI (ou o inverso); quem precisa de sessão a declara explicitamente.
+unset CLAUDE_CODE_SESSION_ID
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIAISON_OPS="$WS/template/.forge/scripts/liaison-ops.sh"

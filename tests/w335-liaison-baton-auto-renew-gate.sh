@@ -20,6 +20,10 @@
 # primeiro rascunho usou lease_seconds acima do máximo e a dobra classificou a claim como
 # 'lease-over-max', não 'won' — invalidando o resto do cenário).
 set -uo pipefail
+# Hermético quanto à sessão: a sessão de um agente (Claude Code) exporta CLAUDE_CODE_SESSION_ID para
+# todo processo filho e o runner do CI não tem a variável. Sem este unset o gate passa dentro do
+# agente e reprova no CI (ou o inverso); quem precisa de sessão a declara explicitamente.
+unset CLAUDE_CODE_SESSION_ID
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -94,7 +98,7 @@ run_hook() { # run_hook <repo> <session_id>
 # own_log_stat <repo> <channel> <self> -> "size mtime_s"
 own_log_stat() {
   local f="$T/$1/.forge/liaison/$2/log/$3.jsonl"
-  echo "$(stat -f %z "$f" 2>/dev/null || stat -c %s "$f") $(stat -f %m "$f" 2>/dev/null || stat -c %Y "$f")"
+  echo "$(stat -c %s "$f" 2>/dev/null || stat -f %z "$f") $(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f")"
 }
 
 # rewrite_claim_due <repo> <channel> <lease_seconds> <seconds-until-lease-end> -> edita a claim
@@ -352,7 +356,7 @@ const fs = require("fs");
 const state = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
 console.log(state.holders[process.argv[2]] ? state.holders[process.argv[2]].ownLogSize : "ausente");
 ' "$T/a/.forge/cache/liaison-baton/$CH/baton-local.json" "$bat6")"
-real_size="$(stat -f %z "$T/a/.forge/liaison/$CH/log/repo-a.jsonl" 2>/dev/null || stat -c %s "$T/a/.forge/liaison/$CH/log/repo-a.jsonl")"
+real_size="$(stat -c %s "$T/a/.forge/liaison/$CH/log/repo-a.jsonl" 2>/dev/null || stat -f %z "$T/a/.forge/liaison/$CH/log/repo-a.jsonl")"
 if [ "$cache_rebuilt" = "$real_size" ]; then
   echo "OK [cache-invalidado-reescrita]: mismatch de tamanho força caminho frio e regrava o cache correto"
 else

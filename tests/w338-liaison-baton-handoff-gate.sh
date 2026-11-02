@@ -13,6 +13,10 @@
 #     nada gravado
 #   [from-handoff-gate-existente] gate pré-existente do handoff-gen continua verde
 set -uo pipefail
+# Hermético quanto à sessão: a sessão de um agente (Claude Code) exporta CLAUDE_CODE_SESSION_ID para
+# todo processo filho e o runner do CI não tem a variável. Sem este unset o gate passa dentro do
+# agente e reprova no CI (ou o inverso); quem precisa de sessão a declara explicitamente.
+unset CLAUDE_CODE_SESSION_ID
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -36,7 +40,8 @@ mk_repo() {
   git -C "$dir" commit -q -m "chore: init $1" >/dev/null
 }
 
-LG() { local repo="$1"; shift; FORGE_ROOT="$T/$repo" bash "$T/$repo/.forge/scripts/liaison-ops.sh" "$@"; }
+# Toda chamada deste gate é `baton offer`, que exige sessão (REQ-10): declarada aqui, não herdada.
+LG() { local repo="$1"; shift; FORGE_ROOT="$T/$repo" CLAUDE_CODE_SESSION_ID="w338-sessao" bash "$T/$repo/.forge/scripts/liaison-ops.sh" "$@"; }
 own_log_count() { local repo="$1"; wc -l < "$T/$repo/.forge/liaison/$CH/log/repo-a.jsonl" 2>/dev/null | tr -d ' '; }
 
 mk_repo a
@@ -127,7 +132,9 @@ fi
 
 # === [from-handoff-segredo] ===
 rm -f "$T/a/.forge/HANDOFF.md"
-printf '# HANDOFF\nAKIAABCDEFGHIJKLMNOP\n' > "$T/a/.forge/HANDOFF.md"
+# Chave falsa montada em tempo de execução (prefixo + sufixo), como no w166: o literal inteiro
+# versionado aqui seria achado pelo w139-secrets-gate.
+printf '# HANDOFF\n%s%s\n' 'AKIA' 'ABCDEFGHIJKLMNOP' > "$T/a/.forge/HANDOFF.md"
 before_sec="$(own_log_count a)"
 out_sec="$(LG a baton offer "$CH" --thread t1 --subject "com-segredo" --from-handoff 2>&1)"
 rc_sec=$?

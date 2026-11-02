@@ -11,6 +11,10 @@
 #   [inbox-condensado] inbox/inbox --titles-only condensam 30 renovações de peer numa linha,
 #     cursor avança sobre elas
 set -uo pipefail
+# Hermético quanto à sessão: a sessão de um agente (Claude Code) exporta CLAUDE_CODE_SESSION_ID para
+# todo processo filho e o runner do CI não tem a variável. Sem este unset o gate passa dentro do
+# agente e reprova no CI (ou o inverso); quem precisa de sessão a declara explicitamente.
+unset CLAUDE_CODE_SESSION_ID
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -178,7 +182,8 @@ batc="$(offer_id "$out_complete")"
 LGS a s-hc baton claim "$CH" "$batc" --lease 90 >/dev/null 2>&1
 LGS a s-hc baton complete "$CH" "$batc" >/dev/null 2>&1
 list_out="$(LG a baton list "$CH" 2>&1)"
-if ! echo "$list_out" | grep -q "$batc" && echo "$list_out" | grep -q "$bat1"; then
+# Sem pipe para grep -q: sob pipefail, o SIGPIPE do echo inverteria o "!" e o cenário passaria vazio.
+if ! grep -q -- "$batc" <<<"$list_out" && grep -q -- "$bat1" <<<"$list_out"; then
   echo "OK [list-nao-terminal]: list omite bastão completed e mostra os não terminais"
 else
   echo "FAIL [list-nao-terminal]: list deveria omitir $batc e mostrar $bat1, achou: $list_out"; fail=1

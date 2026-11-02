@@ -12,6 +12,10 @@
 #     quem não é o ofertante é recusado; bastão já terminal é recusado
 #   expiração/liberação/conclusão/retirada distinguíveis no histórico (mesma dobra, REQ-04)
 set -uo pipefail
+# Hermético quanto à sessão: a sessão de um agente (Claude Code) exporta CLAUDE_CODE_SESSION_ID para
+# todo processo filho e o runner do CI não tem a variável. Sem este unset o gate passa dentro do
+# agente e reprova no CI (ou o inverso); quem precisa de sessão a declara explicitamente.
+unset CLAUDE_CODE_SESSION_ID
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -147,7 +151,10 @@ fi
 
 # === [release-segredo] corpo com segredo recusa sem gravar ===
 before="$(own_log_lines a repo-a)"
-out="$(LGS a s-h2 baton release "$CH" "$bat2" --body "AKIAABCDEFGHIJKLMNOP" 2>&1)"; rc=$?
+# Chave falsa montada em tempo de execução (prefixo + sufixo), como no w166: o literal inteiro
+# versionado aqui seria achado pelo w139-secrets-gate. A recusa continua exercitada sobre o valor concatenado.
+FAKE_AWS_KEY="AKIA""ABCDEFGHIJKLMNOP"
+out="$(LGS a s-h2 baton release "$CH" "$bat2" --body "$FAKE_AWS_KEY" 2>&1)"; rc=$?
 after="$(own_log_lines a repo-a)"
 if [ "$rc" -ne 0 ] && [ "$before" = "$after" ]; then
   echo "OK [release-segredo]: corpo com segredo recusado sem gravar"

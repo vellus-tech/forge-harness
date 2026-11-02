@@ -9,7 +9,11 @@
 #   [aviso-*] perda tardia importada limpa o cache; JSON additionalContext emitido (e não
 #     repetido) para perda; configuração inválida avisa e não renova
 #   [destacado-*] sync --push-only destacado não prende o evento com o push parado de verdade
-#     (barreira de teste no meio da publicação); renew gravado e publicado ao liberar
+#     (barreira de teste no meio da publicação); renew gravado e publicado ao liberar; o
+#     destacado roda com FORGE_LIAISON_PUSH_DEADLINE_S=25 (PLAT-202)
+#   [aviso-json-unico] dois avisos no mesmo evento saem num único documento JSON (PLAT-203)
+#   [aviso-perda-repetida] perder, reivindicar e perder de novo avisa duas vezes (LGC-202)
+#   [trava-local-curta] trava local ocupada não prende o evento pelo default de 10 s (PLAT-205)
 #   [perf-*] caminho sem bastão e fora da hora termina rápido (ordem de grandeza, não p95
 #     estatístico — máquina compartilhada e sob carga variável, ver nota)
 #
@@ -605,8 +609,19 @@ console.log(n);
 }
 BARRIER_DET="$T/barrier-det"
 mkdir -p "$BARRIER_DET"
+# PLAT-202: shim transparente de `node` que registra o FORGE_LIAISON_PUSH_DEADLINE_S de cada
+# chamada ao módulo de E/S do hub — só o push do `sync` destacado chama esse módulo, então o
+# registro é o ambiente do destacado (a norma do liaison-protocol.md: 25 s no destacado).
+SHIM_DET="$T/shim-det"; DEADLINE_LOG="$T/det-deadline.log"
+mkdir -p "$SHIM_DET"; : > "$DEADLINE_LOG"
+cat > "$SHIM_DET/node" <<SHIM
+#!/bin/sh
+case "\$1" in */liaison-hub-io.mjs) printf '%s\n' "\${FORGE_LIAISON_PUSH_DEADLINE_S:-ausente}" >> "$DEADLINE_LOG" ;; esac
+exec "$(command -v node)" "\$@"
+SHIM
+chmod +x "$SHIM_DET/node"
 start_ms="$(node -e 'console.log(Date.now())')"
-(cd "$T/det" && printf '{"session_id":"%s"}' sess-det | FORGE_LIAISON_TEST_BARRIER="$BARRIER_DET" FORGE_ROOT="$T/det" bash "$(HOOK_FOR det)") >/dev/null 2>&1
+(cd "$T/det" && printf '{"session_id":"%s"}' sess-det | PATH="$SHIM_DET:$PATH" FORGE_LIAISON_TEST_BARRIER="$BARRIER_DET" FORGE_ROOT="$T/det" bash "$(HOOK_FOR det)") >/dev/null 2>&1
 end_ms="$(node -e 'console.log(Date.now())')"
 elapsed=$((end_ms - start_ms))
 # o destacado precisa chegar à barreira (prova de que foi disparado e de que o transporte está
@@ -628,8 +643,12 @@ if [ "$renew_local" != "1" ]; then
   echo "FAIL [destacado-nao-prende-evento]: esperava 1 renew gravado no log próprio, achei $renew_local"
   det_ok=0
 fi
+deadlines_det="$(sort -u "$DEADLINE_LOG" | tr '\n' ' ')"
 if [ -z "$ready" ]; then
   echo "FAIL [destacado-nao-prende-evento]: o sync destacado nunca chegou à barreira after-blobs (não foi disparado, ou abortou antes de travar)"
+  det_ok=0
+elif [ "$deadlines_det" != "25 " ]; then
+  echo "FAIL [destacado-prazo-25s]: o sync destacado rodou com FORGE_LIAISON_PUSH_DEADLINE_S='${deadlines_det% }' (esperado 25, a norma do liaison-protocol.md; sem ela vale 300 s e o vigia de 30 s vira o caminho normal)"
   det_ok=0
 elif [ "$renew_hub_parado" != "0" ]; then
   echo "FAIL [destacado-nao-prende-evento]: o hub já tinha o renew com o push parado na barreira ($renew_hub_parado) -- a barreira não travou nada"
@@ -653,9 +672,104 @@ fi
 # solta qualquer outro ponto de barreira que tenha sobrado, para nada ficar esperando 30 s
 for r in "$BARRIER_DET"/*.ready; do [ -e "$r" ] && : > "${r%.ready}.go"; done
 if [ "$det_ok" -eq 1 ]; then
-  echo "OK [destacado-nao-prende-evento]: evento voltou em ${elapsed}ms com o push destacado parado na barreira; renew gravado e, liberada a barreira, publicado no hub"
+  echo "OK [destacado-nao-prende-evento]: evento voltou em ${elapsed}ms com o push destacado parado na barreira (prazo de 25 s no destacado); renew gravado e, liberada a barreira, publicado no hub"
 else
   fail=1
+fi
+
+# === [aviso-json-unico] PLAT-203: dois bastões perdidos no MESMO evento produzem UM documento JSON
+# no stdout, com os dois avisos no additionalContext. Dois objetos seguidos não são JSON válido, e
+# o Claude Code descarta o additionalContext inteiro. ===
+mk_repo mj true false
+LG mj open "$CH" --self repo-a --participants repo-a,repo-b >/dev/null
+LG mj thread open "$CH" t1 --subject "json unico" --participants repo-a,repo-b --body "x" >/dev/null
+bat_mj1="$(fresh_claim mj sess-mj 280)"
+lu_mj1="$(rewrite_claim_due mj "$CH" 280 -5)"
+bat_mj2="$(fresh_claim mj sess-mj 280)"
+lu_mj2="$(rewrite_claim_due mj "$CH" 280 -5)"
+sync_cache_after_rewrite mj "$CH" "$bat_mj1" sess-mj "$lu_mj1"
+sync_cache_after_rewrite mj "$CH" "$bat_mj2" sess-mj "$lu_mj2"
+ctx_mj="$(run_hook mj sess-mj 2>/dev/null)"
+veredito_mj="$(printf '%s' "$ctx_mj" | node -e '
+let d = ""; process.stdin.on("data", (c) => d += c); process.stdin.on("end", () => {
+  let o;
+  try { o = JSON.parse(d.trim()); } catch (e) { console.log("stdout não é UM documento JSON: " + d.replace(/\n/g, "\\n").slice(0, 300)); return; }
+  const ctx = o && o.hookSpecificOutput && o.hookSpecificOutput.additionalContext;
+  if (typeof ctx !== "string") { console.log("sem hookSpecificOutput.additionalContext"); return; }
+  const faltam = process.argv.slice(1).filter((b) => !ctx.includes(b));
+  console.log(faltam.length ? "additionalContext sem o aviso de " + faltam.join(", ") : "ok");
+});
+' "$bat_mj1" "$bat_mj2")"
+if [ "$veredito_mj" = "ok" ]; then
+  echo "OK [aviso-json-unico]: dois bastões perdidos no mesmo evento saem num único documento JSON com os dois avisos"
+else
+  echo "FAIL [aviso-json-unico]: $veredito_mj"
+  fail=1
+fi
+
+# === [aviso-perda-repetida] LGC-202: perde, reivindica de novo, perde de novo -> dois avisos. A
+# chave do aviso inclui a claim que deu a posse; com a chave só por bastão, a segunda perda calava. ===
+mk_repo lr true false
+LG lr open "$CH" --self repo-a --participants repo-a,repo-b >/dev/null
+LG lr thread open "$CH" t1 --subject "perda repetida" --participants repo-a,repo-b --body "x" >/dev/null
+bat_lr="$(fresh_claim lr sess-lr 280)"
+lu_lr="$(rewrite_claim_due lr "$CH" 280 -5)"
+sync_cache_after_rewrite lr "$CH" "$bat_lr" sess-lr "$lu_lr"
+ctx_lr1="$(run_hook lr sess-lr 2>/dev/null)"
+LGS lr sess-lr baton claim "$CH" "$bat_lr" --lease 280 >/dev/null 2>&1
+estado_lr="$(holder_state lr "$bat_lr")"
+lu_lr="$(rewrite_claim_due lr "$CH" 280 -5)"
+sync_cache_after_rewrite lr "$CH" "$bat_lr" sess-lr "$lu_lr"
+ctx_lr2="$(run_hook lr sess-lr 2>/dev/null)"
+if ! grep -q "$bat_lr" <<<"$ctx_lr1"; then
+  echo "FAIL [aviso-perda-repetida]: fixture — a primeira perda não avisou: $(tr '\n' ' ' <<<"$ctx_lr1" | cut -c1-200)"
+  fail=1
+elif [ "$estado_lr" != "presente" ]; then
+  echo "FAIL [aviso-perda-repetida]: fixture — a nova claim depois da perda não deu a posse (entrada $estado_lr no cache)"
+  fail=1
+elif ! grep -q "$bat_lr" <<<"$ctx_lr2"; then
+  echo "FAIL [aviso-perda-repetida]: a segunda perda do mesmo bastão (depois de reivindicar de novo) não avisou: '$(tr '\n' ' ' <<<"$ctx_lr2" | cut -c1-200)'"
+  fail=1
+else
+  echo "OK [aviso-perda-repetida]: perder, reivindicar e perder de novo produz dois avisos"
+fi
+
+# === [trava-local-curta] PLAT-205: com a trava LOCAL do canal ocupada por 5 s, o gancho não fica
+# esperando o default de 10 s em _consume_publish_results/_rebuild_cold/_mark_warned_once/
+# _remove_holder_entry — todas usam a mesma espera curta (300 ms) do renew. ===
+mk_repo lk true false
+LG lk open "$CH" --self repo-a --participants repo-a,repo-b >/dev/null
+LG lk thread open "$CH" t1 --subject "trava local" --participants repo-a,repo-b --body "x" >/dev/null
+mkdir -p "$T/lk/.forge/cache/liaison-baton/$CH"
+printf '{"rc":1,"at":"2026-01-01T00:00:00Z","attempts":1,"repairs":0}' > "$T/lk/.forge/cache/liaison-baton/$CH/publish-result-1.json"
+node -e '
+const { join } = require("path");
+const { pathToFileURL } = require("url");
+(async () => {
+  const fs = require("fs");
+  const [, lib, root, channel, ready] = process.argv;
+  const { withLocalLock } = await import(pathToFileURL(join(lib, "liaison-lock.mjs")).href);
+  await withLocalLock({ root, channel, self: "repo-a" }, async () => {
+    fs.writeFileSync(ready, "1");
+    await new Promise((r) => setTimeout(r, 5000));
+  });
+})();
+' "$LIB" "$T/lk" "$CH" "$T/lk.ready" &
+lk_pid=$!
+for _ in $(seq 1 50); do [ -f "$T/lk.ready" ] && break; node -e 'setTimeout(()=>{},100)'; done
+start_ms="$(node -e 'console.log(Date.now())')"
+run_hook lk sess-lk >/dev/null 2>&1
+end_ms="$(node -e 'console.log(Date.now())')"
+elapsed_lk=$((end_ms - start_ms))
+wait "$lk_pid" 2>/dev/null
+if [ ! -f "$T/lk.ready" ]; then
+  echo "FAIL [trava-local-curta]: fixture — a trava local do canal não foi tomada a tempo"
+  fail=1
+elif [ "$elapsed_lk" -ge 3000 ]; then
+  echo "FAIL [trava-local-curta]: com a trava local ocupada o evento levou ${elapsed_lk}ms (>=3000ms) — alguma chamada do gancho esperou o default de 10 s"
+  fail=1
+else
+  echo "OK [trava-local-curta]: com a trava local ocupada o evento voltou em ${elapsed_lk}ms"
 fi
 
 # === [perf-caminho-rapido] ordem de grandeza do caminho sem bastão/fora da hora (não é p95

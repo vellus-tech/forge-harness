@@ -292,7 +292,7 @@ else
 fi
 
 # [claim-cache-local] (baton-local.json: claims+holders+nextRenewAt) tem gate próprio e rápido
-# em tests/liaison-baton-cache-local-gate.sh — sem os sleeps reais deste arquivo, prova de
+# em tests/w331-liaison-baton-cache-local-gate.sh — sem os sleeps reais deste arquivo, prova de
 # red-evidence mais barata para a mesma tag.
 
 # === [escrita] offer+claim só tocam log/<self>.jsonl, blobs/, CHANNEL.md, cache local ===

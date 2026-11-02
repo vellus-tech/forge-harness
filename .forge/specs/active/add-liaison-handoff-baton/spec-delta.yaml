@@ -1,21 +1,314 @@
-# Spec delta — operations this change applies to the baseline at archive time
-# (schema: .forge/schemas/spec-delta.schema.json; doc §10.4).
-# modify_requirement is FULL REPLACEMENT — never a partial patch.
-# For deterministic apply, carry the structured `requirement:` payload
-# (baseline-capability shape) alongside the documentary content_ref.
+# Spec delta — add-liaison-handoff-baton. Payloads preenchidos na fase verify (§2.5).
+# modify_requirement é SUBSTITUIÇÃO INTEGRAL — nunca patch parcial.
 operations:
-  - op: add_requirement
-    capability: <capability-kebab>
-    requirement_id: REQ-XXX-001
-    content_ref: requirements.md#req-xxx-001
+  - op: modify_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-001
+    full_replacement_ref: requirements.md#req-01
     requirement:
-      id: REQ-XXX-001
-      title: <title>
+      id: REQ-FHT-001
+      title: "Forma da mensagem de bastão"
       normative: SHALL
       scenarios:
-        - id: SCN-XXX-001-A
-          given: "<precondition>"
-          when: "<action>"
-          then: "<observable outcome>"
+        - id: SCN-FHT-001-A
+          given: "um canal liaison aberto, com uma thread conhecida e um verbo `baton` qualquer sendo gravado"
+          when: "a mensagem de bastão é montada e validada em duas camadas (envelope — schema + validateEnvelope — e bastão — validateBaton)"
+          then: "ela é gravada como `kind: note`, `requires_ack: false`, `subject` derivado da oferta, `in_reply_to` igual ao `baton_id` (exceto na própria oferta, onde é null), e um objeto `baton` com `op`/`session`/`stamped_at` mais os subcampos específicos da operação; o objeto `baton` entra no `content_sha`; os seis valores de `op`, os quatro estados e os vereditos vêm de uma única fonte de código"
+        - id: SCN-FHT-001-B
+          given: "um participante com versão anterior a este change (schema sem `baton`) ou um `op` desconhecido de uma versão futura do harness"
+          when: "a mensagem é importada por qualquer uma das duas réplicas"
+          then: "a camada de envelope aceita a mensagem sem conflito nem buraco de `seq` (tolerante a `op` desconhecido), e a dobra classifica o `op` desconhecido como `malformed`, nunca recusando o import"
+      contracts:
+        - template/.forge/schemas/liaison-message.schema.json
+        - template/.forge/scripts/lib/liaison-baton.mjs
+      tests:
+        - tests/w327-liaison-baton-envelope-gate.sh
+  - op: modify_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-002
+    full_replacement_ref: requirements.md#req-02
+    requirement:
+      id: REQ-FHT-002
+      title: "Oferta (`baton offer`)"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-002-A
+          given: "um canal aberto com uma thread cujos participantes incluem ao menos um repositório além do próprio"
+          when: "o operador roda `baton offer <channel> --thread <id> --subject \"<txt>\" [--body|--body-file|--from-handoff] [--for <a,b>] [--max-lease <s>] [--session <id>]`"
+          then: "grava uma oferta no log próprio com `eligible` igual a `--for` ou a todos os participantes da thread, imprime o `baton_id`, e nenhuma sessão passa a deter o bastão — `baton status` mostra `available` sem titular"
+        - id: SCN-FHT-002-B
+          given: "uma thread cujos participantes não incluem nenhum repositório além do próprio, ou um `--for` que cita alguém fora da thread, ou um `eligible` resultante sem nenhum repositório além do próprio"
+          when: "o operador roda `baton offer`"
+          then: "recusa com rc 1 sem gravar nada, nomeando o motivo (coordenação só dentro do repositório não é material de liaison)"
       contracts: []
-      tests: []
+      tests:
+        - tests/w330-liaison-baton-claim-gate.sh
+  - op: modify_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-003
+    full_replacement_ref: requirements.md#req-03
+    requirement:
+      id: REQ-FHT-003
+      title: "Reivindicação com compare-and-set local (`baton claim`)"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-003-A
+          given: "uma oferta conhecida na réplica e uma sessão que roda `baton claim <channel> <baton_id> [--lease <s>] [--session <id>]`"
+          when: "o pedido passa as pré-condições (oferta conhecida, `--lease` dentro dos limites, sessão ainda não titular com lease vigente)"
+          then: "grava a reivindicação sob a trava exclusiva do log próprio, recalcula a dobra com ela incluída, e responde com o veredito: rc 0 se `won` (com `provisional`/`stable`), rc 3 em qualquer outro veredito nomeando a titular corrente"
+        - id: SCN-FHT-003-B
+          given: "10 processos `claim` disparados juntos para o mesmo bastão, de 10 sessões diferentes, no mesmo clone"
+          when: "todos correm concorrentemente"
+          then: "exatamente um recebe rc 0, os outros nove recebem rc 3 nomeando o mesmo vencedor, as dez mensagens ficam no log com `seq` contíguo sem buraco, e `baton status` concorda com o rc 0"
+      contracts: []
+      tests:
+        - tests/w330-liaison-baton-claim-gate.sh
+        - tests/w331-liaison-baton-cache-local-gate.sh
+  - op: modify_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-004
+    full_replacement_ref: requirements.md#req-04
+    requirement:
+      id: REQ-FHT-004
+      title: "Resolução determinística (dobra)"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-004-A
+          given: "o conjunto de mensagens de bastão de uma thread, em qualquer ordem de importação entre réplicas"
+          when: "o estado de um bastão é consultado por qualquer comando"
+          then: "obtê-lo de uma única função pura que recebe as mensagens do canal, dobra cada thread em separado e aplica as operações de bastão na ordem da thread, usando só dados gravados nas mensagens (carimbos, prazos, folga e elegíveis da oferta), nunca o relógio nem a configuração local de quem lê"
+      contracts:
+        - template/.forge/scripts/lib/liaison-baton.mjs
+      tests:
+        - tests/w328-liaison-baton-fold-gate.sh
+        - tests/w322-liaison-sender-order-gate.sh
+  - op: modify_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-005
+    full_replacement_ref: requirements.md#req-05
+    requirement:
+      id: REQ-FHT-005
+      title: "Provisório e estável entre réplicas"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-005-A
+          given: "uma reivindicação vencedora sobre uma oferta cujo `eligible` cita três repositórios, antes de a réplica importar as mensagens posteriores dos outros dois"
+          when: "a dobra declara uma sessão titular como dona"
+          then: "marcar a posse como `stable` se, para todo repositório do conjunto exigido, a réplica contém o log desse repositório com `seq` contíguo desde 1 até alguma mensagem dele na thread com `lamport` maior ou igual ao da reivindicação, e como `provisional` caso contrário, nomeando os repositórios ainda não observados"
+        - id: SCN-FHT-005-B
+          given: "uma sessão que recebeu rc 0 `provisional` e, depois de um `sync`, perde para uma reivindicação concorrente que a precede na ordem da thread"
+          when: "`baton status` ou o início de sessão são consultados"
+          then: "mostram a perda tardia nomeando o vencedor, numa fixture com duas réplicas"
+      contracts: []
+      tests:
+        - tests/w328-liaison-baton-fold-gate.sh
+        - tests/w333-liaison-baton-status-gate.sh
+  - op: modify_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-006
+    full_replacement_ref: requirements.md#req-06
+    requirement:
+      id: REQ-FHT-006
+      title: "Lease: prazo, limites, folga e expiração"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-006-A
+          given: "uma reivindicação ou renovação sendo gravada, com `liaison.baton.default_lease_seconds`/`max_lease_seconds`/`skew_tolerance_seconds` configurados ou nos defaults do template"
+          when: "a operação é gravada"
+          then: "carimbar `stamped_at` com o relógio de quem grava e `lease_until = stamped_at + lease_seconds`; quando o lease vence sem renovação, a titular corrente perde o direito de renovar mas continua titular até liberar, concluir ou ser substituída, e outras sessões elegíveis só tomam o bastão com reivindicação carimbada a partir de `lease_until + skew_tolerance_seconds`"
+        - id: SCN-FHT-006-B
+          given: "uma chave de `liaison.baton` fora de faixa (`default` < 60, `max` > 86400, `default` > `max`, folga negativa ou > 3600)"
+          when: "`offer` ou `claim` leem a configuração"
+          then: "recusam com rc 1 nomeando a chave; `renew`/`release`/`complete`/`withdraw`/`status`/`list`, o `liaison-ops.sh status`, o `render`, o início de sessão e a dobra não leem a configuração e não são afetados"
+      contracts:
+        - template/.forge/forge.yaml
+      tests:
+        - tests/w329-liaison-baton-config-gate.sh
+        - tests/w328-liaison-baton-fold-gate.sh
+  - op: modify_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-007
+    full_replacement_ref: requirements.md#req-07
+    requirement:
+      id: REQ-FHT-007
+      title: "Renovação, liberação, conclusão e retirada"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-007-A
+          given: "um bastão `held`, com a titular corrente rodando `baton renew`/`release`/`complete`, ou uma sessão do repositório ofertante rodando `baton withdraw`"
+          when: "a dobra local, no momento da gravação, considera a operação válida"
+          then: "grava sob a trava do REQ-09 e aplica o efeito (novo `lease_until`; `available` sem titular; `completed` terminal; `withdrawn` terminal, respectivamente)"
+        - id: SCN-FHT-007-B
+          given: "a mesma operação, mas com a dobra local considerando-a inválida no momento (sessão não é titular, lease ainda vigente para `withdraw`, etc.)"
+          when: "o comando roda"
+          then: "recusa sem gravar (rc 1), nomeando o motivo e a titular corrente quando houver"
+      contracts: []
+      tests:
+        - tests/w332-liaison-baton-lifecycle-gate.sh
+  - op: modify_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-008
+    full_replacement_ref: requirements.md#req-08
+    requirement:
+      id: REQ-FHT-008
+      title: "Auditoria e consulta (`baton status`, `baton list`)"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-008-A
+          given: "um canal com bastões em estados variados (`available`, `held` provisório e estável, `completed`, `withdrawn`) e histórico de operações, incluindo vereditos de disputa"
+          when: "o operador roda `baton status <channel> [<baton_id>] [--json]` ou `baton list <channel> [--json]`"
+          then: "mostra por bastão o estado, a titular corrente, `lease_until`, a marca `provisional`/`stable`, o rótulo `expired` quando aplicável e o histórico completo (`msg_id`, `sender`, `session`, `op`, `stamped_at`, veredito, motivo); `list` mostra só os não terminais, um por linha; texto de peer sempre sob `untrusted-render`, nunca o corpo"
+      contracts: []
+      tests:
+        - tests/w333-liaison-baton-status-gate.sh
+  - op: modify_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-009
+    full_replacement_ref: requirements.md#req-09
+    requirement:
+      id: REQ-FHT-009
+      title: "Trava do log próprio para todo escritor"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-009-A
+          given: "qualquer caminho que grava em `log/<self>.jsonl` (`send`, `ack`, `thread open/join`, `conflicts resolve`, os subcomandos `baton`, `send --via cross-session`, a cópia de volta do push do `sync`)"
+          when: "a gravação ocorre"
+          then: "adquire uma trava exclusiva por `(canal, self)` resolvida no tronco, relê o log próprio, decide e grava dentro da trava, sem gravar a partir de uma leitura feita antes de adquiri-la; 20 `send` simultâneos produzem `seq` 1..20 sem buraco nem repetição"
+        - id: SCN-FHT-009-B
+          given: "uma trava cujo dono (pid/host) não existe mais no mesmo host, ou cuja idade passa de 120 s"
+          when: "um novo escritor tenta adquirir a trava"
+          then: "recupera a trava com aviso em stderr nomeando o dono antigo, de forma exclusiva e conferida por `nonce` (nunca duas recuperações simultâneas); a trava mora em `.forge/cache/`, nunca é transportada pelo `export`/`sync`"
+      contracts: []
+      tests:
+        - tests/w323-liaison-own-log-lock-gate.sh
+        - tests/w326-liaison-own-log-journal-gate.sh
+  - op: modify_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-010
+    full_replacement_ref: requirements.md#req-10
+    requirement:
+      id: REQ-FHT-010
+      title: "Identidade de sessão"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-010-A
+          given: "um subcomando `baton` que grava ou decide por titularidade"
+          when: "o comando roda com `--session <id>`, ou sem ela com `CLAUDE_CODE_SESSION_ID` no ambiente, ou sem nenhum dos dois"
+          then: "obtém `session` de `--session` ou de `CLAUDE_CODE_SESSION_ID`; sem nenhum, recusa com rc 1 dizendo que agentes sem essa variável (Codex, Cursor, Gemini) devem passar `--session`; `session` fora do padrão `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$` também recusa com rc 1"
+        - id: SCN-FHT-010-B
+          given: "duas sessões do mesmo repositório com identificadores diferentes disputando o mesmo bastão"
+          when: "a dobra resolve titularidade"
+          then: "são tratadas como titulares diferentes, nunca coalescidas pelo `sender`"
+      contracts: []
+      tests:
+        - tests/w329-liaison-baton-config-gate.sh
+        - tests/w321-liaison-baton-dependency-gate.sh
+  - op: modify_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-011
+    full_replacement_ref: requirements.md#req-11
+    requirement:
+      id: REQ-FHT-011
+      title: "Escritor único e compatibilidade com o canal existente"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-011-A
+          given: "qualquer operação de bastão em execução"
+          when: "a varredura estática e dinâmica dos caminhos de escrita dos subcomandos `baton` é aplicada"
+          then: "escreve só no log próprio, `blobs/`, `CHANNEL.md` (pelo `render`), estado local não versionado e a trava — nenhuma escrita fora desse conjunto; `check-liaison-acks.sh` sobre um canal com todas as operações de bastão de três repositórios não acusa ack pendente novo nem violação de `trust`"
+        - id: SCN-FHT-011-B
+          given: "a suíte de gates do liaison já existente antes deste change (`w110`, `w111`, `w112`, `w113`, `w136`, `w140`, `w143`, `w150`, `w166`, `w167`, `w168`, `w169`, `w195`, `w198`, `w219`, `w220`, `w258`, `w259`, mais qualquer gate com `liaison` no nome)"
+          when: "a troca do desempate (REQ-04) e da trava (REQ-09) é aplicada"
+          then: "todos continuam verdes, e o conjunto recalculado por `ls tests/*liaison*-gate.sh` também fica verde"
+      contracts: []
+      tests:
+        - tests/w327-liaison-baton-envelope-gate.sh
+        - tests/w150-liaison-flag-and-trust-gate.sh
+  - op: modify_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-012
+    full_replacement_ref: requirements.md#req-12
+    requirement:
+      id: REQ-FHT-012
+      title: "Renovação automática enquanto a sessão está ativa"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-012-A
+          given: "`liaison.auto` e `liaison.baton.auto_renew` ligados, e uma sessão do Claude Code que detém um bastão com lease ainda não vencido, restando menos da metade do prazo"
+          when: "um evento `PostToolUse` da própria sessão ocorre"
+          then: "renova o lease automaticamente pelo mesmo caminho do `baton renew`, no máximo uma vez por metade de prazo (conferido por 10 eventos concorrentes com exatamente uma renovação), terminando em ≤ 150 ms p95 nos caminhos sem bastão/fora da hora, com `sync --push-only` desacoplado do evento quando há transporte e participante externo"
+        - id: SCN-FHT-012-B
+          given: "uma sessão parada (sem eventos `PostToolUse`) que detém um bastão"
+          when: "o lease dela vence"
+          then: "nenhuma renovação ocorre, e o bastão fica disponível para tomada por outra sessão elegível após a folga"
+      contracts:
+        - template/.forge/scripts/lib/sync-adapters.mjs
+      tests:
+        - tests/w335-liaison-baton-auto-renew-gate.sh
+        - tests/w336-liaison-baton-publish-result-gate.sh
+  - op: modify_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-013
+    full_replacement_ref: requirements.md#req-13
+    requirement:
+      id: REQ-FHT-013
+      title: "Bastão no início de sessão"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-013-A
+          given: "uma sessão começando com `liaison.auto` ligado, num repositório com ofertas disponíveis, bastões detidos e perdas tardias ainda não exibidas"
+          when: "`on-session-start.sh` roda"
+          then: "acrescenta ao bloco do liaison as ofertas elegíveis, os bastões detidos por sessões deste repositório (sessão, `lease_until`, `provisional`/`stable`, `expired`) e as perdas tardias ainda não exibidas, com `baton_id` e assunto sob `untrusted-render`, nunca o corpo; bastão detido por outra sessão deste repositório mostra a nota de liberação/espera; falha do cálculo aparece como linha nomeando o erro; sem nenhum bastão, nenhuma linha nova"
+      contracts: []
+      tests:
+        - tests/w337-liaison-baton-session-start-gate.sh
+  - op: modify_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-014
+    full_replacement_ref: requirements.md#req-14
+    requirement:
+      id: REQ-FHT-014
+      title: "Oferta a partir do `/forge:handoff`"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-014-A
+          given: "uma árvore de trabalho com ou sem `.forge/HANDOFF.md` já gerado"
+          when: "o operador roda `baton offer ... --from-handoff`"
+          then: "usa como corpo da oferta o `HANDOFF.md` da árvore corrente (gerado na hora via `handoff-gen.sh` se ausente), gravado como blob com a mesma varredura de segredo e o mesmo teto de 64 KB do `--body-file`, tudo antes de adquirir a trava; `--from-handoff` junto de `--body`/`--body-file`, achado de segredo, acima de 64 KB ou falha de geração recusam com rc 1 sem gravar nada"
+      contracts: []
+      tests:
+        - tests/w338-liaison-baton-handoff-gate.sh
+        - tests/w60-handoff-gen-gate.sh
+  - op: modify_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-015
+    full_replacement_ref: requirements.md#req-15
+    requirement:
+      id: REQ-FHT-015
+      title: "Campainha opcional"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-015-A
+          given: "uma oferta, liberação ou conclusão de bastão publicada no canal"
+          when: "o operador usa o `notify` de `add-liaison-native-bridge` com o ponteiro `liaison:<channel>/<msg_id>` da mensagem de bastão"
+          then: "o gancho de saída daquele change aceita o ponteiro normalmente (o `baton_id` é um `msg_id` próprio); o fluxo completo (oferta, duas reivindicações concorrentes, renovação, liberação, nova reivindicação, conclusão) entre duas réplicas dá o mesmo resultado com ou sem `notify`; nenhum script ou gancho deste change envia mensagem nativa entre sessões por conta própria, e a checagem do gate `w113` continua verde sobre os arquivos novos"
+      contracts: []
+      tests:
+        - tests/w334-liaison-baton-e2e-gate.sh
+        - tests/w113-liaison-enforce-gate.sh
+  - op: modify_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-016
+    full_replacement_ref: requirements.md#req-16
+    requirement:
+      id: REQ-FHT-016
+      title: "Norma e documentação"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-016-A
+          given: "o change entregue, com todos os verbos `baton` implementados"
+          when: "a documentação é conferida"
+          then: "a rule `liaison-protocol.md` tem a seção do bastão com os tópicos do REQ-16 (quando usar/não usar, as seis operações, dobra/ordem/desempate, `provisional`/`stable`, lease/folga/carimbo como exceção declarada, identidade autodeclarada, renovação automática como exceção ao item 5 da rule), o `/forge:liaison` documenta o subcomando `baton` e seus oito verbos com as flags de `BATON_VERB_FLAGS`, o `/forge:handoff` tem a nota do REQ-14, `docs/refer/slash-commands.md`, inventário de gates/scripts, `CHANGELOG.md` sob `[Unreleased]` e o badge de gates do `README.md` estão atualizados"
+      contracts: []
+      tests:
+        - tests/w339-liaison-baton-docs-gate.sh

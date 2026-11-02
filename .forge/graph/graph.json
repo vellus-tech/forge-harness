@@ -1,11 +1,11 @@
 {
   "schema": "graph/v0",
-  "generated_at": "2026-11-02T03:09:35.877Z",
+  "generated_at": "2026-11-02T13:28:29.762Z",
   "engine": "native",
-  "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/ledger-evidence-aging",
+  "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/liaison-handoff-baton",
   "stats": {
-    "nodes": 549,
-    "edges": 90,
+    "nodes": 574,
+    "edges": 97,
     "languages": [
       "csharp",
       "go",
@@ -16,23 +16,23 @@
       "shell",
       "ts"
     ],
-    "summaries_stale": 549,
+    "summaries_stale": 574,
     "census": {
       "csharp": 10,
       "go": 15,
       "java": 14,
-      "js": 126,
+      "js": 131,
       "kotlin": 6,
       "python": 21,
-      "shell": 328,
+      "shell": 348,
       "ts": 29
     },
     "layer_coverage": {
-      "classified": 345,
-      "unclassified": 204,
+      "classified": 365,
+      "unclassified": 209,
       "out_of_taxonomy": 0,
-      "denominator": 549,
-      "ratio": 0.6284
+      "denominator": 574,
+      "ratio": 0.6359
     }
   },
   "nodes": [
@@ -173,6 +173,14 @@
       "summary": null
     },
     {
+      "id": "template/.forge/hooks/session/on-post-tool-use.sh",
+      "lang": "shell",
+      "loc": 283,
+      "fingerprint": "a3a40944ec3d4b23bbf7bf16f52f6523fcd4bcc87540398d4ed7dae25787674b",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
       "id": "template/.forge/hooks/session/on-session-end.sh",
       "lang": "shell",
       "loc": 69,
@@ -183,8 +191,8 @@
     {
       "id": "template/.forge/hooks/session/on-session-start.sh",
       "lang": "shell",
-      "loc": 82,
-      "fingerprint": "c795a22af73960ae1578131540b5ea2a07841916760517e2ac91a5d1dadcc0b6",
+      "loc": 169,
+      "fingerprint": "a3e082abff1c18903c2d5e2c48c32ad2963e51e256be2f0d51031a134b21a7a7",
       "layer": "unknown",
       "summary": null
     },
@@ -399,8 +407,8 @@
     {
       "id": "template/.forge/scripts/doctor.sh",
       "lang": "shell",
-      "loc": 1350,
-      "fingerprint": "6699065b64e8ffb8e6f6767a870ccbddbfc43734bb43dc7d853bb1a726efe27d",
+      "loc": 1365,
+      "fingerprint": "e536ae70a6a731868ac5ad44fa4f860a331f1819eec2f8e309bcce225c9e97f6",
       "layer": "unknown",
       "summary": null
     },
@@ -511,8 +519,8 @@
     {
       "id": "template/.forge/scripts/liaison-ops.sh",
       "lang": "shell",
-      "loc": 2012,
-      "fingerprint": "8433d88338efa0c9b84018f832af581c7beead5922d2117b0f42ede469e0d281",
+      "loc": 2888,
+      "fingerprint": "3749518a471351303b179726c10aeb949a5396318ac619b43fbab43e7bffcc8b",
       "layer": "unknown",
       "summary": null
     },
@@ -877,6 +885,30 @@
       "summary": null
     },
     {
+      "id": "template/.forge/scripts/lib/liaison-append.mjs",
+      "lang": "js",
+      "loc": 261,
+      "fingerprint": "b9584c1bbf432750820d46b4b3236b5de3042dffa9b83d82bec34799c54012c9",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/liaison-baton-local.mjs",
+      "lang": "js",
+      "loc": 140,
+      "fingerprint": "bde3e9c32d9a9011245bf5adff46c76dd9d2bf2757746750dfd14937e9e9576b",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/liaison-baton.mjs",
+      "lang": "js",
+      "loc": 526,
+      "fingerprint": "0ffa50a5e20660013019f4a5e1c33d77de6cce4f5acd3492e5b70696954b2bb3",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
       "id": "template/.forge/scripts/lib/liaison-config.mjs",
       "lang": "js",
       "loc": 100,
@@ -887,8 +919,8 @@
     {
       "id": "template/.forge/scripts/lib/liaison-cursor.mjs",
       "lang": "js",
-      "loc": 58,
-      "fingerprint": "04934bd766716ce5284ef28a7d9cd88e814cb71127329b44a8182f1459f07d1a",
+      "loc": 66,
+      "fingerprint": "5fbe341016960ace938d6ec43c2cf2073e5f974dff34a7d8e4193a3445a6d255",
       "layer": "unknown",
       "summary": null
     },
@@ -901,10 +933,18 @@
       "summary": null
     },
     {
+      "id": "template/.forge/scripts/lib/liaison-lock.mjs",
+      "lang": "js",
+      "loc": 312,
+      "fingerprint": "7a196645e36bcea8500a05464c8164678d7f154abcfe84181cbab32ad9276f29",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
       "id": "template/.forge/scripts/lib/liaison-merge.mjs",
       "lang": "js",
-      "loc": 334,
-      "fingerprint": "35f5db95f9e070ff854c0053961c9e157a1124ed5844dbf46e4e7069c0d2870e",
+      "loc": 375,
+      "fingerprint": "1f06701055b98710361d744d93df459bd271634ad1d5f0dc1b6e2c91af50bf10",
       "layer": "unknown",
       "summary": null
     },
@@ -919,8 +959,8 @@
     {
       "id": "template/.forge/scripts/lib/liaison-publish.mjs",
       "lang": "js",
-      "loc": 104,
-      "fingerprint": "3abd2ab1841e66cde389907868ef5770b14974940ddeb5ad51d5187abcf73d4e",
+      "loc": 172,
+      "fingerprint": "e907c707b1576a69726fcf47f0306ca972c10dec4db1a318f6dda5202ca99f11",
       "layer": "unknown",
       "summary": null
     },
@@ -935,8 +975,8 @@
     {
       "id": "template/.forge/scripts/lib/liaison-render.mjs",
       "lang": "js",
-      "loc": 171,
-      "fingerprint": "def70e6a8e8c0a96d3c8022de542e581f3f5947b2f4f270ceca7c25504031230",
+      "loc": 208,
+      "fingerprint": "00727ef5783005021146097ac07cf8e8c8a771ecfeade0fd7b09802bf210da1a",
       "layer": "unknown",
       "summary": null
     },
@@ -1183,8 +1223,8 @@
     {
       "id": "template/.forge/scripts/lib/sync-adapters.mjs",
       "lang": "js",
-      "loc": 1142,
-      "fingerprint": "01cdd4cb9de850e1b512f7d37f7499f1732de9e1ceea7c9fc6ee14ca2ceb7804",
+      "loc": 1196,
+      "fingerprint": "b57dd7521e9c7098e1c42fb02fc2e417041047383e32b71e0f2500511203094c",
       "layer": "unknown",
       "summary": null
     },
@@ -1199,16 +1239,16 @@
     {
       "id": "template/.forge/scripts/lib/transports/_common.sh",
       "lang": "shell",
-      "loc": 263,
-      "fingerprint": "983ced1a7918e21c70e25c7a16fefa795441d386057e2a370e17219ea951fa3c",
+      "loc": 390,
+      "fingerprint": "68356c555ce3ea601b086ddd4fe1d7934bd5f3894cfc02957faf40419f8420a1",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "template/.forge/scripts/lib/transports/fs-union.sh",
       "lang": "shell",
-      "loc": 99,
-      "fingerprint": "f776234df585d2ffe366c4813d5c45ac1fe91833bd027f7f1022885c5ee4bd5b",
+      "loc": 114,
+      "fingerprint": "72db9c9f20c9d4e611d4cd2af24de3bb99f5b8d1666f517926ce108ba9e7c457",
       "layer": "unknown",
       "summary": null
     },
@@ -1231,8 +1271,8 @@
     {
       "id": "template/.forge/scripts/lib/transports/git.sh",
       "lang": "shell",
-      "loc": 84,
-      "fingerprint": "04d7d0bc6dd4124226906fe7f8407c8add60ba088c548065ca3dff54d0621de5",
+      "loc": 288,
+      "fingerprint": "63d69f5acb44ff236c3a5da976f59483684bf756d3542520255c7b385201b0a4",
       "layer": "unknown",
       "summary": null
     },
@@ -1801,6 +1841,14 @@
       "lang": "js",
       "loc": 14,
       "fingerprint": "ded4c3281db572bfd0afb76c0bef0acfc2347d512d7398cb63688ae0443400e7",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/liaison-lock/write-scan-preload.cjs",
+      "lang": "js",
+      "loc": 58,
+      "fingerprint": "aed0c88dcb0155d018f8ce1698f5b4e9628495a17c3f672525a875b1d46d6487",
       "layer": "test",
       "summary": null
     },
@@ -3071,8 +3119,8 @@
     {
       "id": "tests/w150-liaison-flag-and-trust-gate.sh",
       "lang": "shell",
-      "loc": 392,
-      "fingerprint": "3d3708139ddf705d13fcadbc57701063f81542d450208e87151ecf21ac8dcd97",
+      "loc": 408,
+      "fingerprint": "24c2c4bffc8fb3104f716b5b49fb6c52b1dfda67ce10ee58ab4f5cbb08d8ac11",
       "layer": "test",
       "summary": null
     },
@@ -3591,8 +3639,8 @@
     {
       "id": "tests/w238-settings-json-merge-gate.sh",
       "lang": "shell",
-      "loc": 1226,
-      "fingerprint": "016f4359d9dc608e95a9518a1b4c2f589e92d15a836e459a4e15a6c608a15611",
+      "loc": 1232,
+      "fingerprint": "2bd90464c200291b0481389db841328d1d541262577894c522b03c3b3485b57c",
       "layer": "test",
       "summary": null
     },
@@ -4189,10 +4237,162 @@
       "summary": null
     },
     {
+      "id": "tests/w321-liaison-baton-dependency-gate.sh",
+      "lang": "shell",
+      "loc": 95,
+      "fingerprint": "d224f5a26147533e2903d346132aadeda39d66175541eb0fabc2a26b4740b87c",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w322-liaison-sender-order-gate.sh",
+      "lang": "shell",
+      "loc": 78,
+      "fingerprint": "252dcc1f16d09d1c2b16a3a04ca0c6434605f8f7ff661000fd538533a1d8f909",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w323-liaison-own-log-lock-gate.sh",
+      "lang": "shell",
+      "loc": 402,
+      "fingerprint": "28e5cd47daff579dcc545110c227616af76ee836265fac5eee617af63d45213f",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w324-liaison-publish-fs-gate.sh",
+      "lang": "shell",
+      "loc": 363,
+      "fingerprint": "68b749a94877395f1a2255d390b06b30c65eecc1bc1344f46a0d6187d114157a",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w325-liaison-publish-git-gate.sh",
+      "lang": "shell",
+      "loc": 190,
+      "fingerprint": "b77145ba80af93338c3172a95bec62b97e6901a6902413769c94bf84f4bbac5c",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w326-liaison-own-log-journal-gate.sh",
+      "lang": "shell",
+      "loc": 140,
+      "fingerprint": "4494f00bbcd23336b8d719436ce0aff4c79680a50c93c93d69573b64c1cd8669",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w327-liaison-baton-envelope-gate.sh",
+      "lang": "shell",
+      "loc": 305,
+      "fingerprint": "e66eba66510fbe938ca1231d73240edcc3eab1ebf5014e5d2edaab9b26518a6f",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w328-liaison-baton-fold-gate.sh",
+      "lang": "shell",
+      "loc": 391,
+      "fingerprint": "3534ea876a7832bc3c41b4e7ad2457a50f67bcd7c6226788dfc389f8bbcba9e1",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w329-liaison-baton-config-gate.sh",
+      "lang": "shell",
+      "loc": 180,
+      "fingerprint": "653b00e44966b00d0b37c0285574b9da01eb7856071f10032bd9a3fa1345772a",
+      "layer": "test",
+      "summary": null
+    },
+    {
       "id": "tests/w33-publish-gate.sh",
       "lang": "shell",
       "loc": 101,
       "fingerprint": "3cfbc125d94425c618319b8e710b727c5abdb24a1e693dc5fc50b31feb501846",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w330-liaison-baton-claim-gate.sh",
+      "lang": "shell",
+      "loc": 403,
+      "fingerprint": "451f7a4bbc76811505ce5695a404b83a1f3a04f27a4b5341fafd3a4727ce1cd4",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w331-liaison-baton-cache-local-gate.sh",
+      "lang": "shell",
+      "loc": 91,
+      "fingerprint": "d7ffb20f4a756bd750b0f95a25a04e2aab314d63470da04054b30f5b811b4d34",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w332-liaison-baton-lifecycle-gate.sh",
+      "lang": "shell",
+      "loc": 268,
+      "fingerprint": "3021248111701b968c58e34b8febad2caffe5d7302d45f0efdd01e261f43457d",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w333-liaison-baton-status-gate.sh",
+      "lang": "shell",
+      "loc": 338,
+      "fingerprint": "1b5f0d8d0dc7b43d455e16970bae4a290746ae2873cc66107509dab0849828ba",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w334-liaison-baton-e2e-gate.sh",
+      "lang": "shell",
+      "loc": 222,
+      "fingerprint": "9f97e2c55acefc6bf5081b86655c70b9d1e07bc3ec05a95d40c1e651160e7458",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w335-liaison-baton-auto-renew-gate.sh",
+      "lang": "shell",
+      "loc": 493,
+      "fingerprint": "791070c78494ef1e026e79ab37d903c90f21635ef68821583d028ecfbe5fd82d",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w336-liaison-baton-publish-result-gate.sh",
+      "lang": "shell",
+      "loc": 108,
+      "fingerprint": "0aec131ce4bd587912f751d17d6a03f1d91a94785759d3bdcebcd27be7bf7373",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w337-liaison-baton-session-start-gate.sh",
+      "lang": "shell",
+      "loc": 190,
+      "fingerprint": "cbff871ece9153a4fe7cbd7cd224b879a865d5cd1f3936d9bbb9efd79ba39759",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w338-liaison-baton-handoff-gate.sh",
+      "lang": "shell",
+      "loc": 157,
+      "fingerprint": "3a81534584ceec78718c6df7943b56620e143c4793733934a554e1a43d77983b",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w339-liaison-baton-docs-gate.sh",
+      "lang": "shell",
+      "loc": 198,
+      "fingerprint": "ce31d99102c3f5ecd0b7b371ba6e614bc723dcc8d8e0b64ecef0af17a607412a",
       "layer": "test",
       "summary": null
     },
@@ -4271,8 +4471,8 @@
     {
       "id": "tests/w62-handoff-hook-gate.sh",
       "lang": "shell",
-      "loc": 65,
-      "fingerprint": "98b1ccd75b919fee68c85a87e1098380b63cd8b0853778fe09467e1d630702ec",
+      "loc": 74,
+      "fingerprint": "901bc913ac2c97dc936c07da28b47a65e08969ee133630d09e5f3cf675680001",
       "layer": "test",
       "summary": null
     },
@@ -4695,8 +4895,38 @@
       "resolved": true
     },
     {
+      "from": "template/.forge/scripts/lib/liaison-append.mjs",
+      "to": "template/.forge/scripts/lib/liaison-lock.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/liaison-baton-local.mjs",
+      "to": "template/.forge/scripts/lib/liaison-baton.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/liaison-baton-local.mjs",
+      "to": "template/.forge/scripts/lib/liaison-lock.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/liaison-baton.mjs",
+      "to": "template/.forge/scripts/lib/liaison-merge.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
       "from": "template/.forge/scripts/lib/liaison-config.mjs",
       "to": "template/.forge/scripts/lib/yaml-lite.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/liaison-cursor.mjs",
+      "to": "template/.forge/scripts/lib/liaison-lock.mjs",
       "kind": "import",
       "resolved": true
     },
@@ -4719,8 +4949,20 @@
       "resolved": true
     },
     {
+      "from": "template/.forge/scripts/lib/liaison-publish.mjs",
+      "to": "template/.forge/scripts/lib/liaison-lock.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
       "from": "template/.forge/scripts/lib/liaison-push-union.mjs",
       "to": "template/.forge/scripts/lib/liaison-merge.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/liaison-render.mjs",
+      "to": "template/.forge/scripts/lib/liaison-baton.mjs",
       "kind": "import",
       "resolved": true
     },

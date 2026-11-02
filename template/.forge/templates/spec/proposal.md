@@ -1,6 +1,6 @@
-# Proposal — <CHANGE_ID>
+# Proposal: <CHANGE_ID>
 
-> Change `<CHANGE_ID>` (type: `<CHANGE_TYPE>`, scale <CHANGE_SCALE>) — criado em <CHANGE_DATE> por <CHANGE_OWNER>.
+> Change `<CHANGE_ID>` (type: `<CHANGE_TYPE>`, scale <CHANGE_SCALE>), criado em <CHANGE_DATE> por <CHANGE_OWNER>.
 > Preencha as seções abaixo antes de pedir aprovação (`status: proposed` → gate HITL). Marque incertezas com `NEEDS CLARIFICATION`.
 
 ## 1. Por quê (problema / motivação)
@@ -13,7 +13,7 @@ Descrição objetiva da mudança proposta, em termos de comportamento observáve
 
 ## 3. O que NÃO muda (fora de escopo)
 
-Liste explicitamente o que permanece intacto — evita escopo implícito.
+Liste explicitamente o que permanece intacto, evitando escopo implícito.
 
 ## 4. Impacto
 

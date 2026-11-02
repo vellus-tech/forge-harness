@@ -1,6 +1,6 @@
-# Design — <CHANGE_ID>
+# Design: <CHANGE_ID>
 
-> Design técnico do change `<CHANGE_ID>`. Decisões duráveis e transversais merecem ADR (`/forge:new-adr`) — referencie aqui em vez de duplicar.
+> Design técnico do change `<CHANGE_ID>`. Decisões duráveis e transversais merecem ADR (`/forge:new-adr`); referencie aqui em vez de duplicar.
 
 ## 1. Contexto e restrições
 
@@ -17,7 +17,7 @@ A abordagem escolhida, em termos de componentes, fluxos e contratos. Diagrama Me
 
 ## 4. Contratos e integrações afetados
 
-APIs, eventos, schemas, migrations — com estratégia de versionamento/compatibilidade.
+APIs, eventos, schemas, migrations, com estratégia de versionamento/compatibilidade.
 
 ## 5. Plano de migração / rollout
 

@@ -1,6 +1,6 @@
-# Spec delta — operations this change applies to the baseline at archive time
+# Spec delta: operations this change applies to the baseline at archive time
 # (schema: .forge/schemas/spec-delta.schema.json; doc §10.4).
-# modify_requirement is FULL REPLACEMENT — never a partial patch.
+# modify_requirement is FULL REPLACEMENT, never a partial patch.
 # For deterministic apply, carry the structured `requirement:` payload
 # (baseline-capability shape) alongside the documentary content_ref.
 operations:

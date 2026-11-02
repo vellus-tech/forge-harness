@@ -1,6 +1,6 @@
-# Refactor — <CHANGE_ID>
+# Refactor: <CHANGE_ID>
 
-> Especificação do refactor `<CHANGE_ID>` — mudança interna **sem alteração intencional de comportamento**.
+> Especificação do refactor `<CHANGE_ID>`, mudança interna **sem alteração intencional de comportamento**.
 > Este artefato substitui `requirements.md` no tipo `refactor`. O archive só ocorre se o comportamento preservado foi verificado.
 
 ## 1. Invariantes comportamentais (o que NÃO pode mudar)

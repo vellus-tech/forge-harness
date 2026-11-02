@@ -221,6 +221,14 @@ LG sweep thread open "$CH" "$TH_S" --subject "varredura" --participants "$SWEEPE
   || { echo "FAIL [setup]: thread open da varredura reprovou"; exit 1; }
 SWEEP_MSG="$SWEEPER-0001"
 
+# bastão de fixture para os verbos "baton <verbo>" (add-liaison-handoff-baton) — a rejeição de
+# flag desconhecida acontece no parsing, antes de qualquer gravação, então reusar o MESMO bastão
+# em claim/renew/release/complete/withdraw é seguro: nenhuma dessas chamadas chega a gravar nada.
+SWEEP_BATON_OUT="$(LG sweep baton offer "$CH" --thread "$TH_S" --subject "varredura bastao" 2>&1)"
+SWEEP_BATON_ID="$(printf '%s' "$SWEEP_BATON_OUT" | grep '^OK baton offer' | sed -E 's/^OK baton offer — //')"
+[ -n "$SWEEP_BATON_ID" ] \
+  || { echo "FAIL [setup]: baton offer da varredura não produziu baton_id: $SWEEP_BATON_OUT"; exit 1; }
+
 run_sub() { # run_sub <label> — invoca o subcomando com a flag desconhecida no fim
   case "$1" in
     "open")              LG sweep open "$CH" --self "$SWEEPER" --participants "$SWEEPER,$OWNER" "$BOGUS" ;;
@@ -250,6 +258,14 @@ run_sub() { # run_sub <label> — invoca o subcomando com a flag desconhecida no
     "native revoke")     LG sweep native revoke example.com/varredura/repo --reason motivo "$BOGUS" ;;
     "native pin")         LG sweep native pin "$BOGUS" ;;
     "native containment") LG sweep native containment "$BOGUS" ;;
+    "baton offer")        LG sweep baton offer "$CH" --thread "$TH_S" --subject "varredura" "$BOGUS" ;;
+    "baton claim")        LG sweep baton claim "$CH" "$SWEEP_BATON_ID" "$BOGUS" ;;
+    "baton renew")        LG sweep baton renew "$CH" "$SWEEP_BATON_ID" "$BOGUS" ;;
+    "baton release")      LG sweep baton release "$CH" "$SWEEP_BATON_ID" "$BOGUS" ;;
+    "baton complete")     LG sweep baton complete "$CH" "$SWEEP_BATON_ID" "$BOGUS" ;;
+    "baton withdraw")     LG sweep baton withdraw "$CH" "$SWEEP_BATON_ID" "$BOGUS" ;;
+    "baton status")       LG sweep baton status "$CH" "$SWEEP_BATON_ID" "$BOGUS" ;;
+    "baton list")         LG sweep baton list "$CH" "$BOGUS" ;;
     *) return 99 ;;
   esac
 }

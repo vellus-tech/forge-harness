@@ -1943,9 +1943,12 @@ const { existsSync, readFileSync } = require('fs');
   const [, , lib, root, chDir, self, channel, batonId, session, leaseArg, now, forgeYamlPath, pulledAtPath] = process.argv;
   const { appendOwnDecided, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
   const { foldBatons, validateBaton, readBatonConfig, stability } = await import(pathToFileURL(join(lib, 'liaison-baton.mjs')).href);
+  const { recordWon } = await import(pathToFileURL(join(lib, 'liaison-baton-local.mjs')).href);
   function nowWall() { return new Date().toISOString().replace(/\.\d+Z$/, 'Z'); }
   let reduced = false;
   let syncWarning = '';
+  let wonLeaseSeconds = null;
+  let wonLeaseUntil = null;
   try {
     const result = await appendOwnDecided({
       root, chDir, channel, self,
@@ -1998,6 +2001,8 @@ const { existsSync, readFileSync } = require('fs');
         };
         const verrs = validateBaton(envelope);
         if (verrs.length) return { refuse: true, rc: 1, reason: verrs.join('; ') };
+        wonLeaseSeconds = leaseSeconds;
+        wonLeaseUntil = leaseUntil;
         return { envelope, afterWrite: (allWithNew) => foldBatons(allWithNew) };
       },
     });
@@ -2013,6 +2018,10 @@ const { existsSync, readFileSync } = require('fs');
     const baton = batons.get(batonId);
     const hist = baton.history.find((h) => h.msgId === result.msg.msg_id);
     if (hist.verdict === 'won') {
+      await recordWon({
+        root, channel, chDir, self, batonId, msgId: result.msg.msg_id, session,
+        leaseSeconds: wonLeaseSeconds, leaseUntil: wonLeaseUntil,
+      });
       const stab = stability(baton, result.all);
       console.log(`OK baton claim — ${result.msg.msg_id} won (${stab.stable ? 'stable' : 'provisional'})`);
       if (!stab.stable) console.error(`provisional — faltam: ${stab.missing.join(', ')}`);

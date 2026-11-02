@@ -2427,6 +2427,7 @@ const { pathToFileURL } = require('url');
       state: b.state,
       subject: subjectOut,
       offerer: b.offer.sender,
+      eligible: b.offer.baton.eligible || [],
       holder: b.holder,
       lease_until: b.leaseUntil,
       lease_seconds: b.leaseSeconds,

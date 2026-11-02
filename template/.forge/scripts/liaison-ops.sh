@@ -1197,6 +1197,44 @@ const { pathToFileURL } = require('url');
   for (const m of missingBlobs) console.log(`  ! body_ref sem blob local: ${m.sender}/${m.msg_id} (${m.body_ref}) — rode 'sync' ou 'import' para tentar recuperar`);
 })();
 NODEEOF
+    # Rebaixamento da marca de publicação nos transportes de diretório (design §2.4, resíduo da
+    # publicação sem trava): relê o arquivo do próprio self no hub e, se estiver ATRÁS da marca
+    # gravada, rebaixa pela MESMA markPublished({ observedFile }) e avisa. Melhor esforço total —
+    # canal sem transporte configurado, transporte não-diretório (git/gh), ou qualquer erro de
+    # leitura NUNCA interrompem o status nem mudam a linha principal acima; é um bit a mais, não
+    # um requisito do comando.
+    if [ -n "$self" ]; then
+      _status_hub_conf="$(_read_transport "$channel" 2>/dev/null)" && [ -n "$_status_hub_conf" ] || _status_hub_conf=""
+      _status_hub_kind=""; _status_hub_path=""
+      while IFS= read -r _shl; do
+        case "${_shl%%=*}" in KIND) _status_hub_kind="${_shl#*=}" ;; PATH) _status_hub_path="${_shl#*=}" ;; esac
+      done <<< "$_status_hub_conf"
+      case "$_status_hub_kind" in
+        fs|fs-union|manual)
+          if [ -n "$_status_hub_path" ]; then
+            _status_hubf="$_status_hub_path/$channel/log/$self.jsonl"
+            [ -f "$_status_hubf" ] || _status_hubf=""
+            node - "$LIBDIR" "$ROOT" "$ch_dir" "$channel" "$self" "$now_wall" "$_status_hubf" <<'NODEEOF2' 2>/dev/null || true
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, chDir, channel, self, nowWall, observedFile] = process.argv;
+  const P = await import(pathToFileURL(join(lib, 'liaison-publish.mjs')).href);
+  const { readFileSync, existsSync } = await import('node:fs');
+  const stateFile = join(chDir, 'state.json');
+  const before = existsSync(stateFile) ? (JSON.parse(readFileSync(stateFile, 'utf8')).published || {})[self] : undefined;
+  const result = await P.markPublished({ root, channel, chDir, self, nowWall, observedFile: observedFile || undefined });
+  const after = result ? result.msgId : undefined;
+  if (before && before !== after) {
+    console.log('  ! hub atrás do log próprio: rode sync');
+  }
+})();
+NODEEOF2
+          fi
+          ;;
+        *) : ;;
+      esac
+    fi
   else
     self="$(_read_self)"
     if [ ! -d "$LIAISON_DIR" ]; then echo "LIAISON: não inicializado"; exit 0; fi
@@ -1572,21 +1610,38 @@ sync)
   t_probe || { echo "FAIL: transporte $LIAISON_T_KIND indisponível — sync abortado" >&2; exit 1; }
 
   if [ "$do_push" -eq 1 ]; then
-    t_push || { echo "FAIL: push pelo transporte $LIAISON_T_KIND" >&2; exit 1; }
-    # issue #109: grava a marca d'água de publicação SÓ depois de t_push retornar rc 0. O log
-    # local, neste ponto, já é a união publicada no hub (_dir_push_union em
-    # lib/transports/_common.sh copia de volta) — então o último msg_id do log próprio É o que
-    # está publicado, sem precisar reconsultar o transporte. published_at é wall clock de
-    # propósito (DA-23): created_at é a data do HEAD, e mediria "publicada há dias" para uma
-    # mensagem cujo push acabou de acontecer.
+    LIAISON_OBSERVED_FILE=""
+    push_rc=0
+    t_push || push_rc=$?
+    # publish-result-<pid>.json (design §2.4): registrado SEMPRE que o push foi tentado,
+    # sucesso ou não — é o que o processo destacado da renovação (TASK-27) e o `baton status`
+    # consolidam depois, sob a trava local. `sync` interativo também grava: um `sync` manual que
+    # falhou por teto de tempo não deve desaparecer sem rastro.
+    result_dir="$ROOT/.forge/cache/liaison-baton/$channel"
+    mkdir -p "$result_dir" 2>/dev/null || true
     now_wall="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    node - "$LIBDIR" "$ch_dir" "$LIAISON_SELF" "$now_wall" <<'NODEEOF'
+    node -e "
+      const fs = require('fs');
+      const out = {
+        rc: $push_rc, at: '$now_wall',
+        attempts: Number('${LIAISON_PUSH_ATTEMPTS:-0}') || 0,
+        repairs: Number('${LIAISON_PUSH_REPAIRS:-0}') || 0,
+      };
+      fs.writeFileSync('$result_dir/publish-result-$$.json', JSON.stringify(out));
+    " 2>/dev/null || true
+    [ "$push_rc" -eq 0 ] || { echo "FAIL: push pelo transporte $LIAISON_T_KIND" >&2; exit 1; }
+    # issue #109 / design §2.4: a marca é do que foi OBSERVADO no hub depois do push (nunca do
+    # que o processo local acha que escreveu) — `_dir_push` exporta `LIAISON_OBSERVED_FILE` só
+    # quando a conferência pós-mv passou. published_at é wall clock de propósito (DA-23):
+    # created_at é a data do HEAD, e mediria "publicada há dias" para uma mensagem cujo push
+    # acabou de acontecer.
+    node - "$LIBDIR" "$ROOT" "$ch_dir" "$channel" "$LIAISON_SELF" "$now_wall" "${LIAISON_OBSERVED_FILE:-}" <<'NODEEOF'
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, chDir, self, nowWall] = process.argv;
+  const [, , lib, root, chDir, channel, self, nowWall, observedFile] = process.argv;
   const { markPublished } = await import(pathToFileURL(join(lib, 'liaison-publish.mjs')).href);
-  markPublished({ chDir, self, nowWall });
+  await markPublished({ root, channel, chDir, self, nowWall, observedFile: observedFile || undefined });
 })();
 NODEEOF
   fi
@@ -1601,6 +1656,22 @@ NODEEOF
   trap "rm -rf '$staging'" EXIT
   t_pull "$staging" || { echo "FAIL: pull pelo transporte $LIAISON_T_KIND" >&2; exit 1; }
   _apply_bundle "$channel" "$staging" "sync via $LIAISON_T_KIND"
+  # pulled_at (design §2.4/§2.7): instante do último pull BEM-SUCEDIDO, gravado pelo próprio
+  # sync — usado pela TASK-19 (tomada de bastão por vencimento) para distinguir "não vejo
+  # renovação porque não sincronizei" de "não vejo renovação porque ela não veio". Melhor
+  # esforço: falhar aqui nunca desfaz um pull que já aconteceu.
+  pull_result_dir="$ROOT/.forge/cache/liaison-baton/$channel"
+  mkdir -p "$pull_result_dir" 2>/dev/null || true
+  node -e "
+    const fs = require('fs');
+    const f = '$pull_result_dir/sync-local.json';
+    let state = {};
+    try { state = JSON.parse(fs.readFileSync(f, 'utf8')); } catch {}
+    state.pulled_at = '$(date -u +%Y-%m-%dT%H:%M:%SZ)';
+    const tmp = f + '.tmp.' + process.pid;
+    fs.writeFileSync(tmp, JSON.stringify(state));
+    fs.renameSync(tmp, f);
+  " 2>/dev/null || true
   ;;
 
 # ---------------------------------------------------------------------------------------------

@@ -81,6 +81,21 @@ case "$(declare -f _dir_push)" in
     return 1
     ;;
 esac
+# Opção C (design §2.4, add-liaison-handoff-baton): um tronco anterior a este change tem
+# `_dir_push_union`, mas publica sem `union-own` (ainda faz `cp "$hubf" "$own"`) e sem
+# `LIAISON_OBSERVED_FILE` — a mesma classe de risco da checagem acima, um patamar depois. Lê o
+# CORPO das duas funções recém-carregadas (não só se existem), pela mesma razão: o source sempre
+# redefine `_dir_push`/`_dir_push_union`, mas não apaga uma definição anterior no processo.
+case "$(declare -f _dir_push)$(declare -f _dir_push_union)" in
+  *union-own*LIAISON_OBSERVED_FILE* | *LIAISON_OBSERVED_FILE*union-own*) : ;;
+  *)
+    echo "FAIL fs-union: o _common.sh do checkout principal não tem a publicação sem trava (opção C, anterior ao add-liaison-handoff-baton): $_fsu_common." >&2
+    echo "                Publicar com ele sincronizaria o log próprio de volta sem a trava do log (cp cru)," >&2
+    echo "                podendo perder uma gravação concorrente. Atualize o checkout principal antes de" >&2
+    echo "                sincronizar." >&2
+    return 1
+    ;;
+esac
 
 _fsu_hub() { printf '%s/%s' "$LIAISON_T_PATH" "$LIAISON_CHANNEL"; }
 

@@ -54,6 +54,16 @@ function ownLogStat(chDir, self) {
   return { size: st.size, mtimeMs: Math.floor(st.mtimeMs / 1000) * 1000 };
 }
 
+// nextRenewAtFor(leaseUntil, leaseSeconds) — metade do prazo, ARREDONDADA PARA CIMA ao segundo
+// (ARCH-001). O gancho compara texto ISO em segundos inteiros; com `lease_seconds` ímpar a metade
+// cai no meio segundo, e truncar para baixo fazia o gancho chamar o renew 0,5 s antes da metade que
+// o próprio renew usa — e receber "ainda não é hora". Para cima, `now_iso >= nextRenewAt` implica
+// `Date.now() >= metade`.
+export function nextRenewAtFor(leaseUntil, leaseSeconds) {
+  const halfMs = Date.parse(leaseUntil) - (leaseSeconds * 1000) / 2;
+  return new Date(Math.ceil(halfMs / 1000) * 1000).toISOString().replace(/\.\d+Z$/, 'Z');
+}
+
 // recordWon({root, channel, chDir, self, batonId, msgId, session, leaseSeconds, leaseUntil})
 export async function recordWon({ root, channel, chDir, self, batonId, msgId, session, leaseSeconds, leaseUntil }) {
   if (!root || !channel || !chDir || !self || !batonId || !msgId || !session || !leaseSeconds || !leaseUntil) {
@@ -63,7 +73,7 @@ export async function recordWon({ root, channel, chDir, self, batonId, msgId, se
     const path = filePath(root, channel);
     const state = readState(path);
     state.claims[batonId] = { msgId, session, leaseUntil };
-    const nextRenewAt = new Date(Date.parse(leaseUntil) - (leaseSeconds * 1000) / 2).toISOString().replace(/\.\d+Z$/, 'Z');
+    const nextRenewAt = nextRenewAtFor(leaseUntil, leaseSeconds);
     const { size, mtimeMs } = ownLogStat(chDir, self);
     state.holders[batonId] = { session, leaseUntil, nextRenewAt, ownLogSize: size, ownLogMtimeMs: mtimeMs };
     writeState(path, state);
@@ -126,9 +136,7 @@ export async function rebuildHolders({ root, channel, chDir, self }) {
     const { size, mtimeMs } = ownLogStat(chDir, self);
     for (const [batonId, b] of batons) {
       if (b.state === 'held' && b.holder && b.holder.sender === self) {
-        const nextRenewAt = new Date(Date.parse(b.leaseUntil) - (b.leaseSeconds * 1000) / 2)
-          .toISOString()
-          .replace(/\.\d+Z$/, 'Z');
+        const nextRenewAt = nextRenewAtFor(b.leaseUntil, b.leaseSeconds);
         holders[batonId] = { session: b.holder.session, leaseUntil: b.leaseUntil, nextRenewAt, ownLogSize: size, ownLogMtimeMs: mtimeMs };
       }
     }

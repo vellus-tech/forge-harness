@@ -136,23 +136,34 @@ NODEEOF
 }
 
 _mark_warned_once() { # _mark_warned_once <channel> <chave> -> rc 0 se é a PRIMEIRA vez (deve avisar)
+  # Ler, decidir e gravar acontecem SOB a trava local do canal (withLocalLock, ARCH-001): com o
+  # `grep` fora da trava e a gravação depois, dois eventos concorrentes liam "ainda não avisado" e
+  # avisavam os dois. Falha da trava ou do node não avisa (rc 1): o aviso é melhor esforço, e um
+  # aviso repetido é pior do que um adiado para o próximo evento.
   local channel="$1" chave="$2"
   local warnfile="$LIAISON_ROOT/.forge/cache/liaison-baton/$channel/warned.json"
+  local libdir="$LIAISON_ROOT/.forge/scripts/lib"
   mkdir -p "$(dirname "$warnfile")" 2>/dev/null
-  if [ -f "$warnfile" ] && grep -qF "\"$chave\"" "$warnfile" 2>/dev/null; then
-    return 1
-  fi
-  node -e '
-const fs = require("fs");
-const path = process.argv[1], key = process.argv[2];
-let state = {};
-try { state = JSON.parse(fs.readFileSync(path, "utf8")); } catch {}
-state[key] = true;
-const tmp = path + ".tmp." + process.pid + "." + Date.now();
-fs.writeFileSync(tmp, JSON.stringify(state));
-fs.renameSync(tmp, path);
-' "$warnfile" "$chave" 2>/dev/null
-  return 0
+  node - "$LIAISON_ROOT" "$channel" "$self" "$warnfile" "$chave" "$libdir" <<'NODEEOF' >/dev/null 2>&1
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const fs = require('fs');
+  const [, , root, channel, self, path, key, lib] = process.argv;
+  const { withLocalLock } = await import(pathToFileURL(join(lib, 'liaison-lock.mjs')).href);
+  const first = await withLocalLock({ root, channel, self }, () => {
+    let state = {};
+    try { state = JSON.parse(fs.readFileSync(path, 'utf8')); } catch { /* ausente ou ilegível: recomeça */ }
+    if (state[key]) return false;
+    state[key] = true;
+    const tmp = `${path}.tmp.${process.pid}.${Date.now()}`;
+    fs.writeFileSync(tmp, JSON.stringify(state));
+    fs.renameSync(tmp, path);
+    return true;
+  });
+  process.exit(first ? 0 : 1);
+})().catch(() => process.exit(1));
+NODEEOF
 }
 
 _emit_context() { # _emit_context <texto>
@@ -267,14 +278,23 @@ const { pathToFileURL } = require("url");
         ' _ "$LIAISON_ROOT" "$OPS" "$channel" "$resultfile" >/dev/null 2>&1 &
         disown 2>/dev/null || true
       fi
-    else
-      # recusa no modo IF_DUE (not-holder ou lease vencido) -- apaga a entrada do cache e avisa
-      # uma vez por ocorrência (design §2.8).
+    elif [ "$renew_rc" -eq 4 ]; then
+      # PERDA REAL (rc 4 do renew: não é a titular corrente, ou o lease venceu) -- apaga a entrada
+      # do cache e avisa uma vez por ocorrência (design §2.8). Só este rc: os demais têm remédio
+      # oposto (ARCH-001), e tratá-los como perda parava a renovação automática da titular.
       _remove_holder_entry "$channel" "$baton_id"
       key="lost:$channel:$baton_id"
       if _mark_warned_once "$channel" "$key"; then
         _emit_context "LIAISON baton: perdeu a titularidade de '$baton_id' no canal '$channel' (rode 'baton status $channel $baton_id' para ver quem detém agora)."
       fi
+    elif [ "$renew_rc" -eq 5 ]; then
+      # Ainda não é hora (rc 5): o cache achava que era (outro evento acabou de renovar, ou o
+      # next_renew_at estava defasado). Regrava a entrada a partir da dobra, sem aviso.
+      _rebuild_cold "$channel" "$chdir"
+    else
+      # Erro ou transitório (rc 1: trava ocupada, trava perdida, exceção). Não é perda: não toca o
+      # cache nem avisa -- o próximo evento tenta de novo. Só um registro em stderr.
+      echo "[HOOK] on-post-tool-use: renovação de '$baton_id' em '$channel' não aconteceu agora (rc $renew_rc) — tenta de novo no próximo evento" >&2
     fi
   done < <(_extract_holders "$cachefile" "$session_id")
 done

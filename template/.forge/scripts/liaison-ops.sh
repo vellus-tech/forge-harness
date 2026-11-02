@@ -57,6 +57,12 @@
 #                            [--for <a,b>] [--max-lease <s>] [--session <id>]
 #   liaison-ops.sh baton claim    <channel> <baton_id> [--lease <s>] [--session <id>]
 #   liaison-ops.sh baton renew    <channel> <baton_id> [--lease <s>] [--session <id>]
+#                            rc do renew (ARCH-001): 0 renovado; 4 PERDA REAL (não é a titular
+#                            corrente, ou o lease venceu, e a retomada é 'baton claim'); 5 ainda não
+#                            é hora (só com FORGE_BATON_RENEW_IF_DUE=1, antes da metade do prazo);
+#                            1 erro ou transitório (trava ocupada, trava perdida, oferta
+#                            desconhecida, argumento inválido, exceção). O gancho de renovação só
+#                            trata como perda o rc 4.
 #   liaison-ops.sh baton release  <channel> <baton_id> [--session <id>] [--body "<txt>" | --body-file <path>]
 #   liaison-ops.sh baton complete <channel> <baton_id> [--session <id>] [--body "<txt>" | --body-file <path>]
 #   liaison-ops.sh baton withdraw <channel> <baton_id> [--session <id>] [--body "<txt>" | --body-file <path>]
@@ -2153,11 +2159,11 @@ const { pathToFileURL } = require('url');
         const isHolder = baton && baton.state === 'held' && baton.holder && baton.holder.sender === self && baton.holder.session === session;
         if (!isHolder) {
           const holderTxt = baton && baton.holder ? `${baton.holder.sender}/${baton.holder.session}` : 'nenhuma';
-          return { refuse: true, rc: 1, reason: `não é a titular corrente (titular: ${holderTxt})` };
+          return { refuse: true, rc: 4, reason: `não é a titular corrente (titular: ${holderTxt})` };
         }
         const T = Date.parse(baton.leaseUntil);
         if (Date.now() > T) {
-          return { refuse: true, rc: 1, reason: `lease venceu em ${baton.leaseUntil} — a retomada é 'baton claim'` };
+          return { refuse: true, rc: 4, reason: `lease venceu em ${baton.leaseUntil} — a retomada é 'baton claim'` };
         }
         let leaseSeconds;
         if (leaseArg) {
@@ -2171,7 +2177,7 @@ const { pathToFileURL } = require('url');
         if (ifDue === '1') {
           const half = T - (baton.leaseSeconds * 1000) / 2;
           if (Date.now() < half) {
-            return { refuse: true, rc: 1, reason: `ainda não é hora de renovar (metade do prazo em ${new Date(half).toISOString().replace(/\.\d+Z$/, 'Z')})` };
+            return { refuse: true, rc: 5, reason: `ainda não é hora de renovar (metade do prazo em ${new Date(half).toISOString().replace(/\.\d+Z$/, 'Z')})` };
           }
         }
         const stampedAt = nowWall();

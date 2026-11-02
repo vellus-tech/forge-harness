@@ -49,27 +49,27 @@ mk_repo a
 LG a open "$CH" --self repo-a --participants repo-a,repo-b >/dev/null
 LG a thread open "$CH" t1 --subject "lifecycle" --participants repo-a,repo-b --body "abertura" >/dev/null
 
-# === [renew-sem-titular] ninguém reivindicou ainda -> rc 1 nomeando titular 'nenhuma' ===
+# === [renew-sem-titular] ninguém reivindicou ainda -> rc 4 (perda real, ARCH-001) nomeando titular 'nenhuma' ===
 out="$(LGS a s-off1 baton offer "$CH" --thread t1 --subject "renew-sem-titular" 2>&1)"
 bat1="$(offer_id "$out")"
 before="$(own_log_lines a repo-a)"
 out="$(LGS a s-x baton renew "$CH" "$bat1" 2>&1)"; rc=$?
 after="$(own_log_lines a repo-a)"
-if [ "$rc" -eq 1 ] && [ "$before" = "$after" ] && echo "$out" | grep -qi "nenhuma"; then
-  echo "OK [renew-sem-titular]: rc 1 nomeando titular 'nenhuma', nada gravado"
+if [ "$rc" -eq 4 ] && [ "$before" = "$after" ] && echo "$out" | grep -qi "nenhuma"; then
+  echo "OK [renew-sem-titular]: rc 4 nomeando titular 'nenhuma', nada gravado"
 else
-  echo "FAIL [renew-sem-titular]: esperava rc 1 nomeando titular, achou rc=$rc before=$before after=$after ($out)"; fail=1
+  echo "FAIL [renew-sem-titular]: esperava rc 4 nomeando titular, achou rc=$rc before=$before after=$after ($out)"; fail=1
 fi
 
-# === [renew-outra-sessao] renew de sessão diferente da titular -> rc 1 nomeando titular ===
+# === [renew-outra-sessao] renew de sessão diferente da titular -> rc 4 nomeando titular ===
 LGS a s-h1 baton claim "$CH" "$bat1" --lease 90 >/dev/null 2>&1
 before="$(own_log_lines a repo-a)"
 out="$(LGS a s-outra baton renew "$CH" "$bat1" 2>&1)"; rc=$?
 after="$(own_log_lines a repo-a)"
-if [ "$rc" -eq 1 ] && [ "$before" = "$after" ] && echo "$out" | grep -q "s-h1"; then
-  echo "OK [renew-outra-sessao]: rc 1 nomeando a titular s-h1, nada gravado"
+if [ "$rc" -eq 4 ] && [ "$before" = "$after" ] && echo "$out" | grep -q "s-h1"; then
+  echo "OK [renew-outra-sessao]: rc 4 nomeando a titular s-h1, nada gravado"
 else
-  echo "FAIL [renew-outra-sessao]: esperava rc 1 nomeando s-h1, achou rc=$rc before=$before after=$after ($out)"; fail=1
+  echo "FAIL [renew-outra-sessao]: esperava rc 4 nomeando s-h1, achou rc=$rc before=$before after=$after ($out)"; fail=1
 fi
 
 # === [renew-mantem-lease] sem --lease, mantém o lease_seconds vigente (90s) ===
@@ -112,10 +112,10 @@ sleep 59
 before="$(own_log_lines a repo-a)"
 out="$(LGS a s-h2 baton renew "$CH" "$bat2" 2>&1)"; rc=$?
 after="$(own_log_lines a repo-a)"
-if [ "$rc" -eq 1 ] && [ "$before" = "$after" ] && echo "$out" | grep -qi "claim"; then
+if [ "$rc" -eq 4 ] && [ "$before" = "$after" ] && echo "$out" | grep -qi "claim"; then
   echo "OK [renew-vencido]: lease vencido, renew recusa sem gravar citando 'baton claim'"
 else
-  echo "FAIL [renew-vencido]: esperava rc 1 sem gravar citando claim, achou rc=$rc before=$before after=$after ($out)"; fail=1
+  echo "FAIL [renew-vencido]: esperava rc 4 sem gravar citando claim, achou rc=$rc before=$before after=$after ($out)"; fail=1
 fi
 # release dela continua válido depois de vencido.
 out="$(LGS a s-h2 baton release "$CH" "$bat2" 2>&1)"; rc=$?

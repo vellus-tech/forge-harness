@@ -190,6 +190,7 @@ script recusa qualquer flag fora desta lista, nomeando o verbo e as flags aceita
 - `renew`/`release`/`complete`/`withdraw` recusam sem gravar quando a sessão não é a titular
   corrente (`release`/`complete`/`renew`) ou quando não é o ofertante com o bastão disponível ou
   vencido além da folga (`withdraw`).
+- `renew` distingue o motivo pelo código de saída: rc 0 renovado; rc 4 perda real (não é a titular corrente, ou o lease venceu, e a retomada é `baton claim`); rc 5 ainda não é hora (só com `FORGE_BATON_RENEW_IF_DUE=1`, antes da metade do prazo); rc 1 erro ou transitório (trava ocupada ou perdida, oferta desconhecida, `--lease` fora da faixa, exceção). O gancho de renovação automática só avisa perda e tira o bastão do cache com rc 4; com rc 5 regrava o cache a partir da dobra; com rc 1 não toca o cache e tenta de novo no próximo evento.
 - `status <channel> [<baton_id>]` e `list <channel>` são só leitura: nunca gravam mensagem. O
   `status` GERAL (sem `baton`) soma à linha do canal `· bastões: N disponível(is), M nosso(s), K
   perdido(s)`.

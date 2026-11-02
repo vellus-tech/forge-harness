@@ -69,12 +69,38 @@ _git_init_run() {
   git -C "$dir" config user.email "liaison@forge.local"
   git -C "$dir" config user.name "forge-liaison"
   git -C "$dir" config commit.gpgsign false
+  # SEC-001: a branch do canal é escrita por peers. Com `core.symlinks` padrão (true no macOS), um
+  # link simbólico commitado ali vira link de verdade no checkout, e o `mkdir -p`/`cp` seguintes o
+  # seguem para fora do repositório descartável. Desligar é a segunda camada; a primeira é a recusa
+  # de `_git_refuse_special_entries`, que nem deixa o checkout acontecer.
+  git -C "$dir" config core.symlinks false
   local old; old="$(_git_old_cache)"
   if [ -d "$old/.git/objects" ]; then
     mkdir -p "$dir/.git/objects/info"
     printf '%s\n' "$old/.git/objects" > "$dir/.git/objects/info/alternates"
   fi
   return 0
+}
+
+# _git_refuse_special_entries <run_dir> <rev> — rc 1 (FAIL nomeando cada caminho) se a árvore do
+# canal em <rev> tiver qualquer entrada de modo 120000 (link simbólico) ou 160000 (gitlink). SEC-001:
+# o transporte só move arquivos opacos, e nenhum participante legítimo publica link ou submódulo no
+# canal — um deles ali é, por construção, conteúdo plantado. Falha do próprio `ls-tree` também
+# recusa: não saber ler a árvore é motivo de rigor, não de checkout.
+_git_refuse_special_entries() {
+  local dir="$1" rev="$2" listing bad
+  if ! listing="$(git -C "$dir" ls-tree -r "$rev" -- "$LIAISON_CHANNEL" 2>/dev/null)"; then
+    echo "FAIL: RECUSADO — não foi possível listar a árvore do canal $LIAISON_CHANNEL na branch $(_git_branch)." >&2
+    return 1
+  fi
+  bad="$(awk -F '\t' '{ split($1, meta, " "); if (meta[1] == "120000" || meta[1] == "160000") print meta[1] " " $2 }' <<<"$listing")"
+  [ -z "$bad" ] && return 0
+  echo "FAIL: RECUSADO — a branch $(_git_branch) tem entrada que não é arquivo comum no canal (link simbólico ou submódulo):" >&2
+  while IFS= read -r line; do
+    echo "      ${line#* } (modo ${line%% *})" >&2
+  done <<<"$bad"
+  echo "      Nenhum participante legítimo publica isso; seguir o link gravaria fora do repositório descartável. Remova a entrada na branch (e investigue quem a plantou) antes de sincronizar de novo." >&2
+  return 1
 }
 
 t_probe() {
@@ -121,6 +147,7 @@ t_push() {
           echo "FAIL: push RECUSADO — fetch da branch $branch falhou (rede?)" >&2
           rm -rf "$run_dir"; return 1
         fi
+        _git_refuse_special_entries "$run_dir" FETCH_HEAD || { rm -rf "$run_dir"; return 1; }
         git -C "$run_dir" checkout -q -B "$branch" FETCH_HEAD || { rm -rf "$run_dir"; return 1; }
         base_commit="$(git -C "$run_dir" rev-parse HEAD)"
         ;;
@@ -137,8 +164,9 @@ t_push() {
         ;;
     esac
 
-    mkdir -p "$run_dir/$LIAISON_CHANNEL/log" "$run_dir/$LIAISON_CHANNEL/blobs"
     local hub="$run_dir/$LIAISON_CHANNEL"
+    _dir_hub_guard "$hub" || { rm -rf "$run_dir"; return 1; }
+    mkdir -p "$hub/log" "$hub/blobs"
 
     if [ ! -f "$own" ]; then
       # nada próprio a publicar nesta execução.
@@ -149,7 +177,10 @@ t_push() {
 
     local snap; snap="$(mktemp "${TMPDIR:-/tmp}/liaison-git-push-snap.XXXXXX")"
     cp "$own" "$snap"
-    _dir_push_blobs "$hub" "$src"
+    if ! _dir_push_blobs "$hub" "$src"; then
+      rm -f "$snap"; rm -rf "$run_dir"
+      return 1
+    fi
     _liaison_test_barrier after-blobs
 
     local verdict cls_rc=0
@@ -259,6 +290,9 @@ t_pull() {
         echo "FAIL: pull — fetch da branch $branch falhou (rede?)" >&2
         rm -rf "$run_dir"; return 1
       fi
+      # SEC-001: `git archive | tar -x` materializa link simbólico como link, independente de
+      # `core.symlinks` — a recusa vem antes de qualquer extração.
+      _git_refuse_special_entries "$run_dir" FETCH_HEAD || { rm -rf "$run_dir"; return 1; }
       mkdir -p "$staging"
       git -C "$run_dir" archive FETCH_HEAD -- "$LIAISON_CHANNEL" 2>/dev/null | tar -x -C "$staging" 2>/dev/null || true
       ;;

@@ -48,6 +48,36 @@ _liaison_test_barrier() {
   rm -f "$ready" "$go" 2>/dev/null || true
 }
 
+# _dir_refuse_link <caminho>... — rc 1 (com FAIL nomeando o caminho) se QUALQUER um dos caminhos
+# for link simbólico; rc 0 caso contrário (inclusive quando o caminho ainda não existe). SEC-001:
+# o conteúdo do ponto de encontro é escrito por peers, e um link simbólico plantado ali (`log`,
+# `blobs`, o diretório do canal ou o arquivo-alvo) faz o `mkdir -p`, o `cp` e a união seguirem o
+# link e gravarem fora do hub — reproduzido em revisão até `.git/hooks` do repositório de quem
+# sincroniza. `[ -L ]` olha só o último componente, que é exatamente o que o peer controla; os
+# componentes acima pertencem ao caminho configurado pelo operador.
+_dir_refuse_link() {
+  local p
+  for p in "$@"; do
+    if [ -L "$p" ]; then
+      echo "FAIL: push RECUSADO — '$p' é um link simbólico no ponto de encontro. Conteúdo do hub é escrito por peers, e seguir o link gravaria fora do hub. Remova o link no hub (e investigue quem o plantou) antes de sincronizar de novo." >&2
+      return 1
+    fi
+  done
+  return 0
+}
+
+# _dir_hub_guard <hub_dir> — aplica `_dir_refuse_link` ao diretório do canal, a `log/`, a
+# `blobs/` e ao log próprio no hub. O próprio `<hub_dir>` só é conferido quando NÃO é o caminho
+# configurado pelo operador (`LIAISON_T_PATH`, caso do transporte `manual`): ali um link é escolha
+# de quem configurou (um volume montado, por exemplo); abaixo dele, tudo é conteúdo de peer.
+_dir_hub_guard() {
+  local hub="$1"
+  if [ "$hub" != "${LIAISON_T_PATH:-}" ]; then
+    _dir_refuse_link "$hub" || return 1
+  fi
+  _dir_refuse_link "$hub/log" "$hub/blobs" "$hub/log/$LIAISON_SELF.jsonl"
+}
+
 # _dir_push_cleanup_own_tmp <hub_dir> — remove tmp ÓRFÃO do PRÓPRIO self no hub com mais de 10
 # minutos (design §2.4): o vigia da renovação pode matar um push no meio, e o tmp único de cada
 # tentativa não é recolhido por ninguém além do próximo push deste mesmo self. NUNCA toca tmp de
@@ -216,6 +246,7 @@ _dir_push_union() {
     return 1
   fi
   local tmp="$hub/log/.$LIAISON_SELF.jsonl.tmp.$(_liaison_unique_suffix)"
+  _dir_refuse_link "$tmp" || return 1
   if ! node "$mod" "$own" "$hubf" "$tmp" "$LIAISON_SELF"; then
     rm -f "$tmp"
     return 1
@@ -242,16 +273,22 @@ _dir_push_union() {
 # `blobs/` (o `try/catch` que faz `unlinkSync` de melhor esforço não sobrevive à morte do
 # processo) — sem a exclusão aqui, `find "$src/blobs" -type f` o varre como qualquer outro blob e
 # `_dir_push` o publicaria no hub, contaminando toda réplica que sincronizar depois.
+#
+# SEC-001: recusa (rc 1) se `blobs/` do hub, o blob-alvo ou o tmp forem link simbólico — `[ -f ]`
+# e `cp` seguem o link, e o blob local iria parar onde o peer apontou. Quem chama confere o rc.
 _dir_push_blobs() {
   local hub="$1" src="$2"
   [ -d "$src/blobs" ] || return 0
+  _dir_refuse_link "$hub/blobs" || return 1
   local b name
   while IFS= read -r b; do
     [ -n "$b" ] || continue
     name="$(basename "$b")"
+    _dir_refuse_link "$hub/blobs/$name" "$hub/blobs/.$name.tmp" || return 1
     [ -f "$hub/blobs/$name" ] && continue
     cp "$b" "$hub/blobs/.$name.tmp" && mv "$hub/blobs/.$name.tmp" "$hub/blobs/$name"
   done < <(find "$src/blobs" -type f ! -name '.recover-*.tmp' 2>/dev/null | LC_ALL=C sort)
+  return 0
 }
 
 # _dir_push <hub_dir> — publica log/<self>.jsonl e os blobs locais no ponto de encontro, SEM
@@ -268,6 +305,8 @@ _dir_push_blobs() {
 _dir_push() {
   local hub="$1"
   local src="$LIAISON_CHANNEL_DIR"
+  # SEC-001: a guarda vem ANTES do `mkdir -p`, que seguiria um link plantado no hub.
+  _dir_hub_guard "$hub" || return 1
   mkdir -p "$hub/log" "$hub/blobs"
   local own="$src/log/$LIAISON_SELF.jsonl"
   local attempts=0 repairs=0 rc=1
@@ -277,18 +316,23 @@ _dir_push() {
   if [ ! -f "$own" ]; then
     # Nada próprio a publicar ainda — mas blobs soltos (ex. de uma gravação anterior
     # interrompida) continuam indo, como no comportamento pré-existente.
-    _dir_push_blobs "$hub" "$src"
+    _dir_push_blobs "$hub" "$src" || return 1
     export LIAISON_PUSH_ATTEMPTS=0 LIAISON_PUSH_REPAIRS=0
     return 0
   fi
 
   while :; do
     attempts=$((attempts + 1))
+    # Reconfere a cada tentativa: o hub é compartilhado e pode mudar entre uma e outra.
+    _dir_hub_guard "$hub" || return 1
     _dir_push_cleanup_own_tmp "$hub"
 
     local snap; snap="$(mktemp "${TMPDIR:-/tmp}/liaison-push-snap.XXXXXX")"
     cp "$own" "$snap"
-    _dir_push_blobs "$hub" "$src"
+    if ! _dir_push_blobs "$hub" "$src"; then
+      rm -f "$snap"
+      return 1
+    fi
     _liaison_test_barrier after-blobs
 
     local verdict cls_rc=0
@@ -310,6 +354,7 @@ _dir_push() {
           echo "      divergência vier de outra réplica sua que publicou mensagem distinta no mesmo" >&2
           echo "      seq, ela se perde aqui." >&2
           local rtmp="$hub/log/.$LIAISON_SELF.jsonl.tmp.$(_liaison_unique_suffix)"
+          _dir_refuse_link "$rtmp" || { rm -f "$snap"; return 1; }
           cp "$snap" "$rtmp" && mv "$rtmp" "$hub/log/$LIAISON_SELF.jsonl"
           _liaison_test_barrier after-mv
           repairs=$((repairs + 1))

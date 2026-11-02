@@ -22,6 +22,8 @@ _fs_hub() { printf '%s/%s' "$LIAISON_T_PATH" "$LIAISON_CHANNEL"; }
 t_probe() {
   [ -n "${LIAISON_T_PATH:-}" ] || { echo "FAIL: transporte fs exige 'path' no liaison.yaml" >&2; return 1; }
   local hub; hub="$(_fs_hub)"
+  # SEC-001: antes do `mkdir -p`, que seguiria um link simbólico plantado no hub por um peer.
+  _dir_hub_guard "$hub" || return 1
   mkdir -p "$hub/log" "$hub/blobs" 2>/dev/null \
     || { echo "FAIL: não foi possível criar o hub em $hub (permissão? caminho inválido?)" >&2; return 1; }
   [ -w "$hub/log" ] || { echo "FAIL: hub sem permissão de escrita: $hub/log" >&2; return 1; }

@@ -11,7 +11,8 @@
 //   2. spoofing de identidade — mensagem se declara com o self.id local → conflito
 //   3. envelope inválido (forma, enums, tetos) → conflito
 //   4. content_sha auto-inconsistente (adulteração em trânsito) → conflito
-//   5. body_ref fora do padrão, blob ausente ou acima do teto → conflito
+//   5. body_ref fora do padrão, fora do formato content-addressed (`blobs/<sha256>-<nome>`),
+//      blob ausente, acima do teto ou com conteúdo que não confere com o sha do nome → conflito
 //   6. COMPATIBILIDADE DE LOG — o log de um remetente é append-only: uma posição (seq) já
 //      conhecida não pode chegar com outro msg_id ou outro content_sha. Reescrita de história é
 //      DIVERGÊNCIA: a POSIÇÃO divergente vai para quarentena e o comando reprova; as demais
@@ -34,9 +35,9 @@
 // do teto nunca mais alcançaria o hub.
 //
 // `trust` é carimbado aqui como 'untrusted-peer', nunca aceito do remetente.
-import { readFileSync, writeFileSync, readdirSync, existsSync, renameSync, copyFileSync, statSync, mkdirSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, existsSync, renameSync, statSync, mkdirSync, unlinkSync, chmodSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { join, basename } from 'node:path';
+import { join, basename, dirname } from 'node:path';
 import * as M from './liaison-merge.mjs';
 
 function readJsonl(path) {
@@ -48,6 +49,52 @@ function readJsonl(path) {
     if (t) { try { out.push(JSON.parse(t)); } catch { /* linha corrompida: ignorada, o gap de seq denuncia */ } }
   }
   return out;
+}
+
+// SEC-001 — formato do blob que o próprio harness produz (`_write_body_blob`, liaison-ops.sh):
+// `blobs/<sha256 hex dos bytes>-<nome saneado>`. O padrão do schema (`M.BODY_REF_RE`) só fecha path
+// traversal; ele aceita `blobs/post-commit`, e foi esse nome escolhido pelo peer que, somado a um
+// link simbólico plantado no hub, virou hook executável na revisão do PR #254. Exigir o formato
+// content-addressed amarra o nome ao conteúdo, e o sha é conferido antes de instalar.
+const CA_BODY_REF_RE = /^blobs\/([0-9a-f]{64})-[A-Za-z0-9._-]+$/;
+
+// Motivo de recusa do body_ref (texto) ou null quando ele é aceitável. O valor ecoado já passou por
+// `M.BODY_REF_RE` (só `[A-Za-z0-9._-]`) quando chega à segunda mensagem, então não carrega quebra
+// de linha nem marcação.
+function blobRefRejection(bodyRef) {
+  if (!M.BODY_REF_RE.test(bodyRef)) return 'body_ref fora do padrão permitido';
+  if (!CA_BODY_REF_RE.test(bodyRef)) return `body_ref fora do formato content-addressed (blobs/<sha256>-<nome>) que o harness produz: ${bodyRef}`;
+  return null;
+}
+
+// true se os bytes conferem com o sha do nome. Aceita as duas fórmulas históricas de
+// `_write_body_blob` (issue #117): sha256 dos bytes (atual) e o legado sobre a string latin1.
+function blobBytesMatch(buf, expectedSha) {
+  if (createHash('sha256').update(buf).digest('hex') === expectedSha) return true;
+  return M.sha256Hex(buf.toString('binary')) === expectedSha;
+}
+
+// Instala um blob de peer: lê os bytes UMA vez, confere o sha do nome contra eles e grava ESSES
+// bytes (não uma segunda cópia do arquivo de origem, que poderia ter mudado entre a conferência e
+// a cópia) por tmp + rename, com modo 0644 explícito — `copyFileSync` copiava o modo da origem, e
+// o bit de execução escolhido pelo peer sobrevivia. O tmp usa o padrão `.recover-<pid>-<n>.tmp`,
+// que `_dir_push_blobs` nunca publica e a passada de recuperação limpa como órfão.
+// Devolve 'ok' | 'sha-mismatch'; erro de E/S sobe como exceção para quem chamou classificar.
+let installSeq = 0;
+function installPeerBlob(src, dest, blobName) {
+  const m = CA_BODY_REF_RE.exec(`blobs/${blobName}`);
+  const buf = readFileSync(src);
+  if (m && !blobBytesMatch(buf, m[1])) return 'sha-mismatch';
+  const tmp = join(dirname(dest), `.recover-${process.pid}-${installSeq++}.tmp`);
+  try {
+    writeFileSync(tmp, buf, { mode: 0o644 });
+    chmodSync(tmp, 0o644);
+    renameSync(tmp, dest);
+  } catch (err) {
+    try { if (existsSync(tmp)) unlinkSync(tmp); } catch { /* melhor esforço: não mascarar o erro original */ }
+    throw err;
+  }
+  return 'ok';
 }
 
 // Sufixo dos registros de posição quarentenada em conflicts/: `<sender>.seq-<n>.divergence.json`.
@@ -164,8 +211,9 @@ export function applyBundle({ chDir, fromDir, self }) {
         conflicts++; continue;
       }
       if (raw.body_ref) {
-        if (!M.BODY_REF_RE.test(raw.body_ref)) {
-          conflictsToWrite.push([raw.msg_id, `body_ref fora do padrão permitido: ${raw.body_ref}`, raw, null]);
+        const refProblem = blobRefRejection(raw.body_ref);
+        if (refProblem) {
+          conflictsToWrite.push([raw.msg_id, refProblem === 'body_ref fora do padrão permitido' ? `${refProblem}: ${raw.body_ref}` : refProblem, raw, null]);
           conflicts++; continue;
         }
         const blobName = raw.body_ref.slice('blobs/'.length);
@@ -176,6 +224,14 @@ export function applyBundle({ chDir, fromDir, self }) {
         }
         if (statSync(srcBlob).size > M.BLOB_MAX_BYTES) {
           conflictsToWrite.push([raw.msg_id, `blob excede ${M.BLOB_MAX_BYTES} bytes`, raw, null]);
+          conflicts++; continue;
+        }
+        // SEC-001: mensagem NOVA tem o conteúdo do blob conferido contra o sha do nome aqui, antes
+        // de entrar no lote (a já conhecida tem o blob conferido na passada de recuperação, se
+        // faltar). Só a nova: reler todo blob de todo peer a cada sync não muda decisão nenhuma.
+        const caMatch = CA_BODY_REF_RE.exec(raw.body_ref);
+        if (caMatch && !existingById.has(raw.msg_id) && !blobBytesMatch(readFileSync(srcBlob), caMatch[1])) {
+          conflictsToWrite.push([raw.msg_id, `conteúdo do blob não confere com o sha do body_ref (esperado ${caMatch[1]})`, raw, null]);
           conflicts++; continue;
         }
       }
@@ -239,7 +295,11 @@ export function applyBundle({ chDir, fromDir, self }) {
       if (m.body_ref) {
         const blobName = m.body_ref.slice('blobs/'.length);
         const dest = join(blobsDir, blobName);
-        if (!existsSync(dest)) copyFileSync(join(fromBlobs, blobName), dest);
+        // Se a origem mudou entre a passada 1 e aqui, o blob não é instalado; a mensagem já está
+        // no log e a passada de recuperação abaixo reporta a falta (ou instala o certo).
+        if (!existsSync(dest)) {
+          try { installPeerBlob(join(fromBlobs, blobName), dest, blobName); } catch { /* idem: a recuperação nomeia */ }
+        }
       }
     }
   }
@@ -291,6 +351,13 @@ export function applyBundle({ chDir, fromDir, self }) {
       const blobName = m.body_ref.slice('blobs/'.length);
       const dest = join(blobsDir, blobName);
       if (existsSync(dest)) continue; // já temos — nada a recuperar
+      // SEC-001: mensagem antiga com nome fora do formato content-addressed (aceita antes desta
+      // guarda) não ganha blob vindo do hub — o nome não amarra conteúdo nenhum.
+      const refProblem = blobRefRejection(m.body_ref);
+      if (refProblem) {
+        blobsRejected.push({ msg_id: m.msg_id, kind: 'format', reason: refProblem });
+        continue;
+      }
       const src = join(fromBlobs, blobName);
       if (!existsSync(src)) {
         // Ausente nos dois lados: nem local, nem no bundle/hub desta chamada. Não é recusa — o
@@ -308,44 +375,22 @@ export function applyBundle({ chDir, fromDir, self }) {
         blobsRejected.push({ msg_id: m.msg_id, kind: 'oversize', reason: `blob do hub excede ${M.BLOB_MAX_BYTES} bytes (${size})` });
         continue;
       }
-      const shaMatch = /^([0-9a-f]{64})-/.exec(blobName);
-      if (shaMatch) {
-        // issue #117: o nome é o sha256 real dos BYTES desde a correção de `_write_body_blob`
-        // (`liaison-ops.sh`), mas nomes antigos (anteriores à correção) foram calculados do bytes
-        // convertidos para string latin1 antes do hash — divergente para qualquer byte > 0x7F. Um
-        // blob recuperado do hub pode ser nomeado por qualquer uma das duas fórmulas, então aceita
-        // as duas em vez de só a nova (que rejeitaria toda recuperação de blob antigo acentuado).
-        const buf = readFileSync(src);
-        const actualBytes = createHash('sha256').update(buf).digest('hex');
-        const actualLegacy = M.sha256Hex(buf.toString('binary'));
-        if (actualBytes !== shaMatch[1] && actualLegacy !== shaMatch[1]) {
-          blobsRejected.push({ msg_id: m.msg_id, kind: 'sha-mismatch', reason: `blob do hub não confere com o body_ref (esperado ${shaMatch[1]}, obtido ${actualBytes})` });
+      // Conferência de sha (issue #117: aceita as duas fórmulas históricas do nome) e escrita
+      // atômica com modo 0644 ficam em `installPeerBlob`, o mesmo instalador da mensagem nova.
+      // Escrita atômica (tmp + rename): um leitor concorrente (outro `sync` ou o próprio
+      // `render`) nunca vê um arquivo truncado que `existsSync(dest)` passaria a tratar como
+      // íntegro daí em diante. O tmp é curto e independente do nome do blob (achado MEDIUM
+      // anterior: prefixar o nome inteiro estourava NAME_MAX para nomes entre 245 e 250 bytes).
+      // Uma falha de E/S não derruba o import inteiro: vira `blobsRejected` de `kind: 'io-error'`.
+      try {
+        if (installPeerBlob(src, dest, blobName) === 'sha-mismatch') {
+          const expected = CA_BODY_REF_RE.exec(m.body_ref)[1];
+          const actualBytes = createHash('sha256').update(readFileSync(src)).digest('hex');
+          blobsRejected.push({ msg_id: m.msg_id, kind: 'sha-mismatch', reason: `blob do hub não confere com o body_ref (esperado ${expected}, obtido ${actualBytes})` });
           continue;
         }
-      }
-      // Escrita atômica (tmp + rename), mesmo padrão de `_dir_push_blobs`: um leitor concorrente
-      // (outro `sync` ou o próprio `render`) nunca vê um arquivo truncado que `existsSync(dest)`
-      // passaria a tratar como íntegro daí em diante.
-      //
-      // O nome temporário é CURTO e INDEPENDENTE do nome do blob (pid + contador desta chamada),
-      // nunca `.${blobName}.tmp-...` — achado de correção MEDIUM: os outros dois caminhos de
-      // escrita de blob (mensagem nova, linha ~241; push, `_dir_push_blobs`) aceitam nome de blob
-      // de até 250 bytes porque o sufixo deles é curto (`.tmp`, 4 bytes); este prefixava `.` e
-      // sufixava `.tmp-<pid>` (~11 bytes) ao NOME INTEIRO do blob, e um nome de blob entre 245 e
-      // 250 bytes — dentro do teto aceito nos outros dois caminhos — estourava o NAME_MAX de 255
-      // só aqui. O throw de ENAMETOOLONG acontecia depois da escrita dos logs de mensagens novas e
-      // sem `try/catch`, então o `sync` inteiro morria com o processo Node e a réplica ficava com
-      // sync permanentemente reprovado (o próprio `status` recomenda "rode sync" — nunca convergia
-      // sozinho). Uma falha de E/S na instalação de um blob não pode mais derrubar o import
-      // inteiro: é classificada como `blobsRejected` de `kind: 'io-error'`, nomeando a mensagem, e
-      // o restante da recuperação continua.
-      const tmp = join(blobsDir, `.recover-${process.pid}-${blobsRecovered + blobsRejected.length}.tmp`);
-      try {
-        copyFileSync(src, tmp);
-        renameSync(tmp, dest);
         blobsRecovered++;
       } catch (err) {
-        try { if (existsSync(tmp)) unlinkSync(tmp); } catch { /* melhor esforço: não mascarar o erro original */ }
         blobsRejected.push({ msg_id: m.msg_id, kind: 'io-error', reason: `falha de E/S ao instalar o blob do hub: ${err.message}` });
       }
     }

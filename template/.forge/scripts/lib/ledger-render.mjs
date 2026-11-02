@@ -42,7 +42,7 @@ const TYPE_LABEL = {
   'known-bug': 'known-bug',
   'follow-up': 'follow-up',
 };
-const CLOSED = new Set(['resolved', 'wont-fix', 'promoted']);
+const CLOSED = new Set(['resolved', 'wont-fix', 'promoted', 'superseded']);
 const PRIORITY_RANK = { P0: 0, P1: 1, P2: 2, P3: 3 };
 const SEVERITY_RANK = { BLOCKER: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 
@@ -71,7 +71,12 @@ function tag(entry) {
 function renderEntry(entry) {
   const src = entry.source || {};
   const from = src.change_id ? ` · via \`${src.change_id}\`${src.ref ? `#${src.ref}` : ''}` : '';
-  let line = `- **${entry.id}** [${entry.status}]${tag(entry)} — ${entry.title}${from}`;
+  // last_verified e supersedes (add-ledger-evidence-aging): só a DATA, nunca a idade — a idade
+  // dependeria da data do render e quebraria a renderização byte-idêntica. Entrada sem os campos
+  // novos renderiza exatamente como antes.
+  const verified = entry.last_verified ? ` · reverificado em ${String(entry.last_verified).slice(0, 10)}` : '';
+  let line = `- **${entry.id}** [${entry.status}]${tag(entry)} — ${entry.title}${from}${verified}`;
+  if (entry.supersedes) line += `\n  ↳ substitui \`${entry.supersedes}\``;
   if (entry.detail) line += `\n  ${entry.detail.replace(/\n+/g, ' ').trim()}`;
   // Só mostra o elo de promoção enquanto ele vale: um item reaberto (close abandoned/rejected volta
   // a 'open') mantém promoted_to como histórico, mas renderizá-lo confundiria ("promovido para" um

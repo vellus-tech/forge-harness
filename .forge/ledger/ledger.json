@@ -3933,6 +3933,84 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0228"
+    },
+{
+      "id": "LDG-0229",
+      "type": "follow-up",
+      "title": "O `red-evidence.sh task` roda o teste num worktree efêmero sem `node_modules`; gate que depende de `ajv` (dependência de desenvolvimento) só prova o vermelho com `--setup-command` ligando o `node_modu",
+      "detail": "",
+      "severity": null,
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "add-ledger-evidence-aging",
+        "origin": "archive",
+        "ref": "verify-1"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-ledger-evidence-aging"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-30T21:52:31-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "add-ledger-evidence-aging:verify-1"
+    },
+    {
+      "id": "LDG-0230",
+      "type": "follow-up",
+      "title": "Renomear `tests/ledger-evidence-aging-gate.sh` para o ordinal `wNNN` na hora do merge (critério de nome do REQ-09; convenção do projeto de decidir o ordinal só no merge), atualizando junto o teste cit",
+      "detail": "",
+      "severity": null,
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "add-ledger-evidence-aging",
+        "origin": "archive",
+        "ref": "verify-2"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-ledger-evidence-aging"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-30T21:52:31-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "add-ledger-evidence-aging:verify-2"
+    },
+    {
+      "id": "LDG-0231",
+      "type": "follow-up",
+      "title": "Reverificar os 38 itens ativos do ledger deste repositório com `ledger-ops.sh verify` (todos aparecem envelhecidos; a reverificação é trabalho de curadoria fora do escopo do change, e o ledger do tron",
+      "detail": "",
+      "severity": null,
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "add-ledger-evidence-aging",
+        "origin": "archive",
+        "ref": "verify-3"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-ledger-evidence-aging"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-10-30T21:52:31-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "add-ledger-evidence-aging:verify-3"
     }
   ]
 }

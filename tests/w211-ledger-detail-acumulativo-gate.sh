@@ -677,7 +677,10 @@ _p18_render rec4 || { echo "FAIL [20/M4]: recontrole — [18] não voltou a ver 
 # ── M5: a entrada do `note` na lista de portas que anunciam divergência de raiz ────────────────
 mut_n=$((mut_n + 1))
 _p19_avisa ctl5 || { echo "FAIL [20/M5]: pré-condição — [19] não vê o aviso antes da mutação"; exit 1; }
-perl -0pi -e 's/add\|update\|note\|resolve\|promote\|harvest\|render\)/add|update|resolve|promote|harvest|render)/' "$LG"
+# Alvo ANCORADO na linha do `case` (idioma do w207 [6]): remove só o `|note`, qualquer que seja o
+# resto da lista — a entrada de outra porta (ex.: `verify`, add-ledger-evidence-aging) não exige
+# reescrever este alvo.
+perl -0pi -e 's/^(  add\|[a-z|]*?)\|note(\|[a-z|]*\))/$1$2/m' "$LG"
 _mutou "/M5"
 if _p19_avisa m5; then echo "FAIL [20/M5]: tirar 'note' da lista de portas NÃO silenciou o aviso — [19] não observa a lista"; exit 1; fi
 _p19_add_avisa m5 || { echo "FAIL [20/M5]: a mutação silenciou TAMBÉM o 'add' — ela atingiu o lib inteiro, não a entrada do 'note' na lista"; exit 1; }

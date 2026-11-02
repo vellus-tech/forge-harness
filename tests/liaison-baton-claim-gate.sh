@@ -291,6 +291,10 @@ else
   echo "FAIL [claim-aviso-sync-silencio]: esperava rc 0 sem aviso, achou rc=$rc2 out=$out2"; fail=1
 fi
 
+# [claim-cache-local] (baton-local.json: claims+holders+nextRenewAt) tem gate próprio e rápido
+# em tests/liaison-baton-cache-local-gate.sh — sem os sleeps reais deste arquivo, prova de
+# red-evidence mais barata para a mesma tag.
+
 # === [escrita] offer+claim só tocam log/<self>.jsonl, blobs/, CHANNEL.md, cache local ===
 mk_repo wscope
 LG wscope open "$CH" --self repo-a --participants repo-a,repo-b >/dev/null

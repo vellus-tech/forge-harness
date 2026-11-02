@@ -18,16 +18,18 @@
 // próprio relido com o arquivo do hub (sem perder nada gravado depois da leitura que alimentou o
 // push) e grava. Consumido a partir da TASK-07 (`transports/_common.sh`).
 
-import { readFileSync, writeFileSync, readdirSync, existsSync, renameSync, unlinkSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, existsSync, renameSync, unlinkSync, mkdirSync, realpathSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { withOwnLogLock } from './liaison-lock.mjs';
 
 const selfModuleUrl = import.meta.url;
 
 async function loadMerge() {
-  const libDir = dirname(new URL(selfModuleUrl).pathname);
-  return import(pathToFileURL(join(libDir, 'liaison-merge.mjs')).href);
+  // Resolução relativa à URL do próprio módulo: `new URL(...).pathname` devolveria o caminho
+  // percent-encoded (`Projetos%20A%C3%A7%C3%A3o`) e o import falharia em todo caminho com espaço
+  // ou acento.
+  return import(new URL('./liaison-merge.mjs', selfModuleUrl).href);
 }
 
 export function readAllMessages(logDir) {
@@ -255,6 +257,11 @@ async function mainCli() {
   process.exit(1);
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+// Guarda de módulo principal por caminho REAL nos dois lados: o Node resolve symlink no módulo
+// principal (import.meta.url), mas argv[1] chega lógico (`/tmp` é symlink no macOS, e quem chama
+// deriva o caminho com `cd ... && pwd`). Comparar sem realpath fazia o CLI virar no-op com rc 0.
+let isMain = false;
+try { isMain = realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1] || ''); } catch { isMain = false; }
+if (isMain) {
   mainCli();
 }

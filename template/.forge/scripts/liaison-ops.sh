@@ -1357,12 +1357,18 @@ import)
   # Agora o bundle é PUXADO como um hub, pelo mesmo `_dir_pull` do `sync` (leitor seguro de
   # `liaison-hub-io.mjs`: `readdirSync`, nome por regex estrita, O_NOFOLLOW|O_NONBLOCK, arquivo
   # regular de um vínculo conferido no descritor, cópia do mesmo fd) para um staging PRIVADO, e só
-  # o staging chega a `_apply_bundle`. A raiz `--from` é escolha do operador, confiável e resolvida
-  # por `cd -P` (pode ser symlink legítimo); abaixo dela, nada é seguido.
+  # o staging chega a `_apply_bundle`.
+  #
+  # A RAIZ do `--from` segue o mesmo contrato do hub (`_dir_phys_expected`): o caminho até o PAI é escolha do operador e é resolvido por `cd -P` (pode conter symlink legítimo); o ÚLTIMO componente é conteúdo entregue por terceiros (a pasta extraída do anexo, do pendrive ou do diretório compartilhado) e nunca é seguido. Resolvê-lo por `cd -P` inteiro, como na versão do PR #261, deixava o autor do bundle entregar um link para `.forge/liaison/<outro-canal>` da vítima: a guarda `_dir_reject_symlink` do `_dir_pull` via a raiz já resolvida, o anexo confidencial do outro canal entrava no canal importado e o próximo `sync` o publicava (w321 [I3], [M10]). Com o último componente literal, `_dir_pull` recusa a raiz que é link e ancora `log/` e `blobs/` por `pwd -P`, o que fecha também a troca da raiz por link entre a conferência e a leitura. Barras finais saem antes (`bundle/` não pode virar basename vazio); `.`, `..` e `/` não nomeiam entrada que um terceiro possa plantar como link, e por isso só eles são resolvidos por `cd -P` inteiro.
   # shellcheck source=lib/transports/_common.sh
   . "$LIBDIR/transports/_common.sh"
-  from_phys="$(CDPATH='' cd -P -- "$from_dir" 2>/dev/null && pwd -P)" \
-    || { echo "FAIL: diretório do bundle inacessível: $from_dir" >&2; exit 1; }
+  from_trim="$from_dir"
+  while [ "${#from_trim}" -gt 1 ] && [ "${from_trim%/}" != "$from_trim" ]; do from_trim="${from_trim%/}"; done
+  case "$(basename -- "$from_trim")" in
+    .|..|/) from_phys="$(CDPATH='' cd -P -- "$from_trim" 2>/dev/null && pwd -P)" || from_phys="" ;;
+    *)      from_phys="$(_dir_phys_expected "$from_trim")" || from_phys="" ;;
+  esac
+  [ -n "$from_phys" ] || { echo "FAIL: diretório do bundle inacessível: $from_dir" >&2; exit 1; }
   LIAISON_SELF="$(_read_self)"; export LIAISON_SELF
   staging="$(mktemp -d "${TMPDIR:-/tmp}/forge-liaison-import.XXXXXX")"
   # shellcheck disable=SC2064

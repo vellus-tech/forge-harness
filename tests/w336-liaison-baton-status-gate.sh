@@ -10,6 +10,8 @@
 #   [reescrito] aviso de log próprio reescrito sem trava também em baton status
 #   [inbox-condensado] inbox/inbox --titles-only condensam 30 renovações de peer numa linha,
 #     cursor avança sobre elas
+#   [peer-malformado-moldura-ids] o reason da dobra não ecoa thread_id nem in_reply_to do peer
+#     (NODE-202/SEC-202), no status texto, no --json e nos quatro vereditos que citam id
 set -uo pipefail
 # Hermético quanto à sessão: a sessão de um agente (Claude Code) exporta CLAUDE_CODE_SESSION_ID para
 # todo processo filho e o runner do CI não tem a variável. Sem este unset o gate passa dentro do
@@ -358,6 +360,94 @@ elif [ -n "$bad_md" ] || [ -n "$bad_st" ] || [ -n "$bad_json" ]; then
   echo "FAIL [peer-malformado-moldura]: texto do peer fora da moldura — CHANNEL.md: $(tr '\n' '|' <<<"$bad_md") · status: $(tr '\n' '|' <<<"$bad_st") · json: $(tr '\n' '|' <<<"$bad_json")"; fail=1
 else
   echo "OK [peer-malformado-moldura]: session e stamped_at hostis só aparecem dentro da moldura (CHANNEL.md, status texto e --json)"
+fi
+
+# === [peer-malformado-moldura-ids] NODE-202/SEC-202: o reason da dobra não pode ecoar thread_id
+# nem in_reply_to do peer — validateEnvelope não impõe padrão a esses campos, e `baton status`
+# imprime `(${reason})` cru, fora da moldura. (a) Pelo canal real: o peer repo-b oferece numa
+# thread de id multilinha e reivindica a oferta a partir de t1 (wrong-thread); o leitor é repo-z,
+# para que o log do peer seja lido primeiro e a oferta já esteja dobrada quando a claim chega (o
+# wrong-thread cai no histórico do bastão, que o status imprime). (b) Pela dobra pura: os quatro
+# reasons que interpolam id do peer (wrong-thread, not-an-offer, pending-offer, before-offer). ===
+mk_repo pi
+LG pi open "$CH" --self repo-z --participants repo-z,repo-b >/dev/null
+LG pi thread open "$CH" t1 --subject "ids hostis" --participants repo-z,repo-b --body "x" >/dev/null
+mkdir -p "$T/bundle-pi/log"
+node -e '
+const { join } = require("path");
+const { pathToFileURL } = require("url");
+(async () => {
+  const fs = require("fs");
+  const [, lib, out, ch] = process.argv;
+  const M = await import(pathToFileURL(join(lib, "liaison-merge.mjs")).href);
+  const base = { channel: ch, sender: "repo-b", requires_ack: false, refs: { change_id: null, contract_files: [], commit: null }, created_at: "2026-01-01T00:00:00Z", trust: "self" };
+  const offer = { ...base, msg_id: "repo-b-0001", seq: 1, lamport: 1, thread_id: "t\n## INJETADO-THREAD", kind: "note", in_reply_to: null, subject: "oferta hostil",
+    baton: { op: "offer", session: "s-peer", stamped_at: "2026-01-01T00:00:00Z", eligible: ["repo-b", "repo-z"], max_lease_seconds: 280, skew_tolerance_seconds: 30 } };
+  const claim = { ...base, msg_id: "repo-b-0002", seq: 2, lamport: 60, thread_id: "t1", kind: "note", in_reply_to: "repo-b-0001", subject: "claim de outra thread",
+    baton: { op: "claim", session: "s-peer", stamped_at: "2026-01-01T00:00:00Z", lease_seconds: 90, lease_until: "2026-01-01T00:01:30Z" } };
+  const lines = [];
+  for (const m of [offer, claim]) {
+    m.content_sha = M.computeContentSha(m);
+    const errs = M.validateEnvelope(m);
+    if (errs.length) { console.error("fixture: envelope inválido: " + errs.join("; ")); process.exit(1); }
+    lines.push(JSON.stringify(m));
+  }
+  fs.writeFileSync(join(out, "log", "repo-b.jsonl"), lines.join("\n") + "\n");
+})();
+' "$WS/template/.forge/scripts/lib" "$T/bundle-pi" "$CH" || { echo "FAIL [peer-malformado-moldura-ids]: fixture — mensagens hostis não passaram o envelope"; fail=1; }
+LG pi import "$CH" --from "$T/bundle-pi" >/dev/null 2>&1
+grep -q '"repo-b-0002"' "$T/pi/.forge/liaison/$CH/log/repo-b.jsonl" 2>/dev/null || { echo "FAIL [peer-malformado-moldura-ids]: fixture — as mensagens hostis não entraram no log local"; fail=1; }
+st_pi="$(LG pi baton status "$CH" 2>&1)"
+st_pi_json="$(LG pi baton status "$CH" --json 2>&1)"
+grep -q 'wrong-thread' <<<"$st_pi" || { echo "FAIL [peer-malformado-moldura-ids]: fixture — o status não mostrou o veredito wrong-thread: $(tr '\n' '|' <<<"$st_pi" | cut -c1-300)"; fail=1; }
+bad_pi="$(awk '
+  { t = $0; sub(/^[[:space:]]+/, "", t) }
+  t ~ /^```/ { inf = !inf; next }
+  !inf && /INJETADO/ { print }
+' <<<"$st_pi")"
+bad_pi_json="$(node -e '
+let d = ""; process.stdin.on("data", (c) => d += c); process.stdin.on("end", () => {
+  let o; try { o = JSON.parse(d); } catch (e) { console.log("json ilegível: " + e.message); return; }
+  const out = [];
+  for (const b of o.batons || []) for (const h of b.history || []) if (/INJETADO|\n/.test(String(h.reason))) out.push(`history.reason ecoa o peer: ${JSON.stringify(h.reason)}`);
+  console.log(out.join("\n"));
+});
+' <<<"$st_pi_json")"
+bad_fold="$(node -e '
+const { join } = require("path");
+const { pathToFileURL } = require("url");
+(async () => {
+  const { foldBatons } = await import(pathToFileURL(join(process.argv[1], "liaison-baton.mjs")).href);
+  const base = { channel: "c", requires_ack: false, created_at: "2026-01-01T00:00:00Z", trust: "self", kind: "note", subject: "s" };
+  const lease = { lease_seconds: 90, lease_until: "2026-01-01T00:01:30Z", stamped_at: "2026-01-01T00:00:00Z", session: "s" };
+  const offerB = { op: "offer", session: "s", stamped_at: "2026-01-01T00:00:00Z", eligible: ["p"], max_lease_seconds: 280, skew_tolerance_seconds: 30 };
+  const msgs = [
+    // wrong-thread: a oferta mora numa thread de id multilinha
+    { ...base, msg_id: "p-0001", sender: "p", seq: 1, lamport: 1, thread_id: "t\n## INJETADO-WT", in_reply_to: null, baton: offerB },
+    { ...base, msg_id: "p-0002", sender: "p", seq: 2, lamport: 2, thread_id: "t1", in_reply_to: "p-0001", baton: { op: "claim", ...lease } },
+    // not-an-offer: in_reply_to aponta uma nota comum de id multilinha
+    { ...base, msg_id: "n\n## INJETADO-NAO-OFERTA", sender: "p", seq: 3, lamport: 3, thread_id: "t1", in_reply_to: null },
+    { ...base, msg_id: "p-0004", sender: "p", seq: 4, lamport: 4, thread_id: "t1", in_reply_to: "n\n## INJETADO-NAO-OFERTA", baton: { op: "claim", ...lease } },
+    // pending-offer: in_reply_to multilinha que a réplica não tem
+    { ...base, msg_id: "p-0005", sender: "p", seq: 5, lamport: 5, thread_id: "t1", in_reply_to: "x\n## INJETADO-PENDENTE", baton: { op: "claim", ...lease } },
+    // before-offer: a oferta de id multilinha vem DEPOIS na ordem da mesma thread
+    { ...base, msg_id: "p-0006", sender: "p", seq: 6, lamport: 6, thread_id: "t2", in_reply_to: "o\n## INJETADO-ANTES", baton: { op: "claim", ...lease } },
+    { ...base, msg_id: "o\n## INJETADO-ANTES", sender: "p", seq: 7, lamport: 70, thread_id: "t2", in_reply_to: null, baton: offerB },
+  ];
+  const { batons, orphans } = foldBatons(msgs);
+  const all = [...orphans];
+  for (const b of batons.values()) all.push(...b.history);
+  const want = ["wrong-thread", "not-an-offer", "pending-offer", "before-offer"];
+  const out = [];
+  for (const v of want) if (!all.some((h) => h.verdict === v)) out.push(`fixture: veredito ${v} não apareceu`);
+  for (const h of all) if (/INJETADO|\n/.test(String(h.reason))) out.push(`${h.verdict}: ${JSON.stringify(h.reason)}`);
+  console.log(out.join(" · "));
+})();
+' "$WS/template/.forge/scripts/lib")"
+if [ -n "$bad_pi" ] || [ -n "$bad_pi_json" ] || [ -n "$bad_fold" ]; then
+  echo "FAIL [peer-malformado-moldura-ids]: reason ecoa id do peer — status: $(tr '\n' '|' <<<"$bad_pi") · json: $(tr '\n' '|' <<<"$bad_pi_json") · dobra: $bad_fold"; fail=1
+else
+  echo "OK [peer-malformado-moldura-ids]: thread_id e in_reply_to hostis não aparecem no reason (status texto, --json e os quatro vereditos da dobra)"
 fi
 
 # === [reescrito] log próprio reescrito sem trava aparece também em baton status (cenário TASK-10)

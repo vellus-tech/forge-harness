@@ -41,7 +41,7 @@ mk_repo() {
 }
 
 # Toda chamada deste gate é `baton offer`, que exige sessão (REQ-10): declarada aqui, não herdada.
-LG() { local repo="$1"; shift; FORGE_ROOT="$T/$repo" CLAUDE_CODE_SESSION_ID="w341-sessao" bash "$T/$repo/.forge/scripts/liaison-ops.sh" "$@"; }
+LG() { local repo="$1"; shift; FORGE_ROOT="$T/$repo" CLAUDE_CODE_SESSION_ID="w342-sessao" bash "$T/$repo/.forge/scripts/liaison-ops.sh" "$@"; }
 own_log_count() { local repo="$1"; wc -l < "$T/$repo/.forge/liaison/$CH/log/repo-a.jsonl" 2>/dev/null | tr -d ' '; }
 
 mk_repo a

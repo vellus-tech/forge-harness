@@ -61,7 +61,7 @@ while IFS= read -r f; do
     # Gate da TRAVA DO LOG PRÓPRIO do liaison (lib/liaison-lock.mjs), primitivo distinto do mutex
     # pesado: planta de propósito um `<canal>@<self>@log.lock/` órfão com `mkdir -p` para provar a
     # recuperação de trava abandonada. Não adquire o mutex pesado nem compete pelo mesmo recurso.
-    tests/w326-liaison-own-log-lock-gate.sh) continue ;;
+    tests/w327-liaison-own-log-lock-gate.sh) continue ;;
   esac
 
   # 1. Caminho de lock derivado de variável do chamador — o defeito 1 codificado. Mede INTENÇÃO,

@@ -23,7 +23,7 @@ operations:
         - template/.forge/schemas/liaison-message.schema.json
         - template/.forge/scripts/lib/liaison-baton.mjs
       tests:
-        - tests/w330-liaison-baton-envelope-gate.sh
+        - tests/w331-liaison-baton-envelope-gate.sh
   - op: add_requirement
     capability: forge-harness-template
     requirement_id: REQ-FHT-087
@@ -43,7 +43,7 @@ operations:
           then: "recusa com rc 1 sem gravar nada, nomeando o motivo (coordenação só dentro do repositório não é material de liaison)"
       contracts: []
       tests:
-        - tests/w333-liaison-baton-claim-gate.sh
+        - tests/w334-liaison-baton-claim-gate.sh
   - op: add_requirement
     capability: forge-harness-template
     requirement_id: REQ-FHT-088
@@ -63,8 +63,8 @@ operations:
           then: "exatamente um recebe rc 0, os outros nove recebem rc 3 nomeando o mesmo vencedor, as dez mensagens ficam no log com `seq` contíguo sem buraco, e `baton status` concorda com o rc 0"
       contracts: []
       tests:
-        - tests/w333-liaison-baton-claim-gate.sh
-        - tests/w334-liaison-baton-cache-local-gate.sh
+        - tests/w334-liaison-baton-claim-gate.sh
+        - tests/w335-liaison-baton-cache-local-gate.sh
   - op: add_requirement
     capability: forge-harness-template
     requirement_id: REQ-FHT-089
@@ -81,8 +81,8 @@ operations:
       contracts:
         - template/.forge/scripts/lib/liaison-baton.mjs
       tests:
-        - tests/w331-liaison-baton-fold-gate.sh
-        - tests/w325-liaison-sender-order-gate.sh
+        - tests/w332-liaison-baton-fold-gate.sh
+        - tests/w326-liaison-sender-order-gate.sh
   - op: add_requirement
     capability: forge-harness-template
     requirement_id: REQ-FHT-090
@@ -102,8 +102,8 @@ operations:
           then: "mostram a perda tardia nomeando o vencedor, numa fixture com duas réplicas"
       contracts: []
       tests:
-        - tests/w331-liaison-baton-fold-gate.sh
-        - tests/w336-liaison-baton-status-gate.sh
+        - tests/w332-liaison-baton-fold-gate.sh
+        - tests/w337-liaison-baton-status-gate.sh
   - op: add_requirement
     capability: forge-harness-template
     requirement_id: REQ-FHT-091
@@ -124,8 +124,8 @@ operations:
       contracts:
         - template/.forge/forge.yaml
       tests:
-        - tests/w332-liaison-baton-config-gate.sh
-        - tests/w331-liaison-baton-fold-gate.sh
+        - tests/w333-liaison-baton-config-gate.sh
+        - tests/w332-liaison-baton-fold-gate.sh
   - op: add_requirement
     capability: forge-harness-template
     requirement_id: REQ-FHT-092
@@ -149,7 +149,7 @@ operations:
           then: "o código de saída distingue o motivo: rc 4 para perda real (não é a titular corrente, ou o lease venceu, e a retomada é `baton claim`), rc 5 para ainda não é hora (só com `FORGE_BATON_RENEW_IF_DUE=1`, antes da metade do prazo) e rc 1 para erro ou transitório (trava ocupada ou perdida, oferta desconhecida, argumento inválido); o gancho só trata como perda o rc 4"
       contracts: []
       tests:
-        - tests/w335-liaison-baton-lifecycle-gate.sh
+        - tests/w336-liaison-baton-lifecycle-gate.sh
   - op: add_requirement
     capability: forge-harness-template
     requirement_id: REQ-FHT-093
@@ -165,7 +165,7 @@ operations:
           then: "mostra por bastão o estado, a titular corrente, `lease_until`, a marca `provisional`/`stable`, o rótulo `expired` quando aplicável e o histórico completo (`msg_id`, `sender`, `session`, `op`, `stamped_at`, veredito, motivo); `list` mostra só os não terminais, um por linha; texto de peer sempre sob `untrusted-render`, nunca o corpo"
       contracts: []
       tests:
-        - tests/w336-liaison-baton-status-gate.sh
+        - tests/w337-liaison-baton-status-gate.sh
   - op: add_requirement
     capability: forge-harness-template
     requirement_id: REQ-FHT-094
@@ -185,8 +185,8 @@ operations:
           then: "recupera a trava com aviso em stderr nomeando o dono antigo, de forma exclusiva e conferida por `nonce` (nunca duas recuperações simultâneas); a trava mora em `.forge/cache/`, nunca é transportada pelo `export`/`sync`"
       contracts: []
       tests:
-        - tests/w326-liaison-own-log-lock-gate.sh
-        - tests/w329-liaison-own-log-journal-gate.sh
+        - tests/w327-liaison-own-log-lock-gate.sh
+        - tests/w330-liaison-own-log-journal-gate.sh
   - op: add_requirement
     capability: forge-harness-template
     requirement_id: REQ-FHT-095
@@ -206,8 +206,8 @@ operations:
           then: "são tratadas como titulares diferentes, nunca coalescidas pelo `sender`"
       contracts: []
       tests:
-        - tests/w332-liaison-baton-config-gate.sh
-        - tests/w324-liaison-baton-dependency-gate.sh
+        - tests/w333-liaison-baton-config-gate.sh
+        - tests/w325-liaison-baton-dependency-gate.sh
   - op: add_requirement
     capability: forge-harness-template
     requirement_id: REQ-FHT-096
@@ -227,7 +227,7 @@ operations:
           then: "todos continuam verdes, e o conjunto recalculado por `ls tests/*liaison*-gate.sh` também fica verde"
       contracts: []
       tests:
-        - tests/w330-liaison-baton-envelope-gate.sh
+        - tests/w331-liaison-baton-envelope-gate.sh
         - tests/w150-liaison-flag-and-trust-gate.sh
   - op: add_requirement
     capability: forge-harness-template
@@ -249,8 +249,8 @@ operations:
       contracts:
         - template/.forge/scripts/lib/sync-adapters.mjs
       tests:
-        - tests/w338-liaison-baton-auto-renew-gate.sh
-        - tests/w339-liaison-baton-publish-result-gate.sh
+        - tests/w339-liaison-baton-auto-renew-gate.sh
+        - tests/w340-liaison-baton-publish-result-gate.sh
   - op: add_requirement
     capability: forge-harness-template
     requirement_id: REQ-FHT-098
@@ -266,7 +266,7 @@ operations:
           then: "acrescenta ao bloco do liaison as ofertas elegíveis, os bastões detidos por sessões deste repositório (sessão, `lease_until`, `provisional`/`stable`, `expired`) e as perdas tardias ainda não exibidas, com `baton_id` e assunto sob `untrusted-render`, nunca o corpo; bastão detido por outra sessão deste repositório mostra a nota de liberação/espera; falha do cálculo aparece como linha nomeando o erro; sem nenhum bastão, nenhuma linha nova"
       contracts: []
       tests:
-        - tests/w340-liaison-baton-session-start-gate.sh
+        - tests/w341-liaison-baton-session-start-gate.sh
   - op: add_requirement
     capability: forge-harness-template
     requirement_id: REQ-FHT-099
@@ -282,7 +282,7 @@ operations:
           then: "usa como corpo da oferta o `HANDOFF.md` da árvore corrente (gerado na hora via `handoff-gen.sh` se ausente), gravado como blob com a mesma varredura de segredo e o mesmo teto de 64 KB do `--body-file`, tudo antes de adquirir a trava; `--from-handoff` junto de `--body`/`--body-file`, achado de segredo, acima de 64 KB ou falha de geração recusam com rc 1 sem gravar nada"
       contracts: []
       tests:
-        - tests/w341-liaison-baton-handoff-gate.sh
+        - tests/w342-liaison-baton-handoff-gate.sh
         - tests/w60-handoff-gen-gate.sh
   - op: add_requirement
     capability: forge-harness-template
@@ -299,7 +299,7 @@ operations:
           then: "o gancho de saída daquele change aceita o ponteiro normalmente (o `baton_id` é um `msg_id` próprio); o fluxo completo (oferta, duas reivindicações concorrentes, renovação, liberação, nova reivindicação, conclusão) entre duas réplicas dá o mesmo resultado com ou sem `notify`; nenhum script ou gancho deste change envia mensagem nativa entre sessões por conta própria, e a checagem do gate `w113` continua verde sobre os arquivos novos"
       contracts: []
       tests:
-        - tests/w337-liaison-baton-e2e-gate.sh
+        - tests/w338-liaison-baton-e2e-gate.sh
         - tests/w113-liaison-enforce-gate.sh
   - op: add_requirement
     capability: forge-harness-template
@@ -316,4 +316,4 @@ operations:
           then: "a rule `liaison-protocol.md` tem a seção do bastão com os tópicos do REQ-16 (quando usar/não usar, as seis operações, dobra/ordem/desempate, `provisional`/`stable`, lease/folga/carimbo como exceção declarada, identidade autodeclarada, renovação automática como exceção ao item 5 da rule), o `/forge:liaison` documenta o subcomando `baton` e seus oito verbos com as flags de `BATON_VERB_FLAGS`, o `/forge:handoff` tem a nota do REQ-14, `docs/refer/slash-commands.md`, inventário de gates/scripts, `CHANGELOG.md` sob `[Unreleased]` e o badge de gates do `README.md` estão atualizados"
       contracts: []
       tests:
-        - tests/w342-liaison-baton-docs-gate.sh
+        - tests/w343-liaison-baton-docs-gate.sh

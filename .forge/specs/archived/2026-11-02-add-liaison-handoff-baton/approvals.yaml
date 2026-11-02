@@ -1,5 +1,5 @@
 # Nota pós-aprovação (2026-11-02, ship): os gates citados nos registros abaixo foram renumerados depois do merge de
-# develop (w321..w339 viraram w324..w342; ex.: w328 dobra -> w331, w330 claim -> w333, w334 e2e -> w337). O texto dos
+# develop (w321..w339 viraram w325..w343; ex.: w328 dobra -> w332, w330 claim -> w334, w334 e2e -> w338). O texto dos
 # registros é trilha de auditoria e fica como foi aprovado; ver a nota no fim de verification.md.
 approvals:
   - gate: requirements_reviewed

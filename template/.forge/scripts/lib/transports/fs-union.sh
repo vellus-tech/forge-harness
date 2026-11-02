@@ -70,6 +70,10 @@ if [ ! -f "$_fsu_common" ]; then
   echo "                exatamente o que pode estar destrutivo (issue #123)." >&2
   return 1
 fi
+# As guardas de SEC-001 conferidas abaixo são apagadas ANTES do source, pelo mesmo motivo da
+# conferência do corpo de `_dir_push`: o source define o que o arquivo traz, mas não apaga uma
+# função que já estivesse definida no processo, e a conferência leria a cópia errada.
+unset -f _dir_reject_symlink _dir_publish_file 2>/dev/null || true
 # shellcheck source=./_common.sh
 . "$_fsu_common"
 case "$(declare -f _dir_push)" in
@@ -81,6 +85,17 @@ case "$(declare -f _dir_push)" in
     return 1
     ;;
 esac
+# A QUARTA CAMADA (SEC-001, SEC-106): unir não basta, o tronco também precisa publicar sem seguir
+# link. Um tronco anterior a esta correção une, mas escreve no hub por temporário previsível e
+# segue symlink plantado por quem escreve no hub — execução de código na máquina de quem sincroniza.
+# Recusa antes de qualquer `t_probe`/`t_push`, falha fechada.
+if ! declare -F _dir_reject_symlink >/dev/null 2>&1 || ! declare -F _dir_publish_file >/dev/null 2>&1; then
+  echo "FAIL fs-union: o _common.sh do checkout principal não tem as guardas de SEC-001" >&2
+  echo "                (_dir_reject_symlink e _dir_publish_file): $_fsu_common." >&2
+  echo "                Publicar com ele seguiria symlink plantado no hub e escreveria fora da árvore" >&2
+  echo "                do canal. Atualize o checkout principal antes de sincronizar." >&2
+  return 1
+fi
 
 # SEC-001: mesma regra de confiança do `fs` (ver o cabeçalho de `fs.sh`): a raiz configurada é
 # confiável e resolvida por `cd -P`; tudo abaixo dela é escrito por terceiros e verificado.

@@ -427,11 +427,21 @@ _dir_pull() {
 # _dir_pull_copy <dir_phys> <destino> <log|blobs> — copia as entradas regulares de <dir_phys> para
 # <destino>, lendo por nome relativo de dentro do diretório ancorado. Em `log`, só `*.jsonl` e
 # nunca o próprio log.
+#
+# SEC-105 (parcial): só entra entrada com UM vínculo (`-links 1`). Um hardlink no hub (nlink>1)
+# aponta para o mesmo inode de um arquivo que pode estar fora dele — quem escreve no hub cria
+# `blobs/<nome>` como hardlink de um segredo da vítima no mesmo filesystem, e a cópia levaria o
+# segredo para a réplica, de onde o próximo push o publicaria. Hardlink é ignorado com aviso.
 _dir_pull_copy() {
   local dir="$1" dest="$2" tipo="$3"
   case "$dest" in /*) ;; *) dest="$PWD/$dest" ;; esac
   ( _dir_anchor "$dir" || exit 1
     padrao='*'; [ "$tipo" = log ] && padrao='*.jsonl'
+    while IFS= read -r f; do
+      [ -n "$f" ] || continue
+      echo "WARN: '$dir/${f#./}' ignorado — tem mais de um vínculo (hardlink) no hub e pode ser" >&2
+      echo "      um arquivo de fora da árvore do canal (SEC-001). Investigue quem o publicou." >&2
+    done < <(find . -type f -links +1 -name "$padrao" 2>/dev/null | LC_ALL=C sort)
     while IFS= read -r f; do
       [ -n "$f" ] || continue
       name="$(basename "$f")"
@@ -441,7 +451,7 @@ _dir_pull_copy() {
         continue
       fi
       chmod 0644 "$dest/$name" 2>/dev/null || true
-    done < <(find . -type f -name "$padrao" 2>/dev/null | LC_ALL=C sort)
+    done < <(find . -type f -links 1 -name "$padrao" 2>/dev/null | LC_ALL=C sort)
     exit 0
   )
 }

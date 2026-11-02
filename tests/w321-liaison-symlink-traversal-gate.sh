@@ -41,6 +41,9 @@
 #        materializado: recusa e limpa; (b) branch limpa com link não rastreado herdado: a árvore
 #        herdada é descartada e o push publica sem link
 #   [C6] git: recusa do `_dir_push` (divergência) propaga — rc≠0 e nenhuma marca d'água falsa
+#   [F1] `fs-union` recusa, antes de publicar, um `_common.sh` do tronco sem `_dir_publish_file` ou
+#        sem `_dir_reject_symlink` (tronco anterior a SEC-001)
+#   [G1] pull: entrada do hub com hardlink (nlink>1) para um segredo da vítima é ignorada com aviso
 #   [5]  contador de controle medido — ataques exercitados = ataques neutralizados, e > 0
 #   [M2] mutação pelo canal real — o helper de publicação volta a escrever num temporário
 #        previsível sem O_EXCL: [A1] passa a contaminar a sentinela; restaurado, volta a segurar
@@ -610,6 +613,62 @@ c_M34() {
   echo "OK [M4] — com core.symlinks=true o link materializa e só a checagem pós-checkout o pega; restaurado, a varredura volta"
 }
 c_M34
+
+
+# ───────────────────────────────────────────────────────────────────────────────────────────────
+# Cluster F — fs-union recusa um _common.sh do tronco sem as guardas de SEC-001 (SEC-106, ARCH-005).
+
+echo "[F1] fs-union — _common.sh do tronco sem o helper de publicação ou sem a guarda de symlink: RECUSA"
+c_F1() {
+  local falta
+  for falta in _dir_publish_file _dir_reject_symlink; do
+    ataque
+    prepara "F1$falta" fs-union
+    local common="$T/F1$falta/v/.forge/scripts/lib/transports/_common.sh"
+    # Fixture: o tronco perde a DEFINIÇÃO da função (renomeada), como um tronco anterior à correção.
+    perl -pi -e "s/^${falta}\\(\\) \\{/${falta}_ausente() {/" "$common"
+    if grep -q "^${falta}() {" "$common"; then falha "[F1]: fixture — $falta continua definida no tronco"; continue; fi
+    LG "$R" send "$CH" --thread t1 --kind note --subject "segunda" --body "segunda" >/dev/null
+    local out rc
+    set +e; out="$(LG "$R" sync "$CH" --push-only 2>&1)"; rc=$?; set -e
+    [ "$rc" -ne 0 ] || { falha "[F1]: fs-union publicou com um tronco sem $falta"; continue; }
+    grep -qF 'FAIL fs-union: o _common.sh do checkout principal não tem as guardas de SEC-001' <<<"$out" \
+      || { falha "[F1]: recusou sem a causa ($falta). Saída: $(head -3 <<<"$out")"; continue; }
+    neutralizado; echo "OK [F1] — tronco sem $falta recusado"
+  done
+}
+c_F1
+
+# ───────────────────────────────────────────────────────────────────────────────────────────────
+# Cluster G — hardlink no hub é ignorado no pull (SEC-105, parcial).
+
+echo "[G1] pull — entrada do hub com hardlink (nlink>1) é ignorada com aviso"
+c_G1() {
+  ataque
+  mk_repo G1/v; mk_repo G1/x
+  local H="$T/G1/hub" r
+  for r in v x; do
+    LG "G1/$r" open "$CH" --self "$r" --participants v,x >/dev/null
+    LG "G1/$r" transport set "$CH" --kind fs --path "$H" >/dev/null
+  done
+  LG G1/x thread open "$CH" t1 --subject abertura --participants v,x --body abertura >/dev/null
+  printf 'isca\n' > "$T/G1/isca.md"
+  LG G1/x send "$CH" --thread t1 --kind note --subject anexo --body-file "$T/G1/isca.md" >/dev/null
+  LG G1/x sync "$CH" --push-only >/dev/null
+  local x; x="$(ls "$H/$CH/blobs")"
+  local segredo="$T/G1/fora/.ssh/id_ed25519"; mkdir -p "$(dirname "$segredo")"
+  printf 'SEGREDO-DA-VÍTIMA\n' > "$segredo"; chmod 600 "$segredo"
+  rm -f "$H/$CH/blobs/$x"; ln "$segredo" "$H/$CH/blobs/$x"
+  local out rc
+  set +e; out="$(LG G1/v sync "$CH" --pull-only 2>&1)"; rc=$?; set -e
+  local copia="$T/G1/v/.forge/liaison/$CH/blobs/$x"
+  if [ -f "$copia" ] && grep -q 'SEGREDO' "$copia"; then falha "[G1]: o conteúdo hardlinkado entrou na réplica da vítima"; return 0; fi
+  grep -qF 'mais de um vínculo (hardlink)' <<<"$out" \
+    || { falha "[G1]: a entrada hardlinkada foi ignorada sem aviso. Saída: $(head -3 <<<"$out")"; return 0; }
+  [ "$(find "$segredo" -perm 0600 -print)" = "$segredo" ] || { falha "[G1]: o modo do segredo mudou"; return 0; }
+  neutralizado; echo "OK [G1] — hardlink ignorado com aviso, nada entra na réplica (rc=$rc)"
+}
+c_G1
 
 # ───────────────────────────────────────────────────────────────────────────────────────────────
 echo "[M2] mutação — publicação volta a usar temporário previsível sem O_EXCL: [A1] contamina"

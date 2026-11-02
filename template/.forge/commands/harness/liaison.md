@@ -1,6 +1,6 @@
 ---
 description: Canal de mensagens ORDENADAS entre agentes de repositórios distintos (ex.: dono do .proto/gRPC e app cliente) — elimina drift de handoff manual. Store JSONL append-only por remetente, thread como campo, relógio de Lamport por thread, abertura de thread e entrada de participante como mensagens auditáveis. Transporte plugável (fs, git, manual) com sync idempotente e merge append-only. Operado por script determinista — exceto o subcomando ask, consulta síncrona a um peer sob mandato read-only.
-argument-hint: "[open|thread|send|ask|notify|native|inbox|read|ack|status|conflicts|export|import|peer|transport|sync|render] [flags]"
+argument-hint: "[open|thread|send|ask|notify|native|inbox|read|ack|status|conflicts|export|import|peer|transport|sync|render|baton] [flags]"
 ---
 
 # /forge:liaison — canal de mensagens ordenadas entre repositórios
@@ -122,7 +122,7 @@ cara de funcionando.
 
 **`ack` avisa quando publica mas o cursor não avança** (issue #108) — `WARN: ack publicado, mas o cursor não avançou (<motivo>)` em stderr, com `rc 0`: o ack em si já é um ato de protocolo PUBLICADO no log antes desse efeito colateral rodar, então falhar o comando reportaria erro num ato que funcionou. O reparo manual é o `read --upto <msg_id>` do bloco de comandos acima. **O `doctor` nomeia quando `liaison-ops.sh status` falha**, em vez de sumir com a seção inteira: `✗ harness: LIAISON: status falhou — <primeira linha do erro>`. Cursores anteriores a essa correção que nunca avançaram (a issue #105 introduziu o avanço automático; até o #108, o `catch` que hoje avisa ficava vazio e engolia a falha em silêncio) não são reparados por esta mudança — é passivo retroativo, a medir em campo antes de decidir um reparo automático.
 
-**`status` distingue mensagem ENVIADA de mensagem PUBLICADA** (issue #109) — `· N própria(s) não publicada(s)` aparece quando o log próprio tem mensagens depois da marca do último `sync` bem-sucedido; `send` sozinho nunca publica nada, só grava localmente. Depois de um `sync` com push, a linha soma um `(há Xmin)` medido contra `published_at` (carimbo de hora do PUSH, wall clock deliberado) — nunca contra `created_at` (data do HEAD do commit, determinística e alheia a quando o push de fato aconteceu). Sem nenhum `sync` prévio, a linha aparece sem o parêntese: não há carimbo contra o que medir. É o mesmo motivo do item acima aplicado à outra ponta do protocolo — sem esta marca, uma mensagem `send`ada e esquecida (sessão encerrada antes do `sync`, transporte indisponível) ficava sem aviso nenhum, e o remetente acreditava que a contraparte já via algo que nunca saiu da árvore local.
+**`status` distingue mensagem ENVIADA de mensagem PUBLICADA** (issue #109) — `· N própria(s) não publicada(s)` aparece quando o log próprio tem mensagens depois da marca do último `sync` bem-sucedido; `send` sozinho nunca publica nada, só grava localmente. Depois de um `sync` com push, a linha soma um `(há Xmin)` medido contra `published_at` (carimbo de hora do PUSH, wall clock deliberado) — nunca contra `created_at` (data do HEAD do commit, determinística e alheia a quando o push de fato aconteceu). Sem nenhum `sync` prévio, a linha aparece sem o parêntese: não há carimbo contra o que medir. É o mesmo motivo do item acima aplicado à outra ponta do protocolo — sem esta marca, uma mensagem `send`ada e esquecida (sessão encerrada antes do `sync`, transporte indisponível) ficava sem aviso nenhum, e o remetente acreditava que a contraparte já via algo que nunca saiu da árvore local. **Com o bastão (add-liaison-handoff-baton):** nos transportes `fs`, `fs-union` e `manual`, o `status` GERAL relê o arquivo do `self` no hub e, se a marca estiver desatualizada em relação ao que o hub de fato tem, REGRAVA a marca de publicação (sob a trava de `state.json`) e avisa `hub atrás do log próprio: rode sync` — único caso em que `status` grava algo; `baton status` e `baton list` continuam sendo só leitura.
 
 ## Regras de import (o que protege o canal de um peer malicioso ou corrompido)
 
@@ -141,6 +141,58 @@ cara de funcionando.
 - `trust` é carimbado no IMPORT (`self` só para o que este repositório escreveu; tudo que veio de
   fora vira `untrusted-peer`, mesmo que a mensagem alegue outra coisa) — nunca decidido pelo
   remetente.
+
+## `baton` — dono único de uma unidade de trabalho
+
+Coordena uma unidade de trabalho que uma sessão de outro repositório participante poderia
+duplicar (ex.: as duas pontas da mesma migração, ou um handoff de sessão que encerrou sem
+concluir). Leia a seção "Bastão de dono único" da rule
+[liaison-protocol](../../rules/conventions/liaison-protocol.md#bastão-de-dono-único) antes de
+operar — modelo de estado (dobra, `provisional`/`stable`, desempate por code point), lease e
+carimbo, publicação automática da renovação e os limites declarados moram lá, não aqui.
+
+```bash
+bash .forge/scripts/liaison-ops.sh baton offer    <channel> --thread <id> --subject "<txt>" \
+  [--body "<txt>" | --body-file <path> | --from-handoff] [--for <a,b>] [--max-lease <s>] [--session <id>]
+bash .forge/scripts/liaison-ops.sh baton claim    <channel> <baton_id> [--lease <s>] [--session <id>]
+bash .forge/scripts/liaison-ops.sh baton renew    <channel> <baton_id> [--lease <s>] [--session <id>]
+bash .forge/scripts/liaison-ops.sh baton release  <channel> <baton_id> [--session <id>] [--body "<txt>" | --body-file <path>]
+bash .forge/scripts/liaison-ops.sh baton complete <channel> <baton_id> [--session <id>] [--body "<txt>" | --body-file <path>]
+bash .forge/scripts/liaison-ops.sh baton withdraw <channel> <baton_id> [--session <id>] [--body "<txt>" | --body-file <path>]
+bash .forge/scripts/liaison-ops.sh baton status   <channel> [<baton_id>] [--json]
+bash .forge/scripts/liaison-ops.sh baton list     <channel> [--json]
+```
+
+Flags aceitas por verbo (fonte única: `BATON_VERB_FLAGS` em `scripts/lib/liaison-baton.mjs`; o
+script recusa qualquer flag fora desta lista, nomeando o verbo e as flags aceitas):
+
+| Verbo | Flags aceitas |
+|---|---|
+| `offer` | `--thread`, `--subject`, `--body`, `--body-file`, `--from-handoff`, `--for`, `--max-lease`, `--session` |
+| `claim` | `--lease`, `--session` |
+| `renew` | `--lease`, `--session` |
+| `release` | `--session`, `--body`, `--body-file` |
+| `complete` | `--session`, `--body`, `--body-file` |
+| `withdraw` | `--session`, `--body`, `--body-file` |
+| `status` | `--json` |
+| `list` | `--json` |
+
+- `offer` recusa (sem gravar) quando a thread não tem participante além do `self`, quando
+  `--for` cita alguém fora da thread, ou quando o `eligible` resultante não sobra ninguém além
+  do `self` — bastão não é coordenação dentro do próprio repositório.
+- `--from-handoff` usa o `HANDOFF.md` da worktree corrente como corpo (gerado na hora se
+  ausente), pelo MESMO caminho de `--body-file` (teto de 64 KB, varredura de segredo); exclusivo
+  de `--body`/`--body-file`. Ver nota em [/forge:handoff](./handoff.md#transferência-de-posse).
+- `claim` devolve `won` (rc 0, com `provisional`/`stable`), qualquer outro veredito nomeado (rc
+  3, com a titular corrente) ou recusa de pré-condição sem gravar (rc 1) — oferta desconhecida,
+  `--lease` fora da faixa, ou sessão já titular com lease vigente (esse último caso é rc 0 sem
+  gravar, não recusa).
+- `renew`/`release`/`complete`/`withdraw` recusam sem gravar quando a sessão não é a titular
+  corrente (`release`/`complete`/`renew`) ou quando não é o ofertante com o bastão disponível ou
+  vencido além da folga (`withdraw`).
+- `status <channel> [<baton_id>]` e `list <channel>` são só leitura: nunca gravam mensagem. O
+  `status` GERAL (sem `baton`) soma à linha do canal `· bastões: N disponível(is), M nosso(s), K
+  perdido(s)`.
 
 ## `ask` — consulta síncrona a um peer
 

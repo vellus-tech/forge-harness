@@ -52,6 +52,16 @@
 #   liaison-ops.sh native revoke <identidade> --reason "<motivo>"
 #   liaison-ops.sh native pin
 #   liaison-ops.sh native containment [--range <a>..<b>] [--format text|markdown]
+#   liaison-ops.sh baton offer    <channel> --thread <id> --subject "<txt>" \
+#                            [--body "<txt>" | --body-file <path> | --from-handoff] \
+#                            [--for <a,b>] [--max-lease <s>] [--session <id>]
+#   liaison-ops.sh baton claim    <channel> <baton_id> [--lease <s>] [--session <id>]
+#   liaison-ops.sh baton renew    <channel> <baton_id> [--lease <s>] [--session <id>]
+#   liaison-ops.sh baton release  <channel> <baton_id> [--session <id>] [--body "<txt>" | --body-file <path>]
+#   liaison-ops.sh baton complete <channel> <baton_id> [--session <id>] [--body "<txt>" | --body-file <path>]
+#   liaison-ops.sh baton withdraw <channel> <baton_id> [--session <id>] [--body "<txt>" | --body-file <path>]
+#   liaison-ops.sh baton status   <channel> [<baton_id>] [--json]
+#   liaison-ops.sh baton list     <channel> [--json]
 #
 
 # TRANSPORTE (Onda 2): plugável, em lib/transports/<kind>.sh, com o contrato t_probe/t_push/t_pull.
@@ -61,9 +71,11 @@
 # Topologia de hub único por canal (cada participante publica o próprio log e puxa os N-1
 # restantes) — configuração cresce como N, não como N².
 #
-# Determinístico: created_at = data do commit HEAD (nunca wall clock; exceção: state.json —
-# cursores locais de leitura, único lugar onde wall clock é aceitável). content_sha cobre o
-# envelope canônico menos content_sha/trust. trust é carimbado no IMPORT, nunca pelo remetente —
+# Determinístico: created_at = data do commit HEAD (nunca wall clock; exceções declaradas:
+# state.json — cursores locais de leitura — e baton.stamped_at — relógio de parede de quem
+# grava uma mensagem de bastão, usado só para vencimento de lease, nunca para ordenar; a ordem
+# continua sendo lamport/sender/seq em qualquer caso, inclusive para mensagens de bastão).
+# content_sha cobre o envelope canônico menos content_sha/trust. trust é carimbado no IMPORT, nunca pelo remetente —
 # e, por ser excluído do hash, é o único campo que verificação por integridade não alcança: a
 # derivação dele a partir do arquivo que carrega a linha é conferida por lib/liaison-trust.mjs,
 # chamada no pre-push por check-liaison-acks.sh.

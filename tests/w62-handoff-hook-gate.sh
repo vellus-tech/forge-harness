@@ -44,8 +44,17 @@ grep -q 'prevent-secrets-leak.sh' "$SETTINGS"
 echo "OK [1]"
 
 echo "[2] flip handoff.auto: true + re-sync claude adapter"
-sed -i.bak 's/auto: false/auto: true/' "$T/.forge/forge.yaml"
-rm -f "$T/.forge/forge.yaml.bak"
+# Achado desta correção (add-liaison-handoff-baton, TASK-26/27): um `sed` sem escopo trocava TODO
+# "auto: false" do arquivo, inclusive o de `liaison:` — inofensivo antes desta mudança, mas
+# liaison.auto: true agora TAMBÉM liga PostToolUse (auto_renew ausente vale true), inflando a
+# contagem esperada de 5 para 6. Escopar ao bloco `handoff:`, nunca ao arquivo inteiro.
+awk '
+  /^handoff:/ { print; f=1; next }
+  f && /^  auto: false$/ && !done { print "  auto: true"; done=1; next }
+  f && /^[a-z]/ { f=0 }
+  { print }
+' "$T/.forge/forge.yaml" > "$T/.forge/forge.yaml.new"
+mv "$T/.forge/forge.yaml.new" "$T/.forge/forge.yaml"
 grep -q 'auto: true' "$T/.forge/forge.yaml"
 
 sync --adapter claude

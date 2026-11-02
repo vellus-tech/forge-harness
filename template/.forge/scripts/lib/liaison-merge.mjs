@@ -152,11 +152,19 @@ export function detectForks(messages) {
 // Date.parse e não comparação de string: os dois carimbos podem vir com offsets diferentes
 // (-03:00 e Z são o formato real produzido por `git log %cI` em máquinas distintas), e "2026-07-30T
 // 23:00:00Z" é POSTERIOR a "2026-07-30T21:00:00-03:00" apesar de ordenar antes lexicograficamente.
+// add-liaison-handoff-baton, REQ-06/design §2.6 — mensagens de bastão respondem SEMPRE à
+// oferta (`in_reply_to`), e um repositório com HEAD mais antigo que o do ofertante geraria este
+// aviso de forma sistemática e sem valor, porque a causalidade do bastão já é dada pelo
+// `lamport` (REQ-04) — `stamped_at`, não `created_at`, decide o que importa para o bastão
+// (vencimento de lease), e tem o próprio aviso dedicado ("carimbo de bastão no futuro",
+// liaison-ops.sh status/baton status). Ignora SÓ mensagens com `baton`; para as demais, nada
+// muda.
 export function detectClockSkew(messages) {
   const byId = new Map();
   for (const m of messages) if (m && m.msg_id !== undefined && m.msg_id !== null && !byId.has(m.msg_id)) byId.set(m.msg_id, m);
   const out = [];
   for (const m of byId.values()) {
+    if (m.baton) continue;
     if (!m.in_reply_to) continue;
     const ref = byId.get(m.in_reply_to);
     if (!ref) continue;

@@ -1855,10 +1855,20 @@ baton)
       if [ -n "$body" ] || [ -n "$body_file" ]; then
         echo "FAIL: --from-handoff é exclusivo de --body/--body-file" >&2; exit 1
       fi
-      # TASK-30 implementa o fluxo completo (handoff gerado na hora quando ausente, teto de
-      # 64 KB, varredura de segredo própria). Até lá, recusa sem gravar nada.
-      echo "FAIL: --from-handoff ainda não implementado nesta revisão (ver tasks.md TASK-30)" >&2
-      exit 1
+      # REQ-14, design §2.10: usa o HANDOFF.md da worktree corrente — gerado na hora, pelo
+      # mesmo handoff-gen.sh do /forge:handoff, se ainda não existir. A partir daqui o corpo
+      # segue o MESMO caminho de --body-file (teto de 64 KB + varredura de segredo, abaixo):
+      # nenhuma regra nova, só uma origem nova para body_file. Tudo isto corre ANTES de
+      # qualquer gravação (appendOwn só acontece mais abaixo) — qualquer recusa aqui, inclusive
+      # a geração falhando, não deixa rastro.
+      handoff_path="$ROOT/.forge/HANDOFF.md"
+      if [ ! -f "$handoff_path" ]; then
+        if ! handoff_out="$(FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/handoff-gen.sh" 2>&1)"; then
+          echo "FAIL: --from-handoff não conseguiu gerar o HANDOFF.md — $handoff_out" >&2
+          exit 1
+        fi
+      fi
+      body_file="$handoff_path"
     fi
 
     _scan_secret_or_fail "$body" "$body_file" || exit 1

@@ -1,0 +1,41 @@
+id: extend-kb-corpus-sources
+type: feature
+mode: brownfield
+rigor: spec-anchored
+scale: 2
+status: implemented
+created_at: "2026-11-02"
+updated_at: "2026-11-02"
+owner: "Milton Antonio da Silva Jr"
+parent:
+  baseline: .forge/product/current
+affected_capabilities:
+  - forge-harness-template
+affected_paths:
+  - template/.forge/scripts/lib/kb-corpus.mjs
+  - template/.forge/scripts/lib/kb-lexical.mjs
+  - template/.forge/scripts/lib/kb-cli.mjs
+  - template/.forge/schemas/forge.schema.json
+  - template/.forge/commands/graph/kb.md
+  - tests/w309-kb-corpus-gate.sh
+  - tests/extend-kb-corpus-sources-gate.sh
+dependencies:
+  specs: []
+  code: []
+gates:
+  requirements_reviewed: true
+  design_reviewed: true
+  tasks_reviewed: true
+  implementation_verified: false
+  human_archive_approval: false
+dev_loop:
+  sharded: false
+  stories_path: stories/
+  epic_context_compiled: false
+quick_plan:
+  enabled: false
+  skipped_phases: []
+  justification:
+archive:
+  eligible: false
+  reason: "tasks not implemented"

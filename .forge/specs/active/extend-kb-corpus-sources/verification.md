@@ -4,7 +4,7 @@
 
 ## REQ-01 — Indexar specs ativas como fonte própria (`active-spec`), revertendo REQ-FHT-072
 
-Implementado em `template/.forge/scripts/lib/kb-corpus.mjs` (`collect()`/`sourceFiles()`), commits `2bc4d768`(red)/`ab82f16e`(green). `tests/w309-kb-corpus-gate.sh` caso `[1]` exige `active-spec .forge/specs/active/wip/proposal.md` no corpus; a exclusão de peer/blob/código/node_modules permanece intocada no mesmo arquivo. `spec-delta.yaml` grava `modify_requirement` full-replacement de `REQ-FHT-072`/`SCN-FHT-072-A` com o texto novo — conferido linha a linha contra o comportamento implementado (specs ativas entram com `kind: active-spec`; peer/blob/código/node_modules continuam fora). Rótulo de `kind` em `kb.sh query` chega na TASK-04 (ver REQ-07) — confirmado via caso `[32]`. **Status: atende.**
+Implementado em `template/.forge/scripts/lib/kb-corpus.mjs` (`collect()`/`sourceFiles()`), commits `2bc4d768`(red)/`ab82f16e`(green). `tests/w309-kb-corpus-gate.sh` caso `[1]` exige `active-spec .forge/specs/active/wip/proposal.md` no corpus; a exclusão de peer/blob/código/node_modules permanece intocada no mesmo arquivo. `spec-delta.yaml` grava `modify_requirement` full-replacement de `REQ-FHT-072`/`SCN-FHT-072-A` com o texto novo — conferido linha a linha contra o comportamento implementado (specs ativas entram com `kind: active-spec`; peer/blob/código/node_modules continuam fora). **Rótulo de `kind` em `kb.sh query` (último critério do REQ-01) — achado real do gate `implementation_verified` na 1ª rodada: a implementação original da TASK-04 só expunha o rótulo de status MADR, não o rótulo de origem de `kind`.** Corrigido nesta fase de verify, TDD completo: caso `[32]` endurecido para exigir `[ACTIVE-SPEC] ` antes do `doc` na saída texto (commits `daf1f3dc` red / `e7025ca9` green, prova via `red-evidence.sh task` rc 0); `KIND_LABEL` novo em `kb-cli.mjs::printText()`, combinável com o rótulo de status (`active-spec`/`extra-path` → `[ACTIVE-SPEC] `/`[EXTRA-PATH] `; `baseline`/`archived-spec`/`plan`/`changelog`/`ledger`/`liaison` preservam a saída atual, sem prefixo). **Status: atende** (corrigido durante verify).
 
 ## REQ-02 — Fonte configurável `kb.extra_paths` com allowlist obrigatória
 
@@ -45,9 +45,14 @@ Medido no próprio repositório, pós-implementação: `FORGE_ROOT="$PWD" bash t
 
 ## Suíte completa do repositório
 
-`tests/run-all.sh` executado a partir da raiz do change, resultado registrado separadamente no relatório final da sessão (ver mensagem de encerramento) — sem regressão identificada nos gates pré-existentes exercitados durante as verificações independentes de cada task (`w309`, `w310`, `w313`, `w318`, `w20`).
+**1ª execução** (`FORGE_ROOT="$PWD" bash tests/run-all.sh`, 3973s): `PASS=201 FAIL=42`. Nenhum dos 42 gates reprovados toca arquivo deste change (`kb-corpus.mjs`, `kb-cli.mjs`, `kb-lexical.mjs`, `forge.schema.json`, `kb.md`, `w309`, `extend-kb-corpus-sources-gate.sh` ausentes da lista). Investigação (gate `implementation_verified`, 1ª rodada): a causa real **não foi contenção de lock do git entre worktrees** (hipótese inicial do orquestrador, descartada) — foi o `FORGE_ROOT="$PWD"` exportado na invocação, que propagou para dentro de `spec-new.sh` (chamado por `w20`/outros gates) e colidiu com nomes de fixture (`feat-x`, `fix-y`, `ref-z`, `green-w`, `brown-v`, entre ~20 outros) que a trava de sobrescrita do próprio `spec-new.sh` rejeitou — e esses mesmos diretórios de fixture ficaram vazados, não rastreados, em `.forge/specs/active/` desta worktree (22 diretórios, criados entre 22:43 e 23:48 durante a 1ª execução). Removidos antes da 2ª execução (seriam indexados como `active-spec` pelo próprio REQ-01 deste change, poluindo o corpus).
+
+**2ª execução**, sem `FORGE_ROOT` exportado (correção da causa raiz): resultado registrado abaixo.
+<!-- REGISTRAR AQUI o resultado da 2ª execução (PASS/FAIL, lista de falhas se houver) assim que `tests/run-all.sh` completar em background. -->
 
 ## Desvios e notas registradas
 
 - `spec-delta.yaml` recebeu, além do `modify_requirement` de `REQ-FHT-072` (autorado na TASK-01), seis operações `add_requirement` novas (`REQ-FHT-102`..`REQ-FHT-107`, uma por REQ-02..REQ-07 de `requirements.md`) — autoradas nesta fase de verify, a partir do texto já revisado dos requisitos, antes do archive.
+- Rótulo de origem (`kind`) na saída texto de `kb.sh query` — gap real encontrado pelo gate `implementation_verified` (1ª rodada), corrigido via TDD nesta mesma fase (ver REQ-01 acima).
+- 22 diretórios de fixture de teste vazados em `.forge/specs/active/` (não rastreados pelo git, gerados por execuções anteriores de gates como `w20`/`w13`/outros) foram removidos antes de reexecutar a suíte completa — não eram specs reais do projeto.
 - Nenhum `NEEDS CLARIFICATION` pendente; nenhuma task ficou `[!]`.

@@ -80,6 +80,8 @@ Passivo de avisos herdado — regra existente virando obrigatória, ou lint novo
 
 Fonte: portão de decisão adaptado do prompt 02 do `vibe-coding-toolkit` (MIT).
 
+**Enforcement determinístico (REQ-03/REQ-04, `check-suppression-reference.sh`):** a referência exigida no item (B) acima deixa de ser só convenção em prosa — `.forge/scripts/check-suppression-reference.sh` reprova de forma determinista toda supressão (`@ts-ignore`/`@ts-expect-error`/`@ts-nocheck`/`eslint-disable*` em JS/TS; `# noqa`/`# type: ignore` em Python) sem `LDG-NNNN`/`ADR-NNNN`/`ISSUE-NNN`/`issue #NNN`/`closes #NNN`/`fixes #NNN` nas linhas adicionadas do diff, chamado em `/forge:ship` e no hook `pre-push` (receita "Supressão sem referência" em `gate-runner/SKILL.md`). Cobertura nesta rodada: só JS/TS e Python — C#/.NET (`#pragma warning disable`) e Bash ficam fora de escopo explícito, sem lacuna silenciosa.
+
 ## Testes de Acessibilidade
 
 - `jest-axe` obrigatório em componentes de UI (unit)

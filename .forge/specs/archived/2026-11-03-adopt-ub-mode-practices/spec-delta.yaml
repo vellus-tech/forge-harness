@@ -2,16 +2,16 @@
 # (verify.md §2.5), a partir da conferência REQ a REQ registrada em verification.md.
 # modify_requirement é SUBSTITUIÇÃO INTEGRAL — nunca patch parcial.
 operations:
-  - op: modify_requirement
+  - op: add_requirement
     capability: forge-harness-template
-    requirement_id: REQ-FHT-001
+    requirement_id: REQ-FHT-108
     full_replacement_ref: requirements.md#req-01
     requirement:
-      id: REQ-FHT-001
+      id: REQ-FHT-108
       title: "`[!]` exige nomear a premissa e o(s) ator(es) do desequilíbrio, e a correção que o retomar precisa remover essa atribuição"
       normative: SHALL
       scenarios:
-        - id: SCN-FHT-001-A
+        - id: SCN-FHT-108-A
           given: "uma TASK em `/forge:implement` ou `coding-loop`/`task-coder` já sofreu uma 1ª falha de correção no mesmo gate/teste, registrada no tracker (`tasks.md` ou `PROGRESS-TRACKING.md`)"
           when: "uma TASK sofre sua 2ª falha de correção consecutiva no mesmo gate/teste POR ESTA CAUSA ESPECÍFICA — \"gate falha após 2 tentativas de correção\" (texto real de `implement.md:54`; as outras duas causas do mesmo `[!]` — dependência externa indisponível, decisão de produto necessária — NÃO disparam este REQ, porque não há tentativa de correção nenhuma ali) —"
           then: "exigir, no registro de falha do tracker, dois campos novos: `Premissa:` (a suposição que as duas tentativas compartilhavam) e `Ator(es) com o desequilíbrio:` (quem/o que está carregando a responsabilidade mal distribuída). **O HALT não muda** — continua parando e escalando ao humano exatamente como hoje (2 tentativas em `implement.md`; 1ª falha em `coding-loop`). O que muda é a condição para RETOMAR depois do HALT: reinvocar sem premissa nomeada ainda conta como a mesma série (2ª ocorrência); só a reinvocação que segue uma ocorrência com `Premissa:`/`Ator(es):` já registrados é que conta como RETOMADA INFORMADA, e essa só atende ao REQ se mudar a atribuição nomeada — uma retomada que repete a mesma forma não cumpre o REQ, mesmo que o humano a autorize"
@@ -20,16 +20,16 @@ operations:
         - tests/adopt-ub-mode-practices-gate.sh#implement-wiring
         - tests/adopt-ub-mode-practices-gate.sh#coding-loop-wiring
         - tests/adopt-ub-mode-practices-gate.sh#premise-mutation
-  - op: modify_requirement
+  - op: add_requirement
     capability: forge-harness-template
-    requirement_id: REQ-FHT-002
+    requirement_id: REQ-FHT-109
     full_replacement_ref: requirements.md#req-02
     requirement:
-      id: REQ-FHT-002
+      id: REQ-FHT-109
       title: "Gate determinista provando a exigência do REQ-01, chamado no ponto real do HALT"
       normative: SHALL
       scenarios:
-        - id: SCN-FHT-002-A
+        - id: SCN-FHT-109-A
           given: "o script `check-attack-premise.sh` existe em `template/.forge/scripts/` e reconhece os dois formatos de bloco (`> Campo:` em `tasks.md`, `**Campo:**` em `PROGRESS-TRACKING.md`) pelo nome do campo"
           when: "o bloco de falha (TASK, `tasks.md`) ou o bloco \"Última falha\" (`coding-loop`, `PROGRESS-TRACKING.md`) for escrito na 2ª falha de correção consecutiva da mesma TASK sem os campos `Premissa:`/`Ator(es) com o desequilíbrio:`"
           then: "reprovar essa condição de forma determinista — e o design precisa nomear o script/ponto de chamada real por ÂNCORA DE TEXTO conferida contra o arquivo real (nunca número de linha, que muda; nunca uma frase que não existe no arquivo — \"existe um gate\" sem um ponto de chamada real e conferido é a lacuna que o próprio `ub-mode` tem e que este change se propõe a não repetir)"
@@ -37,32 +37,32 @@ operations:
       tests:
         - tests/adopt-ub-mode-practices-gate.sh#script
         - tests/adopt-ub-mode-practices-gate.sh#premise-mutation
-  - op: modify_requirement
+  - op: add_requirement
     capability: forge-harness-template
-    requirement_id: REQ-FHT-003
+    requirement_id: REQ-FHT-110
     full_replacement_ref: requirements.md#req-03
     requirement:
-      id: REQ-FHT-003
+      id: REQ-FHT-110
       title: "Scanner de supressão de compilador/linter sem justificativa, como gate bloqueante"
       normative: SHALL
       scenarios:
-        - id: SCN-FHT-003-A
+        - id: SCN-FHT-110-A
           given: "um change altera arquivo JS/TS/Python cujo diff (base resolvida via `_redfirst_resolve_base`) contém linhas adicionadas com marcador de supressão"
           when: "o código alterado por um change contém `@ts-ignore`, `@ts-expect-error`, `eslint-disable` (qualquer variante de linha/bloco) ou, em Python, `# noqa`/`# type: ignore` sem uma referência rastreável no próprio comentário de supressão"
           then: "reprovar essa condição de forma determinista (gate bloqueante — decisão fixada aqui, não fica para o design decidir sinal vs. gate, ao contrário de P2/P3 em REQ-06, porque aqui não há decisão anterior registrada em conflito, só a prosa de `rules/testing/quality-gates.md:74,128` já pedindo isto sem impor)"
       contracts: []
       tests:
         - tests/adopt-ub-mode-practices-gate.sh#suppression-grammar
-  - op: modify_requirement
+  - op: add_requirement
     capability: forge-harness-template
-    requirement_id: REQ-FHT-004
+    requirement_id: REQ-FHT-111
     full_replacement_ref: requirements.md#req-04
     requirement:
-      id: REQ-FHT-004
+      id: REQ-FHT-111
       title: "Gate determinista provando o REQ-03, com hospedeiro nomeado"
       normative: SHALL
       scenarios:
-        - id: SCN-FHT-004-A
+        - id: SCN-FHT-111-A
           given: "`check-suppression-reference.sh` está encadeado em `/forge:ship` (passo 3, `--staged`) e no hook `pre-push` (`--range`, base resolvida)"
           when: "o diff (base definida no REQ-03) de um change contém uma supressão sem referência válida fora de código gerado/vendorizado"
           then: "reprovar essa condição de forma determinista; quando o diff não contém nenhuma supressão suja, **o sistema deve** tratar esse resultado como o caso normal (não como anomalia) — só a ausência de QUALQUER arquivo examinável no universo do teste (não do diff real do consumidor) é que conta como universo vazio e reprova por omissão de cobertura"
@@ -70,16 +70,16 @@ operations:
       tests:
         - tests/adopt-ub-mode-practices-gate.sh#suppression-wiring
         - tests/adopt-ub-mode-practices-gate.sh#suppression-mutation
-  - op: modify_requirement
+  - op: add_requirement
     capability: forge-harness-template
-    requirement_id: REQ-FHT-005
+    requirement_id: REQ-FHT-112
     full_replacement_ref: requirements.md#req-05
     requirement:
-      id: REQ-FHT-005
+      id: REQ-FHT-112
       title: "Roteiro executável de spike de medição (complexidade e duplicação), executado uma vez sobre um consumidor real"
       normative: SHALL
       scenarios:
-        - id: SCN-FHT-005-A
+        - id: SCN-FHT-112-A
           given: "`tools/spike-complexity-duplication.mjs` mede complexidade ciclomática (via `@babel/parser`, com fallback para consumidor externo) e duplicação (via `npx jscpd`) sobre um universo definido por `git ls-files`"
           when: "o roteiro é executado sobre um consumidor real (`Payments.DevPortal`, só-leitura) e os achados acima do limiar são classificados manualmente como verdadeiro/falso-positivo"
           then: "o critério de decisão (>30% de falso-positivo descarta o limiar, sobe o limiar, nunca desce) é aplicado de forma honesta e registrado em `spike-result.md` — resultado real: 50% de falso-positivo no limiar 10, 33,3% no limiar 15, 0% no limiar 20 (mas cobertura de só 0,47% das funções), e duplicação sem achado algum nos limiares padrão do `jscpd` (resultado inconclusivo, não forçado)"
@@ -87,16 +87,16 @@ operations:
       tests:
         - tests/adopt-ub-mode-practices-gate.sh#spike
         - .forge/specs/active/adopt-ub-mode-practices/spike-result.md
-  - op: modify_requirement
+  - op: add_requirement
     capability: forge-harness-template
-    requirement_id: REQ-FHT-006
+    requirement_id: REQ-FHT-113
     full_replacement_ref: requirements.md#req-06
     requirement:
-      id: REQ-FHT-006
+      id: REQ-FHT-113
       title: "ADR para a decisão de P2/P3 (complexidade/duplicação como sinal, gate, ou não-adoção), decidida a partir do resultado real do spike"
       normative: SHALL
       scenarios:
-        - id: SCN-FHT-006-A
+        - id: SCN-FHT-113-A
           given: "o spike (REQ-05) já produziu resultado real sobre um consumidor (`spike-result.md`)"
           when: "o resultado do spike é incorporado à estrutura MADR já desenhada em `design.md` §2.4"
           then: "a ADR é publicada em `.forge/product/current/adr/0006-complexidade-duplicacao-sinal-nao-bloqueante.md` (status `accepted`) com a seção Decision preenchida (Opção 2 — sinal não-bloqueante, com a justificativa quantitativa do spike) e o índice `README.md` atualizado com numeração sequencial"
@@ -104,16 +104,16 @@ operations:
       tests:
         - .forge/product/current/adr/0006-complexidade-duplicacao-sinal-nao-bloqueante.md
         - .forge/product/current/adr/README.md
-  - op: modify_requirement
+  - op: add_requirement
     capability: forge-harness-template
-    requirement_id: REQ-FHT-007
+    requirement_id: REQ-FHT-114
     full_replacement_ref: requirements.md#req-07
     requirement:
-      id: REQ-FHT-007
+      id: REQ-FHT-114
       title: "P4 (mutação de código de consumidor) registrado como follow-up condicionado, não como trabalho deste change"
       normative: SHALL
       scenarios:
-        - id: SCN-FHT-007-A
+        - id: SCN-FHT-114-A
           given: "o texto final do item (título, detalhe, severidade, origem) já estava definido em `design.md` §2.5, e `LDG-0021` foi conferido como escopo diferente (sem overlap)"
           when: "este change produzir seu `design.md`"
           then: "desenhar o conteúdo exato do item de ledger que registra P4 (mutação sistemática sobre código de consumidor, via StrykerJS/Stryker.NET/PIT/mutmut) como follow-up condicionado: só vale a pena abrir um change de implementação para P4 quando houver um consumidor com lógica crítica (ex.: um repositório de pagamentos) que justifique o custo de CI. A entrada real (`LDG-0233`, severidade LOW, sem data de ativação) foi criada via `ledger-ops.sh add --type tech-debt` e confirmada em `LEDGER.md` após `render`"

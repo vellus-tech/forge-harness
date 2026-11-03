@@ -273,7 +273,11 @@ regra R-03 alto "migração bloqueante: índice sem CONCURRENTLY em tabela exist
 
 # >>> R-04
 r_R_04() {
-  linhas -i -X 'timestamp[[:space:]]+with[[:space:]]+time[[:space:]]+zone' sql '(^|[^a-z0-9_])(timestamp|char[[:space:]]*\([0-9]+\)|character[[:space:]]*\([0-9]+\)|money|json|serial|bigserial|smallserial)([^a-z0-9_]|$)'
+  # Exclusões além de "timestamp with time zone": coluna CHAMADA "timestamp" tipada TIMESTAMPTZ
+  # ("timestamp TIMESTAMPTZ NOT NULL") casava o nome, não o tipo; e referência de coluna dentro de
+  # CREATE INDEX ("... ON tbl (timestamp DESC)") casava o identificador, não uma declaração de tipo
+  # sem fuso — nenhum dos dois é o antipattern que a regra persegue.
+  linhas -i -X 'timestamp[[:space:]]+with[[:space:]]+time[[:space:]]+zone|timestamp[[:space:]]+timestamptz|create[[:space:]]+(unique[[:space:]]+)?index[^;]*\(.*timestamp' sql '(^|[^a-z0-9_])(timestamp|char[[:space:]]*\([0-9]+\)|character[[:space:]]*\([0-9]+\)|money|json|serial|bigserial|smallserial)([^a-z0-9_]|$)'
 }
 regra R-04 aviso "tipo problemático no PostgreSQL: timestamp sem fuso, char(n), money, json ou serial (use timestamptz, text/varchar, BIGINT em centavos, jsonb, identity)" r_R_04
 # <<< R-04

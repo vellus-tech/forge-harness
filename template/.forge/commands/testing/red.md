@@ -49,6 +49,21 @@ um `replay` bem-sucedido. `--test-path`, `--test-id`, `--command` e `--failure-p
 consegue ancorar no caso específico (só no arquivo de teste inteiro); sem `failure_pattern`, o
 item 4 da rule nunca fica avaliável — campo ausente seria indistinguível de "gate desligado".
 
+Antes de gravar: para defeito de carga/import ("X is not a function" no carregamento, módulo que
+não resolve fora do bundler), meça a cadeia de imports mecanicamente (bundle com `metafile`, BFS da
+entrada até o arquivo culpado) em vez de apontar o primeiro import plausível da lista — `import
+type` é apagado na transpilação e não conta como elo; um diagnóstico que nomeia o elo errado leva a
+TASK de correção a isolar o módulo errado. Quando o Red precisa de um alvo descartável que absorva
+o dano (sentinela, para não tocar o repositório real), o sentinela replica a FORMA do alvo real na
+dimensão que o mecanismo lê (tipo de diretório, layout, nome de caminho) — e a primeira medição do
+sentinela é um controle positivo: o dano tem de aparecer nele antes de escrever o teste, senão um
+sentinela simplificado demais devolve "sem efeito" e o defeito real parece não reproduzir. Quando o
+defeito está no próprio host/fixture de teste (a correção mora no mesmo arquivo do caso), declare
+isso explicitamente: `test_path` em `fix_files` faz o `replay` (passo 0) tratar o commit de criação
+do teste como a correção e derivar uma base errada — ou separe a fixture num commit de refatoração
+sem mudança de comportamento antes do fix (com o Red remedido depois dele), ou não declare
+`fix_files` = `test_path` sem essa ressalva.
+
 Formato de `test_id` (issue #190): o `replay` aceita o nome do caso como aparece no arquivo (nome do método, `test('<nome>')` do Jest/`node --test`, `test_nome` do pytest) e também a forma qualificada que xUnit/NUnit e `dotnet test --filter FullyQualifiedName~` usam — `Classe.Metodo` ou `Namespace.Classe.Metodo`. Na forma qualificada (só identificadores separados por `.`), a classe e o método são conferidos separadamente, como palavras inteiras, no arquivo de teste e na mesma linha de falha da saída; o namespace não é conferido. Qualquer outro formato continua exigindo a substring literal, e o `NOT-POSSIBLE` diz exatamente o que foi procurado.
 
 `--positive-control` é **opcional** (issue #150, DA-13) — um comando que precisa PASSAR na
@@ -69,7 +84,9 @@ verdade** (redesenho de causa raiz da 4ª rodada de correção). Toda entrada te
 estável**: um change com um único defeito continua funcionando exatamente como antes (`record`
 sem `--id` declara e redeclara a mesma entrada — nada muda para o fluxo comum), mas por baixo
 essa entrada já nasce com um id **auto-gerado** (`d1`, `d2`, ...) em vez de `id: null`. A partir
-do segundo defeito:
+do segundo defeito. Quando o `bugfix.md` declara N defeitos (`§5`), abra N entradas — um `record
+--id` por defeito; uma evidência de slot único cobrindo um `bugfix.md` que enumera vários dá
+`observed` sobre 1/N em silêncio, e os demais nunca passam por `replay`:
 
 - `record --id <novo>` **acrescenta** uma entrada — nunca sobrescreve as demais.
 - `record --id <existente>` atualiza só aquela entrada (e, se o id era auto-gerado, passa a
@@ -116,6 +133,24 @@ bash .forge/scripts/red-evidence.sh replay <change-id> [--id <defeito>] [--timeo
 
 `--id` é obrigatório quando o change tem 2+ entradas em `entries[]` (ver seção acima); sem ele,
 só 0/1 entrada é aceitável.
+
+**`replay` só atinge `observed` depois que a correção está commitada** — o passo 0 do motor exige
+o teste VERDE em HEAD antes de derivar a árvore pré-correção. Rodado na wave do `record`, antes de
+qualquer TASK de correção existir, o resultado esperado é `FAIL replay (item green)` — isso é o
+motor vendo o vermelho, não defeito do teste nem do planejamento; não é sinal para enfraquecer o
+teste ou inventar uma correção só para obter a transição de cor. Na mesma lógica, se o vermelho é
+observado na base mas, ao chegar a hora de corrigir, o teste já está verde em HEAD sem edição sua
+(outra issue/PR fechou a mesma causa raiz como efeito colateral), não finja implementar: prove por
+mutação que o mecanismo que já fecha a lacuna é real (remova o bloco suspeito numa cópia e veja o
+defeito original reaparecer) e registre `waive` com essa classe — distinta de "o bug nunca existiu"
+e de "ambiente de teste errado".
+
+Quando `fixes_defects` tem mais de um id, uma âncora que reproduzia o defeito na base pode deixar
+de guardá-lo depois de um segundo conserto do mesmo change — o `replay` mede "vermelho na base,
+verde no HEAD" e não mede se esse verde ainda depende do conserto do id em questão. Antes de
+aceitar o `observed`, reverta no HEAD apenas os `fix_files` daquele id (mantendo os dos demais) e
+confira que o teste âncora volta a ficar vermelho; se continuar verde, a guarda real está em outro
+teste (que a declaração de defeitos tem de nomear), não neste.
 
 Este é o passo que converte "presumido" em "observado" — sem ele a evidência é só uma
 declaração que qualquer agente poderia fabricar. O motor (`lib/red-replay.mjs`):
@@ -195,6 +230,24 @@ regra de waiver, sem reimplementação aqui.
 
 ## Regras
 
+- Ao usar neste repositório um runner de teste ainda não visto por `lib/red-classify.mjs`
+  (framework de infraestrutura declarativa — Prometheus, Alertmanager, admission tests — ou
+  qualquer stack nova), confira proativamente se o classificador reconhece o formato de falha
+  daquele runner **antes** do primeiro `replay` — rodar `record`+`replay` de amostra logo depois
+  do primeiro vermelho evita descobrir a lacuna só depois de vermelho e verde já commitados. Se
+  precisar de assinatura nova, trate como commit de infraestrutura compartilhada, separado do fix
+  funcional, com menção no PR/verification.md.
+- Ao construir uma lista de regressão por varredura mecânica (grep/diff de uma mudança aplicada a
+  muitos arquivos de teste), exclua explicitamente qualquer arquivo cujo papel seja executar os
+  outros da mesma coleção (um runner/dispatcher) antes de iterar a lista — ele não é "mais um
+  arquivo tocado", é a lista; valide esse arquivo pelo gate dedicado que já o exercita em bancada
+  controlada, nunca rodando-o por inteiro.
+- Num gate shell com várias asserções em sequência que `red-evidence.sh task` (ou qualquer
+  verificador que ancore no início absoluto da saída) vai avaliar, ordene os cenários para que PELO
+  MENOS o primeiro exija a implementação real para produzir sucesso — um cenário de "recusa pura"
+  (rc≠0 esperado) passa mesmo contra um stub genérico que recusa tudo, e se ele vier primeiro o
+  vermelho "passa" por engano enquanto a falha real do cenário que importa fica enterrada no meio
+  da saída. Antes de comitar o vermelho, confira a primeira linha capturada, não só o `rc` final.
 - Não invente um teste para "passar no gate" — uma declaração fabricada é pior que a ausência
   declarada (mente para o próximo leitor). Prefira `waive` com motivo honesto.
 - `replay` é caro (worktree + execução real) — nunca roda no `pre-push` (só o check estático,

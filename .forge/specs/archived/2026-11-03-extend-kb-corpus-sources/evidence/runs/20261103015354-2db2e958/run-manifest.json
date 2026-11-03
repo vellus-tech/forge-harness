@@ -1,0 +1,85 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20261103015354-2db2e958",
+  "stage": "verify",
+  "status": "passed",
+  "started_at": "2026-11-03T01:53:54Z",
+  "finished_at": "2026-11-03T01:53:54.928Z",
+  "duration_ms": 928,
+  "git": {
+    "repo": true,
+    "branch": "feat/harness/extend-kb-corpus-sources",
+    "head_sha": "35d1b2ab3047eb6b2f92e926d69e1bc2c197d959",
+    "dirty": true,
+    "changed_files": [
+      ".forge/graph/cache/fingerprints.json",
+      ".forge/graph/graph.json",
+      ".forge/ledger/LEDGER.md",
+      ".forge/ledger/ledger.json",
+      ".forge/specs/active/extend-kb-corpus-sources/approvals.yaml",
+      ".forge/specs/active/extend-kb-corpus-sources/design.md",
+      ".forge/specs/active/extend-kb-corpus-sources/evidence/",
+      ".forge/specs/active/extend-kb-corpus-sources/impact.json",
+      ".forge/specs/active/extend-kb-corpus-sources/manifest.yaml",
+      ".forge/specs/active/extend-kb-corpus-sources/proposal.md",
+      ".forge/specs/active/extend-kb-corpus-sources/requirements.md",
+      ".forge/specs/active/extend-kb-corpus-sources/spec-delta.yaml",
+      ".forge/specs/active/extend-kb-corpus-sources/verification.yaml",
+      ".forge/specs/active/feat-api-empty/",
+      ".forge/specs/active/feat-conf/",
+      ".forge/specs/active/feat-tenant/"
+    ],
+    "diff_stat": ".forge/graph/cache/fingerprints.json               |   6 +-\n .forge/graph/graph.json                            |  18 ++--\n .forge/ledger/LEDGER.md                            |   4 +-\n .forge/ledger/ledger.json                          |  24 +++++\n .../extend-kb-corpus-sources/spec-delta.yaml       | 107 +++++++++++++++++++++\n 5 files changed, 146 insertions(+), 13 deletions(-)",
+    "diff_sha256": "05c26f5689df95b17e22ff29a6d64579ef7e935d91c02f5afb49abaa37829838"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "70b3603e9cf424006fd55360f7cd0c2d74521e78ff6ef380ca199a8821628393",
+      "bytes": 1001,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "668d211b19d056ad3ff89718b30ca3a5f4ae8d40d21702baec5c913e968232c4",
+      "bytes": 14423,
+      "kind": "file"
+    },
+    {
+      "path": "traceability.yaml",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "commands": [
+    {
+      "name": "spec-verify",
+      "command": "spec-verify.sh extend-kb-corpus-sources",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "775997479c87019f900fba861a16df1a1293deb4da3866867de060354ea51e1a",
+      "bytes": 219,
+      "kind": "file"
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

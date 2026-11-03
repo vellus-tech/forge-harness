@@ -1,0 +1,17 @@
+{
+  "schema": "impact/v0",
+  "generated_at": "2026-11-03T01:06:37.031Z",
+  "graph_fingerprint": "35f4d7a144342759cd963647ea485f03f197b0c2d9bf251000cd7c7f28628c0d",
+  "seeds": [
+    "template/.forge/scripts/lib/kb-cli.mjs",
+    "template/.forge/scripts/lib/kb-corpus.mjs",
+    "template/.forge/scripts/lib/kb-lexical.mjs",
+    "tests/w309-kb-corpus-gate.sh"
+  ],
+  "impacted": [
+    "template/.forge/scripts/lib/kb-cli.mjs",
+    "template/.forge/scripts/lib/kb-corpus.mjs",
+    "template/.forge/scripts/lib/kb-lexical.mjs",
+    "tests/w309-kb-corpus-gate.sh"
+  ]
+}

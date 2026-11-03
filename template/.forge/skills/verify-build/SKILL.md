@@ -19,6 +19,18 @@ diff_sha: <sha>
 strict_mode: true     # se true, warnings de compilação contam como erro
 ```
 
+## Princípios de leitura de veredito
+
+Antes de aceitar qualquer "suíte verde" como prova, aplicar:
+
+- **Verde local só vale para os gates que de fato rodaram na mesma configuração do CI.** Para .NET, rodar na config que o workflow usa (normalmente Release) — um teste dependente de ordem de execução pode passar 100% em Debug e falhar em Release porque a ordem dos casos muda entre builds; quando um teste diverge entre execuções, extrair a ordem real do relatório (`.trx` ou equivalente) antes de chamar de "flaky" ou "pré-existente". Verde fora da configuração do CI não é evidência sobre o CI. Vale também para catraca de warnings do CI: suíte 100% verde não impede reprovação por warning novo (ex. `xUnit1051`, `CS8602`) num arquivo tocado pelo diff — depois de build e teste, `grep` os arquivos do diff na saída do build (com `--no-incremental`, para não esconder warning por cache incremental) e tratar warning novo como falha quando o projeto tiver catraca no CI.
+- **Suíte de caracterização/golden/snapshot alterada pelo mesmo diff que ela deveria travar não é prova.** Se o diff sob verificação também edita o arquivo de expectativas que a suíte de caracterização compara, extrair cada expectativa alterada (antes → depois) e exigir que bata com uma entrada do registro de aprovação externo do projeto — expectativa alterada sem aprovação é achado, independentemente de a suíte estar verde; rebaixar "suíte verde" para "suíte verde sobre expectativas não alteradas pelo mesmo diff" quando esse for o caso.
+- **"Teste de integração contra a dependência real" só prova o comportamento de produção se herdar as restrições de produção.** Checar: (a) a identidade/privilégio usado pelo teste é o de produção (role, permissões, sem bypass de RLS/superusuário), não o de bootstrap do container; (b) o teste percorre o caminho real de execução (worker/host sem contexto pré-montado), não o método interno já com contexto definido; (c) o teste não depende de serviço externo não declarado que por acaso está no ar (porta/endpoint default). Dependência "real" com privilégio de administrador testa um sistema que não existe, e o verde é mais perigoso que a ausência de teste porque encerra a investigação.
+- **Suíte paralela pode disputar um artefato gerado por ela mesma** em diretório ignorado pelo versionamento (ex.: dependências baixadas por um teste e lidas por outro); mais de um produtor sem dono único/exclusão mútua produz "intermitência" que na verdade é determinística — ver gate-runner para o diagnóstico.
+- **Ao estender o pipeline a uma stack nova, a prova é um alvo real da stack nova atravessando build+test+lint até o veredito, não a detecção de arquivo aceitando o padrão novo.**
+- **Relatório de coverage presente não é relatório com conteúdo**: ao extrair `line-rate`/`branch-rate` de `coverage.cobertura.xml` ou equivalente, confirmar que o arquivo tem entradas reais (não um relatório vazio de uma stack que não rodou nenhum teste) antes de reportar a métrica como aprovada.
+- Quando a verificação precisar rodar só um subconjunto da suíte (recorte por módulo/projeto tocado), derive o recorte do CONTEÚDO (import, invocação, literal de saída assertado) — nunca de semelhança de nome de arquivo, que é convenção e não dependência; se o recorte não puder ser derivado com confiança, rodar a suíte inteira.
+
 ## Comportamento
 
 ### 1. Detectar stacks afetadas
@@ -49,8 +61,12 @@ O rigor deve vir do **repositório**, não deste flag. `-p:TreatWarningsAsErrors
 bash .forge/scripts/dotnet-baseline.sh --check 2>&1
 BASELINE_EXIT=$?
 
-# Restaurar
-dotnet restore --nologo --verbosity quiet
+# Restaurar — NUGET_PACKAGES isolado evita que o cache global compartilhado entre sessões da
+# mesma máquina grave, no lockfile, o hash de um pacote empacotado localmente por outra sessão
+# (o restore não revalida contra o feed quando a versão já está no cache, mesmo com
+# --force-evaluate); se o lockfile for commitado ou servir de prova de versão publicada,
+# confira .nupkg.metadata -> source do pacote antes de aceitar o resultado.
+NUGET_PACKAGES="${NUGET_PACKAGES:-/tmp/nuget-verify-build-$$}" dotnet restore --nologo --verbosity quiet
 
 # Compilar — sem warnings em strict_mode
 if [ "$strict_mode" = "true" ]; then
@@ -240,6 +256,9 @@ Escrever em `/tmp/verify-build-output.json`:
 - Ignorar coverage gates
 - Continuar fluxo se uma stack falhou (todas as stacks devem passar)
 - Mockar comando externo (compilador/runner é a verdade)
+- Encadear verificação e publicação (push, force-push, retarget/edição de PR, merge, commit) com `;` ou em comandos soltos no mesmo shell — a ação publica mesmo com a verificação vermelha, porque `;` não lê o código de saída do passo anterior. Toda publicação fica condicionada ao exit code da verificação no mesmo comando (`&&` ou `|| exit`); isso vale também para gates que precedem uma escrita de histórico (commit, amend), não só o push.
+- Aceitar `FAILURE`/vermelho de CI como prova de Red sem ler a mensagem do próprio gate no log. Um status FAILURE genérico pode vir de uma causa anterior no pipeline (fetch sem credencial, setup quebrado) que nunca chegou a executar o gate que se queria provar — exigir o marcador que só o gate emite, citado junto do status.
+- Aceitar prova de correção baseada em bateria de mutação que só muta a lógica isolada: cobertura de mecanismo não é cobertura de fiação (invocador real), de fonte alternativa de dado, nem de cada chamador de um helper compartilhado — ver gate-runner, seção Mutação, para os conjuntos de mutante exigidos.
 
 ## Referências
 

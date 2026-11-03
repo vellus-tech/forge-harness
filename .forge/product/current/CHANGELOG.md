@@ -8,6 +8,12 @@
 - **Operações:** 7
 - **Pasta:** `.forge/specs/archived/2026-11-03-adopt-ub-mode-practices/`
 
+## 2026-11-03 — extend-kb-corpus-sources
+
+- **Capabilities:** forge-harness-template
+- **Operações:** 7
+- **Pasta:** `.forge/specs/archived/2026-11-03-extend-kb-corpus-sources/`
+
 ## 2026-11-02 — add-liaison-handoff-baton
 
 - **Capabilities:** forge-harness-template

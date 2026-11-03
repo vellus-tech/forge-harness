@@ -2,12 +2,15 @@
 # Gate W284 — busca unificada (/forge:kb), corpus: fontes, exclusões e corte em trechos
 # (change add-unified-knowledge-search, REQ-01; design §2.3).
 #
-#   [1] as seis fontes entram, uma por documento: baseline, spec arquivada, plano, CHANGELOG, uma
-#       entrada de ledger por documento (id ledger:<LDG>), uma mensagem `self` por documento
+#   [1] as oito fontes entram, uma por documento: baseline, spec arquivada, spec ativa, plano,
+#       CHANGELOG, uma entrada de ledger por documento (id ledger:<LDG>), uma mensagem `self` por
+#       documento (spec ativa rotulada kind: active-spec — reverte REQ-FHT-072/SCN-FHT-072-A,
+#       change extend-kb-corpus-sources, REQ-01), e um extra-path (kb.extra_paths declarado em
+#       .forge/forge.yaml + allowlist com motivo — change extend-kb-corpus-sources, REQ-02/REQ-06)
 #   [2] blobs do liaison nunca entram, nem quando referenciados por body_ref de mensagem `self`
 #   [3] mensagem com trust diferente de `self` (untrusted-peer, ausente, desconhecido), com
 #       authored_by, ou de log/<outro>.jsonl nunca entra
-#   [4] specs ativas, código-fonte, node_modules, .git e .forge/kb nunca entram
+#   [4] código-fonte, node_modules, .git e .forge/kb nunca entram
 #   [5] linha JSONL ilegível e ledger.json ilegível não abortam: a fonte é pulada e contada
 #   [6] raiz sem nenhuma fonte: lista vazia, sem erro
 #   [7] duas raízes: ledger e liaison vêm de stateRoot, documentos versionados de docRoot
@@ -32,6 +35,10 @@ printf 'capability: x\n' > "$R/.forge/product/current/spec.yaml"
 printf '# Proposal\n\nTexto da spec arquivada.\n' > "$R/.forge/specs/archived/2026-01-01-add-x/proposal.md"
 printf '# WIP\n\nspec ativa não indexada\n' > "$R/.forge/specs/active/wip/proposal.md"
 printf '# Plano\n\nplano mestre\n' > "$R/docs/plans/00-master.md"
+mkdir -p "$R/docs/adr"
+printf '# ADR extra\n\nDecisao extra indexada via kb.extra_paths.\n' > "$R/docs/adr/0100-extra.md"
+printf 'kb:\n  extra_paths:\n    - docs/adr/**\n' > "$R/.forge/forge.yaml"
+printf 'docs/adr/**  # motivo: indexar ADRs extras do sub-repositorio (fixture w309)\n' > "$R/.forge/kb-extra-paths-allowlist.txt"
 printf '# Changelog\n\n## 1.0\n' > "$R/CHANGELOG.md"
 printf 'const segredoDoCodigo = 1;\n' > "$R/src/app.md"
 printf '# pacote\n' > "$R/node_modules/pkg/README.md"
@@ -62,12 +69,14 @@ ids="$(node -e 'const r=JSON.parse(process.argv[1]);console.log(r.docs.map(d=>d.
 
 # [1]
 for want in "baseline .forge/product/current/adr/0001-graph.md" "baseline .forge/product/current/spec.yaml" \
-  "archived-spec .forge/specs/archived/2026-01-01-add-x/proposal.md" "plan docs/plans/00-master.md" "changelog CHANGELOG.md" \
-  "ledger ledger:LDG-0001" "ledger ledger:LDG-0002" "liaison liaison:eu-0001" "liaison liaison:eu-0002"; do
+  "archived-spec .forge/specs/archived/2026-01-01-add-x/proposal.md" "active-spec .forge/specs/active/wip/proposal.md" \
+  "plan docs/plans/00-master.md" "changelog CHANGELOG.md" \
+  "ledger ledger:LDG-0001" "ledger ledger:LDG-0002" "liaison liaison:eu-0001" "liaison liaison:eu-0002" \
+  "extra-path docs/adr/0100-extra.md"; do
   grep -qxF "$want" <<<"$ids" || fail 1 "documento esperado ausente: $want"
 done
 n="$(printf '%s\n' "$ids" | wc -l | tr -d ' ')"
-[ "$n" = "9" ] || fail 1 "esperados 9 documentos, obtidos $n: $ids"
+[ "$n" = "11" ] || fail 1 "esperados 11 documentos, obtidos $n: $ids"
 node -e 'const r=JSON.parse(process.argv[1]);const d=r.docs.find(x=>x.id==="ledger:LDG-0001");if(!/Primeira entrada/.test(d.text)||!/detalhe A/.test(d.text))process.exit(1)' "$OUT" || fail 1 "texto da entrada de ledger sem título/detalhe"
 ok 1
 
@@ -82,8 +91,8 @@ done
 ok 3
 
 # [4]
-grep -qE 'spec ativa|segredoDoCodigo|"# pacote|derivado' <<<"$OUT" && fail 4 "fonte proibida entrou no corpus"
-grep -qE 'specs/active|src/|node_modules|\.forge/kb|\.git/' <<<"$ids" && fail 4 "path proibido no corpus: $ids"
+grep -qE 'segredoDoCodigo|"# pacote|derivado' <<<"$OUT" && fail 4 "fonte proibida entrou no corpus"
+grep -qE 'src/|node_modules|\.forge/kb|\.git/' <<<"$ids" && fail 4 "path proibido no corpus: $ids"
 ok 4
 
 # [5]

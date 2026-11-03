@@ -63,3 +63,10 @@ approvals:
     decided_at: "2026-11-03T01:53:53-03:00"
     commit: "fd1dc5c3"
     scope: "verification.md"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "aprovado pelo usuario em 2026-11-03: delta de 7 REQs (forge-harness-template) revisado e correto"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-03T08:30:50-03:00"
+    commit: "9c1310dc"
+    scope: "spec-delta.yaml"

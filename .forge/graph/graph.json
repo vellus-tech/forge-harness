@@ -1,11 +1,11 @@
 {
   "schema": "graph/v0",
-  "generated_at": "2026-11-02T03:09:35.877Z",
+  "generated_at": "2026-11-02T23:59:58.033Z",
   "engine": "native",
-  "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/ledger-evidence-aging",
+  "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/adopt-ub-mode-practices",
   "stats": {
     "nodes": 549,
-    "edges": 90,
+    "edges": 91,
     "languages": [
       "csharp",
       "go",
@@ -1279,8 +1279,8 @@
     {
       "id": "template/.forge/scripts/lib/validate-spec.mjs",
       "lang": "js",
-      "loc": 431,
-      "fingerprint": "b116e60cfeb39300b755c5dfe1e5367f80c85022ec29d9ab605128eebc8dcda9",
+      "loc": 439,
+      "fingerprint": "9bad35c27a411b996f1caaa600f6f5eacc09d90511f4ed880dca667b2977b070",
       "layer": "unknown",
       "summary": null
     },
@@ -3703,8 +3703,8 @@
     {
       "id": "tests/w256-red-defect-scope-gate.sh",
       "lang": "shell",
-      "loc": 290,
-      "fingerprint": "0611acb4ae404ac5951f319e6f442837004198e7ea52a8ded37ccf355189f746",
+      "loc": 313,
+      "fingerprint": "b83dfb7c8504cb8739ceeed632cde09f1e3a0044c96da403a845cdbf7914db9c",
       "layer": "test",
       "summary": null
     },
@@ -4913,6 +4913,12 @@
     {
       "from": "template/.forge/scripts/lib/validate-spec.mjs",
       "to": "template/.forge/scripts/lib/check-red-first.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/validate-spec.mjs",
+      "to": "template/.forge/scripts/lib/defect-scope.mjs",
       "kind": "import",
       "resolved": true
     },

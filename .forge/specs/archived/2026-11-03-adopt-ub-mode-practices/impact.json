@@ -1,0 +1,15 @@
+{
+  "schema": "impact/v0",
+  "generated_at": "2026-11-03T00:00:00.634Z",
+  "graph_fingerprint": "d66667a58f4e91b2ffca1fec551591c33a483d54c30775770cf3ff3e5eefcb3b",
+  "seeds": [
+    "template/.forge/scripts/lib/red-evidence-ops.mjs",
+    "template/.forge/skills/frontend-ui-review/scripts/scan-native-controls.py"
+  ],
+  "impacted": [
+    "template/.forge/scripts/lib/check-red-first.mjs",
+    "template/.forge/scripts/lib/red-evidence-ops.mjs",
+    "template/.forge/scripts/lib/validate-spec.mjs",
+    "template/.forge/skills/frontend-ui-review/scripts/scan-native-controls.py"
+  ]
+}

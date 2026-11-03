@@ -1,0 +1,111 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20261103113057-0811cbf4",
+  "stage": "archive",
+  "status": "passed",
+  "started_at": "2026-11-03T11:30:54Z",
+  "finished_at": "2026-11-03T11:30:57.532Z",
+  "duration_ms": 3532,
+  "git": {
+    "repo": true,
+    "branch": "feat/harness/adopt-ub-mode-practices",
+    "head_sha": "9c1310dc41cf34a53a829bd0b7a7bfd027d76b88",
+    "dirty": true,
+    "changed_files": [
+      ".forge/graph/cache/fingerprints.json",
+      ".forge/graph/graph.json",
+      ".forge/graph/report.md",
+      ".forge/product/current/CHANGELOG.md",
+      ".forge/product/current/capabilities/forge-harness-template/spec.yaml",
+      ".forge/specs/active/adopt-ub-mode-practices/approvals.yaml",
+      ".forge/specs/active/adopt-ub-mode-practices/design.md",
+      ".forge/specs/active/adopt-ub-mode-practices/evidence/runs/20261103043520-baa7904f/run-manifest.json",
+      ".forge/specs/active/adopt-ub-mode-practices/evidence/runs/20261103044629-92622b93/run-manifest.json",
+      ".forge/specs/active/adopt-ub-mode-practices/manifest.yaml",
+      ".forge/specs/active/adopt-ub-mode-practices/proposal.md",
+      ".forge/specs/active/adopt-ub-mode-practices/reference/plano-ub-mode-vs-forge-harness.md",
+      ".forge/specs/active/adopt-ub-mode-practices/requirements.md",
+      ".forge/specs/active/adopt-ub-mode-practices/spec-delta.yaml",
+      ".forge/specs/active/adopt-ub-mode-practices/spike-result.md",
+      ".forge/specs/active/adopt-ub-mode-practices/tasks.md",
+      ".forge/specs/active/adopt-ub-mode-practices/verification.md",
+      ".forge/specs/active/adopt-ub-mode-practices/verification.yaml",
+      ".forge/specs/archived/2026-11-03-adopt-ub-mode-practices/",
+      ".forge/specs/archived/index.yaml"
+    ],
+    "diff_stat": ".forge/graph/cache/fingerprints.json               |   4 +-\n .forge/graph/graph.json                            |  20 +-\n .forge/graph/report.md                             |   2 +-\n .forge/product/current/CHANGELOG.md                |   6 +\n .../capabilities/forge-harness-template/spec.yaml  | 118 ++++++-----\n .../active/adopt-ub-mode-practices/approvals.yaml  |  65 ------\n .../specs/active/adopt-ub-mode-practices/design.md | 225 ---------------------\n .../runs/20261103043520-baa7904f/run-manifest.json |  76 -------\n .../runs/20261103044629-92622b93/run-manifest.json |  75 -------\n .../active/adopt-ub-mode-practices/manifest.yaml   |  53 -----\n .../active/adopt-ub-mode-practices/proposal.md     |  42 ----\n .../reference/plano-ub-mode-vs-forge-harness.md    | 118 -----------\n .../active/adopt-ub-mode-practices/requirements.md | 104 ----------\n .../active/adopt-ub-mode-practices/spec-delta.yaml | 122 -----------\n .../active/adopt-ub-mode-practices/spike-result.md |  58 ------\n .../specs/active/adopt-ub-mode-practices/tasks.md  | 103 ----------\n .../active/adopt-ub-mode-practices/verification.md |  49 -----\n .../adopt-ub-mode-practices/verification.yaml      |   9 -\n .forge/specs/archived/index.yaml                   |   4 +\n 19 files changed, 89 insertions(+), 1164 deletions(-)",
+    "diff_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "8b891f5e9bfe64c5b6d19b82c959a03c6eb7ca88bd2e20ba0cf5280b40497193",
+      "bytes": 1637,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "8ba8e982518bfa4ff0601e3f91fc38608ac732e0c6523e63886fc024401917d6",
+      "bytes": 14007,
+      "kind": "file"
+    },
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "ebceafe9f1fddeda1a31d15a69119d5d6c31ba5134ae0638f856a51836e37766",
+      "bytes": 219,
+      "kind": "file"
+    },
+    {
+      "path": "spec-delta.yaml",
+      "exists": true,
+      "sha256": "ff37b89f5d814385657fc13e5022db19a0ec3eb4789226699df459a828e18996",
+      "bytes": 9773,
+      "kind": "file"
+    },
+    {
+      "path": "impact.json",
+      "exists": true,
+      "sha256": "8141d055f6aa5aedbc868e0d6a92ecf963b1f02593538fec637c9f1bf170f18b",
+      "bytes": 584,
+      "kind": "file"
+    }
+  ],
+  "commands": [
+    {
+      "name": "archive-spec",
+      "command": "archive-spec.sh adopt-ub-mode-practices",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "8b891f5e9bfe64c5b6d19b82c959a03c6eb7ca88bd2e20ba0cf5280b40497193",
+      "bytes": 1637,
+      "kind": "file"
+    },
+    {
+      "path": "evidence/runs",
+      "exists": true,
+      "sha256": "ee4e0ddb70fd70953707a54bdf17383b28d2bd0e49f6753ef2fb6f4ad0be9b92",
+      "bytes": null,
+      "kind": "directory"
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

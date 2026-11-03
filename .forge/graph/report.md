@@ -1,7 +1,7 @@
 # Code Graph — report
 
 - Engine: native (zero-dep)
-- Nodes: 549 · Edges: 90
+- Nodes: 549 · Edges: 91
 - Languages: csharp, go, java, js, kotlin, python, shell, ts
 - Summaries stale (need LLM curation): 549
 

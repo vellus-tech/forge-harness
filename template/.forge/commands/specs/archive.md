@@ -13,7 +13,7 @@ Pré-condição: status `verified`. Desde a fase verify o `spec-delta.yaml` **j�
 
 ## 2. Gate HITL — `human_archive_approval` (§12.1)
 
-Apresente via `AskUserQuestion` um resumo de 2-3 linhas do delta (capabilities afetadas, nº de ops por tipo, version bumps esperados): **Approve** / **Review** / **Reject** / **Block**.
+Apresente via `AskUserQuestion` um resumo de 2-3 linhas do delta (capabilities afetadas, nº de ops por tipo, version bumps esperados) **mais uma linha derivada da contagem de `## Premissas atacadas` em `verification.md`** ("N premissa(s) atacada(s) nesta implementação — ver verification.md"; N=0 também é mostrado, nunca omitido): **Approve** / **Review** / **Reject** / **Block**.
 
 ```bash
 bash .forge/scripts/approval-log.sh <change-id> --gate human_archive_approval --decision <decision> [--reason "<motivo>"] --scope "spec-delta.yaml"

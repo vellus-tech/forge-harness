@@ -79,7 +79,7 @@ O gate de teste do change vive num arquivo só, `tests/adopt-ub-mode-practices-g
 
 ## Wave 4 — ADR e ledger (REQ-06/REQ-07)
 
-- [ ] TASK-15 — Preenchimento da ADR com o resultado real do spike e publicação via `/forge:adr` (rastreia: REQ-06; paths: `.forge/specs/active/adopt-ub-mode-practices/design.md`, `.forge/product/current/adr/`; depende: TASK-14). Origem do texto a preencher: design.md §2.4. Destino criado pelo comando `/forge:adr`.
+- [X] TASK-15 — Preenchimento da ADR com o resultado real do spike e publicação via `/forge:adr` (rastreia: REQ-06; paths: `.forge/specs/active/adopt-ub-mode-practices/design.md`, `.forge/product/current/adr/`; depende: TASK-14). Origem do texto a preencher: design.md §2.4. Destino criado pelo comando `/forge:adr`.
   - Teste (comando): N/A — esta TASK preenche a seção "Decision" do texto já existente em `design.md` §2.4 com o conteúdo de `spike-result.md` (TASK-14) e invoca `/forge:adr`, que cria e numera o arquivo
   - Sem par vermelho/verde: task documental.
 

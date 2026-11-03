@@ -251,23 +251,25 @@ case "$out" in
 esac
 echo "OK [3]"
 
-# ── [4] pre-push — DOCS_LIB, RED_LIB, AI_CHECK, ACKS, MIGRATION_REVIEW_CHECK ────────────────
-echo "[4] pre-push — DOCS_LIB, RED_LIB, AI_CHECK, ACKS, MIGRATION_REVIEW_CHECK ausentes na worktree, presentes no tronco"
+# ── [4] pre-push — DOCS_LIB, RED_LIB, AI_CHECK, ACKS, MIGRATION_REVIEW_CHECK, SUPPRESSION_CHECK ──
+echo "[4] pre-push — DOCS_LIB, RED_LIB, AI_CHECK, ACKS, MIGRATION_REVIEW_CHECK, SUPPRESSION_CHECK ausentes na worktree, presentes no tronco"
 R4="$T/r4"; TR4="$T/tr4"
 mktrunk "$TR4"
 cp "$HOOKS/pre-push" "$TR4/.forge/hooks/git/pre-push"; chmod +x "$TR4/.forge/hooks/git/pre-push"
 printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR4/.forge/hooks/git/lib/check-docs-reviewed.sh"
-printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR4/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n_redfirst_resolve_base() { printf "%%s\\n" "$1"; }\n' > "$TR4/.forge/hooks/git/lib/check-red-first.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TR4/.forge/scripts/check-ai-attribution.sh"; chmod +x "$TR4/.forge/scripts/check-ai-attribution.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TR4/.forge/scripts/check-liaison-acks.sh"; chmod +x "$TR4/.forge/scripts/check-liaison-acks.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$TR4/.forge/scripts/check-suppression-reference.sh"; chmod +x "$TR4/.forge/scripts/check-suppression-reference.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$TR4/.forge/scripts/check-suppression-reference.sh"; chmod +x "$TR4/.forge/scripts/check-suppression-reference.sh"
 mkrepo "$R4" "$TR4/.forge/hooks/git"
-mkdir -p "$R4/.forge/hooks/git/lib" "$R4/.forge/scripts"   # os diretórios existem; os 5 alvos, não
+mkdir -p "$R4/.forge/hooks/git/lib" "$R4/.forge/scripts"   # os diretórios existem; os 6 alvos, não
 SHA4="$(git -C "$R4" rev-parse HEAD)"
 out="$(cd "$R4" && printf 'refs/heads/main %s refs/heads/main %s\n' "$SHA4" "$ZERO" | bash "$TR4/.forge/hooks/git/pre-push" origin "file://$R4" 2>&1)"; rc=$?
-[ "$rc" -eq 0 ] || { echo "FAIL [4]: pre-push bloqueou com os cinco alvos presentes no tronco (saída: '$out')"; exit 1; }
+[ "$rc" -eq 0 ] || { echo "FAIL [4]: pre-push bloqueou com os seis alvos presentes no tronco (saída: '$out')"; exit 1; }
 case "$out" in *"pre-push OK"*) : ;; *) echo "FAIL [4]: não terminou 'pre-push OK' (saída: '$out')"; exit 1 ;; esac
 n_warn="$(grep -c "usando o do tronco" <<<"$out")"
-[ "$n_warn" -eq 5 ] || { echo "FAIL [4]: esperava 5 linhas nomeando o tronco (DOCS_LIB, RED_LIB, AI_CHECK, ACKS, MIGRATION_REVIEW_CHECK), veio $n_warn (saída: '$out')"; exit 1; }
+[ "$n_warn" -eq 6 ] || { echo "FAIL [4]: esperava 6 linhas nomeando o tronco (DOCS_LIB, RED_LIB, AI_CHECK, ACKS, MIGRATION_REVIEW_CHECK, SUPPRESSION_CHECK), veio $n_warn (saída: '$out')"; exit 1; }
 echo "OK [4] — 5 alvos resolvidos via tronco"
 
 # ── [5] pre-push — HARNESS_SUITE ─────────────────────────────────────────────────────────────
@@ -276,7 +278,7 @@ R5="$T/r5"; TR5="$T/tr5"
 mktrunk "$TR5"
 cp "$HOOKS/pre-push" "$TR5/.forge/hooks/git/pre-push"; chmod +x "$TR5/.forge/hooks/git/pre-push"
 printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR5/.forge/hooks/git/lib/check-docs-reviewed.sh"
-printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR5/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n_redfirst_resolve_base() { printf "%%s\\n" "$1"; }\n' > "$TR5/.forge/hooks/git/lib/check-red-first.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TR5/.forge/scripts/tests/run-all.sh"
 mkrepo "$R5" "$TR5/.forge/hooks/git"
 mkdir -p "$R5/.forge/hooks/git/lib" "$R5/.forge/scripts/tests"
@@ -284,6 +286,7 @@ cp "$TR5/.forge/hooks/git/lib/check-docs-reviewed.sh" "$R5/.forge/hooks/git/lib/
 cp "$TR5/.forge/hooks/git/lib/check-red-first.sh" "$R5/.forge/hooks/git/lib/check-red-first.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R5/.forge/scripts/check-ai-attribution.sh"; chmod +x "$R5/.forge/scripts/check-ai-attribution.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R5/.forge/scripts/check-liaison-acks.sh"; chmod +x "$R5/.forge/scripts/check-liaison-acks.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R5/.forge/scripts/check-suppression-reference.sh"; chmod +x "$R5/.forge/scripts/check-suppression-reference.sh"
 printf -- '---\nforge_version: 1\n---\n\n# FORGE\n\nruntime:\n  test:\n  typecheck:\n' > "$R5/.forge/FORGE.md"
 SHA5="$(git -C "$R5" rev-parse HEAD)"
 out="$(cd "$R5" && printf 'refs/heads/main %s refs/heads/main %s\n' "$SHA5" "$ZERO" | bash "$TR5/.forge/hooks/git/pre-push" origin "file://$R5" 2>&1)"; rc=$?
@@ -304,7 +307,7 @@ R5B="$T/r5b"; TR5B="$T/tr5b"
 mktrunk "$TR5B"
 cp "$HOOKS/pre-push" "$TR5B/.forge/hooks/git/pre-push"; chmod +x "$TR5B/.forge/hooks/git/pre-push"
 printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR5B/.forge/hooks/git/lib/check-docs-reviewed.sh"
-printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR5B/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n_redfirst_resolve_base() { printf "%%s\\n" "$1"; }\n' > "$TR5B/.forge/hooks/git/lib/check-red-first.sh"
 # run-all.sh REAL do template no tronco (não o stub `exit 0` de mktrunk) — sem teste algum no
 # diretório do tronco, para que qualquer FALHA só possa vir do que a worktree publica.
 cp "$WS/template/.forge/scripts/tests/run-all.sh" "$TR5B/.forge/scripts/tests/run-all.sh"; chmod +x "$TR5B/.forge/scripts/tests/run-all.sh"
@@ -314,6 +317,7 @@ cp "$TR5B/.forge/hooks/git/lib/check-docs-reviewed.sh" "$R5B/.forge/hooks/git/li
 cp "$TR5B/.forge/hooks/git/lib/check-red-first.sh" "$R5B/.forge/hooks/git/lib/check-red-first.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R5B/.forge/scripts/check-ai-attribution.sh"; chmod +x "$R5B/.forge/scripts/check-ai-attribution.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R5B/.forge/scripts/check-liaison-acks.sh"; chmod +x "$R5B/.forge/scripts/check-liaison-acks.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R5B/.forge/scripts/check-suppression-reference.sh"; chmod +x "$R5B/.forge/scripts/check-suppression-reference.sh"
 printf -- '---\nforge_version: 1\n---\n\n# FORGE\n\nruntime:\n  test:\n  typecheck:\n' > "$R5B/.forge/FORGE.md"
 # ...mas SEM run-all.sh próprio, e com um teste que FALHA
 printf '#!/usr/bin/env bash\nexit 1\n' > "$R5B/.forge/scripts/tests/meu-gate.test.sh"; chmod +x "$R5B/.forge/scripts/tests/meu-gate.test.sh"
@@ -332,7 +336,7 @@ R5C="$T/r5c"; TR5C="$T/tr5c"
 mktrunk "$TR5C"
 cp "$HOOKS/pre-push" "$TR5C/.forge/hooks/git/pre-push"; chmod +x "$TR5C/.forge/hooks/git/pre-push"
 printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR5C/.forge/hooks/git/lib/check-docs-reviewed.sh"
-printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR5C/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n_redfirst_resolve_base() { printf "%%s\\n" "$1"; }\n' > "$TR5C/.forge/hooks/git/lib/check-red-first.sh"
 cp "$WS/template/.forge/scripts/tests/run-all.sh" "$TR5C/.forge/scripts/tests/run-all.sh"; chmod +x "$TR5C/.forge/scripts/tests/run-all.sh"
 # teste que falha, mas é do TRONCO — causa alheia à worktree
 printf '#!/usr/bin/env bash\nexit 1\n' > "$TR5C/.forge/scripts/tests/do-tronco.test.sh"; chmod +x "$TR5C/.forge/scripts/tests/do-tronco.test.sh"
@@ -342,6 +346,7 @@ cp "$TR5C/.forge/hooks/git/lib/check-docs-reviewed.sh" "$R5C/.forge/hooks/git/li
 cp "$TR5C/.forge/hooks/git/lib/check-red-first.sh" "$R5C/.forge/hooks/git/lib/check-red-first.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R5C/.forge/scripts/check-ai-attribution.sh"; chmod +x "$R5C/.forge/scripts/check-ai-attribution.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R5C/.forge/scripts/check-liaison-acks.sh"; chmod +x "$R5C/.forge/scripts/check-liaison-acks.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R5C/.forge/scripts/check-suppression-reference.sh"; chmod +x "$R5C/.forge/scripts/check-suppression-reference.sh"
 printf -- '---\nforge_version: 1\n---\n\n# FORGE\n\nruntime:\n  test:\n  typecheck:\n' > "$R5C/.forge/FORGE.md"
 SHA5C="$(git -C "$R5C" rev-parse HEAD)"
 out="$(cd "$R5C" && printf 'refs/heads/main %s refs/heads/main %s\n' "$SHA5C" "$ZERO" | bash "$TR5C/.forge/hooks/git/pre-push" origin "file://$R5C" 2>&1)"; rc=$?
@@ -363,13 +368,14 @@ R5D="$T/r5d"; TR5D="$T/tr5d"
 mktrunk "$TR5D"
 cp "$HOOKS/pre-push" "$TR5D/.forge/hooks/git/pre-push"; chmod +x "$TR5D/.forge/hooks/git/pre-push"
 printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR5D/.forge/hooks/git/lib/check-docs-reviewed.sh"
-printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR5D/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n_redfirst_resolve_base() { printf "%%s\\n" "$1"; }\n' > "$TR5D/.forge/hooks/git/lib/check-red-first.sh"
 mkrepo "$R5D" "$TR5D/.forge/hooks/git"
 mkdir -p "$R5D/.forge/hooks/git/lib" "$R5D/.forge/scripts/tests"
 cp "$TR5D/.forge/hooks/git/lib/check-docs-reviewed.sh" "$R5D/.forge/hooks/git/lib/check-docs-reviewed.sh"
 cp "$TR5D/.forge/hooks/git/lib/check-red-first.sh" "$R5D/.forge/hooks/git/lib/check-red-first.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R5D/.forge/scripts/check-ai-attribution.sh"; chmod +x "$R5D/.forge/scripts/check-ai-attribution.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R5D/.forge/scripts/check-liaison-acks.sh"; chmod +x "$R5D/.forge/scripts/check-liaison-acks.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R5D/.forge/scripts/check-suppression-reference.sh"; chmod +x "$R5D/.forge/scripts/check-suppression-reference.sh"
 printf -- '---\nforge_version: 1\n---\n\n# FORGE\n\nruntime:\n  test:\n  typecheck:\n' > "$R5D/.forge/FORGE.md"
 # runner PRÓPRIO, estrito: qualquer argumento (inclusive --path) sai 64; sem argumento, roda o
 # teste (que passa) e sai 0.
@@ -390,7 +396,7 @@ R6="$T/r6"; TR6="$T/tr6"
 mktrunk "$TR6"
 cp "$HOOKS/pre-push" "$TR6/.forge/hooks/git/pre-push"; chmod +x "$TR6/.forge/hooks/git/pre-push"
 printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR6/.forge/hooks/git/lib/check-docs-reviewed.sh"
-printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR6/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n_redfirst_resolve_base() { printf "%%s\\n" "$1"; }\n' > "$TR6/.forge/hooks/git/lib/check-red-first.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TR6/.forge/scripts/check-shell-pipeline.sh"; chmod +x "$TR6/.forge/scripts/check-shell-pipeline.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$TR6/.forge/scripts/check-heredoc-hash.sh"; chmod +x "$TR6/.forge/scripts/check-heredoc-hash.sh"
 mkrepo "$R6" "$TR6/.forge/hooks/git"
@@ -399,6 +405,7 @@ cp "$TR6/.forge/hooks/git/lib/check-docs-reviewed.sh" "$R6/.forge/hooks/git/lib/
 cp "$TR6/.forge/hooks/git/lib/check-red-first.sh" "$R6/.forge/hooks/git/lib/check-red-first.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R6/.forge/scripts/check-ai-attribution.sh"; chmod +x "$R6/.forge/scripts/check-ai-attribution.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R6/.forge/scripts/check-liaison-acks.sh"; chmod +x "$R6/.forge/scripts/check-liaison-acks.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R6/.forge/scripts/check-suppression-reference.sh"; chmod +x "$R6/.forge/scripts/check-suppression-reference.sh"
 printf -- '---\nforge_version: 1\n---\n\n# FORGE\n\nruntime:\n  test:\n  typecheck:\n' > "$R6/.forge/FORGE.md"
 printf 'echo hi\n' > "$R6/tool.sh"; git -C "$R6" add tool.sh >/dev/null 2>&1
 git -C "$R6" commit -qm "chore: add tool.sh" >/dev/null 2>&1
@@ -417,7 +424,8 @@ R7="$T/r7"; TR7="$T/tr7"
 mktrunk "$TR7"
 cp "$HOOKS/pre-push" "$TR7/.forge/hooks/git/pre-push"; chmod +x "$TR7/.forge/hooks/git/pre-push"
 printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR7/.forge/hooks/git/lib/check-docs-reviewed.sh"
-printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR7/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n_redfirst_resolve_base() { printf "%%s\\n" "$1"; }\n' > "$TR7/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$TR7/.forge/scripts/check-suppression-reference.sh"; chmod +x "$TR7/.forge/scripts/check-suppression-reference.sh"
 mkrepo "$R7" "$TR7/.forge/hooks/git"
 mkdir -p "$R7/.forge/hooks/git/lib" "$R7/.forge/scripts"   # check-ai-attribution.sh ausente nas duas
 SHA7="$(git -C "$R7" rev-parse HEAD)"
@@ -481,10 +489,11 @@ echo "OK [8b]"
 # ── [9] AUTO-IRONIA ──────────────────────────────────────────────────────────────────────────
 # Sem `declare -A`: o bash 3.2 do macOS (issue de portabilidade irmã do w97) não tem array
 # associativo. Pares "hook:esperado" numa lista simples, um por linha.
-echo "[9] os 17 sítios (12 de L3 §0 + RUNTIME_LIB + gate-phase.mjs + os 2 sítios de aviso, achados"
-echo "    do adendo de revisão do w223, + MIGRATION_REVIEW_CHECK da issue #241) chamam o mesmo resolvedor — contagem + corpo"
+echo "[9] os 18 sítios (12 de L3 §0 + RUNTIME_LIB + gate-phase.mjs + os 2 sítios de aviso, achados"
+echo "    do adendo de revisão do w223, + MIGRATION_REVIEW_CHECK da issue #241 + SUPPRESSION_CHECK"
+echo "    do change adopt-ub-mode-practices) chamam o mesmo resolvedor — contagem + corpo"
 total=0
-for par in "pre-commit:1" "commit-msg:1" "post-merge:2" "pre-push:11"; do
+for par in "pre-commit:1" "commit-msg:1" "post-merge:2" "pre-push:12"; do
   h="${par%%:*}"; esperado="${par##*:}"
   # `\$\(resolve_delegated ` — só a INVOCAÇÃO real (substituição de comando), nunca a linha da
   # definição nem o comentário que a documenta (que também contém o nome da função de propósito).
@@ -497,7 +506,7 @@ n_rf="$(grep -cE '\$\(_redfirst_resolve_delegated ' "$HOOKS/lib/check-red-first.
 n_rf="${n_rf:-0}"
 total=$((total + n_rf))
 [ "$n_rf" -eq 2 ] || { echo "FAIL [9]: lib/check-red-first.sh — esperava 2 chamadas ao resolvedor interno, achei $n_rf"; exit 1; }
-[ "$total" -eq 17 ] || { echo "FAIL [9]/vacuidade — total de sítios contados foi $total, esperado 17 (L3 §0: pre-push 11 [6 + RUNTIME_LIB + gate-phase.mjs + log-integrity + worktree-prereqs + MIGRATION_REVIEW_CHECK], pre-commit 1, commit-msg 1, post-merge 2, check-red-first.sh 2)"; exit 1; }
+[ "$total" -eq 18 ] || { echo "FAIL [9]/vacuidade — total de sítios contados foi $total, esperado 18 (L3 §0: pre-push 12 [6 + RUNTIME_LIB + gate-phase.mjs + log-integrity + worktree-prereqs + MIGRATION_REVIEW_CHECK + SUPPRESSION_CHECK], pre-commit 1, commit-msg 1, post-merge 2, check-red-first.sh 2)"; exit 1; }
 echo "OK [9] — 17 sítios cobertos ($total)"
 
 # Identidade byte a byte do CORPO da função entre as 4 cópias (pre-commit, commit-msg, post-merge,
@@ -542,7 +551,7 @@ R10="$T/r10"; TR10="$T/tr10"
 mktrunk "$TR10"
 cp "$HOOKS/pre-push" "$TR10/.forge/hooks/git/pre-push"; chmod +x "$TR10/.forge/hooks/git/pre-push"
 printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR10/.forge/hooks/git/lib/check-docs-reviewed.sh"
-printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR10/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n_redfirst_resolve_base() { printf "%%s\\n" "$1"; }\n' > "$TR10/.forge/hooks/git/lib/check-red-first.sh"
 # forge-runtime.sh REAL do template no tronco — só ele existe, nunca na worktree.
 cp "$WS/template/.forge/scripts/lib/forge-runtime.sh" "$TR10/.forge/scripts/lib/forge-runtime.sh"
 mkrepo "$R10" "$TR10/.forge/hooks/git"
@@ -551,6 +560,7 @@ cp "$TR10/.forge/hooks/git/lib/check-docs-reviewed.sh" "$R10/.forge/hooks/git/li
 cp "$TR10/.forge/hooks/git/lib/check-red-first.sh" "$R10/.forge/hooks/git/lib/check-red-first.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R10/.forge/scripts/check-ai-attribution.sh"; chmod +x "$R10/.forge/scripts/check-ai-attribution.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R10/.forge/scripts/check-liaison-acks.sh"; chmod +x "$R10/.forge/scripts/check-liaison-acks.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R10/.forge/scripts/check-suppression-reference.sh"; chmod +x "$R10/.forge/scripts/check-suppression-reference.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R10/.forge/scripts/meu-gate.sh"; chmod +x "$R10/.forge/scripts/meu-gate.sh"
 printf -- '---\nforge_version: 1\n---\n\n# FORGE\n\nruntime:\n  test:\n  typecheck:\n  gates: meu-gate\n' > "$R10/.forge/FORGE.md"
 SHA10="$(git -C "$R10" rev-parse HEAD)"
@@ -574,7 +584,7 @@ R10B="$T/r10b"; TR10B="$T/tr10b"
 mktrunk "$TR10B"
 cp "$HOOKS/pre-push" "$TR10B/.forge/hooks/git/pre-push"; chmod +x "$TR10B/.forge/hooks/git/pre-push"
 printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR10B/.forge/hooks/git/lib/check-docs-reviewed.sh"
-printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR10B/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n_redfirst_resolve_base() { printf "%%s\\n" "$1"; }\n' > "$TR10B/.forge/hooks/git/lib/check-red-first.sh"
 cp "$WS/template/.forge/scripts/lib/forge-runtime.sh" "$TR10B/.forge/scripts/lib/forge-runtime.sh"
 cp "$WS/template/.forge/scripts/lib/gate-phase.mjs" "$TR10B/.forge/scripts/lib/gate-phase.mjs"
 cp "$WS/template/.forge/scripts/lib/yaml-lite.mjs" "$TR10B/.forge/scripts/lib/yaml-lite.mjs"
@@ -584,6 +594,7 @@ cp "$TR10B/.forge/hooks/git/lib/check-docs-reviewed.sh" "$R10B/.forge/hooks/git/
 cp "$TR10B/.forge/hooks/git/lib/check-red-first.sh" "$R10B/.forge/hooks/git/lib/check-red-first.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R10B/.forge/scripts/check-ai-attribution.sh"; chmod +x "$R10B/.forge/scripts/check-ai-attribution.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R10B/.forge/scripts/check-liaison-acks.sh"; chmod +x "$R10B/.forge/scripts/check-liaison-acks.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R10B/.forge/scripts/check-suppression-reference.sh"; chmod +x "$R10B/.forge/scripts/check-suppression-reference.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R10B/.forge/scripts/meu-gate-mapeado.sh"; chmod +x "$R10B/.forge/scripts/meu-gate-mapeado.sh"
 # O leitor da forma MAPEADA (gate-phase.mjs) lê `runtime:` de DENTRO do frontmatter YAML (entre
 # os dois `---`), diferente do leitor CSV (`forge_get_runtime`, um awk que varre o arquivo
@@ -613,7 +624,7 @@ R10C="$T/r10c"; TR10C="$T/tr10c"
 mktrunk "$TR10C"
 cp "$HOOKS/pre-push" "$TR10C/.forge/hooks/git/pre-push"; chmod +x "$TR10C/.forge/hooks/git/pre-push"
 printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR10C/.forge/hooks/git/lib/check-docs-reviewed.sh"
-printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR10C/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n_redfirst_resolve_base() { printf "%%s\\n" "$1"; }\n' > "$TR10C/.forge/hooks/git/lib/check-red-first.sh"
 cp "$WS/template/.forge/scripts/lib/forge-runtime.sh" "$TR10C/.forge/scripts/lib/forge-runtime.sh"
 # gate-phase.mjs NÃO existe no tronco.
 mkrepo "$R10C" "$TR10C/.forge/hooks/git"
@@ -622,6 +633,7 @@ cp "$TR10C/.forge/hooks/git/lib/check-docs-reviewed.sh" "$R10C/.forge/hooks/git/
 cp "$TR10C/.forge/hooks/git/lib/check-red-first.sh" "$R10C/.forge/hooks/git/lib/check-red-first.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R10C/.forge/scripts/check-ai-attribution.sh"; chmod +x "$R10C/.forge/scripts/check-ai-attribution.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R10C/.forge/scripts/check-liaison-acks.sh"; chmod +x "$R10C/.forge/scripts/check-liaison-acks.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R10C/.forge/scripts/check-suppression-reference.sh"; chmod +x "$R10C/.forge/scripts/check-suppression-reference.sh"
 cp "$WS/template/.forge/scripts/lib/forge-runtime.sh" "$R10C/.forge/scripts/lib/forge-runtime.sh"
 # gate-phase.mjs NÃO existe na worktree também — o par completo não existe em lugar nenhum.
 printf -- '---\nforge_version: 1\nruntime:\n  test:\n  typecheck:\n  gates:\n    - meu-gate-mapeado\n---\n\n# FORGE\n' > "$R10C/.forge/FORGE.md"
@@ -650,7 +662,7 @@ R10D="$T/r10d"; TR10D="$T/tr10d"
 mktrunk "$TR10D"
 cp "$HOOKS/pre-push" "$TR10D/.forge/hooks/git/pre-push"; chmod +x "$TR10D/.forge/hooks/git/pre-push"
 printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR10D/.forge/hooks/git/lib/check-docs-reviewed.sh"
-printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR10D/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n_redfirst_resolve_base() { printf "%%s\\n" "$1"; }\n' > "$TR10D/.forge/hooks/git/lib/check-red-first.sh"
 # tronco tem o PAR completo (forge-runtime.sh + gate-phase.mjs + yaml-lite.mjs).
 cp "$WS/template/.forge/scripts/lib/forge-runtime.sh" "$TR10D/.forge/scripts/lib/forge-runtime.sh"
 cp "$WS/template/.forge/scripts/lib/gate-phase.mjs" "$TR10D/.forge/scripts/lib/gate-phase.mjs"
@@ -661,6 +673,7 @@ cp "$TR10D/.forge/hooks/git/lib/check-docs-reviewed.sh" "$R10D/.forge/hooks/git/
 cp "$TR10D/.forge/hooks/git/lib/check-red-first.sh" "$R10D/.forge/hooks/git/lib/check-red-first.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R10D/.forge/scripts/check-ai-attribution.sh"; chmod +x "$R10D/.forge/scripts/check-ai-attribution.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R10D/.forge/scripts/check-liaison-acks.sh"; chmod +x "$R10D/.forge/scripts/check-liaison-acks.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R10D/.forge/scripts/check-suppression-reference.sh"; chmod +x "$R10D/.forge/scripts/check-suppression-reference.sh"
 # forge-runtime.sh PRÓPRIO da worktree, compatível (mesma cópia do template — tem
 # forge_runtime_gate_entries); gate-phase.mjs NÃO existe aqui.
 cp "$WS/template/.forge/scripts/lib/forge-runtime.sh" "$R10D/.forge/scripts/lib/forge-runtime.sh"
@@ -718,7 +731,7 @@ R12="$T/r12"; TR12="$T/tr12"
 mktrunk "$TR12"
 cp "$HOOKS/pre-push" "$TR12/.forge/hooks/git/pre-push"; chmod +x "$TR12/.forge/hooks/git/pre-push"
 printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR12/.forge/hooks/git/lib/check-docs-reviewed.sh"
-printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR12/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n_redfirst_resolve_base() { printf "%%s\\n" "$1"; }\n' > "$TR12/.forge/hooks/git/lib/check-red-first.sh"
 cp "$WS/template/.forge/scripts/lib/forge-runtime.sh" "$TR12/.forge/scripts/lib/forge-runtime.sh"
 mkrepo "$R12" "$TR12/.forge/hooks/git"
 mkdir -p "$R12/.forge/hooks/git/lib" "$R12/.forge/scripts/lib"
@@ -726,6 +739,7 @@ cp "$TR12/.forge/hooks/git/lib/check-docs-reviewed.sh" "$R12/.forge/hooks/git/li
 cp "$TR12/.forge/hooks/git/lib/check-red-first.sh" "$R12/.forge/hooks/git/lib/check-red-first.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R12/.forge/scripts/check-ai-attribution.sh"; chmod +x "$R12/.forge/scripts/check-ai-attribution.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R12/.forge/scripts/check-liaison-acks.sh"; chmod +x "$R12/.forge/scripts/check-liaison-acks.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R12/.forge/scripts/check-suppression-reference.sh"; chmod +x "$R12/.forge/scripts/check-suppression-reference.sh"
 # cópia REAL de v0.10.0 (anterior a #82) — arquivo próprio da worktree, não emprestado.
 git -C "$WS" show v0.10.0:template/.forge/scripts/lib/forge-runtime.sh > "$R12/.forge/scripts/lib/forge-runtime.sh"
 printf '#!/usr/bin/env bash\nexit 1\n' > "$R12/.forge/scripts/meu-gate.sh"; chmod +x "$R12/.forge/scripts/meu-gate.sh"
@@ -754,7 +768,7 @@ R12B="$T/r12b"; TR12B="$T/tr12b"
 mktrunk "$TR12B"
 cp "$HOOKS/pre-push" "$TR12B/.forge/hooks/git/pre-push"; chmod +x "$TR12B/.forge/hooks/git/pre-push"
 printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR12B/.forge/hooks/git/lib/check-docs-reviewed.sh"
-printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR12B/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n_redfirst_resolve_base() { printf "%%s\\n" "$1"; }\n' > "$TR12B/.forge/hooks/git/lib/check-red-first.sh"
 git -C "$WS" show v0.10.0:template/.forge/scripts/lib/forge-runtime.sh > "$TR12B/.forge/scripts/lib/forge-runtime.sh"
 mkrepo "$R12B" "$TR12B/.forge/hooks/git"
 mkdir -p "$R12B/.forge/hooks/git/lib" "$R12B/.forge/scripts/lib"
@@ -762,6 +776,7 @@ cp "$TR12B/.forge/hooks/git/lib/check-docs-reviewed.sh" "$R12B/.forge/hooks/git/
 cp "$TR12B/.forge/hooks/git/lib/check-red-first.sh" "$R12B/.forge/hooks/git/lib/check-red-first.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R12B/.forge/scripts/check-ai-attribution.sh"; chmod +x "$R12B/.forge/scripts/check-ai-attribution.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R12B/.forge/scripts/check-liaison-acks.sh"; chmod +x "$R12B/.forge/scripts/check-liaison-acks.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R12B/.forge/scripts/check-suppression-reference.sh"; chmod +x "$R12B/.forge/scripts/check-suppression-reference.sh"
 git -C "$WS" show v0.10.0:template/.forge/scripts/lib/forge-runtime.sh > "$R12B/.forge/scripts/lib/forge-runtime.sh"
 printf '#!/usr/bin/env bash\nexit 1\n' > "$R12B/.forge/scripts/meu-gate.sh"; chmod +x "$R12B/.forge/scripts/meu-gate.sh"
 printf -- '---\nforge_version: 1\n---\n\n# FORGE\n\nruntime:\n  test:\n  typecheck:\n  gates: meu-gate\n' > "$R12B/.forge/FORGE.md"
@@ -786,7 +801,7 @@ R13="$T/r13"; TR13="$T/tr13"
 mktrunk "$TR13"
 cp "$HOOKS/pre-push" "$TR13/.forge/hooks/git/pre-push"; chmod +x "$TR13/.forge/hooks/git/pre-push"
 printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR13/.forge/hooks/git/lib/check-docs-reviewed.sh"
-printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR13/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n_redfirst_resolve_base() { printf "%%s\\n" "$1"; }\n' > "$TR13/.forge/hooks/git/lib/check-red-first.sh"
 MARK_LI="$T/marker-logintegrity-13"; MARK_PQ="$T/marker-prereqs-13"
 rm -f "$MARK_LI" "$MARK_PQ"
 printf '#!/usr/bin/env bash\ntouch "%s"\nexit 0\n' "$MARK_LI" > "$TR13/.forge/scripts/check-liaison-log-integrity.sh"
@@ -799,6 +814,7 @@ cp "$TR13/.forge/hooks/git/lib/check-docs-reviewed.sh" "$R13/.forge/hooks/git/li
 cp "$TR13/.forge/hooks/git/lib/check-red-first.sh" "$R13/.forge/hooks/git/lib/check-red-first.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R13/.forge/scripts/check-ai-attribution.sh"; chmod +x "$R13/.forge/scripts/check-ai-attribution.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R13/.forge/scripts/check-liaison-acks.sh"; chmod +x "$R13/.forge/scripts/check-liaison-acks.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R13/.forge/scripts/check-suppression-reference.sh"; chmod +x "$R13/.forge/scripts/check-suppression-reference.sh"
 printf -- '---\nforge_version: 1\n---\n\n# FORGE\n\nruntime:\n  test:\n  typecheck:\n' > "$R13/.forge/FORGE.md"
 SHA13="$(git -C "$R13" rev-parse HEAD)"
 out="$(cd "$R13" && printf 'refs/heads/main %s refs/heads/main %s\n' "$SHA13" "$ZERO" | bash "$TR13/.forge/hooks/git/pre-push" origin "file://$R13" 2>&1)"; rc=$?
@@ -822,7 +838,7 @@ R13B="$T/r13b"; TR13B="$T/tr13b"
 mktrunk "$TR13B"
 cp "$HOOKS/pre-push" "$TR13B/.forge/hooks/git/pre-push"; chmod +x "$TR13B/.forge/hooks/git/pre-push"
 printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR13B/.forge/hooks/git/lib/check-docs-reviewed.sh"
-printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR13B/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n_redfirst_resolve_base() { printf "%%s\\n" "$1"; }\n' > "$TR13B/.forge/hooks/git/lib/check-red-first.sh"
 # check-liaison-log-integrity.sh e check-worktree-prereqs.sh AUSENTES no tronco também.
 mkrepo "$R13B" "$TR13B/.forge/hooks/git"
 mkdir -p "$R13B/.forge/hooks/git/lib" "$R13B/.forge/scripts/lib"
@@ -830,6 +846,7 @@ cp "$TR13B/.forge/hooks/git/lib/check-docs-reviewed.sh" "$R13B/.forge/hooks/git/
 cp "$TR13B/.forge/hooks/git/lib/check-red-first.sh" "$R13B/.forge/hooks/git/lib/check-red-first.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R13B/.forge/scripts/check-ai-attribution.sh"; chmod +x "$R13B/.forge/scripts/check-ai-attribution.sh"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$R13B/.forge/scripts/check-liaison-acks.sh"; chmod +x "$R13B/.forge/scripts/check-liaison-acks.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$R13B/.forge/scripts/check-suppression-reference.sh"; chmod +x "$R13B/.forge/scripts/check-suppression-reference.sh"
 printf -- '---\nforge_version: 1\n---\n\n# FORGE\n\nruntime:\n  test:\n  typecheck:\n' > "$R13B/.forge/FORGE.md"
 SHA13B="$(git -C "$R13B" rev-parse HEAD)"
 out="$(cd "$R13B" && printf 'refs/heads/main %s refs/heads/main %s\n' "$SHA13B" "$ZERO" | bash "$TR13B/.forge/hooks/git/pre-push" origin "file://$R13B" 2>&1)"; rc=$?
@@ -852,13 +869,14 @@ R14="$T/r14"; TR14="$T/tr14"
 mktrunk "$TR14"
 cp "$HOOKS/pre-push" "$TR14/.forge/hooks/git/pre-push"; chmod +x "$TR14/.forge/hooks/git/pre-push"
 printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$TR14/.forge/hooks/git/lib/check-docs-reviewed.sh"
-printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$TR14/.forge/hooks/git/lib/check-red-first.sh"
+printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n_redfirst_resolve_base() { printf "%%s\\n" "$1"; }\n' > "$TR14/.forge/hooks/git/lib/check-red-first.sh"
 MARK_AI14="$T/marker-ai-14"; MARK_ACKS14="$T/marker-acks-14"
 rm -f "$MARK_AI14" "$MARK_ACKS14"
 printf '#!/usr/bin/env bash\ntouch "%s"\nexit 0\n' "$MARK_AI14" > "$TR14/.forge/scripts/check-ai-attribution.sh"
 chmod +x "$TR14/.forge/scripts/check-ai-attribution.sh"
 printf '#!/usr/bin/env bash\ntouch "%s"\nexit 0\n' "$MARK_ACKS14" > "$TR14/.forge/scripts/check-liaison-acks.sh"
 chmod +x "$TR14/.forge/scripts/check-liaison-acks.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$TR14/.forge/scripts/check-suppression-reference.sh"; chmod +x "$TR14/.forge/scripts/check-suppression-reference.sh"
 mkrepo "$R14" "$TR14/.forge/hooks/git"
 # worktree SEM .forge/ nenhum — nem o diretório existe. Não é "harness atualizado pela metade",
 # é uma árvore que nunca teve harness instalado.

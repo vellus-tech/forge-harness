@@ -16,6 +16,7 @@
 # change) ainda não têm cenário nesta rodada — contam 0 cenários declarados até a TASK
 # correspondente ser implementada numa sessão futura. O ordinal wNNN real só se decide no merge.
 set -euo pipefail
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
 GROUP="${1:-all}"
 case "$GROUP" in

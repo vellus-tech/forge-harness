@@ -83,7 +83,7 @@ O gate de teste do change vive num arquivo só, `tests/adopt-ub-mode-practices-g
   - Teste (comando): N/A — esta TASK preenche a seção "Decision" do texto já existente em `design.md` §2.4 com o conteúdo de `spike-result.md` (TASK-14) e invoca `/forge:adr`, que cria e numera o arquivo
   - Sem par vermelho/verde: task documental.
 
-- [-] TASK-16 — Item de ledger para P4 (mutação sistemática via StrykerJS/Stryker.NET/PIT/mutmut sobre código de consumidor), condicionado (rastreia: REQ-07; paths: `.forge/ledger/ledger.json`, `.forge/ledger/LEDGER.md`; depende: —)
+- [X] TASK-16 — Item de ledger para P4 (mutação sistemática via StrykerJS/Stryker.NET/PIT/mutmut sobre código de consumidor), condicionado (rastreia: REQ-07; paths: `.forge/ledger/ledger.json`, `.forge/ledger/LEDGER.md`; depende: —)
   - Teste (comando): `FORGE_ROOT="$(pwd)" bash template/.forge/scripts/ledger-ops.sh add --type tech-debt --title "Mutação sistemática (StrykerJS/Stryker.NET/PIT/mutmut) sobre código de consumidor, condicionada a lógica crítica" --detail "<texto literal do design.md §2.5>" --severity LOW --origin manual --change adopt-ub-mode-practices` seguido de `FORGE_ROOT="$(pwd)" bash template/.forge/scripts/ledger-ops.sh render`
   - Padrão de falha: `ledger-ops.sh add` com rc≠0, ou entrada ausente em `LEDGER.md` após o render
   - Sem par vermelho/verde: task de registro, sem código de produção.

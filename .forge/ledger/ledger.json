@@ -4037,6 +4037,32 @@
       "updated_at": "2026-11-03T01:02:55-03:00",
       "resolved_at": "2026-11-03T01:02:55-03:00",
       "dedup_key": "manual:LDG-0232"
+    },
+    {
+      "id": "LDG-0233",
+      "type": "tech-debt",
+      "title": "Mutação sistemática (StrykerJS/Stryker.NET/PIT/mutmut) sobre código de consumidor, condicionada a lógica crítica",
+      "detail": "O forge-harness tem prova de mutação artesanal (controle/recontrole) em 73 dos 218 gates do próprio repositório (medido em 2026-11-02, durante este change — a contagem cresce a cada gate novo), mas nenhuma ferramenta de mutação roda sobre código de CONSUMIDOR via /forge:verify. Abrir um change de implementação só quando houver um consumidor com lógica crítica (ex.: um repositório de pagamentos) que justifique o custo de CI — rodar mutação sobre o próprio forge-harness é descartado: cada mutante exigiria run-all.sh (218 gates, já dividido em 3 shards de CI), custo proibitivo; a mutação artesanal por gate continua sendo o mecanismo deste repositório.",
+      "severity": "LOW",
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "adopt-ub-mode-practices",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "adopt-ub-mode-practices"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-03T01:32:50-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0233"
     }
   ]
 }

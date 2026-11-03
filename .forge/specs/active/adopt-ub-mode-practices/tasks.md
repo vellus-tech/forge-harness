@@ -32,7 +32,7 @@ O gate de teste do change vive num arquivo só, `tests/adopt-ub-mode-practices-g
   - Teste (comando): `bash tests/adopt-ub-mode-practices-gate.sh human-wiring`
   - Padrão de falha: `FAIL \[human-wiring`
 
-- [ ] TASK-06 — Provas de mutação do mecanismo REQ-01/02: controle → mutação → recontrole cobrindo a checagem interna, os dois pontos de chamada (TASK-02/03), os dois pontos de pré-condição de retomada, a linha de `archive.md` e a chamada `--list` de `verify.md` (rastreia: REQ-02; paths: `tests/adopt-ub-mode-practices-gate.sh`; depende: TASK-02, TASK-03, TASK-04, TASK-05)
+- [-] TASK-06 — Provas de mutação do mecanismo REQ-01/02: controle → mutação → recontrole cobrindo a checagem interna, os dois pontos de chamada (TASK-02/03), os dois pontos de pré-condição de retomada, a linha de `archive.md` e a chamada `--list` de `verify.md` (rastreia: REQ-02; paths: `tests/adopt-ub-mode-practices-gate.sh`; depende: TASK-02, TASK-03, TASK-04, TASK-05)
   - Teste (comando): `bash tests/adopt-ub-mode-practices-gate.sh premise-mutation`
   - Padrão de falha: `FAIL \[premise-mutation`
   - Sem par vermelho/verde: task só de teste, sem código de produção novo (um verde sem implementação reprovaria como `vermelho-vazio`). A prova é a própria estrutura controle → mutação → recontrole de cada cenário.

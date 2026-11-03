@@ -10,6 +10,9 @@
 #       (sintaxe, resolução física/symlink, segurança de confinamento/overlap, allowlist), schema
 #       e os dois casos de staleness de extra-path (ver tasks.md TASK-02 para a descrição completa
 #       de cada caso, nesta ordem fixa).
+#   [25]-[27] (TASK-03) countKinds compartilhada em status/build: kinds.active-spec sempre presente
+#       quando elegível, kinds['extra-path'] = 0 explícito quando configurado e vazio (ausente
+#       quando não configurado), e a saída texto de build lista a contagem por fonte.
 set -euo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
@@ -274,4 +277,51 @@ set_cfg "docs/**" "docs/**  # motivo: tentativa de overlap ancestral com docs/pl
 assert_no_extra_path 24
 ok 24
 
-echo "PASS extend-kb-corpus-sources (24 casos)"
+# ---- (TASK-03) [25]-[27]: contagem por fonte compartilhada (countKinds) em status/build ----
+
+# [25] kb.sh status --json inclui kinds.active-spec sempre que existir ao menos uma spec ativa
+#      elegível no repositório.
+R25="$T/count25"
+mkdir -p "$R25/.forge/specs/active/some-change"
+printf '# Requirements\n\nSpec ativa elegível para contagem por fonte.\n' > "$R25/.forge/specs/active/some-change/requirements.md"
+STATUS25="$(FORGE_ROOT="$R25" bash "$KB" status --json 2>&1)" || fail 25 "kb.sh status --json falhou: $STATUS25"
+node -e '
+const s = JSON.parse(process.argv[1]);
+if (!(Number.isInteger(s.kinds["active-spec"]) && s.kinds["active-spec"] > 0)) process.exit(1);
+' "$STATUS25" || fail 25 "kinds.active-spec ausente ou não positivo: $STATUS25"
+ok 25
+
+# [26] kinds['extra-path'] aparece como 0 explícito quando kb.extra_paths está configurado mas
+#      resultou em zero documentos (glob sintaticamente válido, sem match físico) — e AUSENTE
+#      quando extra_paths não está configurado (retrocompat preservada).
+R26="$T/count26"
+mkdir -p "$R26/.forge"
+printf 'kb:\n  extra_paths:\n    - docs/missing/**\n' > "$R26/.forge/forge.yaml"
+printf 'docs/missing/**  # motivo: caso 26 — configurado, zero match\n' > "$R26/.forge/kb-extra-paths-allowlist.txt"
+STATUS26A="$(FORGE_ROOT="$R26" bash "$KB" status --json 2>&1)" || fail 26 "kb.sh status --json (configurado) falhou: $STATUS26A"
+node -e '
+const s = JSON.parse(process.argv[1]);
+if (!("extra-path" in s.kinds) || s.kinds["extra-path"] !== 0) process.exit(1);
+' "$STATUS26A" || fail 26 "kinds[extra-path] deveria ser 0 explícito quando configurado sem match: $STATUS26A"
+rm -f "$R26/.forge/forge.yaml" "$R26/.forge/kb-extra-paths-allowlist.txt"
+STATUS26B="$(FORGE_ROOT="$R26" bash "$KB" status --json 2>&1)" || fail 26 "kb.sh status --json (não configurado) falhou: $STATUS26B"
+node -e '
+const s = JSON.parse(process.argv[1]);
+if ("extra-path" in s.kinds) process.exit(1);
+' "$STATUS26B" || fail 26 "kinds não deveria ter extra-path quando kb.extra_paths não está configurado: $STATUS26B"
+ok 26
+
+# [27] kb.sh build (saída texto, sem --json) lista a contagem por fonte na mesma linha do total.
+R27="$T/count27"
+mkdir -p "$R27/.forge/specs/active/some-change"
+printf '# Requirements\n\nSpec ativa elegível para a saída texto de build.\n' > "$R27/.forge/specs/active/some-change/requirements.md"
+BUILD27="$(FORGE_ROOT="$R27" bash "$KB" build 2>&1)" || fail 27 "kb.sh build falhou: $BUILD27"
+LINE27="$(printf '%s\n' "$BUILD27" | grep 'documentos' || true)"
+[ -n "$LINE27" ] || fail 27 "linha de total de documentos não encontrada na saída de build: $BUILD27"
+case "$LINE27" in
+  *"active-spec="*) : ;;
+  *) fail 27 "contagem por fonte (active-spec=) ausente na mesma linha do total de build: $LINE27" ;;
+esac
+ok 27
+
+echo "PASS extend-kb-corpus-sources (27 casos)"

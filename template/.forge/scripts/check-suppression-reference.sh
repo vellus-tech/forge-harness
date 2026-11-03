@@ -119,17 +119,24 @@ function globToRegExp(glob) {
   const esc = glob.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*\*/g, "\u0000").replace(/\*/g, "[^/]*").replace(/\u0000/g, ".*").replace(/\?/g, ".");
   return new RegExp("^" + esc + "$");
 }
+// .forge/suppression-scan-exclude.txt (extensível PELO CONSUMIDOR, mesmo padrão de
+// .forge/empty-universe-allowlist.txt): path glob por linha, com "# motivo: <justificativa>"
+// OBRIGATÓRIO — uma linha sem motivo reprova por integridade (isenção anônima é exatamente
+// por onde esse tipo de arquivo é esvaziado na prática).
 let consumerGlobs = [];
 if (excludeFile) {
-  try {
-    const raw = fs.readFileSync(excludeFile, "utf8").split(/\r?\n/);
-    for (const l of raw) {
-      const t = l.trim();
-      if (!t || t.startsWith("#")) continue;
-      const glob = t.split(/\s+#/)[0].trim();
-      if (glob) consumerGlobs.push(globToRegExp(glob));
+  let raw;
+  try { raw = fs.readFileSync(excludeFile, "utf8").split(/\r?\n/); } catch { raw = []; }
+  for (const l of raw) {
+    const t = l.trim();
+    if (!t || t.startsWith("#")) continue;
+    const m = t.match(/^(.*?)\s+#\s*motivo:\s*(\S.*)$/);
+    if (!m || !m[1].trim()) {
+      console.log(`FAIL (.forge/suppression-scan-exclude.txt: linha sem "<glob>  # motivo: <justificativa>" — "${t}")`);
+      process.exit(1);
     }
-  } catch { /* arquivo ilegível: nenhuma exclusão adicional */ }
+    consumerGlobs.push(globToRegExp(m[1].trim()));
+  }
 }
 function isExcluded(p) {
   if (isForgeRoot(p)) return true;

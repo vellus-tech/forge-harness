@@ -33,7 +33,7 @@ SCRIPT="$WS/template/.forge/scripts/check-attack-premise.sh"
 T="$(mktemp -d "${TMPDIR:-/tmp}/forge-attack-premise.XXXXXX")"
 trap 'rm -rf "$T"' EXIT
 
-declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 3;; premise-mutation) echo 7;; suppression-grammar) echo 0;; suppression-wiring) echo 0;; suppression-mutation) echo 0;; spike) echo 0;; esac; }
+declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 3;; premise-mutation) echo 7;; suppression-grammar) echo 9;; suppression-wiring) echo 0;; suppression-mutation) echo 0;; spike) echo 0;; esac; }
 ALL_GROUPS="script implement-wiring coding-loop-wiring human-wiring premise-mutation suppression-grammar suppression-wiring suppression-mutation spike"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
@@ -346,6 +346,145 @@ EOF
   _check_verifylist() { grep -qF 'check-attack-premise.sh --list' "$VERIFY"; }
   _mutate_and_check premise-mutation-7 "$VERIFY" 's/check-attack-premise\.sh --list/SCRIPT-REMOVIDO/g' _check_verifylist
   echo "OK [premise-mutation-7] — a chamada --list em verify.md é a causa real do human-wiring-1"
+fi
+
+# ──────────────────── suppression-grammar (TASK-07/08/09: REQ-03/REQ-04) ────────────────────
+if _want suppression-grammar; then
+  SUPSCRIPT="$WS/template/.forge/scripts/check-suppression-reference.sh"
+  _grepo() { # _grepo <dir> — repo git sintético, SEM remote, com um commit base (src/a.js vazio)
+    local d="$1"; mkdir -p "$d/src"
+    git -C . init -q "$d" 2>/dev/null || git init -q "$d"
+    printf 'function f() {\n  return 1;\n}\n' > "$d/src/a.js"
+    git -C "$d" add -A
+    git -C "$d" -c user.email=t@t -c user.name=t commit -q -m base
+  }
+  _stage() { # _stage <dir> <file-relative> <conteúdo>
+    printf '%s' "$3" > "$1/$2"
+    git -C "$1" add -A
+  }
+  _run_staged() { ( cd "$1" && bash "$SUPSCRIPT" --staged ); } # roda no cwd do fixture (git rev-parse --show-toplevel usa cwd)
+
+  _scn "[grammar-1] LDG-NNNN/ADR-NNNN/ISSUE-NNN (case-insensitive) contam como referência válida"
+  F="$T/g1"; _grepo "$F"
+  _stage "$F" src/a.js 'function f() {
+  // eslint-disable-next-line no-unused-vars -- ver ldg-0007
+  return 1;
+}
+'
+  out="$(_run_staged "$F")" || _fail grammar-1 "LDG minúsculo reprovou: $out"
+  _stage "$F" src/a.js 'function f() {
+  // eslint-disable-next-line no-unused-vars -- ADR-0002
+  return 1;
+}
+'
+  out="$(_run_staged "$F")" || _fail grammar-1 "ADR reprovou: $out"
+  echo "OK [grammar-1] — $out"
+
+  _scn "[grammar-2] issue/closes/fixes/ver #NNN (case-insensitive, fronteira de palavra) válido; 'never #12'/'prefixes #3' NÃO casam"
+  F="$T/g2"; _grepo "$F"
+  _stage "$F" src/a.js 'function f() {
+  // eslint-disable-next-line no-unused-vars -- Closes #45
+  return 1;
+}
+'
+  out="$(_run_staged "$F")" || _fail grammar-2 "'Closes #45' deveria passar: $out"
+  _stage "$F" src/a.js 'function f() {
+  // eslint-disable-next-line no-unused-vars -- never #12
+  return 1;
+}
+'
+  set +e; out="$(_run_staged "$F")"; rc=$?; set -e
+  [ "$rc" -ne 0 ] || _fail grammar-2 "'never #12' não deveria casar a palavra-chave: $out"
+  echo "OK [grammar-2] — $out"
+
+  _scn "[grammar-3] '#NNN' bare (cor hex) NUNCA conta como referência — reprova"
+  F="$T/g3"; _grepo "$F"
+  _stage "$F" src/a.js 'function f() {
+  // eslint-disable-next-line no-unused-vars -- cor #123
+  return 1;
+}
+'
+  set +e; out="$(_run_staged "$F")"; rc=$?; set -e
+  [ "$rc" -eq 1 ] || _fail grammar-3 "esperado rc 1, obtido $rc — $out"
+  echo "OK [grammar-3] — $out"
+
+  _scn "[grammar-4] @ts-nocheck entra na lista de supressões cobertas"
+  F="$T/g4"; _grepo "$F"
+  _stage "$F" src/a.js '// @ts-nocheck
+function f() {
+  return 1;
+}
+'
+  set +e; out="$(_run_staged "$F")"; rc=$?; set -e
+  [ "$rc" -eq 1 ] || _fail grammar-4 "@ts-nocheck sem referência deveria reprovar: $out"
+  echo "OK [grammar-4] — $out"
+
+  _scn "[grammar-5] Python '# noqa' e '# type: ignore' cobertos"
+  F="$T/g5"; _grepo "$F"
+  _stage "$F" src/a.py 'def f():
+    return 1  # noqa
+'
+  set +e; out="$(_run_staged "$F")"; rc=$?; set -e
+  [ "$rc" -eq 1 ] || _fail grammar-5 "# noqa sem referência deveria reprovar: $out"
+  _stage "$F" src/a.py 'def f():
+    return 1  # type: ignore -- ISSUE-9
+'
+  out="$(_run_staged "$F")" || _fail grammar-5 "# type: ignore com ISSUE-9 deveria aceitar: $out"
+  echo "OK [grammar-5] — $out"
+
+  _scn "[grammar-6] código gerado excluído por glob (_pb2.py) e por cabeçalho (@generated)"
+  F="$T/g6"; _grepo "$F"
+  _stage "$F" src/x_pb2.py 'def f():
+    return 1  # noqa
+'
+  out="$(_run_staged "$F")" || _fail grammar-6 "_pb2.py deveria ser excluído (glob): $out"
+  _stage "$F" src/y.py '# @generated — DO NOT EDIT
+def f():
+    return 1  # noqa
+'
+  out="$(_run_staged "$F")" || _fail grammar-6 "cabeçalho @generated deveria excluir o arquivo: $out"
+  echo "OK [grammar-6] — $out"
+
+  _scn "[grammar-7] .forge/** da RAIZ excluído (um nível); template/.forge/ IRMÃO fica visível"
+  F="$T/g7"; _grepo "$F"
+  mkdir -p "$F/.forge/scripts" "$F/template/.forge/scripts"
+  _stage "$F" .forge/scripts/x.js '// eslint-disable-next-line no-unused-vars
+function f() { return 1; }
+'
+  out="$(_run_staged "$F")" || _fail grammar-7 ".forge/ da raiz deveria ser excluído: $out"
+  _stage "$F" template/.forge/scripts/x.js '// eslint-disable-next-line no-unused-vars
+function f() { return 1; }
+'
+  set +e; out="$(_run_staged "$F")"; rc=$?; set -e
+  [ "$rc" -eq 1 ] || _fail grammar-7 "template/.forge/ (irmão) deveria continuar visível: $out"
+  echo "OK [grammar-7] — $out"
+
+  _scn "[grammar-8] sem origin/develop acessível (sem remote algum): fallback resolve pelo commit raiz, nunca aprova por diff vazio — Red real"
+  F="$T/g8"; mkdir -p "$F/src"
+  git init -q "$F"
+  printf 'function f() {\n  return 1;\n}\n' > "$F/src/a.js"
+  git -C "$F" add -A; git -C "$F" -c user.email=t@t -c user.name=t commit -q -m base
+  _stage "$F" src/a.js 'function f() {
+  // eslint-disable-next-line no-unused-vars
+  return 1;
+}
+'
+  set +e; out="$(_run_staged "$F")"; rc=$?; set -e
+  [ "$rc" -eq 1 ] || _fail grammar-8 "sem remote, violação real deveria reprovar (nunca diff vazio): rc=$rc — $out"
+  grep -qF "src/a.js" <<<"$out" || _fail grammar-8 "saída não aponta o arquivo — suspeita de diff vazio: $out"
+  echo "OK [grammar-8] — $out"
+
+  _scn "[grammar-9] --range <base>...<head> (modo pre-push, base já resolvida) e erro de uso sem --staged/--range"
+  F="$T/g9"; _grepo "$F"
+  BASE_SHA="$(git -C "$F" rev-parse HEAD)"
+  printf 'function f() {\n  // eslint-disable-next-line no-unused-vars\n  return 1;\n}\n' > "$F/src/a.js"
+  git -C "$F" add -A; git -C "$F" -c user.email=t@t -c user.name=t commit -q -m violacao
+  HEAD_SHA="$(git -C "$F" rev-parse HEAD)"
+  set +e; out="$(cd "$F" && bash "$SUPSCRIPT" --range "$BASE_SHA...$HEAD_SHA")"; rc=$?; set -e
+  [ "$rc" -eq 1 ] || _fail grammar-9 "--range deveria reprovar a violação: rc=$rc — $out"
+  set +e; out="$(cd "$F" && bash "$SUPSCRIPT")"; rc=$?; set -e
+  [ "$rc" -eq 2 ] || _fail grammar-9 "sem --staged/--range deveria sair 2 (erro de uso): rc=$rc — $out"
+  echo "OK [grammar-9] — --range funcional; erro de uso reprova com rc 2"
 fi
 
 # ───────────────────────────── fechamento ─────────────────────────────

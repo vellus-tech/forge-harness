@@ -1,6 +1,6 @@
 verification:
-  commit: "e1f673bd"
-  verified_at: "2026-11-03T01:35:20-03:00"
+  commit: "cf0436a1"
+  verified_at: "2026-11-03T01:46:29-03:00"
   checks:
     - name: none
       command: "(no checks declared in FORGE.md runtime)"

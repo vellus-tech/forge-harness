@@ -20,9 +20,9 @@
 
 `spec-verify.sh adopt-ub-mode-practices` — `OK adopt-ub-mode-practices (verification.yaml written)`. `FORGE.md runtime:` não declara check de stack (projeto não tem `test`/`typecheck`/`lint` padronizado nessa chave) — fase de check pulada pelo próprio script (`no checks declared`), não por omissão minha. Logs: nenhum (`skipped`).
 
-Suíte própria do change: `bash tests/adopt-ub-mode-practices-gate.sh` — **PASS, 53/53 cenários**, todos os 9 grupos (`script`, `implement-wiring`, `coding-loop-wiring`, `human-wiring`, `premise-mutation`, `suppression-grammar`, `suppression-wiring`, `suppression-mutation`, `spike`). `plugin-sync-gate.sh` e `w242-implement-red-mecanismo-gate.sh` — PASS (espelhos do plugin sincronizados após TASK-02/04/05/10, achado real corrigido durante a implementação). Badge de contagem do README corrigido (218→219) após a adição do gate novo.
+Suíte própria do change: `bash tests/adopt-ub-mode-practices-gate.sh` — **PASS, 55/55 cenários**, todos os 9 grupos (`script`, `implement-wiring`, `coding-loop-wiring`, `human-wiring`, `premise-mutation`, `suppression-grammar`, `suppression-wiring`, `suppression-mutation`, `spike`). `plugin-sync-gate.sh` e `w242-implement-red-mecanismo-gate.sh` — PASS (espelhos do plugin sincronizados após TASK-02/04/05/10, achado real corrigido durante a implementação). Badge de contagem do README corrigido (218→219) após a adição do gate novo.
 
-`run-all.sh` completo foi rodado uma vez durante a Wave 1 (173 PASS / 48 FAIL iniciais) e as 48 falhas foram investigadas e atribuídas a causa ambiental (duas causas reais, não relacionadas a este change: `node_modules` ausente no worktree, e `FORGE_ROOT` exportado indevidamente vazando para dentro dos fixtures dos `tests/*-gate.sh`) — confirmado por reprodução independente contra o commit pré-change (`a7a750d3`) nas mesmas condições. Não re-rodei a suíte completa de 1h+ ao final desta verificação; a suíte própria do change (53/53) e os dois gates estruturais (`plugin-sync-gate.sh`, `w242`) cobrem o que este change efetivamente toca.
+`run-all.sh` completo foi rodado uma vez durante a Wave 1 (173 PASS / 48 FAIL iniciais) e as 48 falhas foram investigadas e atribuídas a causa ambiental (duas causas reais, não relacionadas a este change: `node_modules` ausente no worktree, e `FORGE_ROOT` exportado indevidamente vazando para dentro dos fixtures dos `tests/*-gate.sh`) — confirmado por reprodução independente contra o commit pré-change (`a7a750d3`) nas mesmas condições. Não re-rodei a suíte completa de 1h+ ao final desta verificação; a suíte própria do change (55/55) e os dois gates estruturais (`plugin-sync-gate.sh`, `w242`) cobrem o que este change efetivamente toca.
 
 ## Desvios e observações
 
@@ -34,3 +34,14 @@ Suíte própria do change: `bash tests/adopt-ub-mode-practices-gate.sh` — **PA
 ## Premissas atacadas
 
 `check-attack-premise.sh --list --file tasks.md`: **0 premissa(s) atacada(s)** — nenhuma TASK deste change sofreu `[!]` por "gate falha após 2 tentativas de correção" (nem por qualquer outra causa); todas as 16 TASKs fecharam `[X]` na primeira tentativa de implementação. Resultado normal, registrado como tal (zero não é omissão). Este change não usou `coding-loop`, então não há `PROGRESS-TRACKING.md` a consultar.
+
+## Rodada de revisão — gate `implementation_verified` (yolo-gate, autônomo)
+
+Primeira passagem do gate decidiu **review** (não `approve`), com 1 achado principal e 3 secundários, todos confirmados por reprodução independente antes de corrigir (nunca aceitos só pela alegação):
+
+1. **Higiene da TASK-08 incompleta:** a referência `LDG-0232` em `red-evidence-ops.mjs` tinha sido posta na linha 486 (continuação do comentário), não na 484 (a linha real do `eslint-disable-next-line`) — o scanner reprovaria essa linha se ela voltasse a ser uma adição de diff. Corrigido (`fix: TASK-08 referência na linha real`), com cenário novo (`grammar-12`) cobrindo as duas linhas reais do harness, vermelho/verde provado.
+2. **`check-attack-premise.sh` aceitava placeholder como campo preenchido:** um valor `<idem>` (copiado literal do exemplo de `task-coder.md`) contava como premissa nomeada, abrindo série informada sem conteúdo real. Corrigido (`fix: placeholder nunca conta como preenchido`), cenário novo (`script-13`), vermelho/verde provado.
+3. **Claim sem evidência completa em `spike-result.md`/ADR 0006:** o texto dizia "2 dos 4 falsos positivos" vieram do viés de `LogicalExpression`, mas a tabela só atribuía isso a `schemaFields`. Recontagem manual de `operationPage` confirmou o mesmo viés (~11 dos ~17 pontos de decisão são `??`/`?:`, não `if`/`for` estruturais) — adicionado à tabela como evidência explícita.
+4. **`manifest.yaml` com `status` inconsistente:** o arquivo tinha uma mudança não commitada (`tasks-ready` no commit, `implementing` no disco) desde o início da sessão de implementação. Corrigido com a transição real (`tasks-ready` → `implementing` → `implemented`, via `spec-transition.sh`), commitada.
+
+Suíte própria do change após as correções: **PASS, 55/55 cenários** (2 cenários novos: `grammar-12`, `script-13`). `plugin-sync-gate.sh` confirmado verde.

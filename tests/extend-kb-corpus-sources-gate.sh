@@ -66,7 +66,10 @@ printf '# Sub plano\n\nsub plano dentro de uma raiz ja coletada\n' > "$R2/docs/p
 printf '# ADR extra\n\nTexto adr extra valido indexado via extra_paths.\n' > "$R2/docs/adr/0100-extra.md"
 printf '# Runbook\n\nruniguebook sem allowlist.\n' > "$R2/docs/runbooks/00-run.md"
 printf 'self:\n  id: eu\n' > "$R2/.forge/liaison/liaison.yaml"
-printf -- '-----BEGIN PRIVATE KEY-----\nsegredo\n-----END PRIVATE KEY-----\n' > "$R2/docs/adr/segredo.pem"
+# Conteúdo deliberadamente NÃO é um cabeçalho PEM real (nem a string literal) — o caso [22] testa
+# só a REJEIÇÃO POR EXTENSÃO (.pem fora de md/yaml/yml), nunca o conteúdo; um cabeçalho PEM literal
+# aqui dispararia falso positivo no scanner de segredos (w139) sobre o próprio arquivo de teste.
+printf 'conteudo generico so para testar rejeicao por extensao, nao e segredo real\n' > "$R2/docs/adr/segredo.pem"
 # symlinks (relativos ao diretório onde o link vive, não à raiz do projeto)
 ln -s ../.forge/liaison "$R2/docs/lnk-liaison"
 ln -s .. "$R2/docs/lnk-root"

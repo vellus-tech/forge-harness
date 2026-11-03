@@ -16,7 +16,7 @@ O gate de teste do change vive num arquivo só, `tests/adopt-ub-mode-practices-g
   - Teste (comando): `bash tests/adopt-ub-mode-practices-gate.sh script`
   - Padrão de falha: `FAIL \[script`
 
-- [-] TASK-02 — `implement.md`: âncora real do HALT ("marque `[!]`, **pare a execução** e reporte o que travou"), chamada ao script condicionada à causa "gate falha após 2 tentativas de correção", pré-condição de retomada (rastreia: REQ-01, REQ-02; paths: `template/.forge/commands/specs/implement.md`, `tests/adopt-ub-mode-practices-gate.sh`; depende: TASK-01)
+- [X] TASK-02 — `implement.md`: âncora real do HALT ("marque `[!]`, **pare a execução** e reporte o que travou"), chamada ao script condicionada à causa "gate falha após 2 tentativas de correção", pré-condição de retomada (rastreia: REQ-01, REQ-02; paths: `template/.forge/commands/specs/implement.md`, `tests/adopt-ub-mode-practices-gate.sh`; depende: TASK-01)
   - Teste (comando): `bash tests/adopt-ub-mode-practices-gate.sh implement-wiring`
   - Padrão de falha: `FAIL \[implement-wiring`
 

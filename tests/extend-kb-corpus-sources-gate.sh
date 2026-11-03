@@ -13,6 +13,10 @@
 #   [25]-[27] (TASK-03) countKinds compartilhada em status/build: kinds.active-spec sempre presente
 #       quando elegível, kinds['extra-path'] = 0 explícito quando configurado e vazio (ausente
 #       quando não configurado), e a saída texto de build lista a contagem por fonte.
+#   [28]-[35] (TASK-04) status MADR extraído de `- **Status:**` (primeiro termo, pontuação final
+#       removida, variantes PT-BR mapeadas) e exposto em kb.sh query — rótulo [SUPERSEDED]/
+#       [DEPRECATED]/[REJECTED] na saída texto, campo `status` estruturado no --json; `kind` sempre
+#       exposto; bump de INDEX_FORMAT (3→4) força reconstrução automática de índice antigo.
 set -euo pipefail
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
 
@@ -324,4 +328,183 @@ case "$LINE27" in
 esac
 ok 27
 
-echo "PASS extend-kb-corpus-sources (27 casos)"
+# ---- (TASK-04) [28]-[35]: status MADR extraído e rotulo de origem em kb.sh query -------------
+R28="$T/madr"
+mkdir -p "$R28/.forge/product/current/adr" "$R28/.forge/specs/active/some-change"
+printf '# ADR accepted\n\n- **Status:** accepted\n\nTexto do ADR accepted sem rotulo.\n' \
+  > "$R28/.forge/product/current/adr/0001-accepted.md"
+printf '# ADR accepted com sufixo\n\n- **Status:** accepted — gate `design_reviewed` aprovado para algo.\n\nTexto do ADR accepted com sufixo.\n' \
+  > "$R28/.forge/product/current/adr/0002-accepted-suffix.md"
+printf '# ADR superseded\n\n- **Status:** Superseded by [ADR-0099]\n\nTexto do ADR superseded.\n' \
+  > "$R28/.forge/product/current/adr/0003-superseded.md"
+printf '# ADR deprecated\n\n- **Status:** deprecated.\n\nTexto do ADR deprecated com pontuacao colada.\n' \
+  > "$R28/.forge/product/current/adr/0004-deprecated.md"
+printf '# ADR rejected\n\n- **Status:** rejected,\n\nTexto do ADR rejected com pontuacao colada.\n' \
+  > "$R28/.forge/product/current/adr/0005-rejected.md"
+printf '# ADR suplantado\n\n- **Status:** Suplantado\n\nTexto do ADR suplantado pt-br.\n' \
+  > "$R28/.forge/product/current/adr/0006-pt-suplantado.md"
+printf '# ADR depreciado\n\n- **Status:** Depreciado\n\nTexto do ADR depreciado pt-br.\n' \
+  > "$R28/.forge/product/current/adr/0007-pt-depreciado.md"
+printf '# ADR rejeitado\n\n- **Status:** Rejeitado\n\nTexto do ADR rejeitado pt-br.\n' \
+  > "$R28/.forge/product/current/adr/0008-pt-rejeitado.md"
+printf '# ADR aceito\n\n- **Status:** Aceito\n\nTexto do ADR aceito pt-br.\n' \
+  > "$R28/.forge/product/current/adr/0009-pt-aceito.md"
+printf '# Notas\n\nDocumento nao-ADR sem cabecalho de status, para o caso 31.\n' \
+  > "$R28/.forge/product/current/notas.md"
+printf '# Requirements\n\nTexto exclusivo da spec ativa para TASK-04 (caso 32).\n' \
+  > "$R28/.forge/specs/active/some-change/requirements.md"
+
+BUILD28="$(FORGE_ROOT="$R28" bash "$KB" build 2>&1)" || fail 28 "kb.sh build do fixture MADR falhou: $BUILD28"
+
+qjson() { FORGE_ROOT="$R28" bash "$KB" query "$1" --top 50 --json 2>&1; }
+qtext() { FORGE_ROOT="$R28" bash "$KB" query "$1" --top 50 2>&1; }
+
+# [28] ADR accepted sem rótulo: nem em texto, nem como status in {superseded,deprecated,rejected}
+Q28="$(qjson 'Texto do ADR accepted sem rotulo')" || fail 28 "query falhou: $Q28"
+node -e '
+const q = JSON.parse(process.argv[1]);
+const r = q.results.find((x) => x.doc === ".forge/product/current/adr/0001-accepted.md");
+if (!r) process.exit(1);
+if (["superseded", "deprecated", "rejected"].includes(r.status)) process.exit(1);
+' "$Q28" || fail 28 "ADR accepted com status indevido: $Q28"
+T28="$(qtext 'Texto do ADR accepted sem rotulo')" || fail 28 "query texto falhou: $T28"
+L28="$(printf '%s\n' "$T28" | grep '0001-accepted.md' || true)"
+[ -n "$L28" ] || fail 28 "ADR accepted nao apareceu na saida texto: $T28"
+case "$L28" in *"[SUPERSEDED]"*|*"[DEPRECATED]"*|*"[REJECTED]"*) fail 28 "rotulo indevido em ADR accepted: $L28" ;; esac
+ok 28
+
+# [29] ADR accepted com sufixo depois de "accepted" ainda classificado como accepted (sem rótulo) —
+#      prova de que só o primeiro termo após "Status:" é usado.
+Q29="$(qjson 'Texto do ADR accepted com sufixo')" || fail 29 "query falhou: $Q29"
+node -e '
+const q = JSON.parse(process.argv[1]);
+const r = q.results.find((x) => x.doc === ".forge/product/current/adr/0002-accepted-suffix.md");
+if (!r) process.exit(1);
+if (["superseded", "deprecated", "rejected"].includes(r.status)) process.exit(1);
+' "$Q29" || fail 29 "ADR accepted com sufixo classificado com status indevido: $Q29"
+T29="$(qtext 'Texto do ADR accepted com sufixo')" || fail 29 "query texto falhou: $T29"
+L29="$(printf '%s\n' "$T29" | grep '0002-accepted-suffix.md' || true)"
+[ -n "$L29" ] || fail 29 "ADR accepted com sufixo nao apareceu na saida texto: $T29"
+case "$L29" in *"[SUPERSEDED]"*|*"[DEPRECATED]"*|*"[REJECTED]"*) fail 29 "rotulo indevido em ADR accepted com sufixo: $L29" ;; esac
+ok 29
+
+# [30] ADR superseded com rótulo [SUPERSEDED] em texto E campo status:"superseded" em --json.
+Q30="$(qjson 'Texto do ADR superseded')" || fail 30 "query falhou: $Q30"
+node -e '
+const q = JSON.parse(process.argv[1]);
+const r = q.results.find((x) => x.doc === ".forge/product/current/adr/0003-superseded.md");
+if (!r || r.status !== "superseded") process.exit(1);
+' "$Q30" || fail 30 "ADR superseded sem status=superseded em --json: $Q30"
+T30="$(qtext 'Texto do ADR superseded')" || fail 30 "query texto falhou: $T30"
+L30="$(printf '%s\n' "$T30" | grep '0003-superseded.md' || true)"
+case "$L30" in *"[SUPERSEDED]"*) : ;; *) fail 30 "rotulo [SUPERSEDED] ausente na saida texto: $L30" ;; esac
+ok 30
+
+# [31] documento não-ADR sem campo status (ausente ou null), sem erro; kind sempre presente.
+Q31="$(qjson 'Documento nao-ADR sem cabecalho de status, para o caso 31')" || fail 31 "query falhou: $Q31"
+node -e '
+const q = JSON.parse(process.argv[1]);
+const r = q.results.find((x) => x.doc === ".forge/product/current/notas.md");
+if (!r) process.exit(1);
+if (r.kind !== "baseline") process.exit(1);
+if ("status" in r && r.status) process.exit(1);
+' "$Q31" || fail 31 "documento nao-ADR com status indevido, ou kind ausente: $Q31"
+ok 31
+
+# [32] resultado de active-spec sempre traz kind: 'active-spec' em --json (campo estruturado,
+#      design §2.4/REQ-01) — sem rótulo de status (não é ADR) nem em texto.
+Q32="$(qjson 'Texto exclusivo da spec ativa para TASK-04 (caso 32)')" || fail 32 "query falhou: $Q32"
+node -e '
+const q = JSON.parse(process.argv[1]);
+const r = q.results.find((x) => x.doc === ".forge/specs/active/some-change/requirements.md");
+if (!r || r.kind !== "active-spec") process.exit(1);
+' "$Q32" || fail 32 "resultado de active-spec sem kind: active-spec em --json: $Q32"
+T32="$(qtext 'Texto exclusivo da spec ativa para TASK-04 (caso 32)')" || fail 32 "query texto falhou: $T32"
+L32="$(printf '%s\n' "$T32" | grep 'some-change/requirements.md' || true)"
+[ -n "$L32" ] || fail 32 "active-spec nao apareceu na saida texto: $T32"
+case "$L32" in *"[SUPERSEDED]"*|*"[DEPRECATED]"*|*"[REJECTED]"*) fail 32 "rotulo de status indevido em active-spec: $L32" ;; esac
+ok 32
+
+# [33] índice construído ANTES deste change (format: 3) é reconstruído automaticamente no próximo
+#      build/query — prova do bump de INDEX_FORMAT 3→4.
+R33="$T/fmt33"
+mkdir -p "$R33/.forge/product/current/adr"
+printf '# ADR fmt33\n\n- **Status:** accepted\n\nTexto fmt33 para bump de index format.\n' \
+  > "$R33/.forge/product/current/adr/0001-fmt33.md"
+FORGE_ROOT="$R33" bash "$KB" build >/dev/null 2>&1 || fail 33 "build inicial falhou"
+IDXFILE="$R33/.forge/kb/index.json"
+node -e '
+const fs = require("node:fs");
+const p = process.argv[1];
+const idx = JSON.parse(fs.readFileSync(p, "utf8"));
+idx.format = 3;
+fs.writeFileSync(p, JSON.stringify(idx) + "\n");
+' "$IDXFILE" || fail 33 "falha ao simular indice de formato 3"
+QUERY33="$(FORGE_ROOT="$R33" bash "$KB" query "fmt33 para bump de index" --json 2>&1)" \
+  || fail 33 "query apos downgrade de formato falhou: $QUERY33"
+node -e '
+const q = JSON.parse(process.argv[1]);
+if (q.rebuilt !== true) process.exit(1);
+' "$QUERY33" || fail 33 "indice de formato 3 nao foi reconstruido automaticamente: $QUERY33"
+node -e '
+const fs = require("node:fs");
+const idx = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+if (idx.format !== 4) process.exit(1);
+' "$IDXFILE" || fail 33 "indice apos reconstrucao automatica nao esta no format 4"
+ok 33
+
+# [34] deprecated./rejected, (pontuação colada) classificados corretamente — prova do strip de
+#      pontuação final antes do mapeamento.
+Q34D="$(qjson 'Texto do ADR deprecated com pontuacao colada')" || fail 34 "query deprecated falhou: $Q34D"
+node -e '
+const q = JSON.parse(process.argv[1]);
+const r = q.results.find((x) => x.doc === ".forge/product/current/adr/0004-deprecated.md");
+if (!r || r.status !== "deprecated") process.exit(1);
+' "$Q34D" || fail 34 "ADR deprecated (pontuacao colada) sem status=deprecated: $Q34D"
+T34D="$(qtext 'Texto do ADR deprecated com pontuacao colada')" || fail 34 "query texto deprecated falhou: $T34D"
+L34D="$(printf '%s\n' "$T34D" | grep '0004-deprecated.md' || true)"
+case "$L34D" in *"[DEPRECATED]"*) : ;; *) fail 34 "rotulo [DEPRECATED] ausente: $L34D" ;; esac
+Q34R="$(qjson 'Texto do ADR rejected com pontuacao colada')" || fail 34 "query rejected falhou: $Q34R"
+node -e '
+const q = JSON.parse(process.argv[1]);
+const r = q.results.find((x) => x.doc === ".forge/product/current/adr/0005-rejected.md");
+if (!r || r.status !== "rejected") process.exit(1);
+' "$Q34R" || fail 34 "ADR rejected (pontuacao colada) sem status=rejected: $Q34R"
+T34R="$(qtext 'Texto do ADR rejected com pontuacao colada')" || fail 34 "query texto rejected falhou: $T34R"
+L34R="$(printf '%s\n' "$T34R" | grep '0005-rejected.md' || true)"
+case "$L34R" in *"[REJECTED]"*) : ;; *) fail 34 "rotulo [REJECTED] ausente: $L34R" ;; esac
+ok 34
+
+# [35] as 4 variantes PT-BR mapeadas para o status em inglês correto, inclusive Aceito → accepted
+#      (sem rótulo).
+Q35SUP="$(qjson 'Texto do ADR suplantado pt-br')" || fail 35 "query suplantado falhou: $Q35SUP"
+node -e '
+const q = JSON.parse(process.argv[1]);
+const r = q.results.find((x) => x.doc === ".forge/product/current/adr/0006-pt-suplantado.md");
+if (!r || r.status !== "superseded") process.exit(1);
+' "$Q35SUP" || fail 35 "Suplantado nao mapeado para superseded: $Q35SUP"
+Q35DEP="$(qjson 'Texto do ADR depreciado pt-br')" || fail 35 "query depreciado falhou: $Q35DEP"
+node -e '
+const q = JSON.parse(process.argv[1]);
+const r = q.results.find((x) => x.doc === ".forge/product/current/adr/0007-pt-depreciado.md");
+if (!r || r.status !== "deprecated") process.exit(1);
+' "$Q35DEP" || fail 35 "Depreciado nao mapeado para deprecated: $Q35DEP"
+Q35REJ="$(qjson 'Texto do ADR rejeitado pt-br')" || fail 35 "query rejeitado falhou: $Q35REJ"
+node -e '
+const q = JSON.parse(process.argv[1]);
+const r = q.results.find((x) => x.doc === ".forge/product/current/adr/0008-pt-rejeitado.md");
+if (!r || r.status !== "rejected") process.exit(1);
+' "$Q35REJ" || fail 35 "Rejeitado nao mapeado para rejected: $Q35REJ"
+Q35ACE="$(qjson 'Texto do ADR aceito pt-br')" || fail 35 "query aceito falhou: $Q35ACE"
+node -e '
+const q = JSON.parse(process.argv[1]);
+const r = q.results.find((x) => x.doc === ".forge/product/current/adr/0009-pt-aceito.md");
+if (!r) process.exit(1);
+if (["superseded", "deprecated", "rejected"].includes(r.status)) process.exit(1);
+' "$Q35ACE" || fail 35 "Aceito classificado com status indevido: $Q35ACE"
+T35ACE="$(qtext 'Texto do ADR aceito pt-br')" || fail 35 "query texto aceito falhou: $T35ACE"
+L35ACE="$(printf '%s\n' "$T35ACE" | grep '0009-pt-aceito.md' || true)"
+case "$L35ACE" in *"[SUPERSEDED]"*|*"[DEPRECATED]"*|*"[REJECTED]"*) fail 35 "rotulo indevido em Aceito: $L35ACE" ;; esac
+ok 35
+
+echo "PASS extend-kb-corpus-sources (35 casos)"

@@ -507,4 +507,30 @@ L35ACE="$(printf '%s\n' "$T35ACE" | grep '0009-pt-aceito.md' || true)"
 case "$L35ACE" in *"[SUPERSEDED]"*|*"[DEPRECATED]"*|*"[REJECTED]"*) fail 35 "rotulo indevido em Aceito: $L35ACE" ;; esac
 ok 35
 
-echo "PASS extend-kb-corpus-sources (35 casos)"
+# ---- (TASK-05) [36]-[39]: documentação de escopo do /forge:kb (REQ-05) ------------------------
+KBDOC="$WS/template/.forge/commands/graph/kb.md"
+[ -f "$KBDOC" ] || fail 36 "arquivo de documentação não encontrado: $KBDOC"
+
+# [36] active-spec e extra-path aparecem documentados como fontes do corpus.
+grep -q "active-spec" "$KBDOC" || fail 36 "active-spec ausente na documentação: $KBDOC"
+grep -q "extra-path" "$KBDOC" || fail 36 "extra-path ausente na documentação: $KBDOC"
+ok 36
+
+# [37] caminho documentado para fato/decisão pontual via ledger-ops.sh --type follow-up.
+grep -q "ledger-ops.sh add --type follow-up" "$KBDOC" \
+  || fail 37 "caminho ledger-ops.sh add --type follow-up ausente na documentação: $KBDOC"
+ok 37
+
+# [38] ressalva multi-repositório presente (cada .forge/ próprio precisa do próprio kb.sh build).
+grep -qiE "cada \`\.forge/\` próprio|multi-repositório|multi-repo" "$KBDOC" \
+  || fail 38 "ressalva multi-repositório ausente na documentação: $KBDOC"
+ok 38
+
+# [39] ausência de frase de cobertura total não qualificada (ex.: "todo o conhecimento do
+#      projeto" sem qualificação ao lado) — ! grep -q prova ausência; grep -v NÃO prova (achado
+#      do yolo-gate nesta rodada).
+! grep -qi "busca sobre todo o conhecimento do projeto" "$KBDOC" \
+  || fail 39 "frase de cobertura total não qualificada presente na documentação: $KBDOC"
+ok 39
+
+echo "PASS extend-kb-corpus-sources (39 casos)"

@@ -53,7 +53,7 @@ O gate de teste do change vive num arquivo só, `tests/adopt-ub-mode-practices-g
   - Teste (comando): `bash tests/adopt-ub-mode-practices-gate.sh suppression-grammar`
   - Padrão de falha: `FAIL \[suppression-grammar` (grupo estendido com o cenário de exclusão declarada pelo consumidor — item que NÃO está no escopo da TASK-07, para não duplicar: a TASK-07 cobre a gramática de referência e as duas exclusões de código gerado/`.forge/`; esta TASK cobre só o arquivo de exclusão adicional do consumidor)
 
-- [-] TASK-10 — Wiring em `/forge:ship` (`--staged`, passo 3 antes do commit) e `pre-push` (`--range` com a base resolvida, seguindo o padrão de isolamento de `w223` — copiar `scripts/` inteiro ativa `HARNESS_SUITE` dentro do teste, cuidado já registrado no `TASK-04` de `add-migration-review-rule`) (rastreia: REQ-03, REQ-04; paths: `template/.forge/commands/git/ship.md`, `template/.forge/hooks/git/pre-push`, `tests/adopt-ub-mode-practices-gate.sh`; depende: TASK-07)
+- [X] TASK-10 — Wiring em `/forge:ship` (`--staged`, passo 3 antes do commit) e `pre-push` (`--range` com a base resolvida, seguindo o padrão de isolamento de `w223` — copiar `scripts/` inteiro ativa `HARNESS_SUITE` dentro do teste, cuidado já registrado no `TASK-04` de `add-migration-review-rule`) (rastreia: REQ-03, REQ-04; paths: `template/.forge/commands/git/ship.md`, `template/.forge/hooks/git/pre-push`, `tests/adopt-ub-mode-practices-gate.sh`; depende: TASK-07)
   - Teste (comando): `bash tests/adopt-ub-mode-practices-gate.sh suppression-wiring`
   - Padrão de falha: `FAIL \[suppression-wiring`
 

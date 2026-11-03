@@ -211,11 +211,15 @@ const CH_LABEL = { bm25: 'bm25', entities: 'entidades', links: 'links', vector: 
 // Rótulo visível na saída texto quando o status MADR indica que o ADR não está mais vigente —
 // accepted/proposed/outros valores não reconhecidos não geram rótulo (design §2.4, REQ-07).
 const STATUS_LABEL = { superseded: '[SUPERSEDED] ', deprecated: '[DEPRECATED] ', rejected: '[REJECTED] ' };
+// Rótulo de origem (REQ-01 último critério): resultado de active-spec/extra-path nunca
+// misturado sem marca com baseline estável. baseline/archived-spec/plan/changelog/ledger/liaison
+// preservam a saída atual (sem prefixo) — comportamento inalterado para as fontes já existentes.
+const KIND_LABEL = { 'active-spec': '[ACTIVE-SPEC] ', 'extra-path': '[EXTRA-PATH] ' };
 function printText(out) {
   const lines = [out.mode === 'semantic' ? 'modo: semantic' : `modo: lexical (${out.mode_reason})`];
   if (!out.results.length) lines.push('nenhum resultado');
   for (const r of out.results) {
-    const label = (r.status && STATUS_LABEL[r.status]) || '';
+    const label = `${(r.kind && KIND_LABEL[r.kind]) || ''}${(r.status && STATUS_LABEL[r.status]) || ''}`;
     lines.push(`${r.rank}. ${label}${r.doc}${r.heading ? ` — ${r.heading}` : ''} (linha ${r.line})  rrf=${r.score.toFixed(4)}`);
     const parts = Object.keys(r.channels).sort().map((k) => (k === 'links' ? `links de ${r.channels.links.from.length} resultado(s) (+${r.channels.links.contribution.toFixed(4)})` : `${CH_LABEL[k] || k} #${r.channels[k].rank} (+${r.channels[k].contribution.toFixed(4)})`));
     if (r.rerank && r.rerank.ce_rank) parts.push(`re-rank ce #${r.rerank.ce_rank} (fusão #${r.rerank.fusion_rank})`);

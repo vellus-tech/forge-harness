@@ -16,6 +16,15 @@ Gates deterministas complementam os loops builder→validator (probabilísticos)
 
 ## Receitas
 
+**Premissa nomeada** (REQ-01/REQ-02, "Attack the Premise" — `/forge:implement` e `coding-loop`/`task-coder`, só quando a causa do `[!]` é literalmente "gate falha após 2 tentativas de correção"): depois de escrever o bloco de falha (`tasks.md`: bloco único; `PROGRESS-TRACKING.md`: entrada acumulada, nunca sobrescrita), rode:
+
+```bash
+bash .forge/scripts/check-attack-premise.sh --file <tasks.md|PROGRESS-TRACKING.md> --task-id <TASK-NN> >/tmp/gate-attack-premise.log 2>&1 \
+  && echo "OK attack-premise:<TASK-NN>" || echo "FAIL attack-premise:<TASK-NN> ($(tail -1 /tmp/gate-attack-premise.log))"
+```
+
+Reprovado: complete `Gate:`/`Premissa:`/`Ator(es) com o desequilíbrio:` antes de reportar o HALT ao humano — não emita o relatório com os campos vazios. `--list --file <path>` lista toda TASK com os campos já preenchidos, insumo da seção "Premissas atacadas" de `verify.md`.
+
 **Parseabilidade** (parser nativo do formato):
 
 ```bash

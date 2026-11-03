@@ -105,7 +105,7 @@ Apenas reporta. **Não modifica** estado em Jira nem no tracker (use `sprint-orc
 
 - **Diariamente**: visão agregada do estado do projeto.
 - **Antes de invocar `/forge:coding-loop`**: confirmar qual módulo/onda está pronto.
-- **Após falha**: ver o bloco "Última falha" estruturado.
+- **Após falha**: ver o bloco "Última falha" estruturado — agora acumulativo (uma entrada por ocorrência, nunca sobrescrita), com `Premissa:`/`Ator(es) com o desequilíbrio:` a partir da 2ª ocorrência consecutiva do mesmo par (TASK, Gate) desde a última retomada informada (receita "Premissa nomeada" em `.forge/skills/gate-runner/SKILL.md`).
 - **Auditoria de sprint**: cruzar com Jira via `--jira-sync`.
 
 ## Saída em formato JSON

@@ -35,7 +35,7 @@ SCRIPT="$WS/template/.forge/scripts/check-attack-premise.sh"
 T="$(mktemp -d "${TMPDIR:-/tmp}/forge-attack-premise.XXXXXX")"
 trap 'rm -rf "$T"' EXIT
 
-declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 3;; premise-mutation) echo 7;; suppression-grammar) echo 12;; suppression-wiring) echo 4;; suppression-mutation) echo 4;; spike) echo 4;; esac; }
+declare_scn() { case "$1" in script) echo 13;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 3;; premise-mutation) echo 7;; suppression-grammar) echo 12;; suppression-wiring) echo 4;; suppression-mutation) echo 4;; spike) echo 4;; esac; }
 ALL_GROUPS="script implement-wiring coding-loop-wiring human-wiring premise-mutation suppression-grammar suppression-wiring suppression-mutation spike"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
@@ -185,6 +185,25 @@ EOF
   set +e; out="$(_ck --file "$F" --task-id TASK-01 --bogus x)"; rc=$?; set -e
   [ "$rc" -eq 2 ] || _fail script-12 "flag desconhecida deveria sair 2 — rc=$rc: $out"
   echo "OK [script-12] — 3 erros de uso com rc 2"
+
+  _scn "[script-13] placeholder de template ('<idem>', '<...>') em Premissa/Ator(es) nunca conta como preenchido (achado yolo-gate)"
+  F="$T/placeholder.md"
+  cat > "$F" <<'EOF'
+## ⚠️ Última falha — Wave 3 / TASK-01 (1ª ocorrência)
+
+**Quando:** 2026-05-10 22:00
+**Gate:** `dotnet build`
+**Premissa:** <idem>
+**Ator(es) com o desequilíbrio:** <idem>
+
+## ⚠️ Última falha — Wave 3 / TASK-01 (2ª ocorrência)
+
+**Quando:** 2026-05-10 22:23
+**Gate:** `dotnet build`
+EOF
+  set +e; out="$(_ck --file "$F" --task-id TASK-01)"; rc=$?; set -e
+  [ "$rc" -eq 1 ] || _fail script-13 "placeholder copiado literal não deveria abrir série informada — rc esperado 1, obtido $rc: $out"
+  echo "OK [script-13] — $out"
 fi
 
 # ──────────────────── implement-wiring (TASK-02: REQ-01/REQ-02) ────────────────────

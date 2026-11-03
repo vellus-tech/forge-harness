@@ -1,0 +1,23 @@
+# Spec delta — operations this change applies to the baseline at archive time
+# (schema: .forge/schemas/spec-delta.schema.json; doc §10.4).
+# modify_requirement is FULL REPLACEMENT — never a partial patch.
+# For deterministic apply, carry the structured `requirement:` payload
+# (baseline-capability shape) alongside the documentary content_ref.
+operations:
+  - op: modify_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-072
+    full_replacement_ref: requirements.md#req-01
+    requirement:
+      id: REQ-FHT-072
+      title: "Busca unificada indexa o conhecimento próprio do projeto, incluindo specs ativas, nunca conteúdo de peer"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-072-A
+          given: "uma raiz com baseline, specs arquivadas, specs ativas, ledger.json, docs/plans, CHANGELOG.md e um log de liaison próprio com mensagens self, untrusted-peer, sem trust, com authored_by e com body_ref para blob, além de log de outro remetente, código e node_modules"
+          when: "kb.sh build constrói o índice"
+          then: "entram um documento por arquivo das fontes versionadas (incluindo todo arquivo .md/.yaml/.yml sob .forge/specs/active/**, rotulado kind: 'active-spec'), um por entrada de ledger e um por mensagem self sem authored_by (assunto e corpo inline); blobs, mensagens de peer, código, node_modules e .forge/kb nunca entram; JSONL ou ledger ilegíveis são pulados e contados"
+      contracts: []
+      tests:
+        - tests/w309-kb-corpus-gate.sh
+        - tests/extend-kb-corpus-sources-gate.sh

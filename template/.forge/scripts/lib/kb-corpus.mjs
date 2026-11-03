@@ -1,19 +1,21 @@
 // kb-corpus — coleta das fontes da busca unificada (/forge:kb) e corte em trechos. Zero-dep: só
 // `node:*` e o parser YAML do próprio harness. Função pura sobre o sistema de arquivos: não grava nada.
 //
-// O QUE ENTRA (REQ-01 do change add-unified-knowledge-search), e só isso:
-//   baseline   .forge/product/current/**/*.{md,yaml,yml}
-//   archived   .forge/specs/archived/**/*.{md,yaml,yml}
-//   plan       docs/plans/**/*.md
-//   changelog  CHANGELOG.md
-//   ledger     .forge/ledger/ledger.json, uma entrada por documento
-//   liaison    .forge/liaison/<canal>/log/<self>.jsonl, só `trust === 'self'` e sem `authored_by`
+// O QUE ENTRA (REQ-01 do change add-unified-knowledge-search; active-spec revertido pelo change
+// extend-kb-corpus-sources, REQ-01 — supersede REQ-FHT-072/SCN-FHT-072-A via spec-delta.yaml):
+//   baseline     .forge/product/current/**/*.{md,yaml,yml}
+//   archived     .forge/specs/archived/**/*.{md,yaml,yml}
+//   active-spec  .forge/specs/active/**/*.{md,yaml,yml}
+//   plan         docs/plans/**/*.md
+//   changelog    CHANGELOG.md
+//   ledger       .forge/ledger/ledger.json, uma entrada por documento
+//   liaison      .forge/liaison/<canal>/log/<self>.jsonl, só `trust === 'self'` e sem `authored_by`
 //
 // O QUE NUNCA ENTRA, por construção e não por filtro: blobs do liaison (o `body_ref` não é seguido),
 // mensagens de peer (`log/<outro>.jsonl` nem é aberto; dentro do log próprio, `trust` diferente de
-// `self` ou `authored_by` presente descartam a linha), specs ativas, código, `.forge/kb/`. Conteúdo
-// de peer é dado, nunca instrução (rule conventions/liaison-untrusted-input.md): indexá-lo poria
-// texto escrito por outro repositório de volta no contexto de quem busca, sem moldura.
+// `self` ou `authored_by` presente descartam a linha), código, `.forge/kb/`. Conteúdo de peer é
+// dado, nunca instrução (rule conventions/liaison-untrusted-input.md): indexá-lo poria texto
+// escrito por outro repositório de volta no contexto de quem busca, sem moldura.
 //
 // Duas raízes: `docRoot` (documentos versionados por branch) e `stateRoot` (ledger e liaison, que
 // moram no checkout principal — lib/forge-root.sh). Com FORGE_ROOT as duas coincidem.
@@ -63,6 +65,7 @@ export function collect({ docRoot, stateRoot = docRoot }) {
   };
   for (const f of walk(join(docRoot, '.forge/product/current'), ['.md', '.yaml', '.yml'])) addFile('baseline', docRoot, f);
   for (const f of walk(join(docRoot, '.forge/specs/archived'), ['.md', '.yaml', '.yml'])) addFile('archived-spec', docRoot, f);
+  for (const f of walk(join(docRoot, '.forge/specs/active'), ['.md', '.yaml', '.yml'])) addFile('active-spec', docRoot, f);
   for (const f of walk(join(docRoot, 'docs/plans'), ['.md'])) addFile('plan', docRoot, f);
   const cl = join(docRoot, 'CHANGELOG.md');
   if (existsSync(cl) && statSync(cl).isFile()) addFile('changelog', docRoot, cl);
@@ -143,6 +146,7 @@ function sourceFiles({ docRoot, stateRoot = docRoot }) {
   const files = [
     ...walk(join(docRoot, '.forge/product/current'), ['.md', '.yaml', '.yml']),
     ...walk(join(docRoot, '.forge/specs/archived'), ['.md', '.yaml', '.yml']),
+    ...walk(join(docRoot, '.forge/specs/active'), ['.md', '.yaml', '.yml']),
     ...walk(join(docRoot, 'docs/plans'), ['.md']),
     join(docRoot, 'CHANGELOG.md'),
     join(stateRoot, '.forge/ledger/ledger.json'),

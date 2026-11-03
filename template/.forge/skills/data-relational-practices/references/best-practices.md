@@ -60,6 +60,7 @@ Não usar como motor de varredura analítica massiva, como armazenamento de bin�
 - Prevenção de deadlock: ordem consistente de aquisição de lock, transação curta e sem interação de usuário, retry no aborto [2F].
 - DDL também trava: todo `ALTER` pega lock forte; por isso `lock_timeout` curto e retry na migração (R-03, R-21) [2F].
 - MySQL: não force `ALGORITHM=COPY` nem `LOCK=SHARED/EXCLUSIVE` (R-13) [2F].
+- **Prova de corrida/espera vem do servidor, não do relógio do host.** Testando ordenação de lock em PostgreSQL efêmero (container): medir a duração de uma segunda sessão pelo cronômetro do host confunde contenção real com latência de infraestrutura (um `docker exec` sob carga alta leva segundos por si só); e um laço `WHILE NOT EXISTS (SELECT ... FROM pg_stat_activity ...)` dentro de uma transação pode nunca ver a mudança de outra sessão, porque as estatísticas ficam em cache por transação — o laço estoura o limite e a ordenação pretendida nunca aconteceu, com resultado aparentemente válido. Sinalize entre sessões pelo próprio servidor (`application_name` + `pg_stat_clear_snapshot()` a cada volta do laço de espera), prove espera observando `wait_event_type = 'Lock'` da sessão que está presa em `pg_stat_activity` — não um tempo de parede externo — e rode o harness de dentro do container, para tirar a latência do `docker exec` do caminho [Heurística].
 
 ## Acesso a dados: N+1, paginação e pool
 

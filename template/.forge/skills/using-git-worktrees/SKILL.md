@@ -40,6 +40,8 @@ Reporte com o estado da branch:
 - Numa branch: "Já estou em workspace isolado em `<path>`, na branch `<nome>`."
 - HEAD destacado: "Já estou em workspace isolado em `<path>`, com HEAD destacado — worktree sem branch não tem o que empurrar, não admite PR, e o rastro do trabalho morre com a árvore." Dê nome a ela AGORA, antes de trabalhar: `git switch -c <tipo>/<escopo>/<descricao>`. O hook `post-checkout` do harness já faz isso sozinho nas worktrees criadas sob `.forge/worktrees/` depois que o harness foi instalado, com o nome de partida `wt/<slug>`; uma worktree que ainda esteja destacada é anterior ao hook, foi criada fora do território, ou veio de `git worktree add --no-checkout`, que não dispara gancho nenhum.
 
+**Posse não se presume, se verifica.** Numa worktree que já existia antes desta sessão (retomada, sessão par, trabalho em lote), nunca rode `reset`, `checkout -f`, `clean` ou qualquer comando destrutivo assumindo que "eu criei isso, então é meu": o git não arbitra posse entre sessões concorrentes, e uma worktree recém-criada por outra sessão é indistinguível, para quem chega depois, de uma worktree disponível. Antes de qualquer operação destrutiva numa worktree, confirme `pwd` e `git branch --show-current` contra o que o mandato espera — o diretório herdado pelo shell não é o que o mandato diz em prosa — e, se houver qualquer sinal de sessão par ativa (worktree criada há pouco, commit recente que não é seu, marcador de posse de outra sessão), pare e pergunte em vez de limpar. Todo comando em worktree de outra sessão ou em caminho que não seja o seu checkout atual deve usar `git -C <path-absoluto>` explícito, nunca depender de `cd` relativo anterior.
+
 **Se `GIT_DIR == GIT_COMMON` (ou for submódulo):** você está em um checkout normal do repositório.
 
 O usuário já indicou a preferência de worktree nas instruções (`AGENTS.md`/`CLAUDE.md` ou no pedido)? Se **não**, peça consentimento antes de criar um worktree:
@@ -77,6 +79,8 @@ Neste repositório, worktrees são criados **dentro do repo**, sob `.forge/workt
 - **Agentes de IA sempre em worktree dedicado** — nunca compartilhe worktree com sessão humana.
 
 Se o `AGENTS.md`/`CLAUDE.md` ou o pedido declararem outra localização, honre a preferência explícita — ela vence o padrão.
+
+Num workspace com repositórios-filho (monorepo de workspace Forge com vários repositórios dentro), a mesma convenção vale **dentro de cada repositório-filho** — o worktree fica sob o `.forge/worktrees/` daquele repositório-filho, não num diretório irmão fora dele, porque é ali que o hook e a tooling do workspace olham. Confirme isso antes de criar, em vez de assumir que a localização canônica vale só para o repositório raiz.
 
 #### Criar o worktree
 
@@ -134,6 +138,8 @@ Rode os testes para garantir que o workspace começa limpo:
 
 **Se os testes passarem:** reporte que está pronto.
 
+**Cuidado com worktree usado só como dependência de leitura** (ex.: fixture de teste de integração que carrega migrations ou contrato de outro repositório via um worktree local de longa duração, apontado para o `develop` de um repositório-irmão). Esse tipo de worktree ninguém commita nele, então ele fica parado e vai ficando atrasado em relação ao branch que deveria espelhar — sem o sinal de um conflito de merge para chamar atenção. Uma falha de teste vinda desse worktree pode ser só o pin desatualizado, não uma regressão real da mudança sob teste. Antes de aceitar uma falha como causada pela mudança: `git -C <worktree-pin> log -1` contra `git -C <worktree-pin> rev-parse origin/<branch-rastreada>` (depois de um fetch); se divergir, atualize o pin (ou extraia o `origin/<branch>` atual numa cópia descartável, sem tocar o worktree compartilhado, se ele não for seu) antes de investigar o teste.
+
 ### Relatório
 
 ```
@@ -141,6 +147,61 @@ Worktree pronto em <caminho-completo>
 Testes passando (<N> testes, 0 falhas)
 Pronto para implementar <nome-da-feature>
 ```
+
+---
+
+## Mesclar branch longeva dentro do worktree (PR humano muito atrasado)
+
+Mandato recorrente: trazer `develop`/`main` para dentro da branch de um PR humano aberto há muitos
+commits, dentro do worktree isolado. Esse fluxo tem riscos próprios, além dos do Passo 0-3.
+
+**Decidir se o PR ainda agrega algo vem ANTES de resolver conflito, nunca depois.** "Resolver os
+conflitos do merge" e "decidir se o PR ainda é necessário" são duas perguntas distintas, e a segunda
+precisa ser respondida primeiro — depois do merge, a reconciliação textual dos conflitos tende a
+mascarar a pergunta. Antes de `git merge`: (1) leia o diff do PR por inteiro; (2) para cada conceito de
+negócio novo que o PR introduz (um enum, um campo, uma validação), faça `grep` na `develop` pelo mesmo
+nome/conceito — não só pelo caminho de arquivo, que só prova sobreposição de arquivo, não que a
+capability já foi entregue por outro caminho; (3) se achar equivalente já shipado com commit mais novo
+que a criação da branch do PR, isso é sinal forte de superação; (4) se a peça restante do PR conflitar
+com uma decisão **documentada** na develop (comentário explicando por que um campo fica vazio de
+propósito, por exemplo), trate como incompatibilidade de design, não como gap a preencher — reportar
+"SUPERADO" é melhor que produzir um merge que reverte silenciosamente uma decisão já tomada. Quando o
+conflito de merge for de lógica de domínio (não de versão trivial), `git log --oneline
+<target>..<destino> -- <arquivos-em-conflito>` lista os commits do lado destino que tocaram os mesmos
+arquivos; leia a mensagem **completa** de cada candidato (`git show <sha> -s --format='%B'`), não só o
+assunto — é no corpo que normalmente está o "porquê" e a rejeição explícita de alternativas.
+
+**Merge "sem conflito" não é prova de nada, textual ou semântica.** Git só marca `CONFLICT` quando as
+duas edições tocam a mesma linha; duas refatorações da mesma responsabilidade em pontos de texto
+diferentes (a mesma lógica de negócio reescrita de formas incompatíveis nos dois lados) se concatenam
+em silêncio como "Auto-merging", sem marcador algum, mesmo produzindo método duplicado, `await` fora de
+`async`, chave desbalanceada ou referência a campo que só existe de um lado. Trate **todo arquivo que o
+PR tocou** — não só os que o git marcou como `CONFLICT` — como unidade de verificação pós-merge: releia
+o arquivo inteiro ou diff contra o merge-base antes de aceitar o resultado. Separadamente, ausência de
+conflito textual também não prova que a árvore compila: o branch destino pode ter introduzido, depois
+que a branch de origem nasceu, um gate de build novo (ex.: analisador Roslyn `PublicApiAnalyzer`
+exigindo toda API pública declarada em `PublicAPI.Shipped.txt`/`Unshipped.txt`, ou equivalente em outra
+stack) que não gera conflito porque cada lado editou linhas diferentes do mesmo arquivo de rastreio —
+só aparece no build seguinte. Rode o build/teste real sempre, mesmo quando o merge "deu certo"; nunca
+infira limpeza de build a partir de ausência de `CONFLICT`.
+
+**Comando git que falha no meio de uma cadeia não interrompe os comandos seguintes.** `git checkout -b
+<nome> ... && git merge ...` numa única chamada: se o `checkout -b` falhar (ex.: branch residual de uma
+tentativa anterior na mesma sessão), o `&&` não impede o `git merge` de rodar — ele roda no branch em
+que o processo já estava, sem erro visível, porque a falha do checkout não "travou" a árvore, só a
+deixou onde já estava. Ao reexecutar uma sequência que já falhou uma vez: apague o branch residual
+(`git branch -D <nome>`) se não tiver trabalho útil, reutilize-o com `checkout` sem `-b`, ou confirme
+`git branch --show-current` imediatamente depois do `checkout -b` — nunca assuma que o passo seguinte
+"rodou sem erro" porque o anterior funcionou.
+
+**O que já está no índice entra no próximo commit, mesmo com paths explícitos.** `git add <path>` com
+caminho explícito só controla o que você acabou de adicionar — não desfaz um `git rm` ou `git add`
+anterior que já estava no índice. Em sessão que intercala Red, Green e correção de teste, uma correção
+comitada no meio de um Green em andamento pode levar junto a remoção de um arquivo que ainda devia
+existir, deixando o commit intermediário com o build quebrado. Antes de todo commit, confira `git diff
+--cached --name-status` contra o que você pretende; em fluxo Red/Green, prefira `rm` comum em vez de
+`git rm` até o commit final, ou use `git commit -- <paths>` para comitar só os caminhos pretendidos
+ignorando o resto do índice.
 
 ---
 
@@ -176,6 +237,14 @@ Pronto para implementar <nome-da-feature>
 ### Prosseguir com testes falhando
 - **Problema:** impossível distinguir bug novo de problema pré-existente.
 - **Correção:** reportar as falhas e obter permissão explícita para prosseguir.
+
+### Tratar worktree alheio como disponível
+- **Problema:** rodar `reset`/`checkout -f`/`clean` numa worktree que outra sessão criou, apagando o trabalho dela sem erro visível do git.
+- **Correção:** verificar `pwd`/`git branch --show-current` contra o esperado antes de qualquer comando destrutivo; na dúvida, parar e perguntar em vez de "limpar".
+
+### Aceitar "sem conflito" como "merge seguro"
+- **Problema:** declarar um merge de branch longeva pronto porque o git não marcou `CONFLICT`, sem reler os arquivos tocados nem rodar build/teste.
+- **Correção:** ver "Mesclar branch longeva dentro do worktree" — todo arquivo que o PR tocou entra na verificação pós-merge, e o build real roda sempre.
 
 ---
 

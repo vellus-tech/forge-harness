@@ -33,7 +33,7 @@ SCRIPT="$WS/template/.forge/scripts/check-attack-premise.sh"
 T="$(mktemp -d "${TMPDIR:-/tmp}/forge-attack-premise.XXXXXX")"
 trap 'rm -rf "$T"' EXIT
 
-declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 0;; coding-loop-wiring) echo 0;; human-wiring) echo 0;; premise-mutation) echo 0;; suppression-grammar) echo 0;; suppression-wiring) echo 0;; suppression-mutation) echo 0;; spike) echo 0;; esac; }
+declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 0;; human-wiring) echo 0;; premise-mutation) echo 0;; suppression-grammar) echo 0;; suppression-wiring) echo 0;; suppression-mutation) echo 0;; spike) echo 0;; esac; }
 ALL_GROUPS="script implement-wiring coding-loop-wiring human-wiring premise-mutation suppression-grammar suppression-wiring suppression-mutation spike"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
@@ -183,6 +183,36 @@ EOF
   set +e; out="$(_ck --file "$F" --task-id TASK-01 --bogus x)"; rc=$?; set -e
   [ "$rc" -eq 2 ] || _fail script-12 "flag desconhecida deveria sair 2 — rc=$rc: $out"
   echo "OK [script-12] — 3 erros de uso com rc 2"
+fi
+
+# ──────────────────── implement-wiring (TASK-02: REQ-01/REQ-02) ────────────────────
+if _want implement-wiring; then
+  IMPL="$WS/template/.forge/commands/specs/implement.md"
+
+  _scn "[implement-wiring-1] âncora real do HALT intacta (literal, com os negritos originais)"
+  grep -qF '**Falha irrecuperável** (gate falha após 2 tentativas de correção, dependência externa indisponível, decisão de produto necessária): marque `[!]`, **pare a execução** e reporte o que travou' "$IMPL" \
+    || _fail implement-wiring-1 "âncora literal do HALT ausente/drift em $IMPL"
+  echo "OK [implement-wiring-1] — âncora do HALT presente"
+
+  _scn "[implement-wiring-2] bloco 'Premissa nomeada' nomeia os três campos e a causa específica, imediatamente após a âncora"
+  AFTER="$(awk '/pare a execução\*\* e reporte o que travou/{f=1} f{print; c++} c>40{exit}' "$IMPL")"
+  grep -qF 'Premissa nomeada' <<<"$AFTER" || _fail implement-wiring-2 "parágrafo 'Premissa nomeada' ausente após a âncora: $IMPL"
+  for campo in "Gate:" "Premissa:" "Ator(es) com o desequilíbrio:"; do
+    grep -qF "$campo" <<<"$AFTER" || _fail implement-wiring-2 "campo '$campo' ausente no bloco: $IMPL"
+  done
+  grep -qF 'gate falha após 2 tentativas de correção' <<<"$AFTER" || _fail implement-wiring-2 "causa específica não citada no bloco: $IMPL"
+  echo "OK [implement-wiring-2] — Gate/Premissa/Ator(es) e causa citados"
+
+  _scn "[implement-wiring-3] chamada real a check-attack-premise.sh --file tasks.md --task-id, condicionada à causa"
+  grep -qF 'check-attack-premise.sh --file tasks.md --task-id' <<<"$AFTER" \
+    || _fail implement-wiring-3 "chamada ao script ausente/flags divergentes: $IMPL"
+  echo "OK [implement-wiring-3] — chamada ao script presente com as flags documentadas"
+
+  _scn "[implement-wiring-4] pré-condição de retomada no pré-flight (passo 1) recusa retomar [!] sem os campos"
+  PRE1="$(awk '/^1\. Status `tasks-ready`/{f=1} f{print} /^2\./{exit}' "$IMPL")"
+  grep -qF 'check-attack-premise.sh' <<<"$PRE1" || _fail implement-wiring-4 "pré-flight não chama o script antes de retomar: $IMPL"
+  grep -qiE 'recuse a retomada' <<<"$PRE1" || _fail implement-wiring-4 "pré-flight não nomeia a recusa de retomada: $IMPL"
+  echo "OK [implement-wiring-4] — pré-condição de retomada presente no passo 1"
 fi
 
 # ───────────────────────────── fechamento ─────────────────────────────

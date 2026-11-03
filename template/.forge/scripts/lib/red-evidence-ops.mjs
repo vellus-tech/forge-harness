@@ -483,7 +483,7 @@ async function cmdEnsure(changeDir, argv) {
     if (!view.test_path || !view.command) { skippedIncomplete++; continue; }
     // eslint-disable-next-line no-await-in-loop -- cada entrada é UM teste real, deliberadamente
     // sequencial (mesmo espírito do "sem cache" da Onda E: custo proporcional, nunca paralelo
-    // demais para o replay efêmero em worktree git que lib/red-replay.mjs já usa).
+    // demais para o replay efêmero em worktree git que lib/red-replay.mjs já usa). LDG-0232.
     const result = await runReplay({ root, evidence: view, timeoutS });
     const persisted = persistReplayResult(ev, current, result, { id: entry.id });
     if (persisted.refused) {

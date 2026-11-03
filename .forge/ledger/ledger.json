@@ -3934,7 +3934,7 @@
       "resolved_at": null,
       "dedup_key": "manual:LDG-0228"
     },
-{
+    {
       "id": "LDG-0229",
       "type": "follow-up",
       "title": "O `red-evidence.sh task` roda o teste num worktree efêmero sem `node_modules`; gate que depende de `ajv` (dependência de desenvolvimento) só prova o vermelho com `--setup-command` ligando o `node_modu",
@@ -4011,6 +4011,32 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "add-ledger-evidence-aging:verify-3"
+    },
+    {
+      "id": "LDG-0232",
+      "type": "tech-debt",
+      "title": "Duas supressões do próprio harness sem referência rastreável (higiene, TASK-08 adopt-ub-mode-practices)",
+      "detail": "Achado durante o design do change adopt-ub-mode-practices: template/.forge/scripts/lib/red-evidence-ops.mjs:484 (eslint-disable-next-line no-await-in-loop) e template/.forge/skills/frontend-ui-review/scripts/scan-native-controls.py:723 (noqa: BLE001) tinham justificativa em prosa mas nenhum identificador rastreável (LDG/ADR/ISSUE), o que o scanner novo (check-suppression-reference.sh, REQ-03/REQ-04) passaria a reprovar se essas linhas fossem tocadas de novo. Corrigido adicionando a referência a este próprio item nas duas linhas — sem mudança de comportamento. — Resolvido: Referência adicionada nas duas linhas (TASK-08, commit desta mudança).",
+      "severity": "LOW",
+      "priority": null,
+      "status": "resolved",
+      "source": {
+        "change_id": "adopt-ub-mode-practices",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "adopt-ub-mode-practices"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-03T01:02:55-03:00",
+      "updated_at": "2026-11-03T01:02:55-03:00",
+      "resolved_at": "2026-11-03T01:02:55-03:00",
+      "dedup_key": "manual:LDG-0232"
     }
   ]
 }

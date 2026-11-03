@@ -68,7 +68,7 @@ O gate de teste do change vive num arquivo só, `tests/adopt-ub-mode-practices-g
 
 ## Wave 3 — Spike de medição, roteiro executável (REQ-05)
 
-- [ ] TASK-13 — Script de spike: complexidade via `@babel/parser` (devDependency real deste repositório — `tools/` roda a partir do `node_modules` da raiz, então a dependência existe aqui; sobre um consumidor externo sem essa devDependency, o script resolve via `npx @babel/parser@<versão fixada>` da mesma forma que o `jscpd`) + duplicação (`jscpd` via `npx jscpd@<versão fixada>`, nunca instalado como dependência) sobre universo `git ls-files` (rastreia: REQ-05; paths: `tools/spike-complexity-duplication.mjs`, `tests/adopt-ub-mode-practices-gate.sh`; depende: —). Precedente de localização em `tools/`: `tools/plan-progress.mjs`.
+- [-] TASK-13 — Script de spike: complexidade via `@babel/parser` (devDependency real deste repositório — `tools/` roda a partir do `node_modules` da raiz, então a dependência existe aqui; sobre um consumidor externo sem essa devDependency, o script resolve via `npx @babel/parser@<versão fixada>` da mesma forma que o `jscpd`) + duplicação (`jscpd` via `npx jscpd@<versão fixada>`, nunca instalado como dependência) sobre universo `git ls-files` (rastreia: REQ-05; paths: `tools/spike-complexity-duplication.mjs`, `tests/adopt-ub-mode-practices-gate.sh`; depende: —). Precedente de localização em `tools/`: `tools/plan-progress.mjs`.
   - Teste (comando): `bash tests/adopt-ub-mode-practices-gate.sh spike`
   - Padrão de falha: `FAIL \[spike`
   - Setup do teste: fixture com 2-3 arquivos de complexidade/duplicação conhecidas (um caso claramente acima do limiar, um claramente abaixo), para o gate comparar contra oráculo fixo

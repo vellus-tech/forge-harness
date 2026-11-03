@@ -412,7 +412,9 @@ if ("status" in r && r.status) process.exit(1);
 ok 31
 
 # [32] resultado de active-spec sempre traz kind: 'active-spec' em --json (campo estruturado,
-#      design §2.4/REQ-01) — sem rótulo de status (não é ADR) nem em texto.
+#      design §2.4/REQ-01) e, na saída texto, o rótulo de origem '[ACTIVE-SPEC]' aparece antes do
+#      doc (REQ-01 último critério: nunca misturado sem marca com baseline estável) — sem rótulo
+#      de status (não é ADR).
 Q32="$(qjson 'Texto exclusivo da spec ativa para TASK-04 (caso 32)')" || fail 32 "query falhou: $Q32"
 node -e '
 const q = JSON.parse(process.argv[1]);
@@ -423,6 +425,7 @@ T32="$(qtext 'Texto exclusivo da spec ativa para TASK-04 (caso 32)')" || fail 32
 L32="$(printf '%s\n' "$T32" | grep 'some-change/requirements.md' || true)"
 [ -n "$L32" ] || fail 32 "active-spec nao apareceu na saida texto: $T32"
 case "$L32" in *"[SUPERSEDED]"*|*"[DEPRECATED]"*|*"[REJECTED]"*) fail 32 "rotulo de status indevido em active-spec: $L32" ;; esac
+case "$L32" in *"[ACTIVE-SPEC]"*) : ;; *) fail 32 "rotulo de origem [ACTIVE-SPEC] ausente na saida texto: $L32" ;; esac
 ok 32
 
 # [33] índice construído ANTES deste change (format: 3) é reconstruído automaticamente no próximo

@@ -34,5 +34,6 @@
 #hook	matcher	contrato	estado
 prevent-secrets-leak.sh	^(Write|Edit|MultiEdit|NotebookEdit)$	stdin-json	armado
 enforce-worktree-location.sh	^Bash$	stdin-json	armado
+prevent-aws-credentials-read.sh	^(Bash|Read)$	stdin-json	armado
 check-language-policy.sh	Write|Edit	argv	retido:portao-invertido-le-o-disco-alcance-de-conteudo-zero-LDG-0387
 validate-naming-conventions.sh	Write|Edit	argv	retido:28-falsos-positivos-estruturais-em-engine-e-sai-por-exit-1-LDG-0387

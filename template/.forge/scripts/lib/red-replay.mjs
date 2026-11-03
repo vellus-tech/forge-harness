@@ -486,10 +486,31 @@ function runTest({ cwd, command, timeoutS }) {
   });
 }
 
-function truncateExcerpt(s) {
+// LDG-0020: só guardar a CAUDA perdia a asserção (Expected/Actual) em teste de integração
+// verboso, quando o log de depuração do host enche o fim da saída e a asserção fica mais perto
+// do começo — check-red-first.sh reclassificava o excerto armazenado como 'unknown' mesmo com
+// Red observado de verdade pelo replay (a classificação do replay, acima, usa a saída INTEIRA;
+// só o excerto truncado que sobrevive no artefato é que perdia a asserção). Com `pattern`
+// (failure_pattern da evidência) em mãos, guarda uma janela em torno do primeiro match — a
+// prova de que a asserção existe na saída, não qualquer trecho dela. Sem pattern, ou sem
+// match (pattern mudou desde a última gravação, por exemplo), cai para cabeça+cauda: a
+// asserção pode estar em qualquer um dos dois extremos de uma saída verbosa, nunca só no fim.
+export function truncateExcerpt(s, pattern) {
   const text = String(s || '');
   if (text.length <= EXCERPT_MAX_CHARS) return text;
-  return `…(truncado — ${text.length} chars)…\n${text.slice(-EXCERPT_MAX_CHARS)}`;
+  const half = Math.floor(EXCERPT_MAX_CHARS / 2);
+  if (pattern) {
+    let match = null;
+    try { match = new RegExp(pattern, 'm').exec(text); } catch { match = null; }
+    if (match) {
+      const start = Math.max(0, match.index - half);
+      const end = Math.min(text.length, match.index + match[0].length + half);
+      const prefix = start > 0 ? `…(truncado — ${text.length} chars)…\n` : '';
+      const suffix = end < text.length ? `\n…(truncado)…` : '';
+      return `${prefix}${text.slice(start, end)}${suffix}`;
+    }
+  }
+  return `${text.slice(0, half)}\n…(truncado — ${text.length} chars)…\n${text.slice(-half)}`;
 }
 
 // normalizeExcerpt: torna o excerto REPRODUZÍVEL antes de hashear (Furo 11) — sem isso,
@@ -726,7 +747,7 @@ export async function replay({ root, evidence, timeoutS = DEFAULT_TIMEOUT_S }) {
       return finish({ verdict: 'not-possible', reason: 'ambiente do worktree incompleto — execução indeterminada na base (sinal externo/erro de spawn)', strategy: effective.strategy });
     }
     const classification = classify(baseRun.output);
-    const excerpt = truncateExcerpt(normalizeExcerpt(baseRun.output, [baseDir, headDir]));
+    const excerpt = truncateExcerpt(normalizeExcerpt(baseRun.output, [baseDir, headDir]), failurePattern);
     const baseInfo = { strategy: effective.strategy, ref: effective.ref, exitCode: baseRun.exitCode, classification, excerpt };
 
     if (baseRun.exitCode === 0) {
@@ -1000,7 +1021,7 @@ export async function replayTask({ root, red, green = null, taskBase = null, tas
       const setup = await runSetup({ cwd: dir, setupCommand, timeoutS });
       if (!setup.ok) return { setupFail: setup.reason };
       const run = await runTest({ cwd: dir, command, timeoutS });
-      return { ...run, excerpt: truncateExcerpt(normalizeExcerpt(run.output, [dir])) };
+      return { ...run, excerpt: truncateExcerpt(normalizeExcerpt(run.output, [dir]), failurePattern) };
     } finally {
       removeWorktree(root, dir);
     }

@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**66 itens ativos** · roadmap 8 · tech-debt 36 · known-bug 11 · follow-up 11 · (110 encerrados)
+**67 itens ativos** · roadmap 8 · feature-idea 1 · tech-debt 36 · known-bug 11 · follow-up 11 · (110 encerrados)
 
 ## Roadmap
 
@@ -34,7 +34,8 @@ _Encerrados: 6 (resolved 6)_
 
 ## Ideias de feature
 
-_(nenhum ativo)_
+- **LDG-0248** [open] (P3) — Avaliar banco vetorial local (sqlite-vec) e fila para o kb semântico, condicionado a medição de escala
+  Hoje kb-semantic.mjs usa vectors.bin próprio (header JSON + Float32Array), carregado inteiro em memória, busca brute-force (produto escalar + sort), zero dependência nativa (Node + ONNX WASM). Avaliado nesta sessão: sqlite-vec é pré-v1 e a release hoje só tem KNN exato (sem ANN confirmado em produção) — trocaria formato de armazenamento mas não ganharia velocidade real; vec1 (sqlite.org) tem ANN mais maduro mas a própria doc admite 'testing insuficiente', incompatível com a régua de evidência medida deste projeto. Os dois exigem extensão nativa, quebrando a portabilidade zero-dep/WASM atual. Corpus hoje (forge-harness: centenas de docs; Payments: ~1800) está muito abaixo da escala onde ANN compensa (tipicamente >50-100 mil vetores) — brute-force deve ser sub-segundo. Sobre fila: não existe extensão SQLite equivalente a pgmq (só libs de aplicação tipo litequeue/liteque sobre uma tabela); o problema real que uma fila resolveria (reindexação duplicada por sessões Claude Code paralelas no mesmo corpus) já tem solução mais simples e já usada no projeto: um mutex leve, no mesmo padrão de heavy-mutex/liaison-lock.mjs — fila é desenho para múltiplos produtores/consumidores concorrentes, não o caso de uma sessão única reindexando seu próprio corpus local. CONDIÇÃO DE PROMOÇÃO (reconsiderar, não implementar agora): medir p95 de latência de kb.sh query num consumidor real com corpus crescendo e confirmar que fica acima de um limiar incômodo (ex.: >500ms) antes de trocar o formato de armazenamento; se promovido, sqlite-vec é a escolha mais segura entre as duas (mais testada em comunidade), sempre como camada opt-in atrás de flag, nunca dependência obrigatória, no mesmo padrão em que o semântico já é opcional sobre o lexical.
 
 _Encerrados: 2 (resolved 2)_
 

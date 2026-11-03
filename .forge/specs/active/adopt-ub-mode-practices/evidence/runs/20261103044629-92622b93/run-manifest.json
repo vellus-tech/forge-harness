@@ -1,0 +1,75 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20261103044629-92622b93",
+  "stage": "verify",
+  "status": "passed",
+  "started_at": "2026-11-03T04:46:29Z",
+  "finished_at": "2026-11-03T04:46:29.976Z",
+  "duration_ms": 976,
+  "git": {
+    "repo": true,
+    "branch": "feat/harness/adopt-ub-mode-practices",
+    "head_sha": "cf0436a15ec2cba9a134663c4af9398d601c0463",
+    "dirty": true,
+    "changed_files": [
+      ".forge/graph/cache/fingerprints.json",
+      ".forge/graph/graph.json",
+      ".forge/graph/report.md",
+      ".forge/specs/active/adopt-ub-mode-practices/approvals.yaml",
+      ".forge/specs/active/adopt-ub-mode-practices/impact.json",
+      ".forge/specs/active/adopt-ub-mode-practices/verification.yaml"
+    ],
+    "diff_stat": ".forge/graph/cache/fingerprints.json                 |  4 ++--\n .forge/graph/graph.json                              | 20 +++++++++++++-------\n .forge/graph/report.md                               |  2 +-\n .../active/adopt-ub-mode-practices/approvals.yaml    |  8 ++++++++\n .../active/adopt-ub-mode-practices/verification.yaml |  4 ++--\n 5 files changed, 26 insertions(+), 12 deletions(-)",
+    "diff_sha256": "1f529dbad6a762236011730179f065db86385e9896c70f4d1f9a0776491b050a"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "4c6e11012c7d8155788f8612e2326c5f185eb7be20578e9079184c361bdac6cc",
+      "bytes": 1600,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "8ba8e982518bfa4ff0601e3f91fc38608ac732e0c6523e63886fc024401917d6",
+      "bytes": 14007,
+      "kind": "file"
+    },
+    {
+      "path": "traceability.yaml",
+      "exists": false,
+      "sha256": null,
+      "bytes": null
+    }
+  ],
+  "commands": [
+    {
+      "name": "spec-verify",
+      "command": "spec-verify.sh adopt-ub-mode-practices",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "ebceafe9f1fddeda1a31d15a69119d5d6c31ba5134ae0638f856a51836e37766",
+      "bytes": 219,
+      "kind": "file"
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

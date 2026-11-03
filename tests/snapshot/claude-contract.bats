@@ -187,7 +187,7 @@ PYEOF
   [ "$wired" -eq 1 ]
 }
 
-@test "C5: generated settings.json is valid JSON and wires the worktree-guard + secrets-detector + aws-credentials-guard (PreToolUse), by default (issue #125, ORQ-20261027-105)" {
+@test "C5: generated settings.json is valid JSON and wires the worktree-guard + secrets-detector + aws-credentials-guard + cross-session-send-guard (PreToolUse), by default (issue #125, ORQ-20261027-105)" {
   # Issue #125: PreToolUse passou a derivar de .forge/hooks/pre-tool-use/ + hooks.manifest.default
   # em vez de um literal fixo (só o worktree-guard). Um consumidor NOVO (sem .claude/settings.json
   # ainda, o caso deste fixture) recebe o ESTADO PADRÃO do produtor: worktree-guard,
@@ -206,10 +206,11 @@ PYEOF
   ! grep -q 'check-language-policy.sh' "$CLAUDE_DIR/settings.json"
   ! grep -q 'validate-naming-conventions.sh' "$CLAUDE_DIR/settings.json"
   # add-liaison-native-bridge: guard-cross-session-send.sh (matcher ^SendMessage$) nasce armado por
-  # padrão em hooks.manifest.default — soma ao par worktree-guard + prevent-secrets-leak.sh.
+  # padrão em hooks.manifest.default — soma ao trio worktree-guard + prevent-secrets-leak.sh +
+  # prevent-aws-credentials-read.sh (ORQ-20261027-105).
   grep -q 'guard-cross-session-send.sh' "$CLAUDE_DIR/settings.json"
   wired=$(grep -c '"command":' "$CLAUDE_DIR/settings.json")
-  [ "$wired" -eq 3 ]
+  [ "$wired" -eq 4 ]
 }
 
 @test "C5: handoff.auto: true wires +2 Session hooks (SessionStart/SessionEnd) — consolidates w62 into C5 (LDG-0022)" {

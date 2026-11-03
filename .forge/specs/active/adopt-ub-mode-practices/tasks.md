@@ -24,7 +24,7 @@ O gate de teste do change vive num arquivo só, `tests/adopt-ub-mode-practices-g
   - Teste (comando): `bash tests/adopt-ub-mode-practices-gate.sh coding-loop-wiring`
   - Padrão de falha: `FAIL \[coding-loop-wiring`
 
-- [ ] TASK-04 — `coding-loop.md`, `coding-status.md`, `session-discipline.md`, `gate-runner/SKILL.md`: documentação do mecanismo acumulativo (bloco nunca sobrescrito) e nova receita "Premissa nomeada" (rastreia: REQ-01; paths: `template/.forge/commands/coding/coding-loop.md`, `template/.forge/commands/coding/coding-status.md`, `template/.forge/rules/conventions/session-discipline.md`, `template/.forge/skills/gate-runner/SKILL.md`, `tests/adopt-ub-mode-practices-gate.sh`; depende: TASK-03)
+- [-] TASK-04 — `coding-loop.md`, `coding-status.md`, `session-discipline.md`, `gate-runner/SKILL.md`: documentação do mecanismo acumulativo (bloco nunca sobrescrito) e nova receita "Premissa nomeada" (rastreia: REQ-01; paths: `template/.forge/commands/coding/coding-loop.md`, `template/.forge/commands/coding/coding-status.md`, `template/.forge/rules/conventions/session-discipline.md`, `template/.forge/skills/gate-runner/SKILL.md`, `tests/adopt-ub-mode-practices-gate.sh`; depende: TASK-03)
   - Teste (comando): `bash tests/adopt-ub-mode-practices-gate.sh coding-loop-wiring`
   - Padrão de falha: `FAIL \[coding-loop-wiring` (grupo estendido nesta TASK com os cenários de documentação — mesmo grupo da TASK-03, cenários adicionais)
 

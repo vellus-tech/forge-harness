@@ -78,10 +78,19 @@ const CAMPO_GATE = "Gate";
 const CAMPO_FALHA = "FALHA";
 const CAUSA_GATE_2X = "gate falha após 2 tentativas de correção";
 
+// Um valor inteiramente entre "<...>" é placeholder de template (ex.: copiado literal do exemplo
+// de task-coder.md/design.md — "<idem>", "<preenchido só na 2ª ocorrência...>"), nunca conteúdo
+// real preenchido — contá-lo como premissa nomeada aceitaria uma retomada que só copiou o
+// formato, exatamente o que o REQ-01 proíbe (achado da revisão adversarial, implementation_verified).
+function isPlaceholder(value) { return /^<.*>$/.test(value.trim()); }
+
 function blockHasField(fieldLines, name) {
   for (const l of fieldLines) {
     const f = fieldFrom(l);
-    if (f && f[0] === name) return f[1];
+    if (f && f[0] === name) {
+      if (isPlaceholder(f[1])) return null;
+      return f[1];
+    }
   }
   return null;
 }

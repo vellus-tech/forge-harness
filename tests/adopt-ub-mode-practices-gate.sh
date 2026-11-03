@@ -33,7 +33,7 @@ SCRIPT="$WS/template/.forge/scripts/check-attack-premise.sh"
 T="$(mktemp -d "${TMPDIR:-/tmp}/forge-attack-premise.XXXXXX")"
 trap 'rm -rf "$T"' EXIT
 
-declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 3;; premise-mutation) echo 7;; suppression-grammar) echo 10;; suppression-wiring) echo 0;; suppression-mutation) echo 0;; spike) echo 0;; esac; }
+declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 3;; premise-mutation) echo 7;; suppression-grammar) echo 10;; suppression-wiring) echo 3;; suppression-mutation) echo 0;; spike) echo 0;; esac; }
 ALL_GROUPS="script implement-wiring coding-loop-wiring human-wiring premise-mutation suppression-grammar suppression-wiring suppression-mutation spike"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
@@ -502,6 +502,64 @@ function f() { return 1; }
   [ "$rc" -eq 1 ] || _fail grammar-10 "linha sem '# motivo:' deveria reprovar por integridade: rc=$rc — $out"
   grep -qiE "motivo" <<<"$out" || _fail grammar-10 "mensagem não nomeia a exigência de motivo: $out"
   echo "OK [grammar-10] — exclusão do consumidor funcional; integridade sem motivo reprova"
+fi
+
+# ──────────────────── suppression-wiring (TASK-10/11: REQ-03/REQ-04) ────────────────────
+if _want suppression-wiring; then
+  SHIP="$WS/template/.forge/commands/git/ship.md"
+  PREPUSH="$WS/template/.forge/hooks/git/pre-push"
+  SKILL2="$WS/template/.forge/skills/gate-runner/SKILL.md"
+  QGATES="$WS/template/.forge/rules/testing/quality-gates.md"
+
+  _scn "[wiring-1] ship.md passo 3 (antes do commit do passo 4) chama check-suppression-reference.sh --staged"
+  SEC3="$(awk '/^3\. \*\*Testes\/gates do FORGE\.md\.\*\*/{f=1} f{print} /^## Commit\(s\)/{exit}' "$SHIP")"
+  grep -qF 'check-suppression-reference.sh --staged' <<<"$SEC3" || _fail wiring-1 "ship.md passo 3 não chama o script --staged"
+  echo "OK [wiring-1] — ship.md passo 3 chama o scanner antes do commit"
+
+  _scn "[wiring-2] pre-push chama check-suppression-reference.sh --range reusando _redfirst_resolve_base"
+  BLOCK="$(awk '/>>> suppression-reference BEGIN/{f=1} f{print} /<<< suppression-reference END/{exit}' "$PREPUSH")"
+  [ -n "$BLOCK" ] || _fail wiring-2 "âncoras de extração BEGIN/END ausentes em pre-push"
+  grep -qF '_redfirst_resolve_base' <<<"$BLOCK" || _fail wiring-2 "pre-push não reusa _redfirst_resolve_base"
+  grep -qF 'check-suppression-reference.sh' <<<"$BLOCK" || _fail wiring-2 "pre-push não referencia o script"
+  grep -qF -- '--range' <<<"$BLOCK" || _fail wiring-2 "pre-push não chama o script com --range"
+  echo "OK [wiring-2] — pre-push referencia o script, --range e o resolvedor de base"
+
+  _scn "[wiring-3] comportamental: bloco extraído do pre-push bloqueia push com supressão suja e aceita push limpo"
+  F="$T/wire3"; mkdir -p "$F/.forge/scripts" "$F/src"
+  cp "$WS/template/.forge/scripts/check-suppression-reference.sh" "$F/.forge/scripts/check-suppression-reference.sh"
+  chmod +x "$F/.forge/scripts/check-suppression-reference.sh"
+  git init -q "$F"
+  printf 'function f() {\n  return 1;\n}\n' > "$F/src/a.js"
+  git -C "$F" add -A; git -C "$F" -c user.email=t@t -c user.name=t commit -q -m base
+  BASE_SHA="$(git -C "$F" rev-parse HEAD)"
+  printf 'function f() {\n  // eslint-disable-next-line no-unused-vars\n  return 1;\n}\n' > "$F/src/a.js"
+  git -C "$F" add -A; git -C "$F" -c user.email=t@t -c user.name=t commit -q -m violacao
+  DIRTY_SHA="$(git -C "$F" rev-parse HEAD)"
+
+  RESOLVE_FN="$(awk '/^resolve_delegated\(\) \{/{f=1} f{print} f && /^}/{exit}' "$PREPUSH")"
+  HARNESS="$T/wire3-harness.sh"
+  {
+    echo '#!/usr/bin/env bash'
+    echo 'set -u'
+    printf 'ROOT="%s"\n' "$F"
+    printf 'export REPO="%s"\n' "$F"
+    printf 'cd "%s" || exit 2\n' "$F"
+    echo 'HOOK_FORGE_DIR=""'
+    printf '%s\n' "$RESOLVE_FN"
+    echo '. "'"$WS"'/template/.forge/hooks/git/lib/check-red-first.sh"'
+    printf '%s\n' "$BLOCK"
+  } > "$HARNESS"
+
+  export INPUT="refs/heads/work $DIRTY_SHA refs/heads/work $BASE_SHA"
+  set +e; out="$(bash "$HARNESS" 2>&1)"; rc=$?; set -e
+  [ "$rc" -eq 1 ] || _fail wiring-3 "push sujo deveria bloquear (rc 1): rc=$rc — $out"
+  grep -qiE "bloqueado" <<<"$out" || _fail wiring-3 "mensagem não nomeia o bloqueio: $out"
+
+  export INPUT="refs/heads/work $BASE_SHA refs/heads/work 0000000000000000000000000000000000000000"
+  set +e; out="$(bash "$HARNESS" 2>&1)"; rc=$?; set -e
+  [ "$rc" -eq 0 ] || _fail wiring-3 "push limpo (sem violação) não deveria bloquear: rc=$rc — $out"
+  unset INPUT
+  echo "OK [wiring-3] — bloco real do pre-push bloqueia sujo e aceita limpo"
 fi
 
 # ───────────────────────────── fechamento ─────────────────────────────

@@ -33,7 +33,7 @@ SCRIPT="$WS/template/.forge/scripts/check-attack-premise.sh"
 T="$(mktemp -d "${TMPDIR:-/tmp}/forge-attack-premise.XXXXXX")"
 trap 'rm -rf "$T"' EXIT
 
-declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 3;; premise-mutation) echo 7;; suppression-grammar) echo 9;; suppression-wiring) echo 0;; suppression-mutation) echo 0;; spike) echo 0;; esac; }
+declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 3;; premise-mutation) echo 7;; suppression-grammar) echo 10;; suppression-wiring) echo 0;; suppression-mutation) echo 0;; spike) echo 0;; esac; }
 ALL_GROUPS="script implement-wiring coding-loop-wiring human-wiring premise-mutation suppression-grammar suppression-wiring suppression-mutation spike"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
@@ -485,6 +485,23 @@ function f() { return 1; }
   set +e; out="$(cd "$F" && bash "$SUPSCRIPT")"; rc=$?; set -e
   [ "$rc" -eq 2 ] || _fail grammar-9 "sem --staged/--range deveria sair 2 (erro de uso): rc=$rc — $out"
   echo "OK [grammar-9] — --range funcional; erro de uso reprova com rc 2"
+
+  _scn "[grammar-10] .forge/suppression-scan-exclude.txt do consumidor: glob com '# motivo:' exclui; linha sem motivo reprova por integridade"
+  F="$T/g10"; _grepo "$F"
+  mkdir -p "$F/.forge" "$F/vendor"
+  printf 'legado/**  # motivo: código de terceiros congelado, não editamos\n' > "$F/.forge/suppression-scan-exclude.txt"
+  mkdir -p "$F/legado"
+  _stage "$F" legado/old.js 'function f() {
+  // eslint-disable-next-line no-unused-vars
+  return 1;
+}
+'
+  out="$(_run_staged "$F")" || _fail grammar-10 "glob com motivo deveria excluir legado/**: $out"
+  printf 'legado/**\n' > "$F/.forge/suppression-scan-exclude.txt"
+  set +e; out="$(_run_staged "$F")"; rc=$?; set -e
+  [ "$rc" -eq 1 ] || _fail grammar-10 "linha sem '# motivo:' deveria reprovar por integridade: rc=$rc — $out"
+  grep -qiE "motivo" <<<"$out" || _fail grammar-10 "mensagem não nomeia a exigência de motivo: $out"
+  echo "OK [grammar-10] — exclusão do consumidor funcional; integridade sem motivo reprova"
 fi
 
 # ───────────────────────────── fechamento ─────────────────────────────

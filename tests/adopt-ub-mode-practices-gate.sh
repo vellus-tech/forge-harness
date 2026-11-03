@@ -35,7 +35,7 @@ SCRIPT="$WS/template/.forge/scripts/check-attack-premise.sh"
 T="$(mktemp -d "${TMPDIR:-/tmp}/forge-attack-premise.XXXXXX")"
 trap 'rm -rf "$T"' EXIT
 
-declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 3;; premise-mutation) echo 7;; suppression-grammar) echo 11;; suppression-wiring) echo 4;; suppression-mutation) echo 4;; spike) echo 4;; esac; }
+declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 3;; premise-mutation) echo 7;; suppression-grammar) echo 12;; suppression-wiring) echo 4;; suppression-mutation) echo 4;; spike) echo 4;; esac; }
 ALL_GROUPS="script implement-wiring coding-loop-wiring human-wiring premise-mutation suppression-grammar suppression-wiring suppression-mutation spike"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
@@ -513,6 +513,22 @@ function f() { return 1; }
   set +e; out="$(forge_universe_check adopt-ub-suppression 0 "arquivo(s)" "fixtures suppression-grammar" "$WS" 2>&1)"; urc=$?; set -e
   [ "$urc" -ne 0 ] || _fail grammar-11 "universo vazio sem waiver deveria reprovar: $out"
   echo "OK [grammar-11] — $GRAMMAR1_EXAMINED arquivo(s) examinado(s) real(is); universo vazio sem waiver reprova"
+
+  _scn "[grammar-12] higiene da TASK-08: as duas linhas reais do harness (LDG-0232) passam pelo scanner com a referência na própria linha da supressão"
+  REOPS="$WS/template/.forge/scripts/lib/red-evidence-ops.mjs"
+  SCANPY="$WS/template/.forge/skills/frontend-ui-review/scripts/scan-native-controls.py"
+  LINE484="$(sed -n '484p' "$REOPS")"
+  LINE723="$(sed -n '723p' "$SCANPY")"
+  grep -qF 'LDG-0232' <<<"$LINE484" || _fail grammar-12 "a linha real 484 de red-evidence-ops.mjs não cita LDG-0232 — referência fora da linha da supressão: $LINE484"
+  grep -qF 'LDG-0232' <<<"$LINE723" || _fail grammar-12 "a linha real 723 de scan-native-controls.py não cita LDG-0232: $LINE723"
+  F="$T/g12"; mkdir -p "$F/src"; git init -q "$F"
+  printf 'x = 1\n' > "$F/src/a.js"; printf 'y = 1\n' > "$F/src/a.py"
+  git -C "$F" add -A; git -C "$F" -c user.email=t@t -c user.name=t commit -q -m base
+  printf '%s\n' "$LINE484" > "$F/src/a.js"
+  printf '%s\n' "$LINE723" > "$F/src/a.py"
+  git -C "$F" add -A
+  out="$(_run_staged "$F")" || _fail grammar-12 "as duas linhas reais do harness deveriam passar: $out"
+  echo "OK [grammar-12] — as duas linhas reais do harness (LDG-0232) passam com a referência na própria linha"
 fi
 
 # ──────────────────── suppression-wiring (TASK-10/11: REQ-03/REQ-04) ────────────────────

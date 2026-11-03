@@ -28,7 +28,7 @@ O gate de teste do change vive num arquivo só, `tests/adopt-ub-mode-practices-g
   - Teste (comando): `bash tests/adopt-ub-mode-practices-gate.sh coding-loop-wiring`
   - Padrão de falha: `FAIL \[coding-loop-wiring` (grupo estendido nesta TASK com os cenários de documentação — mesmo grupo da TASK-03, cenários adicionais)
 
-- [-] TASK-05 — `verify.md` (seção `## Premissas atacadas` populada pelo modo `--list` do script) e `archive.md` §2 (linha de contagem no resumo que o humano já lê) (rastreia: REQ-01; paths: `template/.forge/commands/specs/verify.md`, `template/.forge/commands/specs/archive.md`, `tests/adopt-ub-mode-practices-gate.sh`; depende: TASK-01)
+- [X] TASK-05 — `verify.md` (seção `## Premissas atacadas` populada pelo modo `--list` do script) e `archive.md` §2 (linha de contagem no resumo que o humano já lê) (rastreia: REQ-01; paths: `template/.forge/commands/specs/verify.md`, `template/.forge/commands/specs/archive.md`, `tests/adopt-ub-mode-practices-gate.sh`; depende: TASK-01)
   - Teste (comando): `bash tests/adopt-ub-mode-practices-gate.sh human-wiring`
   - Padrão de falha: `FAIL \[human-wiring`
 

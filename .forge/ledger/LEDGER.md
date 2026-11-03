@@ -9,7 +9,7 @@
 > (`/forge:ledger add`). Consultado por `/forge:resume` e ao sugerir o próximo trabalho
 > (`rules/conventions/ledger-consultation.md`). **Não-bloqueante**: registrar aqui nunca trava um change.
 
-**64 itens ativos** · roadmap 8 · tech-debt 35 · known-bug 11 · follow-up 10 · (110 encerrados)
+**65 itens ativos** · roadmap 8 · tech-debt 35 · known-bug 11 · follow-up 11 · (110 encerrados)
 
 ## Roadmap
 
@@ -149,6 +149,8 @@ _Encerrados: 38 (resolved 37 · wont-fix 1)_
   A mutação que remove o ramo 'fixture de controle falhou' de readTranscript (native-transcript.mjs) sobrevive aos gates native-readers e native-coverage; acrescentar ponto de injeção da fixture no teste (gate implementation_verified, rodada 1).
 - **LDG-0209** [open] (P3) — Fixture de pre-push com o detector de contenção devolvendo rc 2 (não mediu) · via `add-liaison-native-bridge`
   O pre-push trata rc 2 do native containment, mas nenhum gate tem fixture desse caminho (gate implementation_verified, rodada 1).
+- **LDG-0244** [open] (P3) — Caso automatizado para rotulo [EXTRA-PATH] na saida texto do kb.sh query · via `extend-kb-corpus-sources`
+  O change extend-kb-corpus-sources (TASK-04) implementou KIND_LABEL em kb-cli.mjs::printText() cobrindo active-spec e extra-path, mas o gate tests/extend-kb-corpus-sources-gate.sh so tem caso automatizado para o rotulo [ACTIVE-SPEC] (caso [32]). O comportamento do [EXTRA-PATH] foi confirmado manualmente pelo gate implementation_verified (iteracao 2) num fixture descartavel, mas sem prova automatizada permanente. Adicionar um caso [40] (ou renumerar) ao gate, com fixture extra-path real, antes da proxima vez que kb-cli.mjs for tocado.
 - **LDG-0229** [open] — O `red-evidence.sh task` roda o teste num worktree efêmero sem `node_modules`; gate que depende de `ajv` (dependência de desenvolvimento) só prova o vermelho com `--setup-command` ligando o `node_modu · via `add-ledger-evidence-aging`#verify-1
 - **LDG-0230** [open] — Renomear `tests/ledger-evidence-aging-gate.sh` para o ordinal `wNNN` na hora do merge (critério de nome do REQ-09; convenção do projeto de decidir o ordinal só no merge), atualizando junto o teste cit · via `add-ledger-evidence-aging`#verify-2
 - **LDG-0231** [open] — Reverificar os 38 itens ativos do ledger deste repositório com `ledger-ops.sh verify` (todos aparecem envelhecidos; a reverificação é trabalho de curadoria fora do escopo do change, e o ledger do tron · via `add-ledger-evidence-aging`#verify-3

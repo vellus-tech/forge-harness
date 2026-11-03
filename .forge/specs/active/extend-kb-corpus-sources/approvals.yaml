@@ -71,3 +71,11 @@ approvals:
     decided_at: "2026-11-02T23:56:54-03:00"
     iteration: 1
     commit: "c04ab4a9"
+  - gate: implementation_verified
+    decision: approve
+    autonomous: true
+    reason: "Iteracao 2, conferida por execucao propria e nao pela prosa. As duas pendencias da rodada 1 estao fechadas. (1) Rotulo de origem: KIND_LABEL em kb-cli.mjs printText prefixa ACTIVE-SPEC e EXTRA-PATH antes do doc, combinavel com o rotulo de status; caso 32 endurecido exige o rotulo na linha texto; w309 9/9 e extend-kb-corpus-sources-gate 39/39 verdes rodados por mim sem FORGE_ROOT exportado. O ramo EXTRA-PATH nao tem caso de teste; provei manualmente em fixture descartavel: saida texto 2. [EXTRA-PATH] [SUPERSEDED] docs/adr/0009-velho.md, baseline sem prefixo, --json com kind extra-path e status superseded. (2) verification.md agora registra as 3 execucoes do run-all (201/42, 238/5, 241/2) com causa por gate; a narrativa de causa raiz e plausivel e eu a corroborei por evidencia independente (ver nota a). Reexecutei isolados: w139 PASS (nenhum cabecalho PEM literal em verification.md nem no gate do change; os unicos no repo sao os fixtures do proprio w139, fora do diff do change), plugin-sync PASS, w200 rc 0, gate-assert-visibility rc 0 OK 1 com controle, mutacao e recontrole. REQ-01..07 e NFR-01/02 tem prova em codigo e gate. Notas nao bloqueantes, pela regra de convergencia: (a) a limpeza dos vazamentos da 1a execucao ficou incompleta: LDG-0244, LDG-0245 e LDG-0246 (item-do-worktree, item-w193, controle do 19) foram gravados em .forge/ledger/ledger.json e LEDGER.md entre 22:42 e 22:55, mesma causa FORGE_ROOT exportado, seguem como modificacao nao commitada e nao constam de verification.md; descartar com git checkout dessas duas arquivos antes de qualquer commit, nunca commitar. (b) design secao 2.4 e REQ-07 criterio 5 dizem kind sempre no texto; a implementacao rotula so as duas fontes nao estaveis e preserva a saida das demais, interpretacao declarada em verification.md REQ-01 e coerente com o objetivo do criterio, kind segue sempre presente em --json. (c) falta caso automatizado para o rotulo EXTRA-PATH, candidato a follow-up no ledger. (d) verification.yaml ainda aponta commit 35d1b2ab, anterior as correcoes."
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-11-03T02:27:11-03:00"
+    iteration: 2
+    commit: "2f768312"

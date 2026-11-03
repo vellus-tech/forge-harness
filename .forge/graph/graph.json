@@ -1,8 +1,8 @@
 {
   "schema": "graph/v0",
-  "generated_at": "2026-11-02T21:33:49.913Z",
+  "generated_at": "2026-11-03T01:06:34.176Z",
   "engine": "native",
-  "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/liaison-handoff-baton",
+  "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/extend-kb-corpus-sources",
   "stats": {
     "nodes": 581,
     "edges": 100,
@@ -527,8 +527,8 @@
     {
       "id": "template/.forge/scripts/liaison-ops.sh",
       "lang": "shell",
-      "loc": 2950,
-      "fingerprint": "15d6220af73dd8872e6855424d1187dde441db8a6b1d39ad7a108a2e8c4dd5d4",
+      "loc": 2985,
+      "fingerprint": "578f8d1cb4f3d189eef5b3f406601c8b347108e09802413818c167a872967e93",
       "layer": "unknown",
       "summary": null
     },
@@ -959,8 +959,8 @@
     {
       "id": "template/.forge/scripts/lib/liaison-import.mjs",
       "lang": "js",
-      "loc": 507,
-      "fingerprint": "561a512a7eb659aa9bc2723c9c4008fb6b7b8780043d22ce1fba99a865c9ba45",
+      "loc": 571,
+      "fingerprint": "42275d4bce93619366e77499b7f66a6a41320b7f31fd350375eb335b67a80605",
       "layer": "unknown",
       "summary": null
     },
@@ -1271,7 +1271,7 @@
     {
       "id": "template/.forge/scripts/lib/transports/_common.sh",
       "lang": "shell",
-      "loc": 657,
+      "loc": 652,
       "fingerprint": "198fc5bc0782e8d1a16043e5666d06a87e505ee2b02f7affa2ec526eb12c611f",
       "layer": "unknown",
       "summary": null
@@ -4271,8 +4271,8 @@
     {
       "id": "tests/w321-liaison-symlink-traversal-gate.sh",
       "lang": "shell",
-      "loc": 1308,
-      "fingerprint": "1b89def33af8eb108e22793c9b758986c7776475c2d1c8b04662882f7bf07445",
+      "loc": 1576,
+      "fingerprint": "590a8956ee1c908159b7ae4a24b87bc0895d711c4c00ef6effd2f554b4ebb282",
       "layer": "test",
       "summary": null
     },

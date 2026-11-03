@@ -29,11 +29,13 @@ cd "$WS" || { echo "FAIL: não foi possível entrar em '$WS'"; exit 2; }
 command -v node >/dev/null 2>&1 || { echo "NÃO VERIFICADO: 'node' ausente"; exit 3; }
 
 SCRIPT="$WS/template/.forge/scripts/check-attack-premise.sh"
+# shellcheck disable=SC1091
+. "$WS/template/.forge/scripts/lib/gate-universe.sh" # forge_universe_check (REQ-04, contrafactual de universo)
 
 T="$(mktemp -d "${TMPDIR:-/tmp}/forge-attack-premise.XXXXXX")"
 trap 'rm -rf "$T"' EXIT
 
-declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 3;; premise-mutation) echo 7;; suppression-grammar) echo 10;; suppression-wiring) echo 4;; suppression-mutation) echo 0;; spike) echo 0;; esac; }
+declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 3;; premise-mutation) echo 7;; suppression-grammar) echo 11;; suppression-wiring) echo 4;; suppression-mutation) echo 4;; spike) echo 0;; esac; }
 ALL_GROUPS="script implement-wiring coding-loop-wiring human-wiring premise-mutation suppression-grammar suppression-wiring suppression-mutation spike"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
@@ -284,22 +286,22 @@ fi
 # Controle → mutação → recontrole, padrão w198-liaison-push-union-gate.sh: cada mutante
 # tem de fazer o CENÁRIO QUE O COBRE falhar, e a restauração é bit-a-bit (`cmp`) antes de
 # qualquer avaliação — nunca deixamos a árvore mutada se algo sair errado no meio.
-if _want premise-mutation; then
-  _mutate_and_check() { # _mutate_and_check <label> <file> <perl-expr> <check-fn>
-    local label="$1" file="$2" expr="$3" checkfn="$4"
-    cp "$file" "$T/orig.bak"
-    set +e; "$checkfn" >/tmp/mut-control.log 2>&1; local ctrl=$?; set -e
-    [ "$ctrl" -eq 0 ] || _fail "$label" "controle já falhava antes da mutação: $(cat /tmp/mut-control.log)"
-    perl -0777 -pi -e "$expr" "$file"
-    cmp -s "$file" "$T/orig.bak" && { cp "$T/orig.bak" "$file"; _fail "$label" "a mutação não alterou o arquivo"; }
-    set +e; "$checkfn" >/tmp/mut-mutant.log 2>&1; local mut=$?; set -e
-    cp "$T/orig.bak" "$file"
-    cmp -s "$file" "$T/orig.bak" || _fail "$label" "restauração não bateu (cmp)"
-    set +e; "$checkfn" >/tmp/mut-recontrole.log 2>&1; local recontrole=$?; set -e
-    [ "$recontrole" -eq 0 ] || _fail "$label" "recontrole falhou: $(cat /tmp/mut-recontrole.log)"
-    [ "$mut" -ne 0 ] || _fail "$label" "mutante sobreviveu — nenhum cenário o mata"
-  }
+_mutate_and_check() { # _mutate_and_check <label> <file> <perl-expr> <check-fn>
+  local label="$1" file="$2" expr="$3" checkfn="$4"
+  cp "$file" "$T/orig.bak"
+  set +e; "$checkfn" >/tmp/mut-control.log 2>&1; local ctrl=$?; set -e
+  [ "$ctrl" -eq 0 ] || _fail "$label" "controle já falhava antes da mutação: $(cat /tmp/mut-control.log)"
+  perl -0777 -pi -e "$expr" "$file"
+  cmp -s "$file" "$T/orig.bak" && { cp "$T/orig.bak" "$file"; _fail "$label" "a mutação não alterou o arquivo"; }
+  set +e; "$checkfn" >/tmp/mut-mutant.log 2>&1; local mut=$?; set -e
+  cp "$T/orig.bak" "$file"
+  cmp -s "$file" "$T/orig.bak" || _fail "$label" "restauração não bateu (cmp)"
+  set +e; "$checkfn" >/tmp/mut-recontrole.log 2>&1; local recontrole=$?; set -e
+  [ "$recontrole" -eq 0 ] || _fail "$label" "recontrole falhou: $(cat /tmp/mut-recontrole.log)"
+  [ "$mut" -ne 0 ] || _fail "$label" "mutante sobreviveu — nenhum cenário o mata"
+}
 
+if _want premise-mutation; then
   SCPT="$WS/template/.forge/scripts/check-attack-premise.sh"
   IMPL="$WS/template/.forge/commands/specs/implement.md"
   CODER="$WS/template/.forge/agents/coding/task-coder.md"
@@ -378,6 +380,7 @@ if _want suppression-grammar; then
 }
 '
   out="$(_run_staged "$F")" || _fail grammar-1 "ADR reprovou: $out"
+  GRAMMAR1_EXAMINED="$(grep -oE '^OK — [0-9]+' <<<"$out" | grep -oE '[0-9]+')"
   echo "OK [grammar-1] — $out"
 
   _scn "[grammar-2] issue/closes/fixes/ver #NNN (case-insensitive, fronteira de palavra) válido; 'never #12'/'prefixes #3' NÃO casam"
@@ -502,6 +505,14 @@ function f() { return 1; }
   [ "$rc" -eq 1 ] || _fail grammar-10 "linha sem '# motivo:' deveria reprovar por integridade: rc=$rc — $out"
   grep -qiE "motivo" <<<"$out" || _fail grammar-10 "mensagem não nomeia a exigência de motivo: $out"
   echo "OK [grammar-10] — exclusão do consumidor funcional; integridade sem motivo reprova"
+
+  _scn "[grammar-11] contrafactual de universo (REQ-04): fixtures do grupo não testam universo vazio por acidente"
+  set +e; out="$(forge_universe_check adopt-ub-suppression "${GRAMMAR1_EXAMINED:-0}" "arquivo(s)" "fixtures suppression-grammar" "$WS")"; urc=$?; set -e
+  [ "$urc" -eq 0 ] || _fail grammar-11 "forge_universe_check reprovou com universo real: $out"
+  grep -qF "arquivo(s) examinado(s)" <<<"$out" || _fail grammar-11 "saída de forge_universe_check inesperada: $out"
+  set +e; out="$(forge_universe_check adopt-ub-suppression 0 "arquivo(s)" "fixtures suppression-grammar" "$WS" 2>&1)"; urc=$?; set -e
+  [ "$urc" -ne 0 ] || _fail grammar-11 "universo vazio sem waiver deveria reprovar: $out"
+  echo "OK [grammar-11] — $GRAMMAR1_EXAMINED arquivo(s) examinado(s) real(is); universo vazio sem waiver reprova"
 fi
 
 # ──────────────────── suppression-wiring (TASK-10/11: REQ-03/REQ-04) ────────────────────
@@ -568,6 +579,55 @@ if _want suppression-wiring; then
   grep -qF "check-suppression-reference.sh" <<<"$SECLINT" || _fail wiring-4 "quality-gates.md sem linha citando o script novo"
   grep -qF -- "-- ver ISSUE-123" "$QGATES" || _fail wiring-4 "exemplo canônico '-- ver ISSUE-123' não deveria mudar"
   echo "OK [wiring-4] — receita e linha de enforcement presentes, exemplo canônico intacto"
+fi
+
+# ──────────────────── suppression-mutation (TASK-12: REQ-04) ────────────────────
+if _want suppression-mutation; then
+  SUPSCPT="$WS/template/.forge/scripts/check-suppression-reference.sh"
+  FMUT="$T/sm1"; mkdir -p "$FMUT/src"
+  git init -q "$FMUT"
+  printf 'function f() {\n  return 1;\n}\n' > "$FMUT/src/a.js"
+  git -C "$FMUT" add -A; git -C "$FMUT" -c user.email=t@t -c user.name=t commit -q -m base
+  printf 'function f() {\n  // eslint-disable-next-line no-unused-vars\n  return 1;\n}\n' > "$FMUT/src/a.js"
+  git -C "$FMUT" add -A
+  _check_grammar() { ! ( cd "$FMUT" && bash "$SUPSCPT" --staged >/dev/null 2>&1 ); } # true = violação reprovada (rc≠0)
+
+  _scn "[suppression-mutation-1] gramática de referência: sem a validação, violação deixa de ser reprovada"
+  _mutate_and_check suppression-mutation-1 "$SUPSCPT" 's/if \(SUPPRESSION_RE\.test\(a\.text\) && !hasValidReference\(a\.text\)\)/if (false)/' _check_grammar
+  echo "OK [suppression-mutation-1] — a gramática de referência é a causa real da reprovação"
+
+  F7="$T/sm2"; mkdir -p "$F7/.forge/scripts"
+  git init -q "$F7"
+  git -C "$F7" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  printf 'function f() {\n  // eslint-disable-next-line no-unused-vars\n  return 1;\n}\n' > "$F7/.forge/scripts/x.js"
+  git -C "$F7" add -A
+  _check_forge_excl() { ( cd "$F7" && bash "$SUPSCPT" --staged >/dev/null 2>&1 ); } # true = .forge/ excluído (rc 0)
+
+  _scn "[suppression-mutation-2] exclusão .forge/** da raiz: sem ela, arquivo do consumidor sob .forge/ passa a reprovar"
+  _mutate_and_check suppression-mutation-2 "$SUPSCPT" 's/function isForgeRoot\(p\) \{ return p === "\.forge" \|\| p\.startsWith\("\.forge\/"\); \}/function isForgeRoot(p) { return false; }/' _check_forge_excl
+  echo "OK [suppression-mutation-2] — isForgeRoot é a causa real da exclusão"
+
+  F8="$T/sm3"; mkdir -p "$F8/src"
+  git init -q "$F8"
+  printf 'function f() {\n  return 1;\n}\n' > "$F8/src/a.js"
+  git -C "$F8" add -A; git -C "$F8" -c user.email=t@t -c user.name=t commit -q -m base
+  printf 'function f() {\n  // eslint-disable-next-line no-unused-vars\n  return 1;\n}\n' > "$F8/src/a.js"
+  git -C "$F8" add -A
+  _check_fallback() { # true = a violação REAL foi nomeada (nunca basta reprovar por outro motivo, ex. base vazia)
+    local out; out="$(cd "$F8" && bash "$SUPSCPT" --staged 2>&1)"; grep -q "src/a.js" <<<"$out" # nunca pipe direto: pipefail do topo do gate faria o rc do bash (1, violação) mascarar o rc do grep
+  }
+
+  _scn "[suppression-mutation-3] resolvedor de base (fallback sem origin/develop): sem o fallback do commit raiz, o diff fica vazio e a violação deixa de ser vista"
+  _mutate_and_check suppression-mutation-3 "$SUPSCPT" 's/git -C "\$ROOT" rev-list --max-parents=0 "\$local_sha" 2>\/dev\/null \| tail -1/printf "%s\\\\n" ""/' _check_fallback
+  echo "OK [suppression-mutation-3] — o fallback do commit raiz é a causa real de nunca aprovar por diff vazio"
+
+  _scn "[suppression-mutation-4] contrafactual de universo do próprio gate: sem o forge_universe_check, um universo vazio passaria por sucesso normal"
+  LIBU="$WS/template/.forge/scripts/lib/gate-universe.sh"
+  _check_universe() { # true = universo vazio reprova (resourcea o lib a cada chamada — função já em memória não reflete mutação em disco)
+    ! ( . "$LIBU"; forge_universe_check adopt-ub-suppression 0 "arquivo(s)" "autoteste" "$WS" ) >/dev/null 2>&1
+  }
+  _mutate_and_check suppression-mutation-4 "$LIBU" 's/if \[ "\$count" -gt 0 \]; then/if true; then/' _check_universe
+  echo "OK [suppression-mutation-4] — a checagem de contagem é a causa real de universo vazio nunca passar por sucesso"
 fi
 
 # ───────────────────────────── fechamento ─────────────────────────────

@@ -33,7 +33,7 @@ SCRIPT="$WS/template/.forge/scripts/check-attack-premise.sh"
 T="$(mktemp -d "${TMPDIR:-/tmp}/forge-attack-premise.XXXXXX")"
 trap 'rm -rf "$T"' EXIT
 
-declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 3;; human-wiring) echo 0;; premise-mutation) echo 0;; suppression-grammar) echo 0;; suppression-wiring) echo 0;; suppression-mutation) echo 0;; spike) echo 0;; esac; }
+declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 0;; premise-mutation) echo 0;; suppression-grammar) echo 0;; suppression-wiring) echo 0;; suppression-mutation) echo 0;; spike) echo 0;; esac; }
 ALL_GROUPS="script implement-wiring coding-loop-wiring human-wiring premise-mutation suppression-grammar suppression-wiring suppression-mutation spike"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
@@ -236,6 +236,18 @@ if _want coding-loop-wiring; then
   grep -qF 'check-attack-premise.sh' <<<"$PRE" || _fail coding-loop-wiring-3 "preflight não chama o script: $CODER"
   grep -qiE 'recuse reabrir' <<<"$PRE" || _fail coding-loop-wiring-3 "preflight não nomeia a recusa: $CODER"
   echo "OK [coding-loop-wiring-3] — preflight com pré-condição de retomada"
+
+  _scn "[coding-loop-wiring-4] documentação do mecanismo acumulativo e receita 'Premissa nomeada' em coding-loop.md/coding-status.md/session-discipline.md/gate-runner SKILL.md"
+  LOOP="$WS/template/.forge/commands/coding/coding-loop.md"
+  STATUS="$WS/template/.forge/commands/coding/coding-status.md"
+  DISC="$WS/template/.forge/rules/conventions/session-discipline.md"
+  SKILL="$WS/template/.forge/skills/gate-runner/SKILL.md"
+  for f in "$LOOP" "$STATUS" "$DISC" "$SKILL"; do [ -f "$f" ] || _fail coding-loop-wiring-4 "arquivo ausente: $f"; done
+  grep -qiE 'acumul' "$LOOP" || _fail coding-loop-wiring-4 "coding-loop.md não documenta o bloco acumulativo"
+  grep -qiE 'acumul' "$STATUS" || _fail coding-loop-wiring-4 "coding-status.md não documenta o bloco acumulativo"
+  grep -qF 'Premissa nomeada' "$DISC" || _fail coding-loop-wiring-4 "session-discipline.md sem referência a 'Premissa nomeada'"
+  grep -qF 'Premissa nomeada' "$SKILL" || _fail coding-loop-wiring-4 "gate-runner/SKILL.md sem a receita 'Premissa nomeada'"
+  echo "OK [coding-loop-wiring-4] — documentação do mecanismo nos 4 arquivos"
 fi
 
 # ───────────────────────────── fechamento ─────────────────────────────

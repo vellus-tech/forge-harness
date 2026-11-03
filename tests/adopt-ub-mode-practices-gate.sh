@@ -33,7 +33,7 @@ SCRIPT="$WS/template/.forge/scripts/check-attack-premise.sh"
 T="$(mktemp -d "${TMPDIR:-/tmp}/forge-attack-premise.XXXXXX")"
 trap 'rm -rf "$T"' EXIT
 
-declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 3;; premise-mutation) echo 0;; suppression-grammar) echo 0;; suppression-wiring) echo 0;; suppression-mutation) echo 0;; spike) echo 0;; esac; }
+declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 3;; premise-mutation) echo 7;; suppression-grammar) echo 0;; suppression-wiring) echo 0;; suppression-mutation) echo 0;; spike) echo 0;; esac; }
 ALL_GROUPS="script implement-wiring coding-loop-wiring human-wiring premise-mutation suppression-grammar suppression-wiring suppression-mutation spike"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
@@ -278,6 +278,74 @@ EOF
   out="$(bash "$SCRIPT" --list --file "$F")" || _fail human-wiring-3 "--list reprovou: $out"
   grep -q "TASK-09" <<<"$out" || _fail human-wiring-3 "saída do --list não lista TASK-09: $out"
   echo "OK [human-wiring-3] — --list produz a listagem que a seção documentada consome"
+fi
+
+# ──────────────────── premise-mutation (TASK-06: REQ-02) ────────────────────
+# Controle → mutação → recontrole, padrão w198-liaison-push-union-gate.sh: cada mutante
+# tem de fazer o CENÁRIO QUE O COBRE falhar, e a restauração é bit-a-bit (`cmp`) antes de
+# qualquer avaliação — nunca deixamos a árvore mutada se algo sair errado no meio.
+if _want premise-mutation; then
+  _mutate_and_check() { # _mutate_and_check <label> <file> <perl-expr> <check-fn>
+    local label="$1" file="$2" expr="$3" checkfn="$4"
+    cp "$file" "$T/orig.bak"
+    set +e; "$checkfn" >/tmp/mut-control.log 2>&1; local ctrl=$?; set -e
+    [ "$ctrl" -eq 0 ] || _fail "$label" "controle já falhava antes da mutação: $(cat /tmp/mut-control.log)"
+    perl -0777 -pi -e "$expr" "$file"
+    cmp -s "$file" "$T/orig.bak" && { cp "$T/orig.bak" "$file"; _fail "$label" "a mutação não alterou o arquivo"; }
+    set +e; "$checkfn" >/tmp/mut-mutant.log 2>&1; local mut=$?; set -e
+    cp "$T/orig.bak" "$file"
+    cmp -s "$file" "$T/orig.bak" || _fail "$label" "restauração não bateu (cmp)"
+    set +e; "$checkfn" >/tmp/mut-recontrole.log 2>&1; local recontrole=$?; set -e
+    [ "$recontrole" -eq 0 ] || _fail "$label" "recontrole falhou: $(cat /tmp/mut-recontrole.log)"
+    [ "$mut" -ne 0 ] || _fail "$label" "mutante sobreviveu — nenhum cenário o mata"
+  }
+
+  SCPT="$WS/template/.forge/scripts/check-attack-premise.sh"
+  IMPL="$WS/template/.forge/commands/specs/implement.md"
+  CODER="$WS/template/.forge/agents/coding/task-coder.md"
+  ARCHIVE="$WS/template/.forge/commands/specs/archive.md"
+  VERIFY="$WS/template/.forge/commands/specs/verify.md"
+  FV="$T/mutviol.md"
+  cat > "$FV" <<'EOF'
+- [!] TASK-05 — algo (rastreia: REQ-02; paths: x)
+  > FALHA: gate falha após 2 tentativas de correção — sintoma objetivo
+  > Gate: dotnet build
+EOF
+
+  _scn "[premise-mutation-1] checagem interna: sem a validação, violação deixa de ser reprovada"
+  _check_internal() { ! bash "$SCPT" --file "$FV" --task-id TASK-05 >/dev/null 2>&1; } # true (rc0) = violação reprovada como esperado
+  _mutate_and_check premise-mutation-1 "$SCPT" 's/if \(faltando\.length > 0\) \{/if (false) {/' _check_internal
+  echo "OK [premise-mutation-1] — checagem interna é a causa real da reprovação"
+
+  _scn "[premise-mutation-2] ponto de chamada 1 (implement.md, Loop/HALT): removê-lo faz implement-wiring-3 cair"
+  _check_call1() { AFTER="$(awk '/pare a execução\*\* e reporte o que travou/{f=1} f{print; c++} c>40{exit}' "$IMPL")"; grep -qF 'check-attack-premise.sh --file tasks.md --task-id' <<<"$AFTER"; }
+  _mutate_and_check premise-mutation-2 "$IMPL" 's/Rode `bash \.forge\/scripts\/check-attack-premise\.sh --file tasks\.md --task-id <TASK-NN>`: reprovado, complete os campos antes de emitir o relatório de HALT ao humano — não reporte com os campos vazios\.//' _check_call1
+  echo "OK [premise-mutation-2] — a chamada no Loop/HALT é a causa real do implement-wiring-3"
+
+  _scn "[premise-mutation-3] ponto de chamada 2 (task-coder.md §3.7): removê-lo faz coding-loop-wiring-2 cair"
+  _check_call2() { SEC37="$(awk '/#### 3\.7 Falha/{f=1} f{print} /^### Fase 4/{exit}' "$CODER")"; grep -qF 'check-attack-premise.sh --file docs/product/modules' <<<"$SEC37"; }
+  _mutate_and_check premise-mutation-3 "$CODER" 's/Depois de escrever o bloco, rode `bash \.forge\/scripts\/check-attack-premise\.sh --file docs\/product\/modules\/<modulo>\/PROGRESS-TRACKING\.md --task-id <TASK-NN>`: reprovado, complete os campos antes de declarar o HALT\.//' _check_call2
+  echo "OK [premise-mutation-3] — a chamada em §3.7 é a causa real do coding-loop-wiring-2"
+
+  _scn "[premise-mutation-4] pré-condição de retomada 1 (implement.md, preflight): removê-la faz implement-wiring-4 cair"
+  _check_resume1() { PRE1="$(awk '/^1\. Status \`tasks-ready\`/{f=1} f{print} /^2\./{exit}' "$IMPL")"; grep -qiE 'recuse a retomada' <<<"$PRE1"; }
+  _mutate_and_check premise-mutation-4 "$IMPL" 's/\*\*recuse a retomada\*\*/**aceite a retomada**/' _check_resume1
+  echo "OK [premise-mutation-4] — a pré-condição no preflight do implement.md é a causa real do implement-wiring-4"
+
+  _scn "[premise-mutation-5] pré-condição de retomada 2 (task-coder.md, preflight): removê-la faz coding-loop-wiring-3 cair"
+  _check_resume2() { PRE="$(awk '/falha pendente de revisão humana/{f=1} f{print; c++} c>5{exit}' "$CODER")"; grep -qiE 'recuse reabrir' <<<"$PRE"; }
+  _mutate_and_check premise-mutation-5 "$CODER" 's/\*\*recuse reabrir a onda\*\*/**aceite reabrir a onda**/' _check_resume2
+  echo "OK [premise-mutation-5] — a pré-condição no preflight do task-coder.md é a causa real do coding-loop-wiring-3"
+
+  _scn "[premise-mutation-6] linha de archive.md §2: removê-la faz human-wiring-2 cair"
+  _check_archive() { SEC2="$(awk '/^## 2\. Gate HITL/{f=1} f{print} /^## 3\./{exit}' "$ARCHIVE")"; grep -qF 'Premissas atacadas' <<<"$SEC2"; }
+  _mutate_and_check premise-mutation-6 "$ARCHIVE" 's/ \*\*mais uma linha derivada da contagem de `## Premissas atacadas` em `verification\.md`\*\* \("N premissa\(s\) atacada\(s\) nesta implementação — ver verification\.md"; N=0 também é mostrado, nunca omitido\)//' _check_archive
+  echo "OK [premise-mutation-6] — a linha de archive.md §2 é a causa real do human-wiring-2"
+
+  _scn "[premise-mutation-7] chamada --list de verify.md: removê-la faz human-wiring-1 cair"
+  _check_verifylist() { grep -qF 'check-attack-premise.sh --list' "$VERIFY"; }
+  _mutate_and_check premise-mutation-7 "$VERIFY" 's/check-attack-premise\.sh --list/SCRIPT-REMOVIDO/g' _check_verifylist
+  echo "OK [premise-mutation-7] — a chamada --list em verify.md é a causa real do human-wiring-1"
 fi
 
 # ───────────────────────────── fechamento ─────────────────────────────

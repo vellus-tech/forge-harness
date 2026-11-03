@@ -64,6 +64,17 @@ export function nextLamport(messagesForThread) {
 
 // --- Ordenação ---------------------------------------------------------------
 
+// Desempate de `sender` por CODE POINT (design §2.6.1, REQ-04), nunca por `localeCompare`: este
+// último segue colação ICU e o locale do processo, então ids que diferem só por pontuação
+// (`[a-z0-9._-]`) podem ordenar diferente em réplicas com locales diferentes. Como os ids são
+// ASCII nessa faixa, code point e bytes UTF-8 coincidem, e a ordem fica determinística entre
+// réplicas independente de LANG/LC_ALL. Exportado para ser o único lugar que decide essa ordem.
+export function compareSender(a, b) {
+  const sa = String(a);
+  const sb = String(b);
+  return sa < sb ? -1 : sa > sb ? 1 : 0;
+}
+
 // Ordem total dentro de uma thread: (lamport, sender, seq). Como (sender, seq) é único por
 // mensagem, o tie-break é total — a ordem resultante independe da ordem de entrada do array
 // (propriedade central: embaralhar a entrada não muda a saída).
@@ -71,7 +82,7 @@ export function threadOrder(messages) {
   return messages.slice().sort((a, b) => {
     const l = (Number(a.lamport) || 0) - (Number(b.lamport) || 0);
     if (l !== 0) return l;
-    const s = String(a.sender).localeCompare(String(b.sender));
+    const s = compareSender(a.sender, b.sender);
     if (s !== 0) return s;
     return (Number(a.seq) || 0) - (Number(b.seq) || 0);
   });
@@ -141,11 +152,19 @@ export function detectForks(messages) {
 // Date.parse e não comparação de string: os dois carimbos podem vir com offsets diferentes
 // (-03:00 e Z são o formato real produzido por `git log %cI` em máquinas distintas), e "2026-07-30T
 // 23:00:00Z" é POSTERIOR a "2026-07-30T21:00:00-03:00" apesar de ordenar antes lexicograficamente.
+// add-liaison-handoff-baton, REQ-06/design §2.6 — mensagens de bastão respondem SEMPRE à
+// oferta (`in_reply_to`), e um repositório com HEAD mais antigo que o do ofertante geraria este
+// aviso de forma sistemática e sem valor, porque a causalidade do bastão já é dada pelo
+// `lamport` (REQ-04) — `stamped_at`, não `created_at`, decide o que importa para o bastão
+// (vencimento de lease), e tem o próprio aviso dedicado ("carimbo de bastão no futuro",
+// liaison-ops.sh status/baton status). Ignora SÓ mensagens com `baton`; para as demais, nada
+// muda.
 export function detectClockSkew(messages) {
   const byId = new Map();
   for (const m of messages) if (m && m.msg_id !== undefined && m.msg_id !== null && !byId.has(m.msg_id)) byId.set(m.msg_id, m);
   const out = [];
   for (const m of byId.values()) {
+    if (m.baton) continue;
     if (!m.in_reply_to) continue;
     const ref = byId.get(m.in_reply_to);
     if (!ref) continue;
@@ -225,7 +244,7 @@ export function mergeLogs(messages) {
     const opens = msgs.filter((m) => m.kind === 'thread-open').sort((a, b) => {
       const l = (Number(a.lamport) || 0) - (Number(b.lamport) || 0);
       if (l !== 0) return l;
-      const s = String(a.sender).localeCompare(String(b.sender));
+      const s = compareSender(a.sender, b.sender);
       if (s !== 0) return s;
       return (Number(a.seq) || 0) - (Number(b.seq) || 0);
     });
@@ -274,6 +293,11 @@ export const CROSS_SESSION_TEXT_FIELDS = ['from_addr', 'from_name', 'from_mode']
 export const CROSS_SESSION_TEXT_MAX = 128;
 export const CROSS_SESSION_CONTROL_CHAR_RE = /[\u0000-\u001f\u007f]/;
 export const NATIVE_REF_RE = /^[0-9a-f]{64}$/;
+// add-liaison-handoff-baton, design §2.2/§4.1 — padrão de `op` da camada de ENVELOPE (aberto,
+// sem enum fechado): uma operação de versão futura do harness entra na réplica sem virar
+// conflito nem buraco de `seq`. O conjunto fechado das seis operações é responsabilidade de
+// `validateBaton` (lib/liaison-baton.mjs), que reexporta este padrão em vez de duplicá-lo.
+export const BATON_OP_PATTERN = /^[a-z][a-z-]{0,31}$/;
 
 // Valida a forma do envelope (campos obrigatórios, enums, tetos). Não decide política de
 // import (spoofing, duplicata, quarentena) — isso mora em liaison-ops.sh, que tem o contexto de
@@ -327,6 +351,23 @@ export function validateEnvelope(msg) {
       if (cs.origin_verified !== undefined && typeof cs.origin_verified !== 'boolean') {
         errors.push('cross_session.origin_verified deve ser boolean');
       }
+    }
+  }
+
+  // add-liaison-handoff-baton, REQ-01/design §2.2 — camada de ENVELOPE, a única que este
+  // validador impõe sobre `baton`: objeto, só em kind=note com requires_ack=false, `op` no
+  // padrão aberto. A validação COMPLETA (campos por `op`, limites, aritmética do lease) é a de
+  // `validateBaton`, chamada pelo CLI antes de gravar e pela dobra — nunca aqui, para que uma
+  // mensagem de bastão malformada entre na réplica (sem buraco de `seq`) e receba `malformed`
+  // na dobra, em vez de virar conflito no import.
+  if (Object.prototype.hasOwnProperty.call(msg, 'baton') && msg.baton !== null) {
+    const b = msg.baton;
+    if (typeof b !== 'object' || Array.isArray(b)) {
+      errors.push('baton não é um objeto');
+    } else {
+      if (msg.kind !== 'note') errors.push('baton só é permitido em kind=note');
+      if (msg.requires_ack === true) errors.push('baton exige requires_ack=false');
+      if (typeof b.op !== 'string' || !BATON_OP_PATTERN.test(b.op)) errors.push(`baton.op fora do padrão: ${b.op}`);
     }
   }
   return errors;

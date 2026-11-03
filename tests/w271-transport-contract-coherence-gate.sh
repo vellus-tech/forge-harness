@@ -75,7 +75,13 @@ run_push() {
   (
     LIAISON_SELF="$SELF"
     LIAISON_CHANNEL_DIR="$od"
-    export LIAISON_SELF LIAISON_CHANNEL_DIR
+    # `_dir_push` termina com `liaison-append.mjs union-own` sob a trava do log próprio, que vive em
+    # `$FORGE_ROOT/.forge/cache` — contrato de quem chama (`liaison-ops.sh` exporta FORGE_ROOT).
+    # Sem ele, o union-own deduz a raiz três níveis acima de `$od` (que aqui é sintético e cai em
+    # `/` ou `/private`, sem permissão de escrita) e o push sai como recusa.
+    FORGE_ROOT="$T/scn-root"
+    mkdir -p "$FORGE_ROOT"
+    export LIAISON_SELF LIAISON_CHANNEL_DIR FORGE_ROOT
     # shellcheck source=/dev/null
     . "$commonfile"
     _dir_push "$hd"
@@ -205,10 +211,12 @@ echo "OK [mutA] — confronto reprovaria (tabela='$table_bh_mutA' x real='$word_
 echo "[mutB] case 1 (behind) recusa em vez de unir, comentário intocado — confronto tem de reprovar"
 cp -R "$T/scripts" "$T/scripts-mutB"
 MUTB="$T/scripts-mutB/lib/transports/_common.sh"
-perl -0777 -pi -e 's/      1\)\n(?:.*\n)*?        ;;\n/      1)\n        return 1\n        ;;\n/' "$MUTB"
+# Desde a opção C (add-liaison-handoff-baton), o case 1 de `_dir_push` é uma linha só:
+# `      1) repairs=$((repairs + 1)) ;; # ...`. A mutação troca o corpo por `return 1`, mantendo o
+# comentário da linha (e o da tabela do cabeçalho) intocado.
+perl -0777 -pi -e 's/^      1\) repairs=\$\(\(repairs \+ 1\)\) ;;/      1) return 1 ;;/m' "$MUTB"
 cmp -s "$MUTB" "$BASECOMMON" && { echo "FAIL [mutB]: a mutação de código não alterou o arquivo — o alvo do perl não casou"; exit 1; }
-ctx_mutb="$(grep -A1 '^      1)$' "$MUTB" || true)"
-grep -q 'return 1' <<<"$ctx_mutb" || { echo "FAIL [mutB]: a mutação não produziu 'return 1' logo após o case 1"; exit 1; }
+grep -qE '^      1\) return 1 ;;' "$MUTB" || { echo "FAIL [mutB]: a mutação não produziu 'return 1' no case 1"; exit 1; }
 table_bh_mutB="$(table_word behind "$MUTB")"
 [ "$table_bh_mutB" = "une" ] || { echo "FAIL [mutB]: o comentário mudou sob mutação de CÓDIGO — deveria estar intocado (leu '$table_bh_mutB')"; exit 1; }
 word_bh_mutB="$(run_push "$MUTB" "$BH_HUB" "$BH_OWN")" || true

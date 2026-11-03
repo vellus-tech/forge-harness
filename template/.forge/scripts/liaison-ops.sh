@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
+# forge-liaison: own-log-lock v1
 # liaison-ops.sh — operações deterministas do subsistema liaison: canal de mensagens ORDENADAS
 # entre agentes de repositórios distintos (ex.: dono do .proto/gRPC e app cliente), sem drift de
 # handoff manual. Onda 2: transporte plugável (`transport` + `sync`) sobre o núcleo da Onda 1 —
 # export/import continuam sendo a primitiva manual, e o transporte `manual` é literalmente ela.
+#
+# A sentinela acima (literal, conferida por `doctor.sh`) marca que esta cópia de liaison-ops.sh
+# grava o log próprio sob trava (appendOwn/liaison-lock.mjs, design §2.4). Uma worktree criada de
+# branch ANTERIOR a este change não tem a linha e continua gravando sem trava — limite declarado
+# ("escritor de versão antiga"), detectável por `doctor.sh` listando `git worktree list` e
+# avisando quando a cópia de alguma delas não contém esta sentinela.
 #
 # Modelo (ver rationale completo em lib/liaison-merge.mjs):
 #   - Store: um JSONL append-only POR REMETENTE — .forge/liaison/<channel>/log/<sender>.jsonl,
@@ -45,6 +52,22 @@
 #   liaison-ops.sh native revoke <identidade> --reason "<motivo>"
 #   liaison-ops.sh native pin
 #   liaison-ops.sh native containment [--range <a>..<b>] [--format text|markdown]
+#   liaison-ops.sh baton offer    <channel> --thread <id> --subject "<txt>" \
+#                            [--body "<txt>" | --body-file <path> | --from-handoff] \
+#                            [--for <a,b>] [--max-lease <s>] [--session <id>]
+#   liaison-ops.sh baton claim    <channel> <baton_id> [--lease <s>] [--session <id>]
+#   liaison-ops.sh baton renew    <channel> <baton_id> [--lease <s>] [--session <id>]
+#                            rc do renew (ARCH-001): 0 renovado; 4 PERDA REAL (não é a titular
+#                            corrente, ou o lease venceu, e a retomada é 'baton claim'); 5 ainda não
+#                            é hora (só com FORGE_BATON_RENEW_IF_DUE=1, antes da metade do prazo);
+#                            1 erro ou transitório (trava ocupada, trava perdida, oferta
+#                            desconhecida, argumento inválido, exceção). O gancho de renovação só
+#                            trata como perda o rc 4.
+#   liaison-ops.sh baton release  <channel> <baton_id> [--session <id>] [--body "<txt>" | --body-file <path>]
+#   liaison-ops.sh baton complete <channel> <baton_id> [--session <id>] [--body "<txt>" | --body-file <path>]
+#   liaison-ops.sh baton withdraw <channel> <baton_id> [--session <id>] [--body "<txt>" | --body-file <path>]
+#   liaison-ops.sh baton status   <channel> [<baton_id>] [--json]
+#   liaison-ops.sh baton list     <channel> [--json]
 #
 
 # TRANSPORTE (Onda 2): plugável, em lib/transports/<kind>.sh, com o contrato t_probe/t_push/t_pull.
@@ -54,9 +77,11 @@
 # Topologia de hub único por canal (cada participante publica o próprio log e puxa os N-1
 # restantes) — configuração cresce como N, não como N².
 #
-# Determinístico: created_at = data do commit HEAD (nunca wall clock; exceção: state.json —
-# cursores locais de leitura, único lugar onde wall clock é aceitável). content_sha cobre o
-# envelope canônico menos content_sha/trust. trust é carimbado no IMPORT, nunca pelo remetente —
+# Determinístico: created_at = data do commit HEAD (nunca wall clock; exceções declaradas:
+# state.json — cursores locais de leitura — e baton.stamped_at — relógio de parede de quem
+# grava uma mensagem de bastão, usado só para vencimento de lease, nunca para ordenar; a ordem
+# continua sendo lamport/sender/seq em qualquer caso, inclusive para mensagens de bastão).
+# content_sha cobre o envelope canônico menos content_sha/trust. trust é carimbado no IMPORT, nunca pelo remetente —
 # e, por ser excluído do hash, é o único campo que verificação por integridade não alcança: a
 # derivação dele a partir do arquivo que carrega a linha é conferida por lib/liaison-trust.mjs,
 # chamada no pre-push por check-liaison-acks.sh.
@@ -142,6 +167,50 @@ _reject_unknown() {  # _reject_unknown <subcomando> <flags aceitas> <argumento> 
   echo "  flags aceitas em '$sub': $accepted" >&2
   [ -z "$hint" ] || echo "  $hint" >&2
   exit 1
+}
+
+# _baton_resolve_session <--session-value-ou-vazio> — REQ-10: --session ou, na ausência,
+# CLAUDE_CODE_SESSION_ID; sem nenhum dos dois, recusa dizendo que agentes sem essa variável
+# (Codex, Cursor, Gemini) precisam passar --session. Valida o padrão
+# ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ nos dois casos — autodeclarado, não autentica (a defesa é
+# que quem falsifica já tem escrita no repositório).
+_baton_resolve_session() {
+  local explicit="$1" session=""
+  if [ -n "$explicit" ]; then
+    session="$explicit"
+  elif [ -n "${CLAUDE_CODE_SESSION_ID:-}" ]; then
+    session="$CLAUDE_CODE_SESSION_ID"
+  else
+    echo "FAIL: nenhuma sessão — passe --session <id> (agentes sem CLAUDE_CODE_SESSION_ID, como Codex, Cursor ou Gemini, precisam declarar a sessão explicitamente)" >&2
+    return 1
+  fi
+  case "$session" in
+    [A-Za-z0-9]*) : ;;
+    *) echo "FAIL: session fora do padrão (precisa começar com letra ou dígito): '$session'" >&2; return 1 ;;
+  esac
+  if [ "${#session}" -gt 128 ]; then
+    echo "FAIL: session excede 128 caracteres: '$session'" >&2
+    return 1
+  fi
+  case "$session" in
+    *[!A-Za-z0-9._-]*) echo "FAIL: session fora do padrão (só [A-Za-z0-9._-] após o primeiro caractere): '$session'" >&2; return 1 ;;
+  esac
+  printf '%s' "$session"
+}
+
+# _baton_flags <verbo> — devolve, separado por ", ", as flags aceitas do verbo, lidas de
+# BATON_VERB_FLAGS em liaison-baton.mjs (design §2.2/§2.7: fonte única, sem segunda tabela
+# aqui — o gate de documentação, REQ-16, confere que esta função nunca diverge do módulo).
+_baton_flags() {
+  node - "$LIBDIR" "$1" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, verb] = process.argv;
+  const { BATON_VERB_FLAGS } = await import(pathToFileURL(join(lib, 'liaison-baton.mjs')).href);
+  process.stdout.write((BATON_VERB_FLAGS[verb] || []).join(', '));
+})();
+NODEEOF
 }
 
 _read_self() {
@@ -234,16 +303,19 @@ const { pathToFileURL } = require('url');
   const rejectedOversize = r.blobsRejected.filter((x) => x.kind === 'oversize').map((x) => x.msg_id).join(',');
   const rejectedShaMismatch = r.blobsRejected.filter((x) => x.kind === 'sha-mismatch').map((x) => x.msg_id).join(',');
   const rejectedIoError = r.blobsRejected.filter((x) => x.kind === 'io-error').map((x) => x.msg_id).join(',');
+  // Deduplicado: a mensagem NOVA cujo blob é recusado entra no log sem corpo, e a passada de
+  // recuperação a revisita na mesma chamada e recusa o mesmo blob de novo — um blob, uma linha.
+  const rejectedUnsafe = [...new Set(r.blobsRejected.filter((x) => x.kind === 'unsafe').map((x) => x.msg_id))].join(',');
   // Separador \x1f (US, não-espaço): um campo vazio no MEIO da lista (`div` sem divergência,
   // `missingBoth` sem perda) não pode colapsar com o vizinho. TAB é "IFS whitespace" para o `read`
   // do bash mesmo quando é o único caractere em IFS — sequências dele se fundem e campo vazio some,
   // desalinhando todos os campos depois. \x1f nunca aparece em sender, msg_id ou texto livre.
-  process.stdout.write([r.accepted, r.dup, r.conflicts, r.quarantined, r.remaining, M.IMPORT_MAX_MESSAGES, div, r.blobsRecovered, missingBoth, rejectedOversize, rejectedShaMismatch, rejectedIoError].join('\x1f'));
+  process.stdout.write([r.accepted, r.dup, r.conflicts, r.quarantined, r.remaining, M.IMPORT_MAX_MESSAGES, div, r.blobsRecovered, missingBoth, rejectedOversize, rejectedShaMismatch, rejectedIoError, rejectedUnsafe].join('\x1f'));
 })();
 NODEEOF
 )" || return 1
-  local n_new n_dup n_conf n_quar n_rest n_max div n_recovered missing_both rejected_oversize rejected_sha rejected_io
-  IFS=$'\x1f' read -r n_new n_dup n_conf n_quar n_rest n_max div n_recovered missing_both rejected_oversize rejected_sha rejected_io <<< "$out"
+  local n_new n_dup n_conf n_quar n_rest n_max div n_recovered missing_both rejected_oversize rejected_sha rejected_io rejected_unsafe
+  IFS=$'\x1f' read -r n_new n_dup n_conf n_quar n_rest n_max div n_recovered missing_both rejected_oversize rejected_sha rejected_io rejected_unsafe <<< "$out"
   _render "$channel"
   if [ -n "$div" ]; then
     # Fail-loud continua: reescrita de história exige ação humana na ORIGEM. O que mudou é o
@@ -282,6 +354,13 @@ NODEEOF
   if [ -n "${rejected_io:-}" ]; then
     local n_rio; n_rio="$(tr ',' '\n' <<< "$rejected_io" | grep -c .)"
     echo "WARN: $n_rio blob(s) do $src_word falharam ao instalar por erro de E/S (rejeitado(s), mensagem mantida sem corpo local): $rejected_io" >&2
+  fi
+  # Blob que não é arquivo regular de um vínculo — link simbólico, FIFO, dispositivo ou hardlink
+  # (NODE-201): lido sem seguir link, conferido no descritor, e recusado. Aviso com a causa, porque
+  # é sinal de bundle ou hub adulterado — um blob legítimo nunca é link.
+  if [ -n "${rejected_unsafe:-}" ]; then
+    local n_ru; n_ru="$(tr ',' '\n' <<< "$rejected_unsafe" | grep -c .)"
+    echo "WARN: $n_ru blob(s) do $src_word não é(são) arquivo regular de um vínculo (link simbólico, FIFO ou hardlink) — recusado(s) sem seguir o link (SEC-001), mensagem mantida sem corpo local: $rejected_unsafe" >&2
   fi
   # Blob ausente nos DOIS lados (local e hub/bundle desta chamada): aviso, não recusa — o resto do
   # import continua íntegro —, mas é perda real que merece nome e contagem, nunca rc 0 calado.
@@ -616,46 +695,40 @@ thread)
     [ -n "$subject" ] || { echo "FAIL: --subject obrigatório" >&2; exit 1; }
     [ -n "$participants" ] || { echo "FAIL: --participants obrigatório" >&2; exit 1; }
     IFS=',' read -ra parts <<< "$participants"
-    out="$(node - "$LIBDIR" "$ch_dir" "$self" "$channel" "$thread_id" "$subject" "$body" "${parts[*]}" "$requires_ack" "$(_git_date)" <<'NODEEOF'
-const { readFileSync, writeFileSync, readdirSync, existsSync } = require('fs');
+    out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$self" "$channel" "$thread_id" "$subject" "$body" "${parts[*]}" "$requires_ack" "$(_git_date)" <<'NODEEOF'
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, chDir, self, channel, threadId, subject, body, partsRaw, requiresAck, now] = process.argv;
-  const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
-  const logDir = join(chDir, 'log');
-  const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
-  const all = [];
-  for (const f of files) {
-    const text = readFileSync(join(logDir, f), 'utf8');
-    for (const line of text.split('\n')) { const t = line.trim(); if (t) all.push(JSON.parse(t)); }
+  const [, , lib, root, chDir, self, channel, threadId, subject, body, partsRaw, requiresAck, now] = process.argv;
+  const { appendOwn, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
+  try {
+    const { msg } = await appendOwn({
+      root, chDir, channel, self,
+      build: (all) => {
+        if (all.some((m) => m.thread_id === threadId && m.kind === 'thread-open')) {
+          throw new Error(`thread '${threadId}' já está aberta`);
+        }
+        const participants = [...new Set(partsRaw.split(' ').filter(Boolean))];
+        if (!participants.includes(self)) participants.push(self);
+        return {
+          channel, thread_id: threadId, kind: 'thread-open', in_reply_to: null,
+          requires_ack: requiresAck === 'true', subject, ...(body ? { body } : {}),
+          refs: { change_id: null, contract_files: [], commit: null },
+          participants: participants.sort(),
+          created_at: now, trust: 'self',
+          // abertura: primeira mensagem lógica da thread. appendOwn calcula o lamport por
+          // nextLamport sobre as mensagens já existentes desta thread_id, que aqui são zero
+          // (thread nova) — nextLamport([]) já dá 1 sozinho, sem precisar fixar à mão.
+        };
+      },
+    });
+    process.stdout.write(msg.msg_id);
+  } catch (err) {
+    if (err instanceof AppendValidationError) console.error('envelope inválido: ' + err.errors.join('; '));
+    else if (err instanceof LockLostError) console.error(err.message);
+    else console.error(err && err.message ? err.message : String(err));
+    process.exit(1);
   }
-  if (all.some((m) => m.thread_id === threadId && m.kind === 'thread-open')) {
-    console.error(`thread '${threadId}' já está aberta`); process.exit(1);
-  }
-  const own = all.filter((m) => m.sender === self);
-  const seq = M.nextSeq(own);
-  const lamport = 1; // abertura — primeira mensagem lógica da thread
-  const participants = [...new Set(partsRaw.split(' ').filter(Boolean))];
-  if (!participants.includes(self)) participants.push(self);
-  const msgId = `${self}-${String(seq).padStart(4, '0')}`;
-  const msg = {
-    msg_id: msgId, channel, thread_id: threadId, sender: self, seq, lamport,
-    kind: 'thread-open', in_reply_to: null, requires_ack: requiresAck === 'true',
-    subject, ...(body ? { body } : {}),
-    refs: { change_id: null, contract_files: [], commit: null },
-    participants: participants.sort(),
-    created_at: now, trust: 'self',
-  };
-  msg.content_sha = M.computeContentSha(msg);
-  const errs = M.validateEnvelope(msg);
-  if (errs.length) { console.error('envelope inválido: ' + errs.join('; ')); process.exit(1); }
-  own.push(msg);
-  const target = join(logDir, `${self}.jsonl`);
-  const senderMsgs = all.filter((m) => m.sender === self).concat([msg]).sort((a, b) => a.seq - b.seq);
-  writeFileSync(target + '.tmp', senderMsgs.map((m) => JSON.stringify(m)).join('\n') + '\n');
-  require('fs').renameSync(target + '.tmp', target);
-  process.stdout.write(msgId);
 })();
 NODEEOF
 )"
@@ -675,43 +748,35 @@ NODEEOF
       *) _reject_unknown "thread join" "$THREAD_JOIN_FLAGS" "$1" ;;
     esac; done
     [ -n "$subject" ] || subject="$self entrou na thread"
-    out="$(node - "$LIBDIR" "$ch_dir" "$self" "$channel" "$thread_id" "$subject" "$body" "$requires_ack" "$(_git_date)" <<'NODEEOF'
-const { readFileSync, writeFileSync, readdirSync, existsSync, renameSync } = require('fs');
+    out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$self" "$channel" "$thread_id" "$subject" "$body" "$requires_ack" "$(_git_date)" <<'NODEEOF'
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, chDir, self, channel, threadId, subject, body, requiresAck, now] = process.argv;
-  const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
-  const logDir = join(chDir, 'log');
-  const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
-  const all = [];
-  for (const f of files) {
-    const text = readFileSync(join(logDir, f), 'utf8');
-    for (const line of text.split('\n')) { const t = line.trim(); if (t) all.push(JSON.parse(t)); }
+  const [, , lib, root, chDir, self, channel, threadId, subject, body, requiresAck, now] = process.argv;
+  const { appendOwn, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
+  try {
+    const { msg } = await appendOwn({
+      root, chDir, channel, self,
+      build: (all) => {
+        const threadMsgs = all.filter((m) => m.thread_id === threadId);
+        if (!threadMsgs.some((m) => m.kind === 'thread-open')) {
+          throw new Error(`thread '${threadId}' desconhecida localmente (aguarde o thread-open chegar)`);
+        }
+        return {
+          channel, thread_id: threadId, kind: 'join', in_reply_to: null,
+          requires_ack: requiresAck === 'true', subject, ...(body ? { body } : {}),
+          refs: { change_id: null, contract_files: [], commit: null },
+          created_at: now, trust: 'self',
+        };
+      },
+    });
+    process.stdout.write(msg.msg_id);
+  } catch (err) {
+    if (err instanceof AppendValidationError) console.error('envelope inválido: ' + err.errors.join('; '));
+    else if (err instanceof LockLostError) console.error(err.message);
+    else console.error(err && err.message ? err.message : String(err));
+    process.exit(1);
   }
-  const threadMsgs = all.filter((m) => m.thread_id === threadId);
-  if (!threadMsgs.some((m) => m.kind === 'thread-open')) {
-    console.error(`thread '${threadId}' desconhecida localmente (aguarde o thread-open chegar)`); process.exit(1);
-  }
-  const own = all.filter((m) => m.sender === self);
-  const seq = M.nextSeq(own);
-  const lamport = M.nextLamport(threadMsgs);
-  const msgId = `${self}-${String(seq).padStart(4, '0')}`;
-  const msg = {
-    msg_id: msgId, channel, thread_id: threadId, sender: self, seq, lamport,
-    kind: 'join', in_reply_to: null, requires_ack: requiresAck === 'true',
-    subject, ...(body ? { body } : {}),
-    refs: { change_id: null, contract_files: [], commit: null },
-    created_at: now, trust: 'self',
-  };
-  msg.content_sha = M.computeContentSha(msg);
-  const errs = M.validateEnvelope(msg);
-  if (errs.length) { console.error('envelope inválido: ' + errs.join('; ')); process.exit(1); }
-  const target = join(logDir, `${self}.jsonl`);
-  const senderMsgs = own.concat([msg]).sort((a, b) => a.seq - b.seq);
-  writeFileSync(target + '.tmp', senderMsgs.map((m) => JSON.stringify(m)).join('\n') + '\n');
-  renameSync(target + '.tmp', target);
-  process.stdout.write(msgId);
 })();
 NODEEOF
 )"
@@ -830,62 +895,64 @@ send)
   fi
 
   IFS=',' read -ra cfiles <<< "${contract_files:-}"
-  out="$(node - "$LIBDIR" "$ch_dir" "$self" "$channel" "$thread_id" "$kind" "$subject" "$body" "$body_ref" \
+  out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$self" "$channel" "$thread_id" "$kind" "$subject" "$body" "$body_ref" \
     "$requires_ack" "${in_reply_to:-}" "${change:-}" "${cfiles[*]:-}" "${commit:-}" "$(_git_date)" \
     "${authored_by:-}" "${via:-}" "${cs_from:-}" "${cs_from_name:-}" "${cs_from_mode:-}" \
     "${native_ref:-}" "${cs_origin_verified:-}" <<'NODEEOF'
-const { readFileSync, writeFileSync, readdirSync, existsSync, renameSync } = require('fs');
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, chDir, self, channel, threadId, kind, subject, body, bodyRef,
+  const [, , lib, root, chDir, self, channel, threadId, kind, subject, body, bodyRef,
     requiresAck, inReplyTo, change, cfilesRaw, commit, now, authoredBy, via,
     csFrom, csFromName, csFromMode, csNativeRef, csOriginVerified] = process.argv;
-  const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
-  const logDir = join(chDir, 'log');
-  const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
-  const all = [];
-  for (const f of files) {
-    const text = readFileSync(join(logDir, f), 'utf8');
-    for (const line of text.split('\n')) { const t = line.trim(); if (t) all.push(JSON.parse(t)); }
-  }
-  const threadMsgs = all.filter((m) => m.thread_id === threadId);
-  if (!threadMsgs.some((m) => m.kind === 'thread-open')) {
-    console.error(`thread '${threadId}' desconhecida localmente (abra ou aguarde o thread-open chegar)`); process.exit(1);
-  }
-  const own = all.filter((m) => m.sender === self);
-  const seq = M.nextSeq(own);
-  const lamport = M.nextLamport(threadMsgs);
-  const msgId = `${self}-${String(seq).padStart(4, '0')}`;
+  const { appendOwn, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
   const cfiles = cfilesRaw ? cfilesRaw.split(' ').filter(Boolean) : [];
-  const msg = {
-    msg_id: msgId, channel, thread_id: threadId, sender: self, seq, lamport,
-    kind, in_reply_to: inReplyTo || null, requires_ack: requiresAck === 'true',
-    subject, ...(body ? { body } : {}), ...(bodyRef ? { body_ref: bodyRef } : {}),
-    refs: { change_id: change || null, contract_files: cfiles, commit: commit || null },
-    ...(authoredBy ? { authored_by: authoredBy } : {}),
-    ...(via ? { via } : {}),
-    // REQ-02/design §2.4 passo 8 — cross_session só quando via=cross-session; os cinco subcampos
-    // já vieram calculados e validados por _resolve_cross_session (origem, tetos, segredo).
-    ...(via === 'cross-session' ? {
-      cross_session: {
-        from_addr: csFrom, from_name: csFromName, from_mode: csFromMode,
-        native_ref: csNativeRef, origin_verified: csOriginVerified === 'true',
+  try {
+    const { msg } = await appendOwn({
+      root, chDir, channel, self,
+      build: (all) => {
+        const threadMsgs = all.filter((m) => m.thread_id === threadId);
+        if (!threadMsgs.some((m) => m.kind === 'thread-open')) {
+          throw new Error(`thread '${threadId}' desconhecida localmente (abra ou aguarde o thread-open chegar)`);
+        }
+        return {
+          channel, thread_id: threadId, kind, in_reply_to: inReplyTo || null,
+          requires_ack: requiresAck === 'true', subject,
+          ...(body ? { body } : {}), ...(bodyRef ? { body_ref: bodyRef } : {}),
+          refs: { change_id: change || null, contract_files: cfiles, commit: commit || null },
+          ...(authoredBy ? { authored_by: authoredBy } : {}),
+          ...(via ? { via } : {}),
+          // REQ-02/design §2.4 passo 8 — cross_session só quando via=cross-session; os cinco
+          // subcampos já vieram calculados e validados por _resolve_cross_session (origem,
+          // tetos, segredo).
+          ...(via === 'cross-session' ? {
+            cross_session: {
+              from_addr: csFrom, from_name: csFromName, from_mode: csFromMode,
+              native_ref: csNativeRef, origin_verified: csOriginVerified === 'true',
+            },
+          } : {}),
+          created_at: now,
+          // Conteúdo cuja autoria é de outro repositório NUNCA é 'self', mesmo tendo sido
+          // escrito no nosso arquivo: quem lê precisa saber que a procedência é externa antes
+          // de agir sobre ele.
+          trust: authoredBy ? 'untrusted-peer' : 'self',
+        };
       },
-    } : {}),
-    created_at: now,
-    // Conteúdo cuja autoria é de outro repositório NUNCA é 'self', mesmo tendo sido escrito no
-    // nosso arquivo: quem lê precisa saber que a procedência é externa antes de agir sobre ele.
-    trust: authoredBy ? 'untrusted-peer' : 'self',
-  };
-  msg.content_sha = M.computeContentSha(msg);
-  const errs = M.validateEnvelope(msg);
-  if (errs.length) { console.error('envelope inválido: ' + errs.join('; ')); process.exit(1); }
-  const target = join(logDir, `${self}.jsonl`);
-  const senderMsgs = own.concat([msg]).sort((a, b) => a.seq - b.seq);
-  writeFileSync(target + '.tmp', senderMsgs.map((m) => JSON.stringify(m)).join('\n') + '\n');
-  renameSync(target + '.tmp', target);
-  process.stdout.write(msgId);
+    });
+    process.stdout.write(msg.msg_id);
+  } catch (err) {
+    // Parâmetro de catch deliberadamente diferente de "e": o gate w258 muta textualmente o
+    // PRIMEIRO catch do arquivo que use esse nome de parâmetro específico, que é o do verbo
+    // ack. Nomear o catch daqui com a mesma letra seria casado primeiro pela mutação e
+    // corromperia o mutante — regressão real, observada nesta mesma rodada, não hipotética.
+    // NUNCA usar parênteses dentro deste comentário: bash 3.2 conta parênteses através do
+    // heredoc inteiro para achar o fechamento do $(...) externo, e um comentário com parênteses
+    // desbalanceados entre linhas quebra esse cálculo (mesma causa raiz, achada por biseção).
+    if (err instanceof AppendValidationError) console.error('envelope inválido: ' + err.errors.join('; '));
+    else if (err instanceof LockLostError) console.error(err.message);
+    else console.error(err && err.message ? err.message : String(err));
+    process.exit(1);
+  }
 })();
 NODEEOF
 )"
@@ -933,76 +1000,67 @@ ack)
     body=""
   fi
 
-  out="$(node - "$LIBDIR" "$ch_dir" "$self" "$channel" "$msg_id" "$subject" "$body" "$body_ref" "$(_git_date)" <<'NODEEOF'
-const { readFileSync, writeFileSync, readdirSync, existsSync, renameSync } = require('fs');
+  out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$self" "$channel" "$msg_id" "$subject" "$body" "$body_ref" "$(_git_date)" <<'NODEEOF'
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, chDir, self, channel, targetId, subjectArg, body, bodyRef, now] = process.argv;
-  const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
-  const logDir = join(chDir, 'log');
-  const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
-  const all = [];
-  for (const f of files) {
-    const text = readFileSync(join(logDir, f), 'utf8');
-    for (const line of text.split('\n')) { const t = line.trim(); if (t) all.push(JSON.parse(t)); }
-  }
-  const target = all.find((m) => m.msg_id === targetId);
-  if (!target) { console.error(`mensagem '${targetId}' desconhecida localmente`); process.exit(1); }
-  const threadId = target.thread_id;
-  const threadMsgs = all.filter((m) => m.thread_id === threadId);
-  const own = all.filter((m) => m.sender === self);
-  const seq = M.nextSeq(own);
-  const lamport = M.nextLamport(threadMsgs);
-  const msgId = `${self}-${String(seq).padStart(4, '0')}`;
-  const subject = subjectArg || `ack: ${target.subject || target.msg_id}`;
-  const msg = {
-    msg_id: msgId, channel, thread_id: threadId, sender: self, seq, lamport,
-    kind: 'ack', in_reply_to: targetId, requires_ack: false,
-    subject, ...(body ? { body } : {}), ...(bodyRef ? { body_ref: bodyRef } : {}),
-    refs: { change_id: null, contract_files: [], commit: null },
-    created_at: now, trust: 'self',
-  };
-  msg.content_sha = M.computeContentSha(msg);
-  const errs = M.validateEnvelope(msg);
-  if (errs.length) { console.error('envelope inválido: ' + errs.join('; ')); process.exit(1); }
-  const targetFile = join(logDir, `${self}.jsonl`);
-  const senderMsgs = own.concat([msg]).sort((a, b) => a.seq - b.seq);
-  writeFileSync(targetFile + '.tmp', senderMsgs.map((m) => JSON.stringify(m)).join('\n') + '\n');
-  renameSync(targetFile + '.tmp', targetFile);
+  const [, , lib, root, chDir, self, channel, targetId, subjectArg, body, bodyRef, now] = process.argv;
+  const { appendOwn, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
+  let target = null;
+  try {
+    const { msg, all } = await appendOwn({
+      root, chDir, channel, self,
+      build: (allMsgs) => {
+        target = allMsgs.find((m) => m.msg_id === targetId);
+        if (!target) throw new Error(`mensagem '${targetId}' desconhecida localmente`);
+        const subject = subjectArg || `ack: ${target.subject || target.msg_id}`;
+        return {
+          channel, thread_id: target.thread_id, kind: 'ack', in_reply_to: targetId,
+          requires_ack: false, subject, ...(body ? { body } : {}), ...(bodyRef ? { body_ref: bodyRef } : {}),
+          refs: { change_id: null, contract_files: [], commit: null },
+          created_at: now, trust: 'self',
+        };
+      },
+    });
 
-  // O ack AVANÇA o cursor da thread até a mensagem ackada — issue #102. Antes desta linha, o ato
-  // mais forte de leitura do protocolo não marcava nada como lido, e `read --upto` era o único
-  // caminho por onde um cursor avançava — toda mensagem ackada permanecia não lida.
-  //
-  // Só para mensagem de TERCEIRO. Ackar a própria mensagem é PARTICIPAÇÃO, não leitura: mover o
-  // cursor ali marcaria como lidas as mensagens alheias que ficaram entre o cursor e a própria,
-  // que ninguém leu. É a invariante que separa os dois atos.
-  //
-  // Não-regressão em modo NÃO estrito: ackar algo já lido é legítimo, e transformar isso em erro
-  // faria um ato de protocolo falhar por um cursor que já estava adiante.
+    // O ack AVANÇA o cursor da thread até a mensagem ackada — issue #102. Antes desta linha, o
+    // ato mais forte de leitura do protocolo não marcava nada como lido, e `read --upto` era o
+    // único caminho por onde um cursor avançava — toda mensagem ackada permanecia não lida.
+    //
+    // Só para mensagem de TERCEIRO. Ackar a própria mensagem é PARTICIPAÇÃO, não leitura: mover
+    // o cursor ali marcaria como lidas as mensagens alheias que ficaram entre o cursor e a
+    // própria, que ninguém leu. É a invariante que separa os dois atos.
+    //
+    // Não-regressão em modo NÃO estrito: ackar algo já lido é legítimo, e transformar isso em
+    // erro faria um ato de protocolo falhar por um cursor que já estava adiante.
   if (target.sender !== self) {
     try {
-      const { mergeLogs } = M;
-      const { threads } = mergeLogs(all.concat([msg]));
-      if (threads[threadId] && threads[threadId].order.includes(targetId)) {
+      const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
+      const { threads } = M.mergeLogs(all);
+      if (threads[target.thread_id] && threads[target.thread_id].order.includes(targetId)) {
         const { advanceCursor } = await import(pathToFileURL(join(lib, 'liaison-cursor.mjs')).href);
-        advanceCursor({
-          chDir, threads, threadId, upto: targetId,
+        await advanceCursor({
+          root, channel, chDir, threads, threadId: target.thread_id, upto: targetId,
           nowWall: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'), strict: false,
         });
       }
     } catch (e) {
-      // issue #108: o catch ficava vazio e o `OK ack` saía como se o cursor tivesse avançado — o
-      // efeito colateral falhava em silêncio. O ack em si é um ato de protocolo já PUBLICADO (a
-      // escrita em `targetFile` acima já aconteceu); reportar falha aqui reprovaria um ato que
+      // issue #108: o catch ficava vazio e o `OK ack` saía como se o cursor tivesse avançado —
+      // o efeito colateral falhava em silêncio. O ack em si é um ato de protocolo já PUBLICADO
+      // (a escrita do log próprio acima já aconteceu); reportar falha aqui reprovaria um ato que
       // funcionou por causa de um efeito colateral que não é o ato. Por isso WARN em stderr com
-      // rc 0, nunca `process.exit(1)`.
+      // rc 0, nunca process.exit(1).
       const motivo = (e && e.message) ? e.message : String(e);
       console.error(`WARN: ack publicado, mas o cursor não avançou (${motivo})`);
     }
   }
-  process.stdout.write(msgId);
+    process.stdout.write(msg.msg_id);
+  } catch (err) {
+    if (err instanceof AppendValidationError) console.error('envelope inválido: ' + err.errors.join('; '));
+    else if (err instanceof LockLostError) console.error(err.message);
+    else console.error(err && err.message ? err.message : String(err));
+    process.exit(1);
+  }
 })();
 NODEEOF
 )"
@@ -1039,12 +1097,13 @@ inbox)
     *) _reject_unknown "inbox" "--thread, --show, --titles-only" "$1" ;;
   esac; done
 
-  node - "$LIBDIR" "$ch_dir" "$filter_thread" "$show_body" "$titles_only" <<'NODEEOF'
+  self="$(_read_self)"
+  node - "$LIBDIR" "$ch_dir" "$filter_thread" "$show_body" "$titles_only" "$self" <<'NODEEOF'
 const { readFileSync, readdirSync, existsSync } = require('fs');
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib2, chDir, filterThread, showBody, titlesOnly] = process.argv;
+  const [, , lib2, chDir, filterThread, showBody, titlesOnly, self] = process.argv;
   const M = await import(pathToFileURL(join(lib2, 'liaison-merge.mjs')).href);
   // untrusted-render, não liaison-render: aquele é um SCRIPT (roda o render inteiro ao ser
   // carregado), então importá-lo só pela função quebraria justamente este caminho.
@@ -1069,7 +1128,22 @@ const { pathToFileURL } = require('url');
     const unread = t.messages.slice(cursorIdx + 1);
     if (titlesOnly === 'true' && !unread.length) continue;
     console.log(`${id} — ${t.subject || '(sem assunto)'}: ${unread.length} não lida(s)`);
+    // Condensação de renovações de bastão de PEER (design S2.9): avançam o cursor como qualquer
+    // mensagem, mas a listagem as agrupa numa linha por bastão em vez de uma por renovação — sem
+    // isso, 30 renovações de um bastão calado inundam a inbox e escondem as mensagens que
+    // realmente precisam de atenção.
+    const renewByBaton = new Map();
+    const other = [];
     for (const m of unread) {
+      if (m.baton && m.baton.op === 'renew' && m.sender !== self) {
+        const list = renewByBaton.get(m.in_reply_to) || [];
+        list.push(m);
+        renewByBaton.set(m.in_reply_to, list);
+      } else {
+        other.push(m);
+      }
+    }
+    for (const m of other) {
       console.log(`  ${m.msg_id} [${m.kind}] \`${m.sender}\` — ${m.subject || '(sem assunto)'}`);
       // O corpo só sai com --show, e nunca cru: vai dentro do banner UNTRUSTED, em fence, com
       // `/forge:` neutralizado. Assunto e metadados são gerados por nós a partir do envelope;
@@ -1099,6 +1173,11 @@ const { pathToFileURL } = require('url');
         }
       }
     }
+    for (const [batonId, msgs] of renewByBaton) {
+      const offerMsg = all.find((x) => x.msg_id === batonId);
+      const subject = offerMsg ? (offerMsg.subject || '(sem assunto)') : '(oferta desconhecida)';
+      console.log(`  ${msgs.length} renovação(ões) de ${batonId}: ${subject}`);
+    }
   }
 })();
 NODEEOF
@@ -1115,12 +1194,12 @@ read)
   [ -n "$upto" ] || { echo "FAIL: --upto <msg_id> obrigatório" >&2; exit 1; }
 
   now_wall="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  out="$(node - "$LIBDIR" "$ch_dir" "$upto" "$now_wall" <<'NODEEOF'
-const { readFileSync, writeFileSync, readdirSync, existsSync, renameSync } = require('fs');
+  out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$channel" "$upto" "$now_wall" <<'NODEEOF'
+const { readFileSync, readdirSync, existsSync } = require('fs');
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, chDir, upto, nowWall] = process.argv;
+  const [, , lib, root, chDir, channel, upto, nowWall] = process.argv;
   const { mergeLogs } = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
   const logDir = join(chDir, 'log');
   const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
@@ -1136,7 +1215,7 @@ const { pathToFileURL } = require('url');
   // modo estrito: o operador PEDIU um alvo, e um pedido inválido tem de ser dito.
   const { advanceCursor } = await import(pathToFileURL(join(lib, 'liaison-cursor.mjs')).href);
   try {
-    advanceCursor({ chDir, threads, threadId, upto, nowWall, strict: true });
+    await advanceCursor({ root, channel, chDir, threads, threadId, upto, nowWall, strict: true });
   } catch (e) { console.error(e.message); process.exit(1); }
   process.stdout.write(threadId);
 })();
@@ -1154,15 +1233,17 @@ status)
     [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado" >&2; exit 1; }
     self="$(_read_self)"
     now_wall="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    node - "$LIBDIR" "$ch_dir" "$channel" "$self" "$now_wall" <<'NODEEOF'
+    node - "$LIBDIR" "$ROOT" "$ch_dir" "$channel" "$self" "$now_wall" <<'NODEEOF'
 const { readFileSync, readdirSync, existsSync } = require('fs');
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, chDir, channel, self, nowWall] = process.argv;
+  const [, , lib, root, chDir, channel, self, nowWall] = process.argv;
   const { mergeLogs, formatSkew } = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
   const { readQuarantinedPositions, findMissingLocalBlobs } = await import(pathToFileURL(join(lib, 'liaison-import.mjs')).href);
   const { unpublishedCount } = await import(pathToFileURL(join(lib, 'liaison-publish.mjs')).href);
+  const { checkJournalIntegrity } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
+  const { foldBatons } = await import(pathToFileURL(join(lib, 'liaison-baton.mjs')).href);
   const logDir = join(chDir, 'log');
   const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
   const all = [];
@@ -1171,6 +1252,20 @@ const { pathToFileURL } = require('url');
     for (const line of text.split('\n')) { const t = line.trim(); if (t) all.push(JSON.parse(t)); }
   }
   const { threads, quarantined, gaps, forks, clockSkews } = mergeLogs(all);
+  // Bastões (design S2.7): "· bastões: N disponível(is), M nosso(s), K perdido(s)" na linha do
+  // canal. "nosso(s)" = detidos por este repositório agora; "perdido(s)" = alguma claim PRÓPRIA
+  // perdeu (lost-held) em algum momento, independente do estado atual.
+  let batonBit = '';
+  if (self) {
+    const { batons: batonFold } = foldBatons(all);
+    let avail = 0, ours = 0, lost = 0;
+    for (const [, b] of batonFold) {
+      if (b.state === 'available') avail++;
+      if (b.state === 'held' && b.holder && b.holder.sender === self) ours++;
+      if (b.history.some((h) => h.sender === self && h.op === 'claim' && h.verdict === 'lost-held')) lost++;
+    }
+    if (batonFold.size) batonBit = ` · bastões: ${avail} disponível(is), ${ours} nosso(s), ${lost} perdido(s)`;
+  }
   const state = existsSync(join(chDir, 'state.json')) ? JSON.parse(readFileSync(join(chDir, 'state.json'), 'utf8')) : { cursors: {} };
   const cursors = state.cursors || {};
   let unread = 0;
@@ -1211,13 +1306,80 @@ const { pathToFileURL } = require('url');
       pubBit = ` · ${count} própria(s) não publicada(s)${timeBit}`;
     }
   }
-  console.log(`LIAISON/${channel}: ${Object.keys(threads).length} thread(s) · ${unread} não lida(s) · ${quarantined.length} em quarentena${posBit}${skewBit}${diag}${missingBlobsBit}${pubBit}`);
+  console.log(`LIAISON/${channel}: ${Object.keys(threads).length} thread(s) · ${unread} não lida(s) · ${quarantined.length} em quarentena${posBit}${skewBit}${diag}${missingBlobsBit}${pubBit}${batonBit}`);
   const sh = (v) => (v ? String(v).slice(0, 12) : '?');
   for (const p of pos) console.log(`  ! quarentena por divergência: ${p.sender}@seq=${p.seq} — recebida ${p.msg_id || '?'}/${sh(p.content_sha)}, conhecida ${p.known_msg_id || '?'}/${sh(p.known_content_sha)} (conflicts/${p.file})`);
   for (const c of clockSkews) console.log(`  ! created_at incoerente: ${c.msg_id} (${c.sender}, thread ${c.thread_id}) tem created_at ${c.created_at}, ${formatSkew(c.behind_ms)} ANTES de ${c.in_reply_to} (${c.ref_created_at}) que ela responde — relógio de parede da origem, ou duas cópias do mesmo log escrevendo em paralelo`);
   for (const m of missingBlobs) console.log(`  ! body_ref sem blob local: ${m.sender}/${m.msg_id} (${m.body_ref}) — rode 'sync' ou 'import' para tentar recuperar`);
+  // Escritor de versão antiga (design §2.4, limite declarado): diário de appendOwn conferido
+  // contra o log próprio atual — uma entrada cujo content_sha mudou foi reescrita por uma cópia
+  // de liaison-ops.sh sem a trava do log (worktree de branch anterior a este change).
+  if (self) {
+    for (const bad of checkJournalIntegrity({ root, channel, chDir, self })) {
+      console.log(`  ! log próprio reescrito por escritor sem trava: ${bad.msg_id}`);
+    }
+  }
 })();
 NODEEOF
+    # Rebaixamento da marca de publicação nos transportes de diretório (design §2.4, resíduo da
+    # publicação sem trava): relê o arquivo do próprio self no hub e, se estiver ATRÁS da marca
+    # gravada, rebaixa pela MESMA markPublished({ observedFile }) e avisa. Melhor esforço total —
+    # canal sem transporte configurado, transporte não-diretório (git/gh), ou qualquer erro de
+    # leitura NUNCA interrompem o status nem mudam a linha principal acima; é um bit a mais, não
+    # um requisito do comando.
+    if [ -n "$self" ]; then
+      _status_hub_conf="$(_read_transport "$channel" 2>/dev/null)" && [ -n "$_status_hub_conf" ] || _status_hub_conf=""
+      _status_hub_kind=""; _status_hub_path=""
+      while IFS= read -r _shl; do
+        case "${_shl%%=*}" in KIND) _status_hub_kind="${_shl#*=}" ;; PATH) _status_hub_path="${_shl#*=}" ;; esac
+      done <<< "$_status_hub_conf"
+      case "$_status_hub_kind" in
+        fs|fs-union|manual)
+          # PLAT-204 (checklist SEC-001): o log próprio do hub é escrito por terceiros. Ele era
+          # conferido com `[ -f ]` (que segue link) e lido por caminho pelo markPublished — um link
+          # para um arquivo da vítima virava observação, e um FIFO podia travar. Agora a releitura é
+          # a mesma do push (`_dir_read_hub_own_log`: dentro de `_dir_anchor`, O_NOFOLLOW|O_NONBLOCK,
+          # arquivo regular de um vínculo, teto) para um diretório PRIVADO, e só a cópia vai ao
+          # markPublished. Leitura recusada não rebaixa nada: o markPublished nem roda.
+          _status_obsdir=""; _status_hubf=""; _status_read_ok=1
+          if [ -n "$_status_hub_path" ] && _status_obsdir="$(mktemp -d "${TMPDIR:-/tmp}/liaison-status-obs.XXXXXX")"; then
+            if ! _status_read_err="$(
+              # shellcheck source=lib/transports/_common.sh
+              . "$LIBDIR/transports/_common.sh"
+              LIAISON_SELF="$self"
+              _status_raiz="$(CDPATH='' cd -P -- "$_status_hub_path" 2>/dev/null && pwd -P)" || exit 0
+              # canal ainda sem `log/` no hub (nunca publicado): mesma ausência de antes, sem recusa.
+              [ -e "$_status_raiz/$channel/log" ] || [ -L "$_status_raiz/$channel/log" ] || exit 0
+              _dir_read_hub_own_log "$_status_raiz/$channel" "$_status_obsdir/hub-$self.jsonl" 2>&1 >/dev/null
+            )"; then
+              _status_read_ok=0
+              echo "  ! log próprio no hub recusado pelo leitor seguro (SEC-001) — marca de publicação não alterada: ${_status_read_err%%$'\n'*}"
+            fi
+            if [ -f "$_status_obsdir/hub-$self.jsonl" ]; then _status_hubf="$_status_obsdir/hub-$self.jsonl"; fi
+          fi
+          if [ -n "$_status_hub_path" ] && [ "$_status_read_ok" -eq 1 ]; then
+            node - "$LIBDIR" "$ROOT" "$ch_dir" "$channel" "$self" "$now_wall" "$_status_hubf" <<'NODEEOF2' 2>/dev/null || true
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, chDir, channel, self, nowWall, observedFile] = process.argv;
+  const P = await import(pathToFileURL(join(lib, 'liaison-publish.mjs')).href);
+  const { readFileSync, existsSync } = await import('node:fs');
+  const stateFile = join(chDir, 'state.json');
+  const before = existsSync(stateFile) ? (JSON.parse(readFileSync(stateFile, 'utf8')).published || {})[self] : undefined;
+  const result = await P.markPublished({ root, channel, chDir, self, nowWall, observedFile: observedFile || undefined });
+  const after = result ? result.msgId : undefined;
+  if (before && before !== after) {
+    console.log('  ! hub atrás do log próprio: rode sync');
+  }
+})();
+NODEEOF2
+          fi
+          if [ -n "$_status_obsdir" ]; then rm -rf -- "$_status_obsdir"; fi
+          ;;
+        *) : ;;
+      esac
+    fi
   else
     self="$(_read_self)"
     if [ ! -d "$LIAISON_DIR" ]; then echo "LIAISON: não inicializado"; exit 0; fi
@@ -1304,10 +1466,28 @@ export)
   out_dir=""
   while [ $# -gt 0 ]; do case "$1" in --out) forge_reject_flag_as_value export --out "${2-}" "--out"; out_dir="$2"; shift 2 ;; *) _reject_unknown "export" "--out" "$1" ;; esac; done
   [ -n "$out_dir" ] || { echo "FAIL: --out <dir> obrigatório" >&2; exit 1; }
-  mkdir -p "$out_dir/log" "$out_dir/blobs"
-  if [ -d "$ch_dir/log" ]; then find "$ch_dir/log" -type f -name '*.jsonl' -exec cp {} "$out_dir/log/" \; ; fi
-  if [ -d "$ch_dir/blobs" ]; then find "$ch_dir/blobs" -type f -exec cp {} "$out_dir/blobs/" \; 2>/dev/null || true; fi
-  n="$(find "$out_dir/log" -type f -name '*.jsonl' 2>/dev/null | wc -l | tr -d ' ')" || n=0
+  # ARCH-201 (SEC-001): o diretório de saída tem o layout do transporte `manual` e costuma ser
+  # compartilhado (pendrive, diretório de VPN) — `log/` e `blobs/` dentro dele podem ter sido
+  # escritos por terceiros. O `mkdir -p` + `cp` que havia aqui seguia um symlink plantado em
+  # `blobs/` e escrevia fora (execução de código na máquina de quem exporta). Agora o export publica
+  # pelos MESMOS helpers do `_dir_push`: a raiz `--out` é configuração do operador, confiável e
+  # resolvida por `cd -P`; abaixo dela, guarda de symlink, subdiretório criado por nome relativo no
+  # diretório ancorado e publicação exclusiva + rename por arquivo, pelo módulo node. Sem a união:
+  # o bundle é a fotografia da réplica, inclusive dos logs alheios.
+  # shellcheck source=lib/transports/_common.sh
+  . "$LIBDIR/transports/_common.sh"
+  mkdir -p -- "$out_dir" 2>/dev/null || true
+  out_phys="$(CDPATH='' cd -P -- "$out_dir" 2>/dev/null && pwd -P)" \
+    || { echo "FAIL: diretório de saída inacessível: $out_dir" >&2; exit 1; }
+  _dir_reject_symlink "$out_phys/log" || exit 1
+  _dir_reject_symlink "$out_phys/blobs" || exit 1
+  _dir_ensure_subdir "$out_phys" log || exit 1
+  _dir_ensure_subdir "$out_phys" blobs || exit 1
+  _dir_publish_dir "$ch_dir/log" "$out_phys/log" log substitui || { echo "FAIL: export do canal $channel interrompido — log não publicado em $out_dir" >&2; exit 1; }
+  if [ -d "$ch_dir/blobs" ]; then
+    _dir_publish_dir "$ch_dir/blobs" "$out_phys/blobs" blobs substitui || { echo "FAIL: export do canal $channel interrompido — blobs não publicados em $out_dir" >&2; exit 1; }
+  fi
+  n="$(find "$out_phys/log" -type f -name '*.jsonl' 2>/dev/null | wc -l | tr -d ' ')" || n=0
   echo "OK export — canal $channel exportado para $out_dir ($n arquivo(s) de log)"
   ;;
 
@@ -1322,7 +1502,32 @@ import)
   [ -n "$from_dir" ] || { echo "FAIL: --from <dir> obrigatório" >&2; exit 1; }
   [ -d "$from_dir/log" ] || { echo "FAIL: '$from_dir/log' não encontrado" >&2; exit 1; }
   [ -n "$(_read_self)" ] || { echo "FAIL: self não configurado" >&2; exit 1; }
-  _apply_bundle "$channel" "$from_dir" "import"
+  # NODE-201 (LDG-0233): o bundle de `--from` é escrito por terceiros tanto quanto o hub — chega por
+  # pendrive, diretório compartilhado ou anexo de outro participante. Aplicá-lo cru fazia
+  # `applyBundle` seguir um symlink em `blobs/` para um arquivo da vítima (`~/.ssh/id_rsa`): o
+  # conteúdo entrava na réplica e o próximo `sync` o publicava no hub; um FIFO travava o comando.
+  # Agora o bundle é PUXADO como um hub, pelo mesmo `_dir_pull` do `sync` (leitor seguro de
+  # `liaison-hub-io.mjs`: `readdirSync`, nome por regex estrita, O_NOFOLLOW|O_NONBLOCK, arquivo
+  # regular de um vínculo conferido no descritor, cópia do mesmo fd) para um staging PRIVADO, e só
+  # o staging chega a `_apply_bundle`.
+  #
+  # A RAIZ do `--from` segue o mesmo contrato do hub (`_dir_phys_expected`): o caminho até o PAI é escolha do operador e é resolvido por `cd -P` (pode conter symlink legítimo); o ÚLTIMO componente é conteúdo entregue por terceiros (a pasta extraída do anexo, do pendrive ou do diretório compartilhado) e nunca é seguido. Resolvê-lo por `cd -P` inteiro, como na versão do PR #261, deixava o autor do bundle entregar um link para `.forge/liaison/<outro-canal>` da vítima: a guarda `_dir_reject_symlink` do `_dir_pull` via a raiz já resolvida, o anexo confidencial do outro canal entrava no canal importado e o próximo `sync` o publicava (w321 [I3], [M10]). Com o último componente literal, `_dir_pull` recusa a raiz que é link e ancora `log/` e `blobs/` por `pwd -P`, o que fecha também a troca da raiz por link entre a conferência e a leitura. Barras finais saem antes (`bundle/` não pode virar basename vazio); `.`, `..` e `/` não nomeiam entrada que um terceiro possa plantar como link, e por isso só eles são resolvidos por `cd -P` inteiro.
+  # shellcheck source=lib/transports/_common.sh
+  . "$LIBDIR/transports/_common.sh"
+  from_trim="$from_dir"
+  while [ "${#from_trim}" -gt 1 ] && [ "${from_trim%/}" != "$from_trim" ]; do from_trim="${from_trim%/}"; done
+  case "$(basename -- "$from_trim")" in
+    .|..|/) from_phys="$(CDPATH='' cd -P -- "$from_trim" 2>/dev/null && pwd -P)" || from_phys="" ;;
+    *)      from_phys="$(_dir_phys_expected "$from_trim")" || from_phys="" ;;
+  esac
+  [ -n "$from_phys" ] || { echo "FAIL: diretório do bundle inacessível: $from_dir" >&2; exit 1; }
+  LIAISON_SELF="$(_read_self)"; export LIAISON_SELF
+  staging="$(mktemp -d "${TMPDIR:-/tmp}/forge-liaison-import.XXXXXX")"
+  # shellcheck disable=SC2064
+  trap "rm -rf '$staging'" EXIT
+  _dir_pull "$from_phys" "$staging" \
+    || { echo "FAIL: import do canal $channel RECUSADO — o bundle em $from_dir não pôde ser lido pelo leitor seguro; nada foi aplicado" >&2; exit 1; }
+  _apply_bundle "$channel" "$staging" "import"
   ;;
 
 # ---------------------------------------------------------------------------------------------
@@ -1383,13 +1588,13 @@ NODEEOF
       [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado" >&2; exit 1; }
       self="$(_read_self)"
       [ -n "$self" ] || { echo "FAIL: self não configurado" >&2; exit 1; }
-      out="$(node - "$LIBDIR" "$ch_dir" "$self" "$channel" "$div_sender" "$div_seq" "$(_git_date)" <<'NODEEOF'
-const { readFileSync, writeFileSync, readdirSync, existsSync, renameSync } = require('fs');
+      out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$self" "$channel" "$div_sender" "$div_seq" "$(_git_date)" <<'NODEEOF'
+const { readFileSync, existsSync } = require('fs');
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, chDir, self, channel, divSender, divSeqRaw, now] = process.argv;
-  const M = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
+  const [, , lib, root, chDir, self, channel, divSender, divSeqRaw, now] = process.argv;
+  const { appendOwn, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
   const I = await import(pathToFileURL(join(lib, 'liaison-import.mjs')).href);
   const divSeq = Number(divSeqRaw);
   const pos = I.readQuarantinedPositions(chDir).find((p) => p.sender === divSender && p.seq === divSeq);
@@ -1398,18 +1603,6 @@ const { pathToFileURL } = require('url');
   const rec = JSON.parse(readFileSync(join(chDir, 'conflicts', pos.file), 'utf8'));
   const inc = rec.incoming;
   if (!inc || !inc.thread_id) { console.error(`o registro conflicts/${pos.file} não carrega a mensagem recebida — nada a republicar`); process.exit(1); }
-
-  const logDir = join(chDir, 'log');
-  const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
-  const all = [];
-  for (const f of files) {
-    const text = readFileSync(join(logDir, f), 'utf8');
-    for (const line of text.split('\n')) { const t = line.trim(); if (t) all.push(JSON.parse(t)); }
-  }
-  const threadMsgs = all.filter((m) => m.thread_id === inc.thread_id);
-  if (!threadMsgs.some((m) => m.kind === 'thread-open')) {
-    console.error(`thread '${inc.thread_id}' desconhecida localmente — sincronize a abertura da thread antes de republicar`); process.exit(1);
-  }
   // Corpo em blob: o blob de uma posição RETIDA não é copiado pelo import (só o das mensagens
   // aplicadas), então pode não existir aqui. Republicar sem o corpo seria entregar um envelope
   // vazio dizendo que recuperou o conteúdo.
@@ -1417,32 +1610,36 @@ const { pathToFileURL } = require('url');
     console.error(`o corpo da posição está em ${inc.body_ref}, ausente em blobs/ — peça à origem o blob (ou republique você mesmo o conteúdo com 'send')`); process.exit(1);
   }
 
-  const own = all.filter((m) => m.sender === self);
-  const seq = M.nextSeq(own);
-  const lamport = M.nextLamport(threadMsgs);
-  const msgId = `${self}-${String(seq).padStart(4, '0')}`;
-  const msg = {
-    msg_id: msgId, channel, thread_id: inc.thread_id, sender: self, seq, lamport,
-    kind: 'note', in_reply_to: inc.in_reply_to || null, requires_ack: false,
-    subject: inc.subject,
-    ...(inc.body ? { body: inc.body } : {}),
-    ...(inc.body_ref ? { body_ref: inc.body_ref } : {}),
-    refs: inc.refs || { change_id: null, contract_files: [], commit: null },
-    authored_by: inc.sender,
-    via: 'divergence-resolve',
-    resolves: { sender: inc.sender, seq: divSeq, msg_id: inc.msg_id || null, content_sha: inc.content_sha || null, kind: inc.kind || null },
-    created_at: now,
-    trust: 'untrusted-peer',
-  };
-  msg.content_sha = M.computeContentSha(msg);
-  const errs = M.validateEnvelope(msg);
-  if (errs.length) { console.error('envelope inválido: ' + errs.join('; ')); process.exit(1); }
-  const target = join(logDir, `${self}.jsonl`);
-  const senderMsgs = own.concat([msg]).sort((a, b) => a.seq - b.seq);
-  writeFileSync(target + '.tmp', senderMsgs.map((m) => JSON.stringify(m)).join('\n') + '\n');
-  renameSync(target + '.tmp', target);
-  I.markResolved(chDir, divSender, divSeq, { msg_id: msgId, created_at: now });
-  process.stdout.write(`${msgId}\t${inc.msg_id || '?'}`);
+  try {
+    const { msg } = await appendOwn({
+      root, chDir, channel, self,
+      build: (all) => {
+        const threadMsgs = all.filter((m) => m.thread_id === inc.thread_id);
+        if (!threadMsgs.some((m) => m.kind === 'thread-open')) {
+          throw new Error(`thread '${inc.thread_id}' desconhecida localmente — sincronize a abertura da thread antes de republicar`);
+        }
+        return {
+          channel, thread_id: inc.thread_id, kind: 'note', in_reply_to: inc.in_reply_to || null,
+          requires_ack: false, subject: inc.subject,
+          ...(inc.body ? { body: inc.body } : {}),
+          ...(inc.body_ref ? { body_ref: inc.body_ref } : {}),
+          refs: inc.refs || { change_id: null, contract_files: [], commit: null },
+          authored_by: inc.sender,
+          via: 'divergence-resolve',
+          resolves: { sender: inc.sender, seq: divSeq, msg_id: inc.msg_id || null, content_sha: inc.content_sha || null, kind: inc.kind || null },
+          created_at: now,
+          trust: 'untrusted-peer',
+        };
+      },
+    });
+    I.markResolved(chDir, divSender, divSeq, { msg_id: msg.msg_id, created_at: now });
+    process.stdout.write(`${msg.msg_id}\t${inc.msg_id || '?'}`);
+  } catch (err) {
+    if (err instanceof AppendValidationError) console.error('envelope inválido: ' + err.errors.join('; '));
+    else if (err instanceof LockLostError) console.error(err.message);
+    else console.error(err && err.message ? err.message : String(err));
+    process.exit(1);
+  }
 })();
 NODEEOF
 )" || exit 1
@@ -1601,21 +1798,38 @@ sync)
   t_probe || { echo "FAIL: transporte $LIAISON_T_KIND indisponível — sync abortado" >&2; exit 1; }
 
   if [ "$do_push" -eq 1 ]; then
-    t_push || { echo "FAIL: push pelo transporte $LIAISON_T_KIND" >&2; exit 1; }
-    # issue #109: grava a marca d'água de publicação SÓ depois de t_push retornar rc 0. O log
-    # local, neste ponto, já é a união publicada no hub (_dir_push_union em
-    # lib/transports/_common.sh copia de volta) — então o último msg_id do log próprio É o que
-    # está publicado, sem precisar reconsultar o transporte. published_at é wall clock de
-    # propósito (DA-23): created_at é a data do HEAD, e mediria "publicada há dias" para uma
-    # mensagem cujo push acabou de acontecer.
+    LIAISON_OBSERVED_FILE=""
+    push_rc=0
+    t_push || push_rc=$?
+    # publish-result-<pid>.json (design §2.4): registrado SEMPRE que o push foi tentado,
+    # sucesso ou não — é o que o processo destacado da renovação (TASK-27) e o `baton status`
+    # consolidam depois, sob a trava local. `sync` interativo também grava: um `sync` manual que
+    # falhou por teto de tempo não deve desaparecer sem rastro.
+    result_dir="$ROOT/.forge/cache/liaison-baton/$channel"
+    mkdir -p "$result_dir" 2>/dev/null || true
     now_wall="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    node - "$LIBDIR" "$ch_dir" "$LIAISON_SELF" "$now_wall" <<'NODEEOF'
+    node -e "
+      const fs = require('fs');
+      const out = {
+        rc: $push_rc, at: '$now_wall',
+        attempts: Number('${LIAISON_PUSH_ATTEMPTS:-0}') || 0,
+        repairs: Number('${LIAISON_PUSH_REPAIRS:-0}') || 0,
+      };
+      fs.writeFileSync('$result_dir/publish-result-$$.json', JSON.stringify(out));
+    " 2>/dev/null || true
+    [ "$push_rc" -eq 0 ] || { echo "FAIL: push pelo transporte $LIAISON_T_KIND" >&2; exit 1; }
+    # issue #109 / design §2.4: a marca é do que foi OBSERVADO no hub depois do push (nunca do
+    # que o processo local acha que escreveu) — `_dir_push` exporta `LIAISON_OBSERVED_FILE` só
+    # quando a conferência pós-mv passou. published_at é wall clock de propósito (DA-23):
+    # created_at é a data do HEAD, e mediria "publicada há dias" para uma mensagem cujo push
+    # acabou de acontecer.
+    node - "$LIBDIR" "$ROOT" "$ch_dir" "$channel" "$LIAISON_SELF" "$now_wall" "${LIAISON_OBSERVED_FILE:-}" <<'NODEEOF'
 const { join } = require('path');
 const { pathToFileURL } = require('url');
 (async () => {
-  const [, , lib, chDir, self, nowWall] = process.argv;
+  const [, , lib, root, chDir, channel, self, nowWall, observedFile] = process.argv;
   const { markPublished } = await import(pathToFileURL(join(lib, 'liaison-publish.mjs')).href);
-  markPublished({ chDir, self, nowWall });
+  await markPublished({ root, channel, chDir, self, nowWall, observedFile: observedFile || undefined });
 })();
 NODEEOF
   fi
@@ -1630,6 +1844,22 @@ NODEEOF
   trap "rm -rf '$staging'" EXIT
   t_pull "$staging" || { echo "FAIL: pull pelo transporte $LIAISON_T_KIND" >&2; exit 1; }
   _apply_bundle "$channel" "$staging" "sync via $LIAISON_T_KIND"
+  # pulled_at (design §2.4/§2.7): instante do último pull BEM-SUCEDIDO, gravado pelo próprio
+  # sync — usado pela TASK-19 (tomada de bastão por vencimento) para distinguir "não vejo
+  # renovação porque não sincronizei" de "não vejo renovação porque ela não veio". Melhor
+  # esforço: falhar aqui nunca desfaz um pull que já aconteceu.
+  pull_result_dir="$ROOT/.forge/cache/liaison-baton/$channel"
+  mkdir -p "$pull_result_dir" 2>/dev/null || true
+  node -e "
+    const fs = require('fs');
+    const f = '$pull_result_dir/sync-local.json';
+    let state = {};
+    try { state = JSON.parse(fs.readFileSync(f, 'utf8')); } catch {}
+    state.pulled_at = '$(date -u +%Y-%m-%dT%H:%M:%SZ)';
+    const tmp = f + '.tmp.' + process.pid;
+    fs.writeFileSync(tmp, JSON.stringify(state));
+    fs.renameSync(tmp, f);
+  " 2>/dev/null || true
   ;;
 
 # ---------------------------------------------------------------------------------------------
@@ -1677,6 +1907,749 @@ NODEEOF
 )" || exit 1
   echo "$pointer_out"
   echo "to: $to"
+  ;;
+
+# ---------------------------------------------------------------------------------------------
+# baton — bastão de dono único sobre o liaison (add-liaison-handoff-baton, REQ-01..REQ-11,
+# design §2.7). Verbos offer/claim nesta revisão (TASK-19/20); renew/release/complete/withdraw
+# (TASK-21/22) e status/list (TASK-23/24) ainda não existem — recusam nomeando a task.
+baton)
+  baton_verb="${1:-}"; shift || true
+  case "$baton_verb" in
+
+  offer)
+    channel="${1:-}"; shift || true
+    [ -n "$channel" ] || { echo "FAIL: <channel> obrigatório" >&2; exit 1; }
+    ch_dir="$LIAISON_DIR/$channel"
+    [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado (rode 'open' primeiro)" >&2; exit 1; }
+    self="$(_read_self)"
+    [ -n "$self" ] || { echo "FAIL: self não configurado (rode 'open' primeiro)" >&2; exit 1; }
+
+    thread_id=""; subject=""; body=""; body_file=""; from_handoff="false"; for_arg=""; max_lease_arg=""; session_arg=""
+    OFFER_FLAGS="$(_baton_flags offer)"
+    while [ $# -gt 0 ]; do case "$1" in
+      --thread) forge_reject_flag_as_value "baton offer" --thread "${2-}" "$OFFER_FLAGS"; thread_id="$2"; shift 2 ;;
+      --subject) forge_reject_flag_as_value "baton offer" --subject "${2-}" "$OFFER_FLAGS"; subject="$2"; shift 2 ;;
+      --body) forge_reject_flag_as_value "baton offer" --body "${2-}" "$OFFER_FLAGS"; body="$2"; shift 2 ;;
+      --body-file) forge_reject_flag_as_value "baton offer" --body-file "${2-}" "$OFFER_FLAGS"; body_file="$2"; shift 2 ;;
+      --from-handoff) from_handoff="true"; shift ;;
+      --for) forge_reject_flag_as_value "baton offer" --for "${2-}" "$OFFER_FLAGS"; for_arg="$2"; shift 2 ;;
+      --max-lease) forge_reject_flag_as_value "baton offer" --max-lease "${2-}" "$OFFER_FLAGS"; max_lease_arg="$2"; shift 2 ;;
+      --session) forge_reject_flag_as_value "baton offer" --session "${2-}" "$OFFER_FLAGS"; session_arg="$2"; shift 2 ;;
+      *) _reject_unknown "baton offer" "$OFFER_FLAGS" "$1" ;;
+    esac; done
+
+    session="$(_baton_resolve_session "$session_arg")" || exit 1
+    [ -n "$thread_id" ] || { echo "FAIL: --thread obrigatório" >&2; exit 1; }
+    [ -n "$subject" ] || { echo "FAIL: --subject obrigatório" >&2; exit 1; }
+    if [ -n "$body" ] && [ -n "$body_file" ]; then echo "FAIL: use --body OU --body-file, não os dois" >&2; exit 1; fi
+    if [ "$from_handoff" = "true" ]; then
+      if [ -n "$body" ] || [ -n "$body_file" ]; then
+        echo "FAIL: --from-handoff é exclusivo de --body/--body-file" >&2; exit 1
+      fi
+      # REQ-14, design §2.10: usa o HANDOFF.md da worktree corrente — gerado na hora, pelo
+      # mesmo handoff-gen.sh do /forge:handoff, se ainda não existir. A partir daqui o corpo
+      # segue o MESMO caminho de --body-file (teto de 64 KB + varredura de segredo, abaixo):
+      # nenhuma regra nova, só uma origem nova para body_file. Tudo isto corre ANTES de
+      # qualquer gravação (appendOwn só acontece mais abaixo) — qualquer recusa aqui, inclusive
+      # a geração falhando, não deixa rastro.
+      handoff_path="$ROOT/.forge/HANDOFF.md"
+      if [ ! -f "$handoff_path" ]; then
+        if ! handoff_out="$(FORGE_ROOT="$ROOT" bash "$SCRIPT_DIR/handoff-gen.sh" 2>&1)"; then
+          echo "FAIL: --from-handoff não conseguiu gerar o HANDOFF.md — $handoff_out" >&2
+          exit 1
+        fi
+      fi
+      body_file="$handoff_path"
+    fi
+
+    _scan_secret_or_fail "$body" "$body_file" || exit 1
+    body_ref=""
+    if [ -n "$body_file" ]; then
+      body_ref="$(_write_body_blob "$ch_dir" "$body_file")" || exit 1
+      body=""
+    fi
+
+    FORGE_YAML="$ROOT/.forge/forge.yaml"
+    out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$self" "$channel" "$thread_id" "$subject" "$body" "$body_ref" \
+      "${for_arg:-}" "${max_lease_arg:-}" "$session" "$(_git_date)" "$FORGE_YAML" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, chDir, self, channel, threadId, subject, body, bodyRef,
+    forArg, maxLeaseArg, session, now, forgeYamlPath] = process.argv;
+  const { appendOwn, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
+  const { mergeLogs } = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
+  const { readBatonConfig } = await import(pathToFileURL(join(lib, 'liaison-baton.mjs')).href);
+  function nowWall() { return new Date().toISOString().replace(/\.\d+Z$/, 'Z'); }
+  try {
+    const { msg } = await appendOwn({
+      root, chDir, channel, self,
+      build: (all) => {
+        const threadMsgs = all.filter((m) => m.thread_id === threadId);
+        if (!threadMsgs.some((m) => m.kind === 'thread-open')) {
+          throw new Error(`thread '${threadId}' desconhecida localmente (abra ou aguarde o thread-open chegar)`);
+        }
+        const { threads } = mergeLogs(all);
+        const participants = (threads[threadId] && threads[threadId].participants) || [self];
+        let eligible;
+        if (forArg) {
+          const ids = forArg.split(',').map((s) => s.trim()).filter(Boolean);
+          for (const id of ids) {
+            if (!participants.includes(id)) {
+              throw new Error(`--for cita '${id}', que não é participante da thread '${threadId}'`);
+            }
+          }
+          eligible = [...new Set(ids)];
+        } else {
+          eligible = [...participants];
+        }
+        if (!eligible.some((id) => id !== self)) {
+          throw new Error(`eligible resultante sem nenhum repositório além de '${self}' — coordenação só dentro do repositório não é material de liaison (ver rule liaison-protocol)`);
+        }
+        const cfg = readBatonConfig(forgeYamlPath);
+        if (cfg.errors.length) throw new Error(cfg.errors.join('; '));
+        let maxLease = cfg.maxLeaseSeconds;
+        if (maxLeaseArg) {
+          maxLease = Number(maxLeaseArg);
+          if (!Number.isInteger(maxLease) || maxLease < 60 || maxLease > cfg.maxLeaseSeconds) {
+            throw new Error(`--max-lease fora de [60, ${cfg.maxLeaseSeconds}]: ${maxLeaseArg}`);
+          }
+        }
+        return {
+          channel, thread_id: threadId, kind: 'note', requires_ack: false,
+          in_reply_to: null, subject,
+          ...(body ? { body } : {}), ...(bodyRef ? { body_ref: bodyRef } : {}),
+          created_at: now, trust: 'self',
+          baton: {
+            op: 'offer', session, stamped_at: nowWall(),
+            eligible, max_lease_seconds: maxLease, skew_tolerance_seconds: cfg.skewToleranceSeconds,
+          },
+        };
+      },
+    });
+    process.stdout.write(msg.msg_id);
+  } catch (err) {
+    if (err instanceof AppendValidationError) console.error('envelope inválido: ' + err.errors.join('; '));
+    else if (err instanceof LockLostError) console.error(err.message);
+    else console.error(err && err.message ? err.message : String(err));
+    process.exit(1);
+  }
+})();
+NODEEOF
+)" || exit 1
+    _render "$channel"
+    echo "OK baton offer — $out"
+    echo "liaison-ops.sh sync $channel"
+    transport_line="$(_read_transport "$channel" 2>/dev/null || true)"
+    if [ -n "$transport_line" ]; then
+      echo "liaison-ops.sh notify $channel $out --to <destino>"
+    fi
+    ;;
+
+  claim)
+    channel="${1:-}"; shift || true
+    baton_id="${1:-}"; shift || true
+    [ -n "$channel" ] && [ -n "$baton_id" ] || { echo "FAIL: uso: baton claim <channel> <baton_id> [--lease <s>] [--session <id>]" >&2; exit 1; }
+    ch_dir="$LIAISON_DIR/$channel"
+    [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado (rode 'open' primeiro)" >&2; exit 1; }
+    self="$(_read_self)"
+    [ -n "$self" ] || { echo "FAIL: self não configurado (rode 'open' primeiro)" >&2; exit 1; }
+
+    lease_arg=""; session_arg=""
+    CLAIM_FLAGS="$(_baton_flags claim)"
+    while [ $# -gt 0 ]; do case "$1" in
+      --lease) forge_reject_flag_as_value "baton claim" --lease "${2-}" "$CLAIM_FLAGS"; lease_arg="$2"; shift 2 ;;
+      --session) forge_reject_flag_as_value "baton claim" --session "${2-}" "$CLAIM_FLAGS"; session_arg="$2"; shift 2 ;;
+      *) _reject_unknown "baton claim" "$CLAIM_FLAGS" "$1" ;;
+    esac; done
+
+    session="$(_baton_resolve_session "$session_arg")" || exit 1
+    if [ -n "$lease_arg" ]; then
+      printf '%s' "$lease_arg" | grep -Eq '^[0-9]+$' || { echo "FAIL: --lease precisa ser inteiro positivo: '$lease_arg'" >&2; exit 1; }
+    fi
+
+    FORGE_YAML="$ROOT/.forge/forge.yaml"
+    PULLED_AT_FILE="$ROOT/.forge/cache/liaison-baton/$channel/sync-local.json"
+    set +e
+    claim_out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$self" "$channel" "$baton_id" "$session" "${lease_arg:-}" \
+      "$(_git_date)" "$FORGE_YAML" "$PULLED_AT_FILE" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+const { existsSync, readFileSync } = require('fs');
+(async () => {
+  const [, , lib, root, chDir, self, channel, batonId, session, leaseArg, now, forgeYamlPath, pulledAtPath] = process.argv;
+  const { appendOwnDecided, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
+  const { foldBatons, validateBaton, readBatonConfig, stability } = await import(pathToFileURL(join(lib, 'liaison-baton.mjs')).href);
+  const { recordWon } = await import(pathToFileURL(join(lib, 'liaison-baton-local.mjs')).href);
+  function nowWall() { return new Date().toISOString().replace(/\.\d+Z$/, 'Z'); }
+  let reduced = false;
+  let syncWarning = '';
+  let wonLeaseSeconds = null;
+  let wonLeaseUntil = null;
+  try {
+    const result = await appendOwnDecided({
+      root, chDir, channel, self,
+      decide: (all) => {
+        const offerMsg = all.find((m) => m.msg_id === batonId && m.baton && m.baton.op === 'offer');
+        if (!offerMsg) return { refuse: true, rc: 1, reason: `oferta '${batonId}' desconhecida localmente` };
+        const cfg = readBatonConfig(forgeYamlPath);
+        if (cfg.errors.length) return { refuse: true, rc: 1, reason: cfg.errors.join('; ') };
+        let leaseSeconds;
+        if (leaseArg) {
+          leaseSeconds = Number(leaseArg);
+          if (!Number.isInteger(leaseSeconds) || leaseSeconds < 60 || leaseSeconds > offerMsg.baton.max_lease_seconds) {
+            return { refuse: true, rc: 1, reason: `--lease fora de [60, ${offerMsg.baton.max_lease_seconds}]: ${leaseArg}` };
+          }
+        } else {
+          leaseSeconds = cfg.defaultLeaseSeconds;
+          if (leaseSeconds > offerMsg.baton.max_lease_seconds) {
+            leaseSeconds = offerMsg.baton.max_lease_seconds;
+            reduced = true;
+          }
+        }
+        const { batons } = foldBatons(all);
+        const baton = batons.get(batonId);
+        if (baton && baton.state === 'held' && baton.holder && baton.holder.sender === self && baton.holder.session === session) {
+          const T = Date.parse(baton.leaseUntil);
+          if (Date.now() <= T) {
+            return { refuse: true, rc: 0, reason: `sessão já detém o bastão '${batonId}' (lease até ${baton.leaseUntil}) — use 'baton renew' para renovar`, already: true };
+          }
+        }
+        if (baton && baton.state === 'held' && baton.holder && baton.holder.sender !== self) {
+          const T = Date.parse(baton.leaseUntil);
+          const skew = (offerMsg.baton.skew_tolerance_seconds || 0) * 1000;
+          if (Date.now() >= T + skew) {
+            let pulledAt = null;
+            if (existsSync(pulledAtPath)) {
+              try { pulledAt = JSON.parse(readFileSync(pulledAtPath, 'utf8')).pulled_at || null; } catch { /* sem registro */ }
+            }
+            if (!pulledAt || Date.parse(pulledAt) < T) {
+              syncWarning = `aviso: uma renovação de '${baton.holder.sender}' pode estar publicada e ainda não importada — rode 'sync' antes de reivindicar por vencimento`;
+            }
+          }
+        }
+        const stampedAt = nowWall();
+        const leaseUntil = new Date(Date.parse(stampedAt) + leaseSeconds * 1000).toISOString().replace(/\.\d+Z$/, 'Z');
+        const envelope = {
+          channel, thread_id: offerMsg.thread_id, kind: 'note', requires_ack: false,
+          in_reply_to: batonId, subject: `baton claim: ${offerMsg.subject}`.slice(0, 200),
+          created_at: now, trust: 'self',
+          baton: { op: 'claim', session, stamped_at: stampedAt, lease_seconds: leaseSeconds, lease_until: leaseUntil },
+        };
+        const verrs = validateBaton(envelope);
+        if (verrs.length) return { refuse: true, rc: 1, reason: verrs.join('; ') };
+        wonLeaseSeconds = leaseSeconds;
+        wonLeaseUntil = leaseUntil;
+        return { envelope, afterWrite: (allWithNew) => foldBatons(allWithNew) };
+      },
+    });
+    if (result.refused) {
+      if (result.already) {
+        console.log(result.reason);
+        process.exit(0);
+      }
+      console.error('FAIL: ' + result.reason);
+      process.exit(typeof result.rc === 'number' ? result.rc : 1);
+    }
+    const { batons } = result.fold;
+    const baton = batons.get(batonId);
+    const hist = baton.history.find((h) => h.msgId === result.msg.msg_id);
+    if (hist.verdict === 'won') {
+      await recordWon({
+        root, channel, chDir, self, batonId, msgId: result.msg.msg_id, session,
+        leaseSeconds: wonLeaseSeconds, leaseUntil: wonLeaseUntil,
+      });
+      const stab = stability(baton, result.all);
+      console.log(`OK baton claim — ${result.msg.msg_id} won (${stab.stable ? 'stable' : 'provisional'})`);
+      if (!stab.stable) console.error(`provisional — faltam: ${stab.missing.join(', ')}`);
+      if (reduced) console.error('aviso: lease reduzido ao máximo da oferta');
+      if (syncWarning) console.error(syncWarning);
+      process.exit(0);
+    }
+    const holderTxt = baton.holder ? `${baton.holder.sender}/${baton.holder.session}` : 'nenhuma';
+    console.error(`FAIL: baton claim — veredito '${hist.verdict}', titular: ${holderTxt} (${hist.reason})`);
+    process.exit(3);
+  } catch (err) {
+    if (err instanceof AppendValidationError) console.error('FAIL: envelope inválido: ' + err.errors.join('; '));
+    else if (err instanceof LockLostError) console.error('FAIL: ' + err.message);
+    else console.error('FAIL: ' + (err && err.message ? err.message : String(err)));
+    process.exit(1);
+  }
+})();
+NODEEOF
+)"
+    claim_rc=$?
+    set -e
+    _render "$channel" >/dev/null 2>&1 || true
+    echo "$claim_out"
+    exit "$claim_rc"
+    ;;
+
+  renew)
+    channel="${1:-}"; shift || true
+    baton_id="${1:-}"; shift || true
+    [ -n "$channel" ] && [ -n "$baton_id" ] || { echo "FAIL: uso: baton renew <channel> <baton_id> [--lease <s>] [--session <id>]" >&2; exit 1; }
+    ch_dir="$LIAISON_DIR/$channel"
+    [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado (rode 'open' primeiro)" >&2; exit 1; }
+    self="$(_read_self)"
+    [ -n "$self" ] || { echo "FAIL: self não configurado (rode 'open' primeiro)" >&2; exit 1; }
+
+    lease_arg=""; session_arg=""
+    RENEW_FLAGS="$(_baton_flags renew)"
+    while [ $# -gt 0 ]; do case "$1" in
+      --lease) forge_reject_flag_as_value "baton renew" --lease "${2-}" "$RENEW_FLAGS"; lease_arg="$2"; shift 2 ;;
+      --session) forge_reject_flag_as_value "baton renew" --session "${2-}" "$RENEW_FLAGS"; session_arg="$2"; shift 2 ;;
+      *) _reject_unknown "baton renew" "$RENEW_FLAGS" "$1" ;;
+    esac; done
+    session="$(_baton_resolve_session "$session_arg")" || exit 1
+    if [ -n "$lease_arg" ]; then
+      printf '%s' "$lease_arg" | grep -Eq '^[0-9]+$' || { echo "FAIL: --lease precisa ser inteiro positivo: '$lease_arg'" >&2; exit 1; }
+    fi
+    transport_line="$(_read_transport "$channel" 2>/dev/null || true)"
+
+    set +e
+    renew_out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$self" "$channel" "$baton_id" "$session" "${lease_arg:-}" \
+      "$(_git_date)" "${FORGE_BATON_RENEW_IF_DUE:-}" "${transport_line:+1}" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, chDir, self, channel, batonId, session, leaseArg, now, ifDue, hasTransport] = process.argv;
+  const { appendOwnDecided, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
+  const { foldBatons, validateBaton } = await import(pathToFileURL(join(lib, 'liaison-baton.mjs')).href);
+  const { recordWon } = await import(pathToFileURL(join(lib, 'liaison-baton-local.mjs')).href);
+  const { mergeLogs } = await import(pathToFileURL(join(lib, 'liaison-merge.mjs')).href);
+  function nowWall() { return new Date().toISOString().replace(/\.\d+Z$/, 'Z'); }
+  let wonLeaseSeconds = null;
+  let wonLeaseUntil = null;
+  try {
+    const result = await appendOwnDecided({
+      root, chDir, channel, self,
+      decide: (all) => {
+        const offerMsg = all.find((m) => m.msg_id === batonId && m.baton && m.baton.op === 'offer');
+        if (!offerMsg) return { refuse: true, rc: 1, reason: `oferta '${batonId}' desconhecida localmente` };
+        const { batons } = foldBatons(all);
+        const baton = batons.get(batonId);
+        const isHolder = baton && baton.state === 'held' && baton.holder && baton.holder.sender === self && baton.holder.session === session;
+        if (!isHolder) {
+          const holderTxt = baton && baton.holder ? `${baton.holder.sender}/${baton.holder.session}` : 'nenhuma';
+          return { refuse: true, rc: 4, reason: `não é a titular corrente (titular: ${holderTxt})` };
+        }
+        const T = Date.parse(baton.leaseUntil);
+        if (Date.now() > T) {
+          return { refuse: true, rc: 4, reason: `lease venceu em ${baton.leaseUntil} — a retomada é 'baton claim'` };
+        }
+        let leaseSeconds;
+        if (leaseArg) {
+          leaseSeconds = Number(leaseArg);
+          if (!Number.isInteger(leaseSeconds) || leaseSeconds < 60 || leaseSeconds > offerMsg.baton.max_lease_seconds) {
+            return { refuse: true, rc: 1, reason: `--lease fora de [60, ${offerMsg.baton.max_lease_seconds}]: ${leaseArg}` };
+          }
+        } else {
+          leaseSeconds = baton.leaseSeconds;
+        }
+        if (ifDue === '1') {
+          const half = T - (baton.leaseSeconds * 1000) / 2;
+          if (Date.now() < half) {
+            return { refuse: true, rc: 5, reason: `ainda não é hora de renovar (metade do prazo em ${new Date(half).toISOString().replace(/\.\d+Z$/, 'Z')})` };
+          }
+        }
+        const stampedAt = nowWall();
+        const leaseUntil = new Date(Date.parse(stampedAt) + leaseSeconds * 1000).toISOString().replace(/\.\d+Z$/, 'Z');
+        const envelope = {
+          channel, thread_id: offerMsg.thread_id, kind: 'note', requires_ack: false,
+          in_reply_to: batonId, subject: `baton renew: ${offerMsg.subject}`.slice(0, 200),
+          created_at: now, trust: 'self',
+          baton: { op: 'renew', session, stamped_at: stampedAt, lease_seconds: leaseSeconds, lease_until: leaseUntil },
+        };
+        const verrs = validateBaton(envelope);
+        if (verrs.length) return { refuse: true, rc: 1, reason: verrs.join('; ') };
+        wonLeaseSeconds = leaseSeconds;
+        wonLeaseUntil = leaseUntil;
+        return { envelope, afterWrite: (allWithNew) => ({ fold: foldBatons(allWithNew), threads: mergeLogs(allWithNew).threads }) };
+      },
+    });
+    if (result.refused) {
+      console.error('FAIL: ' + result.reason);
+      process.exit(typeof result.rc === 'number' ? result.rc : 1);
+    }
+    // LGC-002: a claim registrada é a C da dobra (a renovação não muda C), nunca o msg_id da
+    // própria renovação — senão a perda tardia acusaria a sessão de ter perdido para si mesma.
+    const renewedBaton = result.fold.fold.batons.get(batonId);
+    await recordWon({
+      root, channel, chDir, self, batonId, msgId: (renewedBaton && renewedBaton.holderClaimMsgId) || result.msg.msg_id, session,
+      leaseSeconds: wonLeaseSeconds, leaseUntil: wonLeaseUntil,
+    });
+    const offerMsgAfter = result.all.find((m) => m.msg_id === batonId);
+    const thread = result.fold.threads[offerMsgAfter.thread_id];
+    const externalParticipant = thread && thread.participants.some((p) => p !== self);
+    console.log(`OK baton renew — ${result.msg.msg_id} novo lease_until ${wonLeaseUntil}`);
+    if (externalParticipant && hasTransport === '1') {
+      console.log(`liaison-ops.sh sync ${channel} --push-only`);
+      console.error('sem publicar, outro repositório pode considerar o lease vencido');
+    }
+    process.exit(0);
+  } catch (err) {
+    if (err instanceof AppendValidationError) console.error('FAIL: envelope inválido: ' + err.errors.join('; '));
+    else if (err instanceof LockLostError) console.error('FAIL: ' + err.message);
+    else console.error('FAIL: ' + (err && err.message ? err.message : String(err)));
+    process.exit(1);
+  }
+})();
+NODEEOF
+)"
+    renew_rc=$?
+    set -e
+    _render "$channel" >/dev/null 2>&1 || true
+    echo "$renew_out"
+    exit "$renew_rc"
+    ;;
+
+  release|complete)
+    baton_op="$baton_verb"
+    channel="${1:-}"; shift || true
+    baton_id="${1:-}"; shift || true
+    [ -n "$channel" ] && [ -n "$baton_id" ] || { echo "FAIL: uso: baton $baton_op <channel> <baton_id> [--session <id>] [--body <txt>|--body-file <path>]" >&2; exit 1; }
+    ch_dir="$LIAISON_DIR/$channel"
+    [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado (rode 'open' primeiro)" >&2; exit 1; }
+    self="$(_read_self)"
+    [ -n "$self" ] || { echo "FAIL: self não configurado (rode 'open' primeiro)" >&2; exit 1; }
+
+    session_arg=""; body=""; body_file=""
+    VERB_FLAGS="$(_baton_flags "$baton_op")"
+    while [ $# -gt 0 ]; do case "$1" in
+      --session) forge_reject_flag_as_value "baton $baton_op" --session "${2-}" "$VERB_FLAGS"; session_arg="$2"; shift 2 ;;
+      --body) forge_reject_flag_as_value "baton $baton_op" --body "${2-}" "$VERB_FLAGS"; body="$2"; shift 2 ;;
+      --body-file) forge_reject_flag_as_value "baton $baton_op" --body-file "${2-}" "$VERB_FLAGS"; body_file="$2"; shift 2 ;;
+      *) _reject_unknown "baton $baton_op" "$VERB_FLAGS" "$1" ;;
+    esac; done
+    session="$(_baton_resolve_session "$session_arg")" || exit 1
+    if [ -n "$body" ] && [ -n "$body_file" ]; then echo "FAIL: use --body OU --body-file, não os dois" >&2; exit 1; fi
+    _scan_secret_or_fail "$body" "$body_file" || exit 1
+    body_ref=""
+    if [ -n "$body_file" ]; then
+      body_ref="$(_write_body_blob "$ch_dir" "$body_file")" || exit 1
+      body=""
+    fi
+
+    set +e
+    rc_out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$self" "$channel" "$baton_id" "$session" "$baton_op" "$body" "$body_ref" "$(_git_date)" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, chDir, self, channel, batonId, session, op, body, bodyRef, now] = process.argv;
+  const { appendOwnDecided, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
+  const { foldBatons, validateBaton } = await import(pathToFileURL(join(lib, 'liaison-baton.mjs')).href);
+  const { removeHolder } = await import(pathToFileURL(join(lib, 'liaison-baton-local.mjs')).href);
+  function nowWall() { return new Date().toISOString().replace(/\.\d+Z$/, 'Z'); }
+  try {
+    const result = await appendOwnDecided({
+      root, chDir, channel, self,
+      decide: (all) => {
+        const offerMsg = all.find((m) => m.msg_id === batonId && m.baton && m.baton.op === 'offer');
+        if (!offerMsg) return { refuse: true, rc: 1, reason: `oferta '${batonId}' desconhecida localmente` };
+        const { batons } = foldBatons(all);
+        const baton = batons.get(batonId);
+        const isHolder = baton && baton.state === 'held' && baton.holder && baton.holder.sender === self && baton.holder.session === session;
+        if (!isHolder) {
+          const holderTxt = baton && baton.holder ? `${baton.holder.sender}/${baton.holder.session}` : 'nenhuma';
+          return { refuse: true, rc: 1, reason: `não é a titular corrente (titular: ${holderTxt})` };
+        }
+        const envelope = {
+          channel, thread_id: offerMsg.thread_id, kind: 'note', requires_ack: false,
+          in_reply_to: batonId, subject: `baton ${op}: ${offerMsg.subject}`.slice(0, 200),
+          ...(body ? { body } : {}), ...(bodyRef ? { body_ref: bodyRef } : {}),
+          created_at: now, trust: 'self',
+          baton: { op, session, stamped_at: nowWall() },
+        };
+        const verrs = validateBaton(envelope);
+        if (verrs.length) return { refuse: true, rc: 1, reason: verrs.join('; ') };
+        return { envelope, afterWrite: (allWithNew) => foldBatons(allWithNew) };
+      },
+    });
+    if (result.refused) {
+      console.error('FAIL: ' + result.reason);
+      process.exit(typeof result.rc === 'number' ? result.rc : 1);
+    }
+    await removeHolder({ root, channel, self, batonId, dropClaim: true });
+    console.log(`OK baton ${op} — ${result.msg.msg_id}`);
+    process.exit(0);
+  } catch (err) {
+    if (err instanceof AppendValidationError) console.error('FAIL: envelope inválido: ' + err.errors.join('; '));
+    else if (err instanceof LockLostError) console.error('FAIL: ' + err.message);
+    else console.error('FAIL: ' + (err && err.message ? err.message : String(err)));
+    process.exit(1);
+  }
+})();
+NODEEOF
+)"
+    rc_rc=$?
+    set -e
+    _render "$channel" >/dev/null 2>&1 || true
+    echo "$rc_out"
+    exit "$rc_rc"
+    ;;
+
+  withdraw)
+    channel="${1:-}"; shift || true
+    baton_id="${1:-}"; shift || true
+    [ -n "$channel" ] && [ -n "$baton_id" ] || { echo "FAIL: uso: baton withdraw <channel> <baton_id> [--session <id>] [--body <txt>|--body-file <path>]" >&2; exit 1; }
+    ch_dir="$LIAISON_DIR/$channel"
+    [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado (rode 'open' primeiro)" >&2; exit 1; }
+    self="$(_read_self)"
+    [ -n "$self" ] || { echo "FAIL: self não configurado (rode 'open' primeiro)" >&2; exit 1; }
+
+    session_arg=""; body=""; body_file=""
+    WITHDRAW_FLAGS="$(_baton_flags withdraw)"
+    while [ $# -gt 0 ]; do case "$1" in
+      --session) forge_reject_flag_as_value "baton withdraw" --session "${2-}" "$WITHDRAW_FLAGS"; session_arg="$2"; shift 2 ;;
+      --body) forge_reject_flag_as_value "baton withdraw" --body "${2-}" "$WITHDRAW_FLAGS"; body="$2"; shift 2 ;;
+      --body-file) forge_reject_flag_as_value "baton withdraw" --body-file "${2-}" "$WITHDRAW_FLAGS"; body_file="$2"; shift 2 ;;
+      *) _reject_unknown "baton withdraw" "$WITHDRAW_FLAGS" "$1" ;;
+    esac; done
+    session="$(_baton_resolve_session "$session_arg")" || exit 1
+    if [ -n "$body" ] && [ -n "$body_file" ]; then echo "FAIL: use --body OU --body-file, não os dois" >&2; exit 1; fi
+    _scan_secret_or_fail "$body" "$body_file" || exit 1
+    body_ref=""
+    if [ -n "$body_file" ]; then
+      body_ref="$(_write_body_blob "$ch_dir" "$body_file")" || exit 1
+      body=""
+    fi
+
+    set +e
+    wd_out="$(node - "$LIBDIR" "$ROOT" "$ch_dir" "$self" "$channel" "$baton_id" "$session" "$body" "$body_ref" "$(_git_date)" <<'NODEEOF'
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, chDir, self, channel, batonId, session, body, bodyRef, now] = process.argv;
+  const { appendOwnDecided, AppendValidationError, LockLostError } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
+  const { foldBatons, validateBaton } = await import(pathToFileURL(join(lib, 'liaison-baton.mjs')).href);
+  const { removeHolder } = await import(pathToFileURL(join(lib, 'liaison-baton-local.mjs')).href);
+  function nowWall() { return new Date().toISOString().replace(/\.\d+Z$/, 'Z'); }
+  try {
+    const result = await appendOwnDecided({
+      root, chDir, channel, self,
+      decide: (all) => {
+        const offerMsg = all.find((m) => m.msg_id === batonId && m.baton && m.baton.op === 'offer');
+        if (!offerMsg) return { refuse: true, rc: 1, reason: `oferta '${batonId}' desconhecida localmente` };
+        if (self !== offerMsg.sender) {
+          return { refuse: true, rc: 1, reason: `apenas o ofertante '${offerMsg.sender}' pode retirar` };
+        }
+        const { batons } = foldBatons(all);
+        const baton = batons.get(batonId);
+        if (baton.state === 'completed' || baton.state === 'withdrawn') {
+          return { refuse: true, rc: 1, reason: `bastão já ${baton.state}` };
+        }
+        const skew = (offerMsg.baton.skew_tolerance_seconds || 0) * 1000;
+        const T = baton.leaseUntil ? Date.parse(baton.leaseUntil) : null;
+        const expiredEnough = baton.state === 'available' || (baton.state === 'held' && T !== null && Date.now() >= T + skew);
+        if (!expiredEnough) {
+          const holderTxt = baton.holder ? `${baton.holder.sender}/${baton.holder.session}` : 'nenhuma';
+          return { refuse: true, rc: 1, reason: `titular corrente (${holderTxt}) ainda dentro do lease ou da folga (lease_until ${baton.leaseUntil})` };
+        }
+        const envelope = {
+          channel, thread_id: offerMsg.thread_id, kind: 'note', requires_ack: false,
+          in_reply_to: batonId, subject: `baton withdraw: ${offerMsg.subject}`.slice(0, 200),
+          ...(body ? { body } : {}), ...(bodyRef ? { body_ref: bodyRef } : {}),
+          created_at: now, trust: 'self',
+          baton: { op: 'withdraw', session, stamped_at: nowWall() },
+        };
+        const verrs = validateBaton(envelope);
+        if (verrs.length) return { refuse: true, rc: 1, reason: verrs.join('; ') };
+        return { envelope, afterWrite: (allWithNew) => foldBatons(allWithNew) };
+      },
+    });
+    if (result.refused) {
+      console.error('FAIL: ' + result.reason);
+      process.exit(typeof result.rc === 'number' ? result.rc : 1);
+    }
+    await removeHolder({ root, channel, self, batonId, dropClaim: true });
+    console.log(`OK baton withdraw — ${result.msg.msg_id}`);
+    process.exit(0);
+  } catch (err) {
+    if (err instanceof AppendValidationError) console.error('FAIL: envelope inválido: ' + err.errors.join('; '));
+    else if (err instanceof LockLostError) console.error('FAIL: ' + err.message);
+    else console.error('FAIL: ' + (err && err.message ? err.message : String(err)));
+    process.exit(1);
+  }
+})();
+NODEEOF
+)"
+    wd_rc=$?
+    set -e
+    _render "$channel" >/dev/null 2>&1 || true
+    echo "$wd_out"
+    exit "$wd_rc"
+    ;;
+
+  status|list)
+    channel="${1:-}"; shift || true
+    baton_id_filter=""
+    json_flag="false"
+    QL_FLAGS="$(_baton_flags "$baton_verb")"
+    # status aceita <baton_id> opcional como argumento posicional (não é flag).
+    if [ "$baton_verb" = "status" ] && [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then
+      baton_id_filter="$1"; shift
+    fi
+    while [ $# -gt 0 ]; do case "$1" in
+      --json) json_flag="true"; shift ;;
+      *) _reject_unknown "baton $baton_verb" "$QL_FLAGS" "$1" ;;
+    esac; done
+    [ -n "$channel" ] || { echo "FAIL: <channel> obrigatório" >&2; exit 1; }
+    ch_dir="$LIAISON_DIR/$channel"
+    [ -d "$ch_dir/log" ] || { echo "FAIL: canal '$channel' não inicializado (rode 'open' primeiro)" >&2; exit 1; }
+    self="$(_read_self)"
+    now_wall="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+    node - "$LIBDIR" "$ROOT" "$ch_dir" "$channel" "$self" "$baton_verb" "$baton_id_filter" "$([ "$json_flag" = "true" ] && echo 1 || echo 0)" "$now_wall" <<'NODEEOF'
+const { readFileSync, readdirSync, existsSync } = require('fs');
+const { join } = require('path');
+const { pathToFileURL } = require('url');
+(async () => {
+  const [, , lib, root, chDir, channel, self, mode, batonIdFilter, jsonFlag, nowWall] = process.argv;
+  const { foldBatons, stability, isWallClock } = await import(pathToFileURL(join(lib, 'liaison-baton.mjs')).href);
+  const { renderUntrusted } = await import(pathToFileURL(join(lib, 'untrusted-render.mjs')).href);
+  const { checkJournalIntegrity } = await import(pathToFileURL(join(lib, 'liaison-append.mjs')).href);
+  const { readBatonLocal } = await import(pathToFileURL(join(lib, 'liaison-baton-local.mjs')).href);
+
+  const logDir = join(chDir, 'log');
+  const files = existsSync(logDir) ? readdirSync(logDir).filter((f) => f.endsWith('.jsonl')) : [];
+  const all = [];
+  for (const f of files) {
+    const text = readFileSync(join(logDir, f), 'utf8');
+    for (const line of text.split('\n')) { const t = line.trim(); if (t) all.push(JSON.parse(t)); }
+  }
+  const { batons } = foldBatons(all);
+  const nowMs = Date.parse(nowWall);
+
+  function describe(batonId, b) {
+    const stab = b.state === 'held' ? stability(b, all) : null;
+    const expired = b.state === 'held' && b.leaseUntil ? nowMs > Date.parse(b.leaseUntil) : false;
+    const subjectText = b.offer.subject || '';
+    const subjectOut = b.offer.sender !== self ? renderUntrusted(subjectText, b.offer.sender) : subjectText;
+    return {
+      baton_id: batonId,
+      state: b.state,
+      subject: subjectOut,
+      offerer: b.offer.sender,
+      eligible: b.offer.baton.eligible || [],
+      holder: b.holder,
+      lease_until: b.leaseUntil,
+      lease_seconds: b.leaseSeconds,
+      expired,
+      stable: stab ? stab.stable : null,
+      missing: stab ? stab.missing : [],
+      history: b.history.map((h) => ({
+        msg_id: h.msgId, sender: h.sender,
+        session: h.sender !== self ? renderUntrusted(String(h.session), h.sender) : h.session,
+        // NODE-003: stamped_at vem do peer — só sai (texto e --json) com a forma de relógio de
+        // parede; fora dela vai null (o texto mostra '?'). O reason sai cru, então a dobra só
+        // interpola nele valor de peer já conferido contra padrão fechado: validateBaton só nomeia
+        // o campo, e thread_id/in_reply_to passam por `reasonId` em liaison-baton.mjs (fora do
+        // padrão de id, vira '?' — NODE-202/SEC-202).
+        op: h.op, stamped_at: isWallClock(h.stampedAt) ? h.stampedAt : null, verdict: h.verdict, reason: h.reason,
+      })),
+    };
+  }
+
+  let ids = [...batons.keys()];
+  if (mode === 'list') ids = ids.filter((id) => { const st = batons.get(id).state; return st !== 'completed' && st !== 'withdrawn'; });
+  if (batonIdFilter) {
+    if (!batons.has(batonIdFilter)) {
+      console.error(`FAIL: bastão '${batonIdFilter}' desconhecido localmente`);
+      process.exit(1);
+    }
+    ids = ids.filter((id) => id === batonIdFilter);
+  }
+  ids.sort();
+  const descs = ids.map((id) => describe(id, batons.get(id)));
+
+  // Perda tardia (REQ-05): claim PRÓPRIA com rc 0 cujo msg_id já não é a titular corrente —
+  // venceu localmente e perdeu depois de importar mais réplicas.
+  const local = readBatonLocal(root, channel);
+  const lateLosses = [];
+  if (self) {
+    for (const [batonId, claim] of Object.entries(local.claims || {})) {
+      const b = batons.get(batonId);
+      if (!b) continue;
+      if (b.holder && b.holderClaimMsgId === claim.msgId) continue;
+      // LGC-002: a própria sessão ainda é a titular (cache gravado por versão anterior, em que o
+      // renew sobrescrevia o msgId da claim com o da renovação) — não é perda.
+      if (b.holder && b.holder.sender === self && b.holder.session === claim.session) continue;
+      // LGC-002: a mesma sessão liberou, concluiu ou retirou DEPOIS da claim registrada — abriu
+      // mão por ato próprio (design §2.5), não perdeu.
+      const claimIdx = b.history.findIndex((h) => h.msgId === claim.msgId);
+      const ownExit = b.history.some((h, i) => i > claimIdx && h.sender === self && h.session === claim.session
+        && (h.verdict === 'released' || h.verdict === 'completed' || h.verdict === 'withdrawn'));
+      if (claimIdx >= 0 && ownExit) continue;
+      const winnerTxt = b.holder ? `${b.holder.sender}/${b.holder.session}` : 'nenhuma';
+      lateLosses.push({ baton_id: batonId, our_msg_id: claim.msgId, winner: winnerTxt });
+    }
+  }
+
+  // Carimbo no futuro (REQ-06): stamped_at de uma mensagem de bastão mais de
+  // skew_tolerance_seconds (da oferta dela) à frente do relógio de quem lê. Nunca no CHANNEL.md
+  // (que não pode depender do relógio de quem gera) — só aqui.
+  const futureStamps = [];
+  for (const [batonId, b] of batons) {
+    const skewMs = (b.offer.baton.skew_tolerance_seconds || 0) * 1000;
+    for (const h of b.history) {
+      // NODE-003: só carimbo com forma de relógio de parede — Date.parse aceita texto arbitrário.
+      if (!isWallClock(h.stampedAt)) continue;
+      const diff = Date.parse(h.stampedAt) - nowMs;
+      if (Number.isFinite(diff) && diff > skewMs) futureStamps.push({ baton_id: batonId, msg_id: h.msgId, stamped_at: h.stampedAt });
+    }
+  }
+
+  // Escritor de versão antiga (design S2.4): mesma checagem do status geral do canal, mas
+  // nomeando o bastão quando a mensagem reescrita é a claim vencedora de algum bastão.
+  const rewritten = self ? checkJournalIntegrity({ root, channel, chDir, self }) : [];
+  const rewrittenOut = rewritten.map((r) => {
+    const affected = [...batons.entries()].find(([, b]) => b.holderClaimMsgId === r.msg_id);
+    return { msg_id: r.msg_id, baton_id: affected ? affected[0] : null };
+  });
+
+  if (jsonFlag === '1') {
+    console.log(JSON.stringify({ channel, self, mode, batons: descs, late_losses: lateLosses, future_stamps: futureStamps, rewritten: rewrittenOut }, null, 2));
+    return;
+  }
+
+  if (!descs.length) {
+    console.log(mode === 'list' ? '(nenhum bastão não terminal)' : '(nenhum bastão)');
+  }
+  for (const d of descs) {
+    const holderTxt = d.holder ? `${d.holder.sender}/${d.holder.session}` : 'nenhuma';
+    const stabTxt = d.stable === null ? '' : d.stable ? ' · stable' : ` · provisional (faltam: ${d.missing.join(', ')})`;
+    const expTxt = d.expired ? ' · expired' : '';
+    console.log(`bastão ${d.baton_id} — ${d.state}${expTxt}${stabTxt}`);
+    console.log('  assunto:');
+    for (const line of String(d.subject).split('\n')) console.log(`    ${line}`);
+    console.log(`  titular: ${holderTxt}${d.lease_until ? ` (lease até ${d.lease_until})` : ''}`);
+    if (mode === 'status') {
+      console.log('  histórico:');
+      for (const h of d.history) {
+        console.log(`    ${h.msg_id} ${h.sender} ${h.op} ${h.stamped_at || '?'} -> ${h.verdict}${h.reason ? ` (${h.reason})` : ''}`);
+        if (String(h.session).includes('\n')) for (const l of String(h.session).split('\n')) console.log(`      ${l}`);
+      }
+    }
+  }
+  for (const l of lateLosses) console.log(`! perda tardia: ${l.baton_id} (nossa claim ${l.our_msg_id}), titular agora: ${l.winner}`);
+  for (const f of futureStamps) console.log(`! carimbo de bastão no futuro: ${f.msg_id} (${f.stamped_at})`);
+  for (const r of rewrittenOut) console.log(`! log próprio reescrito por escritor sem trava: ${r.msg_id}${r.baton_id ? ` (bastão ${r.baton_id})` : ''}`);
+})();
+NODEEOF
+    ;;
+
+  "")
+    echo "FAIL: uso: baton offer|claim|renew|release|complete|withdraw|status|list ..." >&2
+    exit 1
+    ;;
+
+  *)
+    echo "FAIL: verbo de bastão desconhecido '$baton_verb' (offer|claim|renew|release|complete|withdraw|status|list)" >&2
+    exit 1
+    ;;
+  esac
   ;;
 
 # ---------------------------------------------------------------------------------------------

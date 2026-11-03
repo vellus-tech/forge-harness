@@ -50,15 +50,15 @@
 # terceira camada nem a recusa fora de git: com um tronco que não une, ele publica pelo `cp` cru.
 
 if ! declare -F forge_main_root >/dev/null 2>&1; then
-  _fsu_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  _fsu_lib="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
   # shellcheck source=../forge-root.sh
   . "$_fsu_lib/forge-root.sh"
 fi
 
 # `forge_main_root` lê `$(pwd)`: o `cd` no subshell ancora a resolução na PRÓPRIA localização deste
 # arquivo, e não no cwd de quem chamou `liaison-ops.sh`, sem alterar o cwd do processo pai.
-_fsu_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if ! _fsu_tronco="$(cd "$_fsu_dir" && forge_main_root)"; then
+_fsu_dir="$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if ! _fsu_tronco="$(CDPATH='' cd "$_fsu_dir" && forge_main_root)"; then
   echo "FAIL fs-union: exige um checkout git para resolver o checkout principal, e nenhum repositório" >&2
   echo "                git é alcançável a partir de $_fsu_dir. Fora de git, use o kind fs." >&2
   return 1
@@ -70,6 +70,10 @@ if [ ! -f "$_fsu_common" ]; then
   echo "                exatamente o que pode estar destrutivo (issue #123)." >&2
   return 1
 fi
+# As guardas de SEC-001 conferidas abaixo são apagadas ANTES do source, pelo mesmo motivo da
+# conferência do corpo de `_dir_push`: o source define o que o arquivo traz, mas não apaga uma
+# função que já estivesse definida no processo, e a conferência leria a cópia errada.
+unset -f _dir_reject_symlink _dir_publish_file 2>/dev/null || true
 # shellcheck source=./_common.sh
 . "$_fsu_common"
 case "$(declare -f _dir_push)" in
@@ -81,18 +85,58 @@ case "$(declare -f _dir_push)" in
     return 1
     ;;
 esac
+# Opção C (design §2.4, add-liaison-handoff-baton): um tronco anterior a este change tem
+# `_dir_push_union`, mas publica sem `union-own` (ainda faz `cp "$hubf" "$own"`) e sem
+# `LIAISON_OBSERVED_FILE` — a mesma classe de risco da checagem acima, um patamar depois. Lê o
+# CORPO das duas funções recém-carregadas (não só se existem), pela mesma razão: o source sempre
+# redefine `_dir_push`/`_dir_push_union`, mas não apaga uma definição anterior no processo.
+case "$(declare -f _dir_push)$(declare -f _dir_push_union)" in
+  *union-own*LIAISON_OBSERVED_FILE* | *LIAISON_OBSERVED_FILE*union-own*) : ;;
+  *)
+    echo "FAIL fs-union: o _common.sh do checkout principal não tem a publicação sem trava (opção C, anterior ao add-liaison-handoff-baton): $_fsu_common." >&2
+    echo "                Publicar com ele sincronizaria o log próprio de volta sem a trava do log (cp cru)," >&2
+    echo "                podendo perder uma gravação concorrente. Atualize o checkout principal antes de" >&2
+    echo "                sincronizar." >&2
+    return 1
+    ;;
+esac
+# A QUARTA CAMADA (SEC-001, SEC-106): unir não basta, o tronco também precisa publicar sem seguir
+# link. Um tronco anterior a esta correção une, mas escreve no hub por temporário previsível e
+# segue symlink plantado por quem escreve no hub — execução de código na máquina de quem sincroniza.
+# Recusa antes de qualquer `t_probe`/`t_push`, falha fechada.
+if ! declare -F _dir_reject_symlink >/dev/null 2>&1 || ! declare -F _dir_publish_file >/dev/null 2>&1; then
+  echo "FAIL fs-union: o _common.sh do checkout principal não tem as guardas de SEC-001" >&2
+  echo "                (_dir_reject_symlink e _dir_publish_file): $_fsu_common." >&2
+  echo "                Publicar com ele seguiria symlink plantado no hub e escreveria fora da árvore" >&2
+  echo "                do canal. Atualize o checkout principal antes de sincronizar." >&2
+  return 1
+fi
 
-_fsu_hub() { printf '%s/%s' "$LIAISON_T_PATH" "$LIAISON_CHANNEL"; }
+# SEC-001: mesma regra de confiança do `fs` (ver o cabeçalho de `fs.sh`): a raiz configurada é
+# confiável e resolvida por `cd -P`; tudo abaixo dela é escrito por terceiros e verificado.
+_fsu_raiz() {
+  mkdir -p -- "$LIAISON_T_PATH" 2>/dev/null || true
+  (CDPATH='' cd -P -- "$LIAISON_T_PATH" 2>/dev/null && pwd -P) \
+    || { echo "FAIL: não foi possível resolver o hub em $LIAISON_T_PATH (permissão? caminho inválido?)" >&2; return 1; }
+}
+
+_fsu_hub() { local raiz; raiz="$(_fsu_raiz)" || return 1; printf '%s/%s' "$raiz" "$LIAISON_CHANNEL"; }
 
 t_probe() {
   [ -n "${LIAISON_T_PATH:-}" ] || { echo "FAIL: transporte fs-union exige 'path' no liaison.yaml" >&2; return 1; }
-  local hub; hub="$(_fsu_hub)"
-  mkdir -p "$hub/log" "$hub/blobs" 2>/dev/null \
+  local hub; hub="$(_fsu_hub)" || return 1
+  # Guardas ANTES de criar qualquer coisa (SEC-108): `mkdir -p` sobre um canal que é symlink
+  # criaria `log/` e `blobs/` onde o link aponta.
+  _dir_reject_symlink "$hub" || return 1
+  _dir_reject_symlink "$hub/log" || return 1
+  _dir_reject_symlink "$hub/blobs" || return 1
+  { _dir_ensure_subdir "$(dirname -- "$hub")" "$LIAISON_CHANNEL" \
+      && _dir_ensure_subdir "$hub" log && _dir_ensure_subdir "$hub" blobs; } \
     || { echo "FAIL: não foi possível criar o hub em $hub (permissão? caminho inválido?)" >&2; return 1; }
   [ -w "$hub/log" ] || { echo "FAIL: hub sem permissão de escrita: $hub/log" >&2; return 1; }
   return 0
 }
 
-t_push() { _dir_push "$(_fsu_hub)"; }
+t_push() { local hub; hub="$(_fsu_hub)" || return 1; _dir_push "$hub"; }
 
-t_pull() { _dir_pull "$(_fsu_hub)" "$1"; }
+t_pull() { local hub; hub="$(_fsu_hub)" || return 1; _dir_pull "$hub" "$1"; }

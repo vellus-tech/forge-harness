@@ -223,8 +223,19 @@ PYEOF
 
   AUTO_T="$BATS_TEST_TMPDIR/handoff-auto"
   cp -R "$TARGET" "$AUTO_T"
-  sed -i.bak 's/auto: false/auto: true/' "$AUTO_T/.forge/forge.yaml"
-  rm -f "$AUTO_T/.forge/forge.yaml.bak"
+  # Achado desta correção (add-liaison-handoff-baton, TASK-26/27): um `sed` sem escopo trocava
+  # TODO `auto: false` do arquivo, inclusive o de `liaison:` — inofensivo antes desta mudança
+  # (liaison.auto só contribuía para a MESMA condição de SessionStart/SessionEnd que handoff.auto
+  # já satisfazia), mas liaison.auto: true agora TAMBÉM liga PostToolUse (auto_renew ausente vale
+  # true), inflando "wired" para 6 e quebrando a asserção literal abaixo. O teste se chama
+  # "handoff.auto: true" — escopado ao bloco `handoff:`, nunca ao arquivo inteiro.
+  awk '
+    /^handoff:/ { print; f=1; next }
+    f && /^  auto: false$/ && !done { print "  auto: true"; done=1; next }
+    f && /^[a-z]/ { f=0 }
+    { print }
+  ' "$AUTO_T/.forge/forge.yaml" > "$AUTO_T/.forge/forge.yaml.new"
+  mv "$AUTO_T/.forge/forge.yaml.new" "$AUTO_T/.forge/forge.yaml"
   grep -q 'auto: true' "$AUTO_T/.forge/forge.yaml"
 
   (cd "$AUTO_T" && bash .forge/scripts/sync-adapters.sh --adapter claude >/dev/null)

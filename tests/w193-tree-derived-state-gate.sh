@@ -192,6 +192,9 @@ _prop() { # _prop -> imprime uma linha por violação; rc 0 quando a propriedade
       verify)  args=(verify "$id" --kind command --ref "rg prop" --observed "o defeito segue igual ao registro $RANDOM" --verdict confirmed) ;;
       resolve) args=(resolve "$id" --note "prop $RANDOM") ;;
       promote) args=(promote "$id" --to "ch-prop-$RANDOM") ;;
+      assign)  args=(assign "$id" --to "sessao-prop-$RANDOM") ;;
+      pause)   args=(pause "$id" --by "$id" --checkpoint "prop $RANDOM") ;;
+      resume)  args=(resume "$id") ;;
       harvest) args=(harvest ch-inexistente --origin close) ;;
       render)  args=(render) ;;
       *)

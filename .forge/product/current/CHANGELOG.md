@@ -8,6 +8,12 @@
 - **Operações:** 7
 - **Pasta:** `.forge/specs/archived/2026-11-03-adopt-ub-mode-practices/`
 
+## 2026-11-02 — add-liaison-handoff-baton
+
+- **Capabilities:** forge-harness-template
+- **Operações:** 16
+- **Pasta:** `.forge/specs/archived/2026-11-02-add-liaison-handoff-baton/`
+
 ## 2026-11-01 — add-unify-changelog-skill
 
 - **Capabilities:** changelog-authoring post-merge-automation

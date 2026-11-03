@@ -654,8 +654,14 @@ const CMD_START = '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-start.sh'
 const CMD_START_QUOTED = '"$CLAUDE_PROJECT_DIR"/.forge/hooks/session/on-session-start.sh';
 const CMD_END = '$CLAUDE_PROJECT_DIR/.forge/hooks/session/on-session-end.sh';
 const CMD_END_QUOTED = '"$CLAUDE_PROJECT_DIR"/.forge/hooks/session/on-session-end.sh';
+// CMD_POST_TOOL_USE — renovação automática do bastão (add-liaison-handoff-baton, TASK-26/27).
+// Gancho NOVO, sem forma legada (nunca existiu sem aspas em $CLAUDE_PROJECT_DIR para migrar) —
+// só entra em OWNED, nunca em SEED_POOL: este PBT já cobre "hook owned pré-sync numa forma
+// reconhecida" com os três ganchos antigos, e adicionar aqui exigiria também um ramo de
+// staleOwned/existingHooks.PostToolUse dedicado, fora do escopo desta correção pontual.
+const CMD_POST_TOOL_USE = '"$CLAUDE_PROJECT_DIR"/.forge/hooks/session/on-post-tool-use.sh';
 const SEED_POOL = [CMD_ENFORCE, CMD_START, CMD_END];
-const OWNED = new Set([CMD_ENFORCE, CMD_ENFORCE_QUOTED, CMD_START, CMD_START_QUOTED, CMD_END, CMD_END_QUOTED]);
+const OWNED = new Set([CMD_ENFORCE, CMD_ENFORCE_QUOTED, CMD_START, CMD_START_QUOTED, CMD_END, CMD_END_QUOTED, CMD_POST_TOOL_USE]);
 
 const AUTHOR_POOL = ['permissions', 'env', 'includeCoAuthoredBy', 'model'];
 function authorValue(rnd, key) {

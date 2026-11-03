@@ -49,7 +49,7 @@ O gate de teste do change vive num arquivo só, `tests/adopt-ub-mode-practices-g
   - Padrão de falha: `FAIL \[suppression-grammar`
   - Sem par vermelho/verde: as duas linhas já existem e não mudam de comportamento, só ganham comentário de referência — não há vermelho comportamental a observar aqui, só o scanner (TASK-07) confirmando que a referência nova é válida.
 
-- [-] TASK-09 — Arquivo de exclusão do consumidor `.forge/suppression-scan-exclude.txt` e leitura pelo script (rastreia: REQ-03; paths: `template/.forge/scripts/check-suppression-reference.sh`, `tests/adopt-ub-mode-practices-gate.sh`; depende: TASK-07)
+- [X] TASK-09 — Arquivo de exclusão do consumidor `.forge/suppression-scan-exclude.txt` e leitura pelo script (rastreia: REQ-03; paths: `template/.forge/scripts/check-suppression-reference.sh`, `tests/adopt-ub-mode-practices-gate.sh`; depende: TASK-07)
   - Teste (comando): `bash tests/adopt-ub-mode-practices-gate.sh suppression-grammar`
   - Padrão de falha: `FAIL \[suppression-grammar` (grupo estendido com o cenário de exclusão declarada pelo consumidor — item que NÃO está no escopo da TASK-07, para não duplicar: a TASK-07 cobre a gramática de referência e as duas exclusões de código gerado/`.forge/`; esta TASK cobre só o arquivo de exclusão adicional do consumidor)
 

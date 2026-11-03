@@ -9,7 +9,7 @@ Argumentos: `$ARGUMENTS` (change-id opcional; sem argumento, use o único change
 
 ## Pré-flight (obrigatório)
 
-1. Status `tasks-ready` (ou `implementing` — retomada idempotente: continue da primeira task não-`[X]`).
+1. Status `tasks-ready` (ou `implementing` — retomada idempotente: continue da primeira task não-`[X]`). **Pré-condição de retomada (REQ-01/REQ-02):** se a primeira task não-`[X]` estiver em `[!]` por causa literalmente "gate falha após 2 tentativas de correção", rode `bash .forge/scripts/check-attack-premise.sh --file tasks.md --task-id <TASK-NN>` antes de reinvocar qualquer correção — reprovado, **recuse a retomada** e peça ao humano para completar `Premissa:`/`Ator(es) com o desequilíbrio:` no bloco da task; as outras duas causas do `[!]` (dependência externa indisponível, decisão de produto necessária) não exigem essa checagem.
 2. **Scale ≥ 3:** `analysis.md` deve existir sem achados BLOCKER abertos (`/forge:analyze` é obrigatório antes — pare e indique se ausente).
 3. **Scale ≥ 3:** trabalhe em worktree dedicado — carregue a skill `using-git-worktrees` (localização canônica `.forge/worktrees/<change-id>`).
 4. **Scale ≥ 3: story sharding obrigatória** (§17.1) — rode `bash .forge/scripts/validate-spec.sh <change-id>` **antes** de qualquer transição ou task. O guard (lib/story-shard.mjs, via validate-spec.mjs) reprova fechado quando `dev_loop.sharded`/`dev_loop.epic_context_compiled` não forem `true`, ou quando `stories/` não existir, estiver vazio, não cobrir cada TASK de `tasks.md` exatamente uma vez, ou tiver ciclo em `depends_on` — em qualquer um desses casos, **pare** e rode `/forge:shard <change-id>` antes de prosseguir. Dispensa excepcional só via `quick_plan.enabled: true` com `story-sharding` em `skipped_phases` (bloco style ou flow style — `[story-sharding]` — as duas formas são equivalentes) e `justification` preenchida; nunca uma omissão silenciosa. Este mesmo check já roda dentro da transição do passo 5 (via `spec-transition.sh`) — rodá-lo aqui cobre também a retomada idempotente do passo 1, onde a transição não é reexecutada.
@@ -52,6 +52,8 @@ Para cada task `[ ]` cuja(s) dependência(s) estejam `[X]`:
 5. Marque `[X]` e emita **uma linha** de progresso (`TASK-NN ✓ <título> (<sha curto>)`) — sem resumos entre tasks (§17.6).
 
 **Falha irrecuperável** (gate falha após 2 tentativas de correção, dependência externa indisponível, decisão de produto necessária): marque `[!]`, **pare a execução** e reporte o que travou — humano decide. Não pule para a próxima task de outra wave.
+
+**Premissa nomeada (REQ-01/REQ-02) — só quando a causa é literalmente "gate falha após 2 tentativas de correção":** antes de reportar o HALT, acrescente ao bloco `[!]` da task em `tasks.md`, imediatamente após a linha `> FALHA: gate falha após 2 tentativas de correção — <sintoma>`, as linhas `> Gate: <nome do teste/gate que reprovou>`, `> Premissa: <a suposição que as duas tentativas compartilhavam>` e `> Ator(es) com o desequilíbrio: <quem/o que carrega a responsabilidade mal distribuída>`. Rode `bash .forge/scripts/check-attack-premise.sh --file tasks.md --task-id <TASK-NN>`: reprovado, complete os campos antes de emitir o relatório de HALT ao humano — não reporte com os campos vazios. As outras duas causas do `[!]` não exigem nenhum campo novo nem essa chamada.
 
 ## Encerramento
 

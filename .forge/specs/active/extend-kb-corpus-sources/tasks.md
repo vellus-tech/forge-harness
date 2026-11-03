@@ -38,7 +38,7 @@
 
 ## Wave 3 — Documentação
 
-- [ ] TASK-05 — `template/.forge/commands/graph/kb.md` (ou onde o escopo de `/forge:kb` é descrito): lista as fontes atuais + `active-spec`/`extra-path`, remove linguagem de cobertura total, documenta a ressalva multi-repositório, e orienta `ledger-ops.sh add --type follow-up --title ... --detail ...` como caminho para fato/decisão pontual (com a ressalva do enum fechado do ledger) (rastreia: REQ-05; design (prosa, sem seção própria); paths: `template/.forge/commands/graph/kb.md`, `tests/extend-kb-corpus-sources-gate.sh`; depende: TASK-04)
+- [X] TASK-05 — `template/.forge/commands/graph/kb.md` (ou onde o escopo de `/forge:kb` é descrito): lista as fontes atuais + `active-spec`/`extra-path`, remove linguagem de cobertura total, documenta a ressalva multi-repositório, e orienta `ledger-ops.sh add --type follow-up --title ... --detail ...` como caminho para fato/decisão pontual (com a ressalva do enum fechado do ledger) (rastreia: REQ-05; design (prosa, sem seção própria); paths: `template/.forge/commands/graph/kb.md`, `tests/extend-kb-corpus-sources-gate.sh`; depende: TASK-04)
   - Teste (comando): `bash tests/extend-kb-corpus-sources-gate.sh`
   - Padrão de falha: `FAIL \[[^\]]+\]`
   - Nota: cobre `[36]` (`grep` por `active-spec` e `extra-path` no arquivo de documentação), `[37]` (`grep` por `ledger-ops.sh add --type follow-up` como caminho documentado), `[38]` (ressalva multi-repositório presente — `grep` por termo como "cada \`.forge/\` próprio"/"multi-repositório"), `[39]` (ausência de frase de cobertura total — `! grep -qi` por padrão proibido, ex.: "todo o conhecimento do projeto" sem qualificação; `grep -v` NÃO prova ausência — achado do `yolo-gate`, corrigido aqui).

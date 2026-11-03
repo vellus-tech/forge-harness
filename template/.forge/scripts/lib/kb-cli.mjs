@@ -138,6 +138,9 @@ const docOrder = (fusedRows) => fusedRows.map((r) => r.doc);
 
 // search: devolve {mode, mode_reason, results:[...]} — results com explicação por canal.
 async function search(a, idx, q, semState) {
+  // kind/status por doc id (change extend-kb-corpus-sources, REQ-07/REQ-01) — pré-computado uma vez
+  // por consulta para evitar O(n²) quando idx.docs crescer (design §2.4).
+  const docMeta = new Map(idx.docs.map((d) => [d.id, d]));
   const ch = {};
   const best = new Map();
   const note = (name, m) => { ch[name] = new Map([...m].map(([d, v]) => [d, v.rank])); for (const [d, v] of m) if (!best.has(d) || name === 'bm25') best.set(d, v.chunk); };
@@ -177,9 +180,14 @@ async function search(a, idx, q, semState) {
     const f = byDoc.get(o.doc);
     const ci = best.get(o.doc) ?? idx.chunks.findIndex((c) => c.doc === o.doc);
     const c = idx.chunks[ci] || { heading: '', line: 1 };
+    const meta = docMeta.get(o.doc);
+    const kind = meta ? meta.kind : null;
+    const status = meta && meta.madr_status ? meta.madr_status : null;
     return {
       rank: i + 1,
       doc: o.doc,
+      kind,
+      ...(status ? { status } : {}),
       heading: c.heading,
       line: c.line,
       score: f.score,
@@ -200,11 +208,15 @@ export function snippet(text) {
 }
 
 const CH_LABEL = { bm25: 'bm25', entities: 'entidades', links: 'links', vector: 'vetor' };
+// Rótulo visível na saída texto quando o status MADR indica que o ADR não está mais vigente —
+// accepted/proposed/outros valores não reconhecidos não geram rótulo (design §2.4, REQ-07).
+const STATUS_LABEL = { superseded: '[SUPERSEDED] ', deprecated: '[DEPRECATED] ', rejected: '[REJECTED] ' };
 function printText(out) {
   const lines = [out.mode === 'semantic' ? 'modo: semantic' : `modo: lexical (${out.mode_reason})`];
   if (!out.results.length) lines.push('nenhum resultado');
   for (const r of out.results) {
-    lines.push(`${r.rank}. ${r.doc}${r.heading ? ` — ${r.heading}` : ''} (linha ${r.line})  rrf=${r.score.toFixed(4)}`);
+    const label = (r.status && STATUS_LABEL[r.status]) || '';
+    lines.push(`${r.rank}. ${label}${r.doc}${r.heading ? ` — ${r.heading}` : ''} (linha ${r.line})  rrf=${r.score.toFixed(4)}`);
     const parts = Object.keys(r.channels).sort().map((k) => (k === 'links' ? `links de ${r.channels.links.from.length} resultado(s) (+${r.channels.links.contribution.toFixed(4)})` : `${CH_LABEL[k] || k} #${r.channels[k].rank} (+${r.channels[k].contribution.toFixed(4)})`));
     if (r.rerank && r.rerank.ce_rank) parts.push(`re-rank ce #${r.rerank.ce_rank} (fusão #${r.rerank.fusion_rank})`);
     lines.push(`   canais: ${parts.join(' · ')}`);

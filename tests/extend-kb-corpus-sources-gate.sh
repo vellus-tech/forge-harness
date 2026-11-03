@@ -440,8 +440,8 @@ const idx = JSON.parse(fs.readFileSync(p, "utf8"));
 idx.format = 3;
 fs.writeFileSync(p, JSON.stringify(idx) + "\n");
 ' "$IDXFILE" || fail 33 "falha ao simular indice de formato 3"
-QUERY33="$(FORGE_ROOT="$R33" bash "$KB" query "fmt33 para bump de index" --json 2>&1)" \
-  || fail 33 "query apos downgrade de formato falhou: $QUERY33"
+QUERY33="$(FORGE_ROOT="$R33" bash "$KB" query "fmt33 para bump de index" --json 2>/dev/null)" \
+  || fail 33 "query apos downgrade de formato falhou"
 node -e '
 const q = JSON.parse(process.argv[1]);
 if (q.rebuilt !== true) process.exit(1);

@@ -32,6 +32,34 @@ export const CHUNK_MAX = 1500;
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 const posix = (p) => p.split(sep).join('/');
 
+// --- status MADR (change extend-kb-corpus-sources, REQ-07) -------------------------------------
+//
+// Convenção MADR: `- **Status:** <valor>` nas primeiras linhas do arquivo. Captura só o PRIMEIRO
+// termo depois de "Status:" (nunca a linha inteira) — valores reais trazem sufixo (ex.: ADR 0004
+// deste repositório: "accepted — gate `design_reviewed` aprovado...") e a convenção MADR usa
+// "Superseded by [ADR-0012]"; comparar a linha inteira nunca casaria "superseded"/"accepted" como
+// palavra isolada.
+const MADR_STATUS_RE = /^-?\s*\*\*Status:\*\*\s*(\S+)/mi;
+const MADR_STATUS_HEAD_LINES = 20;
+const MADR_PTBR_MAP = {
+  aceito: 'accepted',
+  suplantado: 'superseded',
+  substituído: 'superseded',
+  depreciado: 'deprecated',
+  rejeitado: 'rejected',
+};
+
+// madrStatus(text) → status normalizado (string) ou null quando o documento não traz cabeçalho
+// MADR nas primeiras ~20 linhas. Pontuação final do termo capturado é removida antes de normalizar
+// para minúsculas e mapear variantes PT-BR conhecidas.
+export function madrStatus(text) {
+  const head = String(text).split('\n').slice(0, MADR_STATUS_HEAD_LINES).join('\n');
+  const m = MADR_STATUS_RE.exec(head);
+  if (!m) return null;
+  const term = m[1].replace(/[.,;:]+$/, '').toLowerCase();
+  return MADR_PTBR_MAP[term] || term;
+}
+
 // --- kb.extra_paths (change extend-kb-corpus-sources, REQ-02/REQ-03/REQ-06) --------------------
 //
 // Validação em 4 camadas, nessa ordem, cada falha gerando skip('extra-path') + aviso em stderr —
@@ -189,7 +217,13 @@ export function collect({ docRoot, stateRoot = docRoot }) {
   const addFile = (kind, root, file) => {
     let text;
     try { text = readFileSync(file, 'utf8'); } catch { skip(kind); return; }
-    docs.push({ id: posix(relative(root, file)), kind, text, sha256: sha(text) });
+    const id = posix(relative(root, file));
+    // madrStatus só roda sobre as fontes que podem conter ADR (baseline/active-spec/extra-path) e
+    // só quando o id contém '/adr/' — evita custo de regex em todo documento não-ADR (design §2.4).
+    const madr_status = (kind === 'baseline' || kind === 'active-spec' || kind === 'extra-path') && id.includes('/adr/')
+      ? madrStatus(text)
+      : null;
+    docs.push({ id, kind, text, sha256: sha(text), madr_status });
   };
   for (const f of walk(join(docRoot, '.forge/product/current'), ['.md', '.yaml', '.yml'])) addFile('baseline', docRoot, f);
   for (const f of walk(join(docRoot, '.forge/specs/archived'), ['.md', '.yaml', '.yml'])) addFile('archived-spec', docRoot, f);

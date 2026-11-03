@@ -57,7 +57,7 @@ O gate de teste do change vive num arquivo só, `tests/adopt-ub-mode-practices-g
   - Teste (comando): `bash tests/adopt-ub-mode-practices-gate.sh suppression-wiring`
   - Padrão de falha: `FAIL \[suppression-wiring`
 
-- [-] TASK-11 — Receita "Supressão sem referência" em `gate-runner/SKILL.md` e linha nova em `quality-gates.md` (rastreia: REQ-03; paths: `template/.forge/skills/gate-runner/SKILL.md`, `template/.forge/rules/testing/quality-gates.md`, `tests/adopt-ub-mode-practices-gate.sh`; depende: TASK-07)
+- [X] TASK-11 — Receita "Supressão sem referência" em `gate-runner/SKILL.md` e linha nova em `quality-gates.md` (rastreia: REQ-03; paths: `template/.forge/skills/gate-runner/SKILL.md`, `template/.forge/rules/testing/quality-gates.md`, `tests/adopt-ub-mode-practices-gate.sh`; depende: TASK-07)
   - Teste (comando): `bash tests/adopt-ub-mode-practices-gate.sh suppression-wiring`
   - Padrão de falha: `FAIL \[suppression-wiring` (grupo estendido com o cenário de documentação)
 

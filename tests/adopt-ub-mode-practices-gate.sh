@@ -35,7 +35,7 @@ SCRIPT="$WS/template/.forge/scripts/check-attack-premise.sh"
 T="$(mktemp -d "${TMPDIR:-/tmp}/forge-attack-premise.XXXXXX")"
 trap 'rm -rf "$T"' EXIT
 
-declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 3;; premise-mutation) echo 7;; suppression-grammar) echo 11;; suppression-wiring) echo 4;; suppression-mutation) echo 4;; spike) echo 0;; esac; }
+declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 3;; premise-mutation) echo 7;; suppression-grammar) echo 11;; suppression-wiring) echo 4;; suppression-mutation) echo 4;; spike) echo 4;; esac; }
 ALL_GROUPS="script implement-wiring coding-loop-wiring human-wiring premise-mutation suppression-grammar suppression-wiring suppression-mutation spike"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
@@ -628,6 +628,79 @@ if _want suppression-mutation; then
   }
   _mutate_and_check suppression-mutation-4 "$LIBU" 's/if \[ "\$count" -gt 0 \]; then/if true; then/' _check_universe
   echo "OK [suppression-mutation-4] — a checagem de contagem é a causa real de universo vazio nunca passar por sucesso"
+fi
+
+# ──────────────────── spike (TASK-13: REQ-05) ────────────────────
+if _want spike; then
+  SPIKE="$WS/tools/spike-complexity-duplication.mjs"
+  command -v npx >/dev/null 2>&1 || echo "AVISO: npx ausente — cenários de duplicação podem falhar"
+
+  _spikerepo() { git init -q "$1"; } # fixture mínima: repo git próprio, sem copiar template/.forge
+
+  _scn "[spike-1] complexidade: oráculo fixo — função com CC=1 abaixo do limiar, função com CC=12 acima (limiar 10)"
+  F="$T/sp1"; mkdir -p "$F/src"; _spikerepo "$F"
+  printf 'function simple(x) {\n  return x + 1;\n}\n' > "$F/src/low.js"
+  {
+    echo 'function complex(a) {'
+    for n in 1 2 3 4 5 6 7 8 9 10 11; do echo "  if (a === $n) { return $n; }"; done
+    echo '  return 0;'
+    echo '}'
+  } > "$F/src/high.js"
+  git -C "$F" add -A; git -C "$F" -c user.email=t@t -c user.name=t commit -q -m fixture
+  out="$(node "$SPIKE" "$F" --complexity-threshold 10 --duplication-threshold 0.8)" || _fail spike-1 "spike reprovou: $out"
+  grep -qF "1 de 2 função(ões) acima do limiar" <<<"$out" || _fail spike-1 "contagem de funções acima do limiar não bate com o oráculo (esperado 1 de 2): $out"
+  grep -qF "complex() CC=12" <<<"$out" || _fail spike-1 "CC=12 de complex() não bate com o oráculo: $out"
+  grep -q "low.js" <<<"$out" && _fail spike-1 "low.js (CC=1) não deveria aparecer como ACIMA do limiar: $out"
+  echo "OK [spike-1] — $out"
+
+  _scn "[spike-2] duplicação: oráculo fixo — par idêntico acima do limiar (≈100%), universo distinto abaixo (0%)"
+  F="$T/sp2"; mkdir -p "$F/src"; _spikerepo "$F"
+  BLOCK='function blockOne(a, b, c) {
+  const x1 = a + b;
+  const x2 = b + c;
+  const x3 = c + a;
+  const x4 = x1 + x2;
+  const x5 = x2 + x3;
+  const x6 = x3 + x1;
+  const x7 = x4 + x5;
+  const x8 = x5 + x6;
+  console.log(x7, x8);
+  return x7 + x8;
+}
+'
+  printf '%s' "$BLOCK" > "$F/src/dup1.js"
+  printf '%s' "$BLOCK" > "$F/src/dup2.js"
+  git -C "$F" add -A; git -C "$F" -c user.email=t@t -c user.name=t commit -q -m dup
+  out="$(node "$SPIKE" "$F" --duplication-threshold 0.4)" || _fail spike-2 "spike reprovou (par idêntico): $out"
+  grep -qF "ACIMA do limiar" <<<"$out" || _fail spike-2 "par 100% idêntico (50% do universo, jscpd conta só a 2ª ocorrência) deveria ficar ACIMA de 0.4: $out"
+
+  F2="$T/sp2b"; mkdir -p "$F2/src"; _spikerepo "$F2"
+  printf 'function a() { return 1; }\n' > "$F2/src/a.js"
+  printf 'function b() { return 2; }\n' > "$F2/src/b.js"
+  git -C "$F2" add -A; git -C "$F2" -c user.email=t@t -c user.name=t commit -q -m distinct
+  out="$(node "$SPIKE" "$F2" --duplication-threshold 0.8)" || _fail spike-2 "spike reprovou (arquivos distintos): $out"
+  grep -qF "abaixo do limiar" <<<"$out" || _fail spike-2 "arquivos distintos deveriam ficar abaixo do limiar: $out"
+  echo "OK [spike-2] — par idêntico ACIMA, arquivos distintos abaixo"
+
+  _scn "[spike-3] universo via git ls-files: arquivo NÃO versionado (ex. node_modules/) nunca entra na medição"
+  F="$T/sp3"; mkdir -p "$F/src" "$F/node_modules/pkg"; _spikerepo "$F"
+  printf 'function simple() { return 1; }\n' > "$F/src/a.js"
+  printf 'function huge() {\n' > "$F/node_modules/pkg/bundle.js"
+  for n in $(seq 1 20); do echo "  if (x === $n) { return $n; }" >> "$F/node_modules/pkg/bundle.js"; done
+  echo '}' >> "$F/node_modules/pkg/bundle.js"
+  git -C "$F" add src; git -C "$F" -c user.email=t@t -c user.name=t commit -q -m fixture
+  out="$(node "$SPIKE" "$F" --complexity-threshold 10)" || _fail spike-3 "spike reprovou: $out"
+  grep -q "node_modules" <<<"$out" && _fail spike-3 "node_modules/ não versionado apareceu na medição: $out"
+  grep -qF "1 arquivo(s) JS/TS" <<<"$out" || _fail spike-3 "universo deveria ser só o arquivo versionado: $out"
+  echo "OK [spike-3] — $out"
+
+  _scn "[spike-4] erro de uso: sem target-dir e diretório que não é repositório git reprovam com rc 2"
+  set +e; out="$(node "$SPIKE" 2>&1)"; rc=$?; set -e
+  [ "$rc" -eq 2 ] || _fail spike-4 "sem target-dir deveria sair 2 — rc=$rc: $out"
+  NOTGIT="$T/notgit"; mkdir -p "$NOTGIT"
+  set +e; out="$(node "$SPIKE" "$NOTGIT" 2>&1)"; rc=$?; set -e
+  [ "$rc" -eq 2 ] || _fail spike-4 "diretório sem git deveria sair 2 — rc=$rc: $out"
+  echo "OK [spike-4] — 2 erros de uso com rc 2"
 fi
 
 # ───────────────────────────── fechamento ─────────────────────────────

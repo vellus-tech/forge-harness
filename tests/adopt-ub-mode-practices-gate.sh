@@ -33,7 +33,7 @@ SCRIPT="$WS/template/.forge/scripts/check-attack-premise.sh"
 T="$(mktemp -d "${TMPDIR:-/tmp}/forge-attack-premise.XXXXXX")"
 trap 'rm -rf "$T"' EXIT
 
-declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 0;; human-wiring) echo 0;; premise-mutation) echo 0;; suppression-grammar) echo 0;; suppression-wiring) echo 0;; suppression-mutation) echo 0;; spike) echo 0;; esac; }
+declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 3;; human-wiring) echo 0;; premise-mutation) echo 0;; suppression-grammar) echo 0;; suppression-wiring) echo 0;; suppression-mutation) echo 0;; spike) echo 0;; esac; }
 ALL_GROUPS="script implement-wiring coding-loop-wiring human-wiring premise-mutation suppression-grammar suppression-wiring suppression-mutation spike"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
@@ -213,6 +213,29 @@ if _want implement-wiring; then
   grep -qF 'check-attack-premise.sh' <<<"$PRE1" || _fail implement-wiring-4 "pré-flight não chama o script antes de retomar: $IMPL"
   grep -qiE 'recuse a retomada' <<<"$PRE1" || _fail implement-wiring-4 "pré-flight não nomeia a recusa de retomada: $IMPL"
   echo "OK [implement-wiring-4] — pré-condição de retomada presente no passo 1"
+fi
+
+# ──────────────────── coding-loop-wiring (TASK-03/04: REQ-01/REQ-02) ────────────────────
+if _want coding-loop-wiring; then
+  CODER="$WS/template/.forge/agents/coding/task-coder.md"
+
+  _scn "[coding-loop-wiring-1] §3.7 — bloco 'Última falha' acumula (nunca sobrescreve) e ganha o campo Gate"
+  grep -qiE 'nunca sobrescreva' "$CODER" || _fail coding-loop-wiring-1 "instrução de nunca sobrescrever ausente: $CODER"
+  grep -qF '**Gate:**' "$CODER" || _fail coding-loop-wiring-1 "campo **Gate:** ausente no bloco: $CODER"
+  echo "OK [coding-loop-wiring-1] — bloco acumulativo com campo Gate"
+
+  _scn "[coding-loop-wiring-2] §3.7 — Premissa/Ator(es) e chamada ao check-attack-premise.sh sobre PROGRESS-TRACKING.md"
+  SEC37="$(awk '/#### 3\.7 Falha/{f=1} f{print} /^### Fase 4/{exit}' "$CODER")"
+  grep -qF '**Premissa:**' <<<"$SEC37" || _fail coding-loop-wiring-2 "campo **Premissa:** ausente em §3.7"
+  grep -qF '**Ator(es) com o desequilíbrio:**' <<<"$SEC37" || _fail coding-loop-wiring-2 "campo **Ator(es) com o desequilíbrio:** ausente em §3.7"
+  grep -qF 'check-attack-premise.sh --file docs/product/modules' <<<"$SEC37" || _fail coding-loop-wiring-2 "chamada ao script ausente em §3.7"
+  echo "OK [coding-loop-wiring-2] — campos e chamada ao script em §3.7"
+
+  _scn "[coding-loop-wiring-3] preflight recusa reabrir onda com [!] pendente sem os campos"
+  PRE="$(awk '/falha pendente de revisão humana/{f=1} f{print; c++} c>5{exit}' "$CODER")"
+  grep -qF 'check-attack-premise.sh' <<<"$PRE" || _fail coding-loop-wiring-3 "preflight não chama o script: $CODER"
+  grep -qiE 'recuse reabrir' <<<"$PRE" || _fail coding-loop-wiring-3 "preflight não nomeia a recusa: $CODER"
+  echo "OK [coding-loop-wiring-3] — preflight com pré-condição de retomada"
 fi
 
 # ───────────────────────────── fechamento ─────────────────────────────

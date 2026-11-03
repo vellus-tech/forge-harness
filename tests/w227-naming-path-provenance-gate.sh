@@ -55,6 +55,12 @@
 #   [10] contrafactual pela ponte — o mesmo payload com `mysrc/...` continua reprovando (rc 1)
 #        através da ponte, fechando o par positivo/contrafactual nos dois caminhos de invocação
 #        que este gancho recebe hoje (direto e via ponte).
+#   [11] positivo (LDG-0049) — `test/` (singular) relativo também isenta, rc 0. A alternativa
+#        original só cobria `tests` (plural); repositórios Payments.* como Tokenization e
+#        SplitRules usam `test/` para o projeto de teste, e a isenção calava para eles.
+#   [12] contrafactual (LDG-0049) — um segmento que só CONTÉM `test` como substring (`latest/`)
+#        continua reprovando, rc 1 — a isenção de `tests?` não pode alargar para qualquer nome
+#        que apenas contenha a palavra.
 #
 # Propriedade PBT: coberta em [7]. Não há propriedade adicional fora desse espaço (a entrada do
 # hook é só o caminho do arquivo; conteúdo e extensão não participam da regra 2).
@@ -215,7 +221,7 @@ if [ "$rc8pre" -ne 0 ]; then
   overall_rc=1
 else
   # mutação: aspas simples do lado direito, nunca $ interpolado
-  perl -pi -e 's{\(\^\|/\)\(src\|tests\|services\|deploy\)\(/\|\$\)}{/(src|tests|services|deploy)(/|\$)}' "$MUT"
+  perl -pi -e 's{\(\^\|/\)\(src\|tests\?\|services\|deploy\)\(/\|\$\)}{/(src|tests?|services|deploy)(/|\$)}' "$MUT"
   if cmp -s "$MUT" "$T/orig.sh"; then
     echo "FAIL [8]: a mutação não alterou o arquivo — o ponto de mutação mudou de nome/forma"
     overall_rc=1
@@ -264,6 +270,27 @@ if [ "$rc10" -eq 0 ]; then
   overall_rc=1
 else
   echo "OK [10] — rc $rc10 pela ponte (reprovado, como esperado)"
+fi
+
+
+# ── [11] positivo (LDG-0049) — test/ (singular) relativo também isenta ───────────────────────
+echo "[11] positivo (LDG-0049) — test/ (singular) relativo: Axis.Tokenization.Host.Security.Test/FallbackTests.cs"
+out11="$(bash "$HOOK" "test/Axis.Tokenization.Host.Security.Test/FallbackTests.cs" 2>&1)"; rc11=$?
+if [ "$rc11" -ne 0 ]; then
+  echo "FAIL [11]: caminho relativo sob test/ (singular) reprovado (rc=$rc11). Saída: $out11"
+  overall_rc=1
+else
+  echo "OK [11] — rc 0"
+fi
+
+# ── [12] contrafactual (LDG-0049) — segmento que só CONTÉM "test" (latest/) não isenta ───────
+echo "[12] contrafactual (LDG-0049) — segmento que só contém test (latest/) não isenta"
+out12="$(bash "$HOOK" "latest/MinhaPasta/nota.md" 2>&1)"; rc12=$?
+if [ "$rc12" -eq 0 ]; then
+  echo "FAIL [12]: 'latest/...' foi isento (rc=0). Saída: $out12"
+  overall_rc=1
+else
+  echo "OK [12] — rc $rc12 (reprovado, como esperado)"
 fi
 
 exit "$overall_rc"

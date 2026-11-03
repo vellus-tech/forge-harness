@@ -25,7 +25,7 @@
 
 ## Wave 2 — Superfície de CLI: contagem por fonte, status MADR, rótulo de origem
 
-- [ ] TASK-03 — `countKinds(docs, extraPathsConfigured)` compartilhada; `cmdStatus` passa a usá-la (força `extra-path: 0` quando configurado e vazio); `cmdBuild` ganha a MESMA contagem por fonte na linha de saída (hoje só reporta total) (rastreia: REQ-04; design §2.3; paths: `template/.forge/scripts/lib/kb-cli.mjs`, `tests/extend-kb-corpus-sources-gate.sh`; depende: TASK-02)
+- [X] TASK-03 — `countKinds(docs, extraPathsConfigured)` compartilhada; `cmdStatus` passa a usá-la (força `extra-path: 0` quando configurado e vazio); `cmdBuild` ganha a MESMA contagem por fonte na linha de saída (hoje só reporta total) (rastreia: REQ-04; design §2.3; paths: `template/.forge/scripts/lib/kb-cli.mjs`, `tests/extend-kb-corpus-sources-gate.sh`; depende: TASK-02)
   - Teste (comando): `bash tests/extend-kb-corpus-sources-gate.sh`
   - Padrão de falha: `FAIL \[[^\]]+\]`
   - Nota: cobre `[25]` (`kb.sh status --json` inclui `kinds.active-spec`), `[26]` (`kinds['extra-path']` aparece como `0` quando configurado e vazio/rejeitado), `[27]` (`kb.sh build`, saída texto, lista contagem por fonte).

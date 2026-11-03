@@ -61,7 +61,7 @@ O gate de teste do change vive num arquivo só, `tests/adopt-ub-mode-practices-g
   - Teste (comando): `bash tests/adopt-ub-mode-practices-gate.sh suppression-wiring`
   - Padrão de falha: `FAIL \[suppression-wiring` (grupo estendido com o cenário de documentação)
 
-- [-] TASK-12 — Provas de mutação do scanner de supressão: controle → mutação → recontrole cobrindo a gramática de referência, a exclusão `.forge/`, o resolvedor de base (cenário "sem `origin/develop`" já tem Red na TASK-07; a mutação prova que o fallback é a causa do comportamento, não coincidência) e o contrafactual de universo via `forge_universe_check` (rastreia: REQ-04; paths: `tests/adopt-ub-mode-practices-gate.sh`; depende: TASK-08, TASK-09, TASK-10, TASK-11)
+- [X] TASK-12 — Provas de mutação do scanner de supressão: controle → mutação → recontrole cobrindo a gramática de referência, a exclusão `.forge/`, o resolvedor de base (cenário "sem `origin/develop`" já tem Red na TASK-07; a mutação prova que o fallback é a causa do comportamento, não coincidência) e o contrafactual de universo via `forge_universe_check` (rastreia: REQ-04; paths: `tests/adopt-ub-mode-practices-gate.sh`; depende: TASK-08, TASK-09, TASK-10, TASK-11)
   - Teste (comando): `bash tests/adopt-ub-mode-practices-gate.sh suppression-mutation`
   - Padrão de falha: `FAIL \[suppression-mutation`
   - Sem par vermelho/verde: task só de teste, mesmo motivo da TASK-06.

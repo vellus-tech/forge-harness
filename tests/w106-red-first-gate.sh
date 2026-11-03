@@ -854,6 +854,16 @@ const cases = [
   // build-error.
   ['E   this is not an assertion or error at all', 'unknown'],
   ['E   Everyone knows this fact', 'unknown'],
+  // LDG-0021 — FsCheck sob o Microsoft Testing Platform (xunit.v3 + MTP): o adapter embrulha a
+  // falha comportamental do FsCheck em Xunit.MicrosoftTestingPlatform.XunitException, sem
+  // "Xunit.Sdk." nem "Assert.X() Failure" em lugar nenhum da saída — cairia em 'unknown' sem
+  // assinatura própria. Fixture real, reproduzida com FsCheck.Xunit.v3 3.4.0 + xunit.v3 4.0.1
+  // (scratch, property que sempre falsifica):
+  ['Xunit.MicrosoftTestingPlatform.XunitException: FsCheck.Xunit.PropertyFailedException : \nFalsifiable, after 1 test (0 shrinks) (9501840206463157288,10348442580388261343). \nLast step was invoked with size of 2 and seed of (6214535168054907983,205016888931364139):\nOriginal:\n0\n\n---- System.Exception : Expected true, got false.', 'behavioral'],
+  // Variante relatada (ORQ): o adapter às vezes embrulha com o tipo da exceção interna em vez do
+  // nome do FsCheck ("System.Exception :" em vez de "FsCheck.Xunit.PropertyFailedException :"),
+  // mas "Falsifiable, after" sempre aparece — é a âncora que não depende do wrapper.
+  ['Xunit.MicrosoftTestingPlatform.XunitException: System.Exception : Prop seed (1,2)-Falsifiable, after 3 tests (1 shrink)', 'behavioral'],
 ];
 let fail = 0;
 for (const [text, expected] of cases) {

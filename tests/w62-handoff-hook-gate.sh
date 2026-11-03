@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Gate W4.2 — handoff SessionStart/SessionEnd hooks (opt-in via forge.yaml handoff.auto):
-#   [1] default install → handoff.auto: false; .claude/settings.json has exactly 3 "command":
-#       entries (worktree-guard + prevent-secrets-leak.sh, armed by default since issue #125, and
-#       guard-cross-session-send.sh, armed by default since add-liaison-native-bridge), no
+#   [1] default install → handoff.auto: false; .claude/settings.json has exactly 4 "command":
+#       entries (worktree-guard + prevent-secrets-leak.sh, armed by default since issue #125;
+#       guard-cross-session-send.sh, armed by default since add-liaison-native-bridge; and
+#       prevent-aws-credentials-read.sh, armed by default since ORQ-20261027-105), no
 #       SessionStart/SessionEnd (C5 regression guard)
 #   [2] flip handoff.auto: true + re-sync claude adapter → settings.json gains SessionStart +
-#       SessionEnd hooks pointing at the session scripts; 5 "command": entries total
+#       SessionEnd hooks pointing at the session scripts; 6 "command": entries total
 set -euo pipefail
 # Isolamento git (LDG-0201): GIT_DIR/GIT_WORK_TREE/GIT_INDEX_FILE/GIT_COMMON_DIR/GIT_OBJECT_DIRECTORY
 # herdados do ambiente (de uma sessão paralela mal isolada) fariam este gate — que cria
@@ -31,9 +32,10 @@ SETTINGS="$T/.claude/settings.json"
 python3 -m json.tool "$SETTINGS" >/dev/null
 
 COUNT1="$(grep -o '"command":' "$SETTINGS" | wc -l | tr -d ' ')"
-[ "$COUNT1" -eq 3 ]
+[ "$COUNT1" -eq 4 ]
 grep -q 'enforce-worktree-location.sh' "$SETTINGS"
 grep -q 'prevent-secrets-leak.sh' "$SETTINGS"
+grep -q 'prevent-aws-credentials-read.sh' "$SETTINGS"
 # LDG-0182: sob set -e, `! grep -q ...` sozinho nunca reprova o gate (o retorno invertido isenta a
 # linha do set -e), então uma regressão que injetasse SessionStart/SessionEnd no install default
 # passaria em silêncio (medido: renomear a chave PreToolUse para SessionStart mantém "OK [1]").
@@ -67,7 +69,7 @@ grep -q 'on-session-start.sh' "$SETTINGS"
 grep -q 'on-session-end.sh' "$SETTINGS"
 
 COUNT2="$(grep -o '"command":' "$SETTINGS" | wc -l | tr -d ' ')"
-[ "$COUNT2" -eq 5 ]
+[ "$COUNT2" -eq 6 ]
 echo "OK [2]"
 
 echo "OK"

@@ -73,7 +73,7 @@ O gate de teste do change vive num arquivo só, `tests/adopt-ub-mode-practices-g
   - Padrão de falha: `FAIL \[spike`
   - Setup do teste: fixture com 2-3 arquivos de complexidade/duplicação conhecidas (um caso claramente acima do limiar, um claramente abaixo), para o gate comparar contra oráculo fixo
 
-- [ ] TASK-14 — Execução real do spike sobre `Payments.DevPortal` e aplicação do critério de decisão (rastreia: REQ-05; paths: `.forge/specs/active/adopt-ub-mode-practices/spike-result.md`; depende: TASK-13). Arquivo novo, onde o resultado é gravado.
+- [X] TASK-14 — Execução real do spike sobre `Payments.DevPortal` e aplicação do critério de decisão (rastreia: REQ-05; paths: `.forge/specs/active/adopt-ub-mode-practices/spike-result.md`; depende: TASK-13). Arquivo novo, onde o resultado é gravado.
   - Teste (comando): N/A — esta TASK é a execução documentada do roteiro: rodar `tools/spike-complexity-duplication.mjs` sobre `Payments.DevPortal` (universo via `git ls-files`), classificar manualmente uma amostra de 20 achados acima do limiar como verdadeiro/falso-positivo (design §2.3 passo 3), aplicar a regra dos 30%, e gravar o resultado (limiar final ou "descartado") em `spike-result.md`
   - Sem par vermelho/verde: task de execução e registro, sem código de produção.
 

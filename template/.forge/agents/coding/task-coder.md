@@ -103,7 +103,7 @@ Caso contrário, varra `PROGRESS-TRACKING.md` para identificar a primeira onda c
 
 Se **nenhuma** onda tem `[ ]` → reporte "Módulo `<modulo>` 100% concluído" e termine.
 
-Se há onda com `[!]` (falha pendente de revisão humana) → reporte "Wave `<N>` interrompida em `TASK-NN`. Resolva ou marque `[X]`/`[ ]` manualmente antes de invocar `/forge:coding-loop`."
+Se há onda com `[!]` (falha pendente de revisão humana) → reporte "Wave `<N>` interrompida em `TASK-NN`. Resolva ou marque `[X]`/`[ ]` manualmente antes de invocar `/forge:coding-loop`." **Pré-condição de retomada (REQ-01/REQ-02):** antes de aceitar essa resolução manual, rode `bash .forge/scripts/check-attack-premise.sh --file docs/product/modules/<modulo>/PROGRESS-TRACKING.md --task-id <TASK-NN>` — reprovado, **recuse reabrir a onda** e peça ao humano para completar `Premissa:`/`Ator(es) com o desequilíbrio:` na ocorrência mais recente dessa TASK antes de tentar de novo.
 
 ---
 
@@ -402,17 +402,22 @@ Continue para próxima TASK.
 - [!] TASK-01 — Implementar Money.Split                       [backend-dotnet]  - (FAILED — build error)
 ```
 
-Adicione bloco "Última falha" no tracker:
+Adicione um bloco NOVO "Última falha" no tracker — **nunca sobrescreva** um bloco anterior da mesma TASK; o histórico acumula, uma entrada por ocorrência, para o par (TASK, Gate) ter de onde derivar a contagem:
 
 ```markdown
-## ⚠️ Última falha — Wave 3 / TASK-01
+## ⚠️ Última falha — Wave 3 / TASK-01 (2ª ocorrência desta TASK neste gate)
 
 **Quando:** 2026-05-10 22:23
+**Gate:** `dotnet build`
 **Specialist invocado:** backend-engineer-dotnet
 **Sintoma:** `dotnet build` falhou com 3 errors (CS0103 — identifier 'BigInteger' não encontrado).
+**Premissa:** <preenchido só a partir da 2ª ocorrência CONSECUTIVA desta TASK neste mesmo Gate desde a última retomada informada>
+**Ator(es) com o desequilíbrio:** <idem>
 **Próxima ação humana:** revisar implementação em `services/payment-processing/src/PaymentProcessing.Domain/ValueObjects/Money.cs` ou re-invocar `/forge:coding-loop payment-processing` após corrigir.
 **Logs:** /tmp/task-coder-TASK-01.log
 ```
+
+**Premissa nomeada (REQ-01/REQ-02).** `Premissa:`/`Ator(es) com o desequilíbrio:` só são exigidos a partir da 2ª ocorrência consecutiva do par (TASK, Gate) desde a última retomada informada (ocorrência anterior do mesmo par já com os dois campos preenchidos abre série nova — a próxima reocorrência volta a ser "1ª do par"). Depois de escrever o bloco, rode `bash .forge/scripts/check-attack-premise.sh --file docs/product/modules/<modulo>/PROGRESS-TRACKING.md --task-id <TASK-NN>`: reprovado, complete os campos antes de declarar o HALT.
 
 Commit:
 

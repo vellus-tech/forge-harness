@@ -536,6 +536,20 @@
             }
           }
         },
+        "kb": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Config da busca unificada (/forge:kb, change extend-kb-corpus-sources). extra_paths declara fontes extras indexadas, uma por doc.",
+          "properties": {
+            "extra_paths": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Globs extras indexados por /forge:kb, formato <prefixo>/** ou <prefixo>/**/*.<md|yaml|yml> (prefixo sem caractere de glob, sem segmento '.'/'..', fora de .forge/), cada um exigindo entrada em .forge/kb-extra-paths-allowlist.txt com # motivo:."
+            }
+          }
+        },
         "liaison": {
           "type": "object",
           "additionalProperties": false,

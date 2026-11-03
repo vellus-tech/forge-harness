@@ -186,7 +186,7 @@ ok 16
 #      entre dois kb.sh build faz status reportar defasado, e um query DIRETO (sem build explícito)
 #      já reflete o texto novo (REQ-06 critério 3 — reconstrução automática de loadIndex()).
 R17="$T/extra17"
-mkdir -p "$R17/docs/adr"
+mkdir -p "$R17/docs/adr" "$R17/.forge"
 printf '# ADR extra17\n\nTexto inicial do extra-path.\n' > "$R17/docs/adr/0100-extra.md"
 printf 'kb:\n  extra_paths:\n    - docs/adr/**\n' > "$R17/.forge/forge.yaml"
 printf 'docs/adr/**  # motivo: caso 17 de staleness\n' > "$R17/.forge/kb-extra-paths-allowlist.txt"
@@ -198,7 +198,7 @@ printf '# ADR extra17\n\nTexto NOVO do extra-path, editado entre dois builds.\n'
 STATUS17B="$(FORGE_ROOT="$R17" bash "$KB" status --json 2>&1)" || fail 17 "kb.sh status --json após edição falhou: $STATUS17B"
 node -e 'const s=JSON.parse(process.argv[1]); if (s.index!=="defasado") process.exit(1);' "$STATUS17B" \
   || fail 17 "status deveria reportar defasado após editar conteúdo extra-path sem rebuild: $STATUS17B"
-QUERY17="$(FORGE_ROOT="$R17" bash "$KB" query "editado entre dois builds" --json 2>&1)" || fail 17 "kb.sh query falhou: $QUERY17"
+QUERY17="$(FORGE_ROOT="$R17" bash "$KB" query "editado entre dois builds" --json 2>/dev/null)" || fail 17 "kb.sh query falhou"
 node -e '
 const q = JSON.parse(process.argv[1]);
 const hit = q.results.some((r) => r.doc === "docs/adr/0100-extra.md");

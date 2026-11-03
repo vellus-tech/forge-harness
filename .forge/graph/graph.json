@@ -1,10 +1,10 @@
 {
   "schema": "graph/v0",
-  "generated_at": "2026-11-03T01:06:34.176Z",
+  "generated_at": "2026-11-03T17:48:30.087Z",
   "engine": "native",
   "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/extend-kb-corpus-sources",
   "stats": {
-    "nodes": 581,
+    "nodes": 582,
     "edges": 100,
     "languages": [
       "csharp",
@@ -16,7 +16,7 @@
       "shell",
       "ts"
     ],
-    "summaries_stale": 581,
+    "summaries_stale": 582,
     "census": {
       "csharp": 10,
       "go": 15,
@@ -24,15 +24,15 @@
       "js": 134,
       "kotlin": 6,
       "python": 21,
-      "shell": 352,
+      "shell": 353,
       "ts": 29
     },
     "layer_coverage": {
-      "classified": 368,
+      "classified": 369,
       "unclassified": 213,
       "out_of_taxonomy": 0,
-      "denominator": 581,
-      "ratio": 0.6334
+      "denominator": 582,
+      "ratio": 0.634
     }
   },
   "nodes": [
@@ -839,16 +839,16 @@
     {
       "id": "template/.forge/scripts/lib/kb-cli.mjs",
       "lang": "js",
-      "loc": 325,
-      "fingerprint": "caf8759a4932e71bfd6f2b7cad7ae75039fd64e891b60b39d35620b9e8ee8397",
+      "loc": 354,
+      "fingerprint": "531ce8609131cf440ebc8be8fb1a8a7f17238baf987d22c203ac492026af96f5",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "template/.forge/scripts/lib/kb-corpus.mjs",
       "lang": "js",
-      "loc": 169,
-      "fingerprint": "f13596998c0cc3c9cc7d0daea128acaa5e192b6dadec8c4927ef15b95ff4c5ad",
+      "loc": 343,
+      "fingerprint": "54d3cb8f48d228298544710d58a1b6ebf76934769e2da409a96e6b7bac78a8ba",
       "layer": "unknown",
       "summary": null
     },
@@ -879,8 +879,8 @@
     {
       "id": "template/.forge/scripts/lib/kb-lexical.mjs",
       "lang": "js",
-      "loc": 166,
-      "fingerprint": "8192711e64a7fd9ce24cad7167dd739cbffaa255e91a6369bd230ad93bf3f0b0",
+      "loc": 169,
+      "fingerprint": "e5802abb89e8180ecf826718e1086791ef487455dd8ae1523b95ad0831486ea2",
       "layer": "unknown",
       "summary": null
     },
@@ -1721,6 +1721,14 @@
       "lang": "shell",
       "loc": 24,
       "fingerprint": "70447fc277b0c2664e2c51d7ebe7311822793f496c584b4a3297fe644139ff12",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/extend-kb-corpus-sources-gate.sh",
+      "lang": "shell",
+      "loc": 543,
+      "fingerprint": "166d14f246b7106d3ac00659b72a0a11822406c9ac3a5833c163caf9b36b5c0e",
       "layer": "test",
       "summary": null
     },
@@ -4159,8 +4167,8 @@
     {
       "id": "tests/w309-kb-corpus-gate.sh",
       "lang": "shell",
-      "loc": 149,
-      "fingerprint": "3f47f6ec5e59b96cb36896403360f69471771e22432f9987f2233bbe5e394e8e",
+      "loc": 158,
+      "fingerprint": "5e18e97caa8b5730054ad014a3bea4c0b09886db3f8c514cc19e5a9adf24bed6",
       "layer": "test",
       "summary": null
     },

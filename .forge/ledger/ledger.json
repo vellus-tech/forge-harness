@@ -4311,7 +4311,33 @@
       "dedup_key": "manual:LDG-0243"
     },
     {
-      "id": "LDG-0245",
+      "id": "LDG-0244",
+      "type": "tech-debt",
+      "title": "Calibração do kb-fuse/rerank é específica do corpus do forge-harness, não validada cross-corpus",
+      "detail": "evidence/semantic-feasibility.md §5-6 do change add-unified-knowledge-search calibrou WV=1,0, propagação alfa=0,1/T=10, RERANK_K=10, w_ce=1,0, RRF_K=60 sobre 53 consultas escritas pelo autor sobre ESTE repositório (334-5167 trechos, vocabulário de harness/SDD). O próprio documento adverte: números valem como comparação relativa NESTE corpus, não como qualidade absoluta, e não são comparáveis a outro corpus. Dois testes reais no workspace Payments (~1800 docs, 4165 trechos, vocabulário fintech/PCI-DSS) confirmaram isso na prática: em 3 consultas mensuráveis (2 rodadas, 2026-11-02), nenhuma mostrou o modo semantico+rerank superando o lexical isolado, e num caso o lexical rankeou melhor. Não é indício de bug na implementação (rrf/combineRerank seguem a fórmula documentada) — é ausência de um processo de calibração por consumidor. Trabalho futuro: ou (a) expor um roteiro documentado para o consumidor gerar seu próprio conjunto de calibração/holdout via kb.sh eval e ajustar constantes localmente, ou (b) aceitar que os defaults atuais são um ponto de partida razoável sem garantia de superioridade sobre lexical em corpus fora do forge-harness, documentando isso explicitamente na superfície do /forge:kb (hoje a documentação não avisa sobre essa limitação).",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "add-unified-knowledge-search",
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "add-unified-knowledge-search"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-02T21:22:10-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0244"
+    },
+    {
+      "id": "LDG-0247",
       "type": "follow-up",
       "title": "Caso automatizado para rotulo [EXTRA-PATH] na saida texto do kb.sh query",
       "detail": "O change extend-kb-corpus-sources (TASK-04) implementou KIND_LABEL em kb-cli.mjs::printText() cobrindo active-spec e extra-path, mas o gate tests/extend-kb-corpus-sources-gate.sh so tem caso automatizado para o rotulo [ACTIVE-SPEC] (caso [32]). O comportamento do [EXTRA-PATH] foi confirmado manualmente pelo gate implementation_verified (iteracao 2) num fixture descartavel, mas sem prova automatizada permanente. Adicionar um caso [40] (ou renumerar) ao gate, com fixture extra-path real, antes da proxima vez que kb-cli.mjs for tocado.",
@@ -4334,7 +4360,7 @@
       "created_at": "2026-11-03T02:24:06-03:00",
       "updated_at": null,
       "resolved_at": null,
-      "dedup_key": "manual:LDG-0245"
+      "dedup_key": "manual:LDG-0247"
     }
   ]
 }

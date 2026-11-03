@@ -32,7 +32,12 @@ Argumentos: nenhum.
    comando** — corrija antes de continuar; não shippe quebrado. Se a branch corresponde a um
    change `type: bugfix`, confira `bash .forge/scripts/check-red-first.sh check <change-id>`
    (rule `testing/regression-red-first.md`) — evidência de Red não resolvida também interrompe
-   o comando aqui, antes do commit.
+   o comando aqui, antes do commit. **Supressão sem referência (REQ-03/REQ-04):** depois de
+   `git add` (staged, ainda antes do commit do passo 4), rode
+   `bash .forge/scripts/check-suppression-reference.sh --staged` (recipe "Supressão sem
+   referência" em `.forge/skills/gate-runner/SKILL.md`) — reprovado, corrija a supressão
+   (adicione `LDG-NNNN`/`ADR-NNNN`/`ISSUE-NNN`/`issue #NNN` etc. ao comentário) antes de
+   continuar; não shippe com supressão suja.
 
 ## Commit(s)
 

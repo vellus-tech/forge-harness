@@ -47,6 +47,18 @@ _resolve_base() { # _resolve_base <local_sha> <remote_sha>
   git -C "$ROOT" rev-list --max-parents=0 "$local_sha" 2>/dev/null | tail -1
 }
 
+EMPTY_TREE_SHA="4b825dc642cb6eb9a060e54bf8d69288fbee4904" # árvore vazia (git), hash fixo e universal
+_diff_base() { # _diff_base <root> <base> <head> — base==head (1º commit do repo, raiz=base
+  # resolvida) não é range válido para 'git diff a...a'; usa a árvore vazia para diffar o
+  # commit inteiro como adição, nunca pula a checagem do primeiro commit publicado.
+  local root="$1" base="$2" head="$3"
+  if [ "$(git -C "$root" rev-parse --verify --quiet "$base^{commit}" 2>/dev/null)" = "$(git -C "$root" rev-parse --verify --quiet "$head^{commit}" 2>/dev/null)" ]; then
+    printf '%s\n' "$EMPTY_TREE_SHA"
+  else
+    printf '%s\n' "$base"
+  fi
+}
+
 EXTS=(-- '*.js' '*.jsx' '*.mjs' '*.cjs' '*.ts' '*.tsx' '*.py')
 DIFF_FILE="$(mktemp "${TMPDIR:-/tmp}/forge-suppression-diff.XXXXXX")"
 trap 'rm -f "$DIFF_FILE"' EXIT
@@ -56,8 +68,10 @@ if [ "$MODE" = "staged" ]; then
   [ -n "$HEAD_SHA" ] || { echo "FAIL (sem HEAD — repositório sem commit algum)"; exit 1; }
   BASE="$(_resolve_base "$HEAD_SHA" "$ZERO_SHA")"
   [ -n "$BASE" ] || { echo "FAIL (base não resolvida — sem origin/develop, origin/HEAD, origin/main nem commit raiz)"; exit 1; }
-  if ! git -C "$ROOT" diff "$BASE...HEAD" "${EXTS[@]}" >> "$DIFF_FILE" 2>"$DIFF_FILE.err"; then
-    echo "FAIL (git diff '$BASE...HEAD' saiu com erro: $(cat "$DIFF_FILE.err"))"; exit 1
+  DBASE="$(_diff_base "$ROOT" "$BASE" "$HEAD_SHA")"
+  if [ "$DBASE" = "$EMPTY_TREE_SHA" ]; then DRANGE=("$DBASE" "HEAD"); else DRANGE=("$DBASE...HEAD"); fi
+  if ! git -C "$ROOT" diff "${DRANGE[@]}" "${EXTS[@]}" >> "$DIFF_FILE" 2>"$DIFF_FILE.err"; then
+    echo "FAIL (git diff '${DRANGE[*]}' saiu com erro: $(cat "$DIFF_FILE.err"))"; exit 1
   fi
   if ! git -C "$ROOT" diff --cached "${EXTS[@]}" >> "$DIFF_FILE" 2>"$DIFF_FILE.err"; then
     echo "FAIL (git diff --cached saiu com erro: $(cat "$DIFF_FILE.err"))"; exit 1
@@ -68,8 +82,10 @@ else
     *) echo "FAIL (--range precisa do formato <base>...<head>)"; exit 2 ;;
   esac
   [ -n "$BASE" ] && [ -n "$HEAD_REF" ] || { echo "FAIL (--range com base ou head vazio)"; exit 2; }
-  if ! git -C "$ROOT" diff "$BASE...$HEAD_REF" "${EXTS[@]}" >> "$DIFF_FILE" 2>"$DIFF_FILE.err"; then
-    echo "FAIL (git diff '$BASE...$HEAD_REF' saiu com erro: $(cat "$DIFF_FILE.err"))"; exit 1
+  DBASE="$(_diff_base "$ROOT" "$BASE" "$HEAD_REF")"
+  if [ "$DBASE" = "$EMPTY_TREE_SHA" ]; then DRANGE=("$DBASE" "$HEAD_REF"); else DRANGE=("$DBASE...$HEAD_REF"); fi
+  if ! git -C "$ROOT" diff "${DRANGE[@]}" "${EXTS[@]}" >> "$DIFF_FILE" 2>"$DIFF_FILE.err"; then
+    echo "FAIL (git diff '${DRANGE[*]}' saiu com erro: $(cat "$DIFF_FILE.err"))"; exit 1
   fi
 fi
 rm -f "$DIFF_FILE.err"

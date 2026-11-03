@@ -121,6 +121,35 @@ if [ -n "$RED_LIB" ]; then
   if ! printf '%s\n' "$INPUT" | REPO="$ROOT" check_red_first; then
     exit 1
   fi
+
+  # >>> suppression-reference BEGIN (âncora de extração do gate adopt-ub-mode-practices-gate.sh)
+  # suppression-reference (REQ-03/REQ-04) — reusa _redfirst_resolve_base, já sourceada acima
+  # (remote_sha se não for zero → origin/develop → origin/HEAD → origin/main → commit raiz),
+  # sobre o range efetivamente publicado por este push, uma ref por vez.
+  SUPPRESSION_CHECK="$(resolve_delegated check-suppression-reference.sh scripts/check-suppression-reference.sh)"; _rc=$?
+  if [ "$_rc" -eq 1 ]; then
+    echo "pre-push BLOQUEADO: .forge/scripts/ existe mas check-suppression-reference.sh não — delegação em alvo ausente" >&2
+    exit 1
+  fi
+  if [ -n "$SUPPRESSION_CHECK" ]; then
+    while read -r _sr_lref _sr_lsha _sr_rref _sr_rsha; do
+      [ -n "${_sr_lsha:-}" ] || continue
+      case "$_sr_lsha" in *[!0]*) : ;; *) continue ;; esac   # deleção de ref: nada a varrer
+      _sr_base="$(_redfirst_resolve_base "$_sr_lsha" "${_sr_rsha:-0000000000000000000000000000000000000000}")"
+      if [ -z "$_sr_base" ]; then
+        echo "pre-push BLOQUEADO: check-suppression-reference — base não resolvida (sem origin/develop, origin/HEAD, origin/main nem commit raiz)" >&2
+        exit 1
+      fi
+      if ! bash "$SUPPRESSION_CHECK" --range "$_sr_base...$_sr_lsha" >/dev/null; then
+        echo "pre-push BLOQUEADO: supressão sem referência rastreável (REQ-03/REQ-04)" >&2
+        bash "$SUPPRESSION_CHECK" --range "$_sr_base...$_sr_lsha" || true
+        exit 1
+      fi
+    done <<EOF_SUP
+$INPUT
+EOF_SUP
+  fi
+  # <<< suppression-reference END
 fi
 
 # no-ai-attribution (rule conventions/no-ai-attribution.md) — varre os commits que estão sendo

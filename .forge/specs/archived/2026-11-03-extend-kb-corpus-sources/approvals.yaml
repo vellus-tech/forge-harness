@@ -79,3 +79,10 @@ approvals:
     decided_at: "2026-11-03T02:27:11-03:00"
     iteration: 2
     commit: "2f768312"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "aprovado pelo usuario em 2026-11-03: active-spec + kb.extra_paths revisados, inclui fix de seguranca de realpath"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-03T11:18:53-03:00"
+    commit: "97c9c925"
+    scope: "spec-delta.yaml"

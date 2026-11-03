@@ -14,7 +14,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync, realpathSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { collect, fingerprint, quickFingerprint } from './kb-corpus.mjs';
+import { collect, fingerprint, quickFingerprint, readExtraPaths } from './kb-corpus.mjs';
 import { createHash } from 'node:crypto';
 import { buildIndex, serializeIndex, attachTexts, bm25, entityMatch, toDocRanks, INDEX_FORMAT } from './kb-lexical.mjs';
 import { neutralize } from './untrusted-render.mjs';
@@ -68,6 +68,17 @@ function writeAtomic(p, data) {
   const tmp = `${p}.tmp-${process.pid}`;
   writeFileSync(tmp, data);
   renameSync(tmp, p);
+}
+
+// countKinds: conta kinds[d.kind]++ sobre qualquer lista de docs ({id, kind} basta) — compartilhada
+// entre cmdStatus e cmdBuild para não repetir a lógica de extra-path=0 em dois lugares. Quando
+// extraPathsConfigured (resultado de readExtraPaths) não está vazio, força kinds['extra-path'] a
+// existir explicitamente mesmo com zero documentos — o gap de cobertura é visível, nunca silencioso.
+export function countKinds(docs, extraPathsConfigured) {
+  const kinds = {};
+  for (const d of docs) kinds[d.kind] = (kinds[d.kind] || 0) + 1;
+  if (Array.isArray(extraPathsConfigured) && extraPathsConfigured.length) kinds['extra-path'] = kinds['extra-path'] || 0;
+  return kinds;
 }
 
 function build(a) {
@@ -215,8 +226,10 @@ async function cmdQuery(a) {
 async function cmdBuild(a) {
   const t = Date.now();
   const { idx, skipped } = build(a);
+  const kinds = countKinds(idx.docs, readExtraPaths(a.docRoot));
+  const kindsStr = Object.entries(kinds).sort().map(([k, v]) => `${k}=${v}`).join(' ');
   const sk = Object.entries(skipped).map(([k, v]) => `${k}=${v}`).join(' ');
-  process.stdout.write(`OK índice lexical: ${idx.docs.length} documentos, ${idx.chunks.length} trechos (${((Date.now() - t) / 1000).toFixed(1)}s)${sk ? ` — pulados: ${sk}` : ''}\n`);
+  process.stdout.write(`OK índice lexical: ${idx.docs.length} documentos (${kindsStr}), ${idx.chunks.length} trechos (${((Date.now() - t) / 1000).toFixed(1)}s)${sk ? ` — pulados: ${sk}` : ''}\n`);
   const semState = await loadSemantic(a);
   if (!semState.sem) { process.stdout.write(`vetores não calculados: ${semState.reason}\n`); return; }
   try {
@@ -230,7 +243,7 @@ async function cmdBuild(a) {
 function cmdStatus(a) {
   const { docs, skipped } = collect({ docRoot: a.docRoot, stateRoot: a.stateRoot });
   const st0 = indexState(a, readIndex(a)); const state = st0 === 'atual-conteudo' ? 'atual' : st0;
-  const kinds = {}; for (const d of docs) kinds[d.kind] = (kinds[d.kind] || 0) + 1;
+  const kinds = countKinds(docs, readExtraPaths(a.docRoot));
   const semantic = existsSync(join(semanticDir(a), 'installed.json')) ? 'instalada' : 'não instalada';
   if (a.json) { process.stdout.write(JSON.stringify({ format: 1, index: state, docs: docs.length, kinds, skipped, semantic }) + '\n'); return; }
   process.stdout.write(`índice: ${state} — ${docs.length} documentos (${Object.entries(kinds).sort().map(([k, v]) => `${k}=${v}`).join(' ')})\n`);

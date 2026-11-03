@@ -20,7 +20,7 @@ O gate de teste do change vive num arquivo só, `tests/adopt-ub-mode-practices-g
   - Teste (comando): `bash tests/adopt-ub-mode-practices-gate.sh implement-wiring`
   - Padrão de falha: `FAIL \[implement-wiring`
 
-- [-] TASK-03 — `task-coder.md` §3.7: bloco acumulativo com campo `Gate`, chamada ao script, pré-condição de retomada no preflight que recusa abrir onda com `[!]` pendente (`task-coder.md:106`) (rastreia: REQ-01, REQ-02; paths: `template/.forge/agents/coding/task-coder.md`, `tests/adopt-ub-mode-practices-gate.sh`; depende: TASK-01)
+- [X] TASK-03 — `task-coder.md` §3.7: bloco acumulativo com campo `Gate`, chamada ao script, pré-condição de retomada no preflight que recusa abrir onda com `[!]` pendente (`task-coder.md:106`) (rastreia: REQ-01, REQ-02; paths: `template/.forge/agents/coding/task-coder.md`, `tests/adopt-ub-mode-practices-gate.sh`; depende: TASK-01)
   - Teste (comando): `bash tests/adopt-ub-mode-practices-gate.sh coding-loop-wiring`
   - Padrão de falha: `FAIL \[coding-loop-wiring`
 

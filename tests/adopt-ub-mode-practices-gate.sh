@@ -33,7 +33,7 @@ SCRIPT="$WS/template/.forge/scripts/check-attack-premise.sh"
 T="$(mktemp -d "${TMPDIR:-/tmp}/forge-attack-premise.XXXXXX")"
 trap 'rm -rf "$T"' EXIT
 
-declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 3;; premise-mutation) echo 7;; suppression-grammar) echo 10;; suppression-wiring) echo 3;; suppression-mutation) echo 0;; spike) echo 0;; esac; }
+declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 3;; premise-mutation) echo 7;; suppression-grammar) echo 10;; suppression-wiring) echo 4;; suppression-mutation) echo 0;; spike) echo 0;; esac; }
 ALL_GROUPS="script implement-wiring coding-loop-wiring human-wiring premise-mutation suppression-grammar suppression-wiring suppression-mutation spike"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
@@ -560,6 +560,14 @@ if _want suppression-wiring; then
   [ "$rc" -eq 0 ] || _fail wiring-3 "push limpo (sem violação) não deveria bloquear: rc=$rc — $out"
   unset INPUT
   echo "OK [wiring-3] — bloco real do pre-push bloqueia sujo e aceita limpo"
+
+  _scn "[wiring-4] receita 'Supressão sem referência' em gate-runner/SKILL.md e linha nova em quality-gates.md"
+  grep -qF "Supressão sem referência" "$SKILL2" || _fail wiring-4 "receita ausente em gate-runner/SKILL.md"
+  grep -qF "check-suppression-reference.sh" "$SKILL2" || _fail wiring-4 "receita não cita o script"
+  SECLINT="$(awk '/^## Portão de decisão para burndown de lint/{f=1} f{print} /^## Testes de Acessibilidade/{exit}' "$QGATES")"
+  grep -qF "check-suppression-reference.sh" <<<"$SECLINT" || _fail wiring-4 "quality-gates.md sem linha citando o script novo"
+  grep -qF -- "-- ver ISSUE-123" "$QGATES" || _fail wiring-4 "exemplo canônico '-- ver ISSUE-123' não deveria mudar"
+  echo "OK [wiring-4] — receita e linha de enforcement presentes, exemplo canônico intacto"
 fi
 
 # ───────────────────────────── fechamento ─────────────────────────────

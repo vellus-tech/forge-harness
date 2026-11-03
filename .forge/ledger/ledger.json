@@ -4335,6 +4335,30 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0244"
+    },
+    {
+      "id": "LDG-0248",
+      "type": "feature-idea",
+      "title": "Avaliar banco vetorial local (sqlite-vec) e fila para o kb semântico, condicionado a medição de escala",
+      "detail": "Hoje kb-semantic.mjs usa vectors.bin próprio (header JSON + Float32Array), carregado inteiro em memória, busca brute-force (produto escalar + sort), zero dependência nativa (Node + ONNX WASM). Avaliado nesta sessão: sqlite-vec é pré-v1 e a release hoje só tem KNN exato (sem ANN confirmado em produção) — trocaria formato de armazenamento mas não ganharia velocidade real; vec1 (sqlite.org) tem ANN mais maduro mas a própria doc admite 'testing insuficiente', incompatível com a régua de evidência medida deste projeto. Os dois exigem extensão nativa, quebrando a portabilidade zero-dep/WASM atual. Corpus hoje (forge-harness: centenas de docs; Payments: ~1800) está muito abaixo da escala onde ANN compensa (tipicamente >50-100 mil vetores) — brute-force deve ser sub-segundo. Sobre fila: não existe extensão SQLite equivalente a pgmq (só libs de aplicação tipo litequeue/liteque sobre uma tabela); o problema real que uma fila resolveria (reindexação duplicada por sessões Claude Code paralelas no mesmo corpus) já tem solução mais simples e já usada no projeto: um mutex leve, no mesmo padrão de heavy-mutex/liaison-lock.mjs — fila é desenho para múltiplos produtores/consumidores concorrentes, não o caso de uma sessão única reindexando seu próprio corpus local. CONDIÇÃO DE PROMOÇÃO (reconsiderar, não implementar agora): medir p95 de latência de kb.sh query num consumidor real com corpus crescendo e confirmar que fica acima de um limiar incômodo (ex.: >500ms) antes de trocar o formato de armazenamento; se promovido, sqlite-vec é a escolha mais segura entre as duas (mais testada em comunidade), sempre como camada opt-in atrás de flag, nunca dependência obrigatória, no mesmo padrão em que o semântico já é opcional sobre o lexical.",
+      "severity": null,
+      "priority": "P3",
+      "status": "open",
+      "source": {
+        "change_id": null,
+        "origin": "manual",
+        "ref": null
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-02T22:09:04-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "manual:LDG-0248"
     }
   ]
 }

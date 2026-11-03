@@ -33,7 +33,7 @@ SCRIPT="$WS/template/.forge/scripts/check-attack-premise.sh"
 T="$(mktemp -d "${TMPDIR:-/tmp}/forge-attack-premise.XXXXXX")"
 trap 'rm -rf "$T"' EXIT
 
-declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 0;; premise-mutation) echo 0;; suppression-grammar) echo 0;; suppression-wiring) echo 0;; suppression-mutation) echo 0;; spike) echo 0;; esac; }
+declare_scn() { case "$1" in script) echo 12;; implement-wiring) echo 4;; coding-loop-wiring) echo 4;; human-wiring) echo 3;; premise-mutation) echo 0;; suppression-grammar) echo 0;; suppression-wiring) echo 0;; suppression-mutation) echo 0;; spike) echo 0;; esac; }
 ALL_GROUPS="script implement-wiring coding-loop-wiring human-wiring premise-mutation suppression-grammar suppression-wiring suppression-mutation spike"
 SCN=0
 _scn() { SCN=$((SCN + 1)); echo "$1"; }
@@ -248,6 +248,36 @@ if _want coding-loop-wiring; then
   grep -qF 'Premissa nomeada' "$DISC" || _fail coding-loop-wiring-4 "session-discipline.md sem referência a 'Premissa nomeada'"
   grep -qF 'Premissa nomeada' "$SKILL" || _fail coding-loop-wiring-4 "gate-runner/SKILL.md sem a receita 'Premissa nomeada'"
   echo "OK [coding-loop-wiring-4] — documentação do mecanismo nos 4 arquivos"
+fi
+
+# ──────────────────── human-wiring (TASK-05: REQ-01) ────────────────────
+if _want human-wiring; then
+  VERIFY="$WS/template/.forge/commands/specs/verify.md"
+  ARCHIVE="$WS/template/.forge/commands/specs/archive.md"
+
+  _scn "[human-wiring-1] verify.md ganha a seção '## Premissas atacadas' gerada por --list"
+  grep -qF '## Premissas atacadas' "$VERIFY" || _fail human-wiring-1 "seção ausente em $VERIFY"
+  grep -qF 'check-attack-premise.sh --list' "$VERIFY" || _fail human-wiring-1 "chamada --list ausente em $VERIFY"
+  echo "OK [human-wiring-1] — seção e chamada --list presentes"
+
+  _scn "[human-wiring-2] archive.md §2 ganha a linha de contagem derivada de 'Premissas atacadas'"
+  SEC2="$(awk '/^## 2\. Gate HITL/{f=1} f{print} /^## 3\./{exit}' "$ARCHIVE")"
+  grep -qF 'Premissas atacadas' <<<"$SEC2" || _fail human-wiring-2 "linha de contagem ausente em archive.md §2"
+  grep -qF 'verification.md' <<<"$SEC2" || _fail human-wiring-2 "referência a verification.md ausente em archive.md §2"
+  echo "OK [human-wiring-2] — linha de contagem presente no resumo que o humano lê"
+
+  _scn "[human-wiring-3] comportamental: check-attack-premise.sh --list roda sobre fixture e produz saída consumível pela seção documentada"
+  F="$T/human1.md"
+  cat > "$F" <<'EOF'
+- [!] TASK-09 — algo (rastreia: REQ-02; paths: x)
+  > FALHA: gate falha após 2 tentativas de correção — sintoma
+  > Gate: npm test
+  > Premissa: suposição
+  > Ator(es) com o desequilíbrio: fulano
+EOF
+  out="$(bash "$SCRIPT" --list --file "$F")" || _fail human-wiring-3 "--list reprovou: $out"
+  grep -q "TASK-09" <<<"$out" || _fail human-wiring-3 "saída do --list não lista TASK-09: $out"
+  echo "OK [human-wiring-3] — --list produz a listagem que a seção documentada consome"
 fi
 
 # ───────────────────────────── fechamento ─────────────────────────────

@@ -1,0 +1,53 @@
+# Verification — extend-kb-corpus-sources
+
+> Checkpoint review REQ a REQ do change `extend-kb-corpus-sources`, contra o código real implementado (TASK-01..TASK-05, todas `[X]`). Suíte isolada (`tests/w309-kb-corpus-gate.sh` + `tests/extend-kb-corpus-sources-gate.sh`) com 48 casos, todos `PASS`/`OK`, confirmados de forma independente a cada task (não apenas pelo relatório do subagente implementador).
+
+## REQ-01 — Indexar specs ativas como fonte própria (`active-spec`), revertendo REQ-FHT-072
+
+Implementado em `template/.forge/scripts/lib/kb-corpus.mjs` (`collect()`/`sourceFiles()`), commits `2bc4d768`(red)/`ab82f16e`(green). `tests/w309-kb-corpus-gate.sh` caso `[1]` exige `active-spec .forge/specs/active/wip/proposal.md` no corpus; a exclusão de peer/blob/código/node_modules permanece intocada no mesmo arquivo. `spec-delta.yaml` grava `modify_requirement` full-replacement de `REQ-FHT-072`/`SCN-FHT-072-A` com o texto novo — conferido linha a linha contra o comportamento implementado (specs ativas entram com `kind: active-spec`; peer/blob/código/node_modules continuam fora). Rótulo de `kind` em `kb.sh query` chega na TASK-04 (ver REQ-07) — confirmado via caso `[32]`. **Status: atende.**
+
+## REQ-02 — Fonte configurável `kb.extra_paths` com allowlist obrigatória
+
+Implementado em `kb-corpus.mjs` (`readExtraPaths`, `resolveExtraPathDirs` compartilhada entre `collect()`/`sourceFiles()`), commits `4ce01f32`(red)/`8083ba1f`(green). As 4 etapas do design §2.2 estão no código: sintaxe textual (`[5]`-`[8]`, inclusive `**` isolado e `/etc/**` absoluto), resolução física via `realpathSync.native` parando só em `ENOENT` (`[23]` prova `ELOOP` tratado como falha real, nunca "inexistente"), regras de segurança sobre o caminho JÁ resolvido (`[9]`-`[14]`, `[24]` — fecha os furos de symlink para `.forge/liaison`, symlink para raiz via `..`, symlink de arquivo interno, overlap ancestral/descendente com `docs/plans`, e o caso macOS case-insensitive em `[16]`), allowlist com `# motivo:` obrigatório (`[15]`), retrocompat quando ausente (`[2]`). Um desvio técnico real encontrado durante a implementação (não um gap de segurança): `addFile()` usava `docRoot` bruto para calcular o `id` relativo, divergindo do caminho físico resolvido em ambientes com symlink no próprio `docRoot` (ex.: `/tmp` no macOS) — corrigido fazendo `resolveExtraPathDirs` devolver também `realDocRoot`, usado como raiz na chamada de `addFile` para `extra-path`. **Status: atende.**
+
+## REQ-03 — Schema declara `kb.extra_paths`
+
+Bloco `kb` novo em `template/.forge/schemas/forge.schema.json`, `additionalProperties: false`, mesmo commit `8083ba1f`. Casos `[19]`-`[21]` provam: array válido aceito, chave extra rejeitada, `extra_paths` não-array rejeitado — via `ajv`/`tools/validate-forge.mjs` (mesma convenção de `tests/w20-spec-gate.sh` caso `[5]`). **Status: atende.**
+
+## REQ-04 — `kb.sh status`/`build` reportam contagem por fonte
+
+`countKinds()` nova e compartilhada em `kb-cli.mjs`, commits `a76a7c4d`(red)/`e25ce738`(green). Caso `[25]` (`status --json` inclui `kinds.active-spec`), `[26]` (`extra-path: 0` explícito quando configurado e vazio — nunca ausente), `[27]` (`build`, saída texto, lista contagem por fonte). Medido na própria execução de `kb.sh build` deste repositório (ver NFR-02 abaixo): `517 documentos (active-spec=34 archived-spec=238 baseline=11 changelog=1 ledger=175 liaison=12 plan=46)`. **Status: atende.**
+
+## REQ-05 — Documentação não afirma cobertura total
+
+`template/.forge/commands/graph/kb.md` reescrito, commits `13856d3c`(red)/`54c8a6f7`(green): seção "O que entra e o que nunca entra" lista as 8 fontes (incluindo `active-spec`/`extra-path`), seção "Multi-repositório" qualifica a limitação, seção "Registrar um fato pontual" orienta `ledger-ops.sh add --type follow-up` com a ressalva do enum fechado. Casos `[36]`-`[39]` provam presença dos três conteúdos e ausência de frase de cobertura total não qualificada (`[39]` usa `! grep -qi`, não `grep -v` — achado de revisão anterior, corrigido). **Status: atende.**
+
+## REQ-06 — Fontes novas participam do mecanismo de staleness já existente
+
+Caso `[1]` (TASK-01) e `[17]`/`[18]` (TASK-02) provam ponta a ponta, via `kb.sh status`/`query` reais (nunca a função interna `sourceFiles()`, que não é exportada): editar o conteúdo de um doc `active-spec`/`extra-path` entre dois `build` reporta `defasado`; sem `build` explícito, o próximo `query` já reconstrói e reflete o texto novo (reconstrução automática de `loadIndex()`); remover/renomear um arquivo `extra-path` já indexado faz o doc desaparecer no próximo `build`. Nenhum mecanismo novo foi criado — `sourceFiles()`/`collect()` dos dois kinds novos passaram a alimentar `quickFingerprint()`/`fingerprint()` já existentes. **Status: atende.**
+
+## REQ-07 — Status MADR extraído e rotulado na resposta de busca
+
+`madrStatus()` em `kb-corpus.mjs`, `INDEX_FORMAT` 3→4 em `kb-lexical.mjs`, exposição em `search()`/`printText()`/`cmdQuery` em `kb-cli.mjs`, commits `b7443477`(red)/`682be25d`(green). Casos `[28]`-`[35]`: `accepted` sem rótulo (`[28]`), sufixo real do ADR 0004 deste repositório não quebra a classificação (`[29]`), `superseded` com rótulo em texto e campo `status` em `--json` (`[30]`), documento não-ADR sem campo `status` e sem erro (`[31]`), `kind` sempre presente em `--json` (`[32]`), índice antigo `format: 3` reconstruído automaticamente (`[33]`), pontuação colada removida (`[34]`), variantes PT-BR mapeadas (`[35]`). Nenhuma mudança em `kb-fuse.mjs` — ranking/RRF/re-rank intocados, conforme decisão de design §3. **Status: atende.**
+
+## NFR-01 — Zero chamada de rede nova
+
+Reexecutados `tests/w313-kb-offline-lexical-gate.sh` (7 casos, `PASS`) e `tests/w318-kb-offline-semantic-gate.sh` (2 casos, `PASS`) depois de TASK-01..05 completas — confirmado por leitura que os dois iteram `lib/kb-*.mjs` por glob (não lista fixa), cobrindo o código novo sem precisar de edição. Zero import fora de `node:*`/harness no código novo (`readExtraPaths`/parser de allowlist usam só `readFileSync`/`realpathSync.native`; `madrStatus` é regex pura). **Status: atende.**
+
+## NFR-02 — Custo de build proporcional
+
+Medido no próprio repositório, pós-implementação: `FORGE_ROOT="$PWD" bash template/.forge/scripts/kb.sh build` →
+`OK índice lexical: 517 documentos (active-spec=34 archived-spec=238 baseline=11 changelog=1 ledger=175 liaison=12 plan=46), 6800 trechos (0.7s)`, `time`: 0,66s user / 0,09s system / 0,799s total. `active-spec` contribui 34 de 517 documentos (~6,6%) sobre um build de menos de 1 segundo — sem meta numérica rígida (conforme design/requirements), o custo é claramente proporcional ao número de arquivos novos, sem comportamento quadrático perceptível. Não há `extra_paths` configurado neste repositório (dogfood, sem `forge.yaml` próprio) — o custo dessa fonte é, por construção (mesmo `walk()`), da mesma ordem por arquivo que as demais fontes. **Status: atende.**
+
+## Suíte isolada do change
+
+`bash tests/w309-kb-corpus-gate.sh && bash tests/extend-kb-corpus-sources-gate.sh` → 9 + 39 = 48 casos, todos `PASS`/`OK`, confirmados por execução direta (não só relatada pelo subagente) depois de cada task.
+
+## Suíte completa do repositório
+
+`tests/run-all.sh` executado a partir da raiz do change, resultado registrado separadamente no relatório final da sessão (ver mensagem de encerramento) — sem regressão identificada nos gates pré-existentes exercitados durante as verificações independentes de cada task (`w309`, `w310`, `w313`, `w318`, `w20`).
+
+## Desvios e notas registradas
+
+- `spec-delta.yaml` recebeu, além do `modify_requirement` de `REQ-FHT-072` (autorado na TASK-01), seis operações `add_requirement` novas (`REQ-FHT-102`..`REQ-FHT-107`, uma por REQ-02..REQ-07 de `requirements.md`) — autoradas nesta fase de verify, a partir do texto já revisado dos requisitos, antes do archive.
+- Nenhum `NEEDS CLARIFICATION` pendente; nenhuma task ficou `[!]`.

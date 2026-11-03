@@ -12,7 +12,7 @@ O gate de teste do change vive num arquivo só, `tests/adopt-ub-mode-practices-g
 
 ## Wave 1 — Attack the Premise, mecanismo base (REQ-01/REQ-02)
 
-- [-] TASK-01 — Esqueleto do gate (fixtures dos dois formatos de bloco, contador por grupo) + script `check-attack-premise.sh` com as duas regras de disparo e o modo `--list` (rastreia: REQ-01, REQ-02; paths: `template/.forge/scripts/check-attack-premise.sh`, `tests/adopt-ub-mode-practices-gate.sh`; depende: —)
+- [X] TASK-01 — Esqueleto do gate (fixtures dos dois formatos de bloco, contador por grupo) + script `check-attack-premise.sh` com as duas regras de disparo e o modo `--list` (rastreia: REQ-01, REQ-02; paths: `template/.forge/scripts/check-attack-premise.sh`, `tests/adopt-ub-mode-practices-gate.sh`; depende: —)
   - Teste (comando): `bash tests/adopt-ub-mode-practices-gate.sh script`
   - Padrão de falha: `FAIL \[script`
 

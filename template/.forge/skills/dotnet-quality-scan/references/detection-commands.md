@@ -4,43 +4,49 @@ O `scripts/scan.sh` roda tudo isto de uma vez e formata a saída. Esta página e
 
 Dois motores, o mesmo padrão: `rg` quando está instalado, `grep -arnE` quando não. Nenhum padrão usa `\b`, porque o `grep` BSD do macOS não o reconhece e o scanner passaria a achar menos na máquina de quem revisa — falso verde silencioso. `[[:space:]]` e `([^A-Za-z0-9_]|$)` fazem o mesmo trabalho nos dois.
 
+**Universo visto pelo motor, não só pela sintaxe do padrão:** por padrão o `rg` respeita `.gitignore` e trata arquivo não-UTF-8 como binário, pulando os dois em silêncio — um caso real chegou a ter arquivos de texto inteiros invisíveis ao `rg` (parte em ISO-8859-1, um `.env` versionado casado por `.gitignore`), e "zero ocorrências" só vale para o que o motor efetivamente abriu, não para o universo real. Por isso todo comando `rg` abaixo (e o que `scripts/scan.sh` roda) leva `--no-ignore --text` — o equivalente ao `-a` que o `grep` já usa. Ao escrever um comando pontual fora do script, replique as duas flags; sem elas, um "0 ocorrências" manual não tem a mesma garantia que o scanner dá.
+
 ```bash
 # async void
-rg -n --glob '*.cs' 'async[[:space:]]+void[[:space:]]'
+rg -n --no-ignore --text --glob '*.cs' 'async[[:space:]]+void[[:space:]]'
 
 # bloqueio de Task
-rg -n --glob '*.cs' '([.]Result([^A-Za-z0-9_]|$)|[.]Wait\(\)|GetAwaiter\(\)[.]GetResult\(\))'
+rg -n --no-ignore --text --glob '*.cs' '([.]Result([^A-Za-z0-9_]|$)|[.]Wait\(\)|GetAwaiter\(\)[.]GetResult\(\))'
 
 # HttpClient instanciado direto
-rg -n --glob '*.cs' 'new[[:space:]]+HttpClient[[:space:]]*\('
+rg -n --no-ignore --text --glob '*.cs' 'new[[:space:]]+HttpClient[[:space:]]*\('
 
 # region
-rg -n --glob '*.cs' '^[[:space:]]*#region'
+rg -n --no-ignore --text --glob '*.cs' '^[[:space:]]*#region'
 
 # nomes que não nomeiam
-rg -n --glob '*.cs' '(class|record|struct|interface)[[:space:]]+[A-Za-z0-9_]*(Manager|Helper|Utils|Utility)([^A-Za-z0-9_]|$)'
+rg -n --no-ignore --text --glob '*.cs' '(class|record|struct|interface)[[:space:]]+[A-Za-z0-9_]*(Manager|Helper|Utils|Utility)([^A-Za-z0-9_]|$)'
 
 # parâmetro booleano de modo
-rg -n --glob '*.cs' '(public|internal|protected)[^;]*\([^)]*bool[[:space:]]+[A-Za-z_]'
+rg -n --no-ignore --text --glob '*.cs' '(public|internal|protected)[^;]*\([^)]*bool[[:space:]]+[A-Za-z_]'
 
 # catch vazio
-rg -n --glob '*.cs' 'catch[[:space:]]*(\([^)]*\))?[[:space:]]*\{[[:space:]]*\}'
+rg -n --no-ignore --text --glob '*.cs' 'catch[[:space:]]*(\([^)]*\))?[[:space:]]*\{[[:space:]]*\}'
 
 # relógio local no domínio
-rg -n --glob '*.cs' 'DateTime[.]Now([^A-Za-z0-9_]|$)'
+rg -n --no-ignore --text --glob '*.cs' 'DateTime[.]Now([^A-Za-z0-9_]|$)'
 
 # SQL interpolado
-rg -n --glob '*.cs' '(FromSqlRaw|ExecuteSqlRaw|CommandText[[:space:]]*=|new[[:space:]]+SqlCommand)[^"]*\$"'
+rg -n --no-ignore --text --glob '*.cs' '(FromSqlRaw|ExecuteSqlRaw|CommandText[[:space:]]*=|new[[:space:]]+SqlCommand)[^"]*\$"'
 
 # estado estático mutável (o filtro remove readonly/const e assinaturas de método)
-rg -n --glob '*.cs' '(public|internal)[[:space:]]+static[[:space:]]' | grep -vE '(readonly|const|\(|class|record|struct|interface|enum)'
+rg -n --no-ignore --text --glob '*.cs' '(public|internal)[[:space:]]+static[[:space:]]' | grep -vE '(readonly|const|\(|class|record|struct|interface|enum)'
 
 # interface com implementação única (duas passadas: declara IX, depois conta ": IX" / ", IX")
-rg -n --glob '*.cs' '(public|internal)[[:space:]]+(partial[[:space:]]+)?interface[[:space:]]+I[A-Z]'
-rg -n --glob '*.cs' '(:|,)[[:space:]]*IFoo([^A-Za-z0-9_]|$)'   # IFoo = cada nome achado no passo anterior
+rg -n --no-ignore --text --glob '*.cs' '(public|internal)[[:space:]]+(partial[[:space:]]+)?interface[[:space:]]+I[A-Z]'
+rg -n --no-ignore --text --glob '*.cs' '(:|,)[[:space:]]*IFoo([^A-Za-z0-9_]|$)'   # IFoo = cada nome achado no passo anterior
+
+# transação manual sob execution strategy com retry (só vale a pena rodar a segunda busca se a primeira achar algo)
+rg -n --no-ignore --text --glob '*.cs' 'EnableRetryOnFailure'
+rg -n --no-ignore --text --glob '*.cs' 'BeginTransaction(Async)?\(' | grep -v CreateExecutionStrategy
 ```
 
-Equivalente sem `rg`: troque `rg -n --glob '*.cs'` por `grep -arnE --include='*.cs'` e acrescente o diretório alvo no fim.
+Equivalente sem `rg`: troque `rg -n --no-ignore --text --glob '*.cs'` por `grep -arnE --include='*.cs'` e acrescente o diretório alvo no fim — o `grep` já lê binário com `-a` e nunca aplicou `.gitignore`, então não precisa de flag equivalente ao `--no-ignore`.
 
 ## Limites destes comandos
 

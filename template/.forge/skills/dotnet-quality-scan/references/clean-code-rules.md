@@ -62,6 +62,12 @@ Campo ou propriedade `public static` sem `readonly`/`const` é estado global: do
 
 **Exceção legítima:** cache com sincronização explícita e documentada, ou `static readonly` (que o scanner já ignora).
 
+## ef-manual-tx-under-retry `[HIGH]`
+
+Quando o registro de DI de um `DbContext` usa `EnableRetryOnFailure` (ou outro `ExecutionStrategy` customizado com retry), o `NpgsqlRetryingExecutionStrategy` recusa com `InvalidOperationException` qualquer transação aberta fora do lambda passado a `CreateExecutionStrategy().Execute`/`ExecuteAsync` — `BeginTransactionAsync` direto nesse contexto quebra em runtime, não em teste, porque testes de Infrastructure costumam montar o `DbContext` sem as opções de produção e passam 27/27.
+
+**Exceção legítima:** nenhuma no caminho de produção — o ponto que abre a transação precisa estar dentro do lambda do `ExecutionStrategy`. Teste de Infrastructure que precisa exercitar esse caminho deve construir o `DbContext` com a mesma função de opções usada pela DI (incluindo `EnableRetryOnFailure`), não uma composição mais simples.
+
 ## single-impl-interface `[MEDIUM]`
 
 Interface com uma única implementação e nenhum outro consumidor costuma ser abstração especulativa — criada "para poder trocar depois" ou "para poder mockar". O custo é indireção permanente por um benefício hipotético.

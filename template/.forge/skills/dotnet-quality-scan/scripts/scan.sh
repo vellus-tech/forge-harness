@@ -44,7 +44,11 @@ search() {
   local pattern="$1" exclude="${2:-}"
   local raw
   if [ "$ENGINE" = "rg" ]; then
-    raw="$(rg --no-heading --line-number --no-messages --glob '*.cs' -e "$pattern" "$ROOT" 2>/dev/null)"
+    # --no-ignore: arquivo .cs versionado mas casado por um .gitignore do consumidor não pode
+    # desaparecer do universo; --text (equivalente ao -a do grep abaixo): arquivo não-UTF-8 (ex.
+    # ISO-8859-1) é tratado como binário e pulado em silêncio sem essa flag — um "OK ... nenhuma
+    # ocorrência" nesse caso vale só para o que o rg abriu, não para o universo real.
+    raw="$(rg --no-ignore --text --no-heading --line-number --no-messages --glob '*.cs' -e "$pattern" "$ROOT" 2>/dev/null)"
   else
     raw="$(grep -arnE --include='*.cs' -e "$pattern" "$ROOT" 2>/dev/null)"
   fi
@@ -120,6 +124,35 @@ rule mutable-static HIGH \
   '(public|internal)[[:space:]]+static[[:space:]]' \
   'estado estático mutável é dependência global não testável e corrida em servidor concorrente' \
   '(readonly|const|\(|class|record|struct|interface|enum)'
+
+# ── transação manual sob execution strategy com retry ───────────────────────────────────────
+# Heurística de duas passadas, igual em espírito ao single-impl-interface abaixo: BeginTransaction/
+# BeginTransactionAsync fora de um CreateExecutionStrategy().Execute(Async) só é o defeito quando
+# o PROJETO também registra EnableRetryOnFailure (ou outro ExecutionStrategy customizado com retry)
+# em algum DbContext — nesse caso o NpgsqlRetryingExecutionStrategy recusa em runtime uma transação
+# iniciada pelo usuário, mesmo com a suíte de testes passando inteira (o teste monta o DbContext
+# sem essa opção). Sem EnableRetryOnFailure no escopo, BeginTransaction direto é normal e a regra
+# nem roda a segunda busca.
+# Limite conhecido, sem fixture automatizada ainda: a exclusão por `CreateExecutionStrategy` é por
+# LINHA, não por bloco — um `BeginTransaction(Async)` dentro de um lambda de várias linhas passado a
+# `.Execute(Async)` pode ficar numa linha sem o literal `CreateExecutionStrategy`, gerando falso
+# positivo. Trate `FOUND` como sinal para revisão manual do bloco, não como veredito definitivo.
+retry_hits="$(search 'EnableRetryOnFailure' | grep -c . )"
+if [ "$retry_hits" = "0" ]; then
+  echo "OK ef-manual-tx-under-retry [HIGH] nenhuma ocorrência (EnableRetryOnFailure não encontrado no escopo)"
+else
+  manual_tx_hits="$(search 'BeginTransaction(Async)?[[:space:]]*\(' 'CreateExecutionStrategy')"
+  manual_tx_count="$(printf '%s' "$manual_tx_hits" | grep -c . )"
+  if [ "$manual_tx_count" = "0" ]; then
+    echo "OK ef-manual-tx-under-retry [HIGH] nenhuma ocorrência"
+  else
+    echo "FOUND ef-manual-tx-under-retry [HIGH] $manual_tx_count ocorrência(s) — DbContext com EnableRetryOnFailure ($retry_hits linha(s)) e BeginTransaction(Async) fora de CreateExecutionStrategy().Execute: NpgsqlRetryingExecutionStrategy recusa transação iniciada pelo usuário em runtime"
+    printf '%s\n' "$manual_tx_hits" | head -n "$MAX" | sed 's|^|     |'
+    FINDINGS=$((FINDINGS + manual_tx_count))
+    JSON_ITEMS="$JSON_ITEMS
+{\"rule\":\"ef-manual-tx-under-retry\",\"severity\":\"HIGH\",\"count\":$manual_tx_count,\"why\":\"transação manual sob execution strategy com retry\"},"
+  fi
+fi
 
 # ── interface com implementação única ───────────────────────────────────────────────────────
 # Heurística conservadora: conta declarações `interface IX` e quantos tipos declaram `: IX`.

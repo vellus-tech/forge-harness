@@ -1,0 +1,25 @@
+{
+  "schema": "impact/v0",
+  "generated_at": "2026-11-01T03:05:48.865Z",
+  "graph_fingerprint": "074705292c717384c3d459436328c0510b7f434d56e9bcc870e19bb744c51847",
+  "seeds": [
+    "template/.forge/scripts/resolve-skill.sh",
+    "template/.forge/skills/readme-generator/scripts/changelog-engine.mjs",
+    "template/.forge/skills/readme-generator/scripts/gates/lint.mjs",
+    "template/.forge/skills/readme-generator/scripts/gates/preserve.mjs",
+    "template/.forge/skills/readme-generator/scripts/gates/released.mjs",
+    "tests/w147-hook-delegation-gate.sh",
+    "tests/w223-delegacao-arvore-do-hook-gate.sh",
+    "tests/w248-git-dir-isolation-gate.sh"
+  ],
+  "impacted": [
+    "template/.forge/scripts/resolve-skill.sh",
+    "template/.forge/skills/readme-generator/scripts/changelog-engine.mjs",
+    "template/.forge/skills/readme-generator/scripts/gates/lint.mjs",
+    "template/.forge/skills/readme-generator/scripts/gates/preserve.mjs",
+    "template/.forge/skills/readme-generator/scripts/gates/released.mjs",
+    "tests/w147-hook-delegation-gate.sh",
+    "tests/w223-delegacao-arvore-do-hook-gate.sh",
+    "tests/w248-git-dir-isolation-gate.sh"
+  ]
+}

@@ -64,6 +64,17 @@ export function nextLamport(messagesForThread) {
 
 // --- Ordenação ---------------------------------------------------------------
 
+// Desempate de `sender` por CODE POINT (design §2.6.1, REQ-04), nunca por `localeCompare`: este
+// último segue colação ICU e o locale do processo, então ids que diferem só por pontuação
+// (`[a-z0-9._-]`) podem ordenar diferente em réplicas com locales diferentes. Como os ids são
+// ASCII nessa faixa, code point e bytes UTF-8 coincidem, e a ordem fica determinística entre
+// réplicas independente de LANG/LC_ALL. Exportado para ser o único lugar que decide essa ordem.
+export function compareSender(a, b) {
+  const sa = String(a);
+  const sb = String(b);
+  return sa < sb ? -1 : sa > sb ? 1 : 0;
+}
+
 // Ordem total dentro de uma thread: (lamport, sender, seq). Como (sender, seq) é único por
 // mensagem, o tie-break é total — a ordem resultante independe da ordem de entrada do array
 // (propriedade central: embaralhar a entrada não muda a saída).
@@ -71,7 +82,7 @@ export function threadOrder(messages) {
   return messages.slice().sort((a, b) => {
     const l = (Number(a.lamport) || 0) - (Number(b.lamport) || 0);
     if (l !== 0) return l;
-    const s = String(a.sender).localeCompare(String(b.sender));
+    const s = compareSender(a.sender, b.sender);
     if (s !== 0) return s;
     return (Number(a.seq) || 0) - (Number(b.seq) || 0);
   });
@@ -141,11 +152,19 @@ export function detectForks(messages) {
 // Date.parse e não comparação de string: os dois carimbos podem vir com offsets diferentes
 // (-03:00 e Z são o formato real produzido por `git log %cI` em máquinas distintas), e "2026-07-30T
 // 23:00:00Z" é POSTERIOR a "2026-07-30T21:00:00-03:00" apesar de ordenar antes lexicograficamente.
+// add-liaison-handoff-baton, REQ-06/design §2.6 — mensagens de bastão respondem SEMPRE à
+// oferta (`in_reply_to`), e um repositório com HEAD mais antigo que o do ofertante geraria este
+// aviso de forma sistemática e sem valor, porque a causalidade do bastão já é dada pelo
+// `lamport` (REQ-04) — `stamped_at`, não `created_at`, decide o que importa para o bastão
+// (vencimento de lease), e tem o próprio aviso dedicado ("carimbo de bastão no futuro",
+// liaison-ops.sh status/baton status). Ignora SÓ mensagens com `baton`; para as demais, nada
+// muda.
 export function detectClockSkew(messages) {
   const byId = new Map();
   for (const m of messages) if (m && m.msg_id !== undefined && m.msg_id !== null && !byId.has(m.msg_id)) byId.set(m.msg_id, m);
   const out = [];
   for (const m of byId.values()) {
+    if (m.baton) continue;
     if (!m.in_reply_to) continue;
     const ref = byId.get(m.in_reply_to);
     if (!ref) continue;
@@ -225,7 +244,7 @@ export function mergeLogs(messages) {
     const opens = msgs.filter((m) => m.kind === 'thread-open').sort((a, b) => {
       const l = (Number(a.lamport) || 0) - (Number(b.lamport) || 0);
       if (l !== 0) return l;
-      const s = String(a.sender).localeCompare(String(b.sender));
+      const s = compareSender(a.sender, b.sender);
       if (s !== 0) return s;
       return (Number(a.seq) || 0) - (Number(b.seq) || 0);
     });
@@ -266,6 +285,19 @@ export const BLOB_MAX_BYTES = 65536;
 export const IMPORT_MAX_MESSAGES = 200;
 export const BODY_REF_RE = /^blobs\/[A-Za-z0-9._-]+$/;
 export const ID_RE = /^[a-z0-9][a-z0-9._-]*$/;
+// REQ-02/design §4.1 — mesmas regras do schema liaison-message.schema.json para `via` e
+// `cross_session`, reimplementadas aqui à mão (sem ajv em runtime), igual ao resto deste arquivo.
+export const VIA_VALUES = ['ask-peer', 'divergence-resolve', 'cross-session'];
+export const CROSS_SESSION_FIELDS = ['from_addr', 'from_name', 'from_mode', 'native_ref', 'origin_verified'];
+export const CROSS_SESSION_TEXT_FIELDS = ['from_addr', 'from_name', 'from_mode'];
+export const CROSS_SESSION_TEXT_MAX = 128;
+export const CROSS_SESSION_CONTROL_CHAR_RE = /[\u0000-\u001f\u007f]/;
+export const NATIVE_REF_RE = /^[0-9a-f]{64}$/;
+// add-liaison-handoff-baton, design §2.2/§4.1 — padrão de `op` da camada de ENVELOPE (aberto,
+// sem enum fechado): uma operação de versão futura do harness entra na réplica sem virar
+// conflito nem buraco de `seq`. O conjunto fechado das seis operações é responsabilidade de
+// `validateBaton` (lib/liaison-baton.mjs), que reexporta este padrão em vez de duplicá-lo.
+export const BATON_OP_PATTERN = /^[a-z][a-z-]{0,31}$/;
 
 // Valida a forma do envelope (campos obrigatórios, enums, tetos). Não decide política de
 // import (spoofing, duplicata, quarentena) — isso mora em liaison-ops.sh, que tem o contexto de
@@ -289,5 +321,54 @@ export function validateEnvelope(msg) {
   if (hasBody && Buffer.byteLength(msg.body, 'utf8') > BODY_MAX_BYTES) errors.push(`body excede ${BODY_MAX_BYTES} bytes`);
   if (hasBodyRef && !BODY_REF_RE.test(msg.body_ref)) errors.push(`body_ref fora do padrão permitido: ${msg.body_ref}`);
   if (msg.trust && !['self', 'untrusted-peer'].includes(msg.trust)) errors.push(`trust inválido: ${msg.trust}`);
+
+  // REQ-02/design §4.1 — `via` e `cross_session` com as MESMAS regras do schema (mão dupla: um
+  // exige o outro). `cross_session` presente é testado por chave, não por truthiness — um objeto
+  // vazio ainda conta como presente para esta condição; a validade interna dele é checada abaixo.
+  if (msg.via !== undefined && !VIA_VALUES.includes(msg.via)) errors.push(`via inválido: ${msg.via}`);
+  const isCrossSessionVia = msg.via === 'cross-session';
+  const hasCrossSession = Object.prototype.hasOwnProperty.call(msg, 'cross_session') && msg.cross_session !== null;
+  if (isCrossSessionVia) {
+    if (!msg.authored_by) errors.push('via=cross-session exige authored_by');
+    if (!hasCrossSession) errors.push('via=cross-session exige cross_session');
+  }
+  if (hasCrossSession && !isCrossSessionVia) errors.push("cross_session exige via: 'cross-session'");
+  if (hasCrossSession) {
+    const cs = msg.cross_session;
+    if (typeof cs !== 'object' || Array.isArray(cs)) {
+      errors.push('cross_session não é um objeto');
+    } else {
+      for (const f of CROSS_SESSION_FIELDS) if (cs[f] === undefined) errors.push(`cross_session.${f} obrigatório ausente`);
+      for (const k of Object.keys(cs)) if (!CROSS_SESSION_FIELDS.includes(k)) errors.push(`cross_session com campo não declarado: ${k}`);
+      for (const f of CROSS_SESSION_TEXT_FIELDS) {
+        if (typeof cs[f] !== 'string') continue;
+        if (cs[f].length > CROSS_SESSION_TEXT_MAX) errors.push(`cross_session.${f} excede ${CROSS_SESSION_TEXT_MAX} caracteres`);
+        if (CROSS_SESSION_CONTROL_CHAR_RE.test(cs[f])) errors.push(`cross_session.${f} contém caractere de controle`);
+      }
+      if (cs.native_ref !== undefined && typeof cs.native_ref === 'string' && !NATIVE_REF_RE.test(cs.native_ref)) {
+        errors.push(`cross_session.native_ref fora do padrão sha256 hex: ${cs.native_ref}`);
+      }
+      if (cs.origin_verified !== undefined && typeof cs.origin_verified !== 'boolean') {
+        errors.push('cross_session.origin_verified deve ser boolean');
+      }
+    }
+  }
+
+  // add-liaison-handoff-baton, REQ-01/design §2.2 — camada de ENVELOPE, a única que este
+  // validador impõe sobre `baton`: objeto, só em kind=note com requires_ack=false, `op` no
+  // padrão aberto. A validação COMPLETA (campos por `op`, limites, aritmética do lease) é a de
+  // `validateBaton`, chamada pelo CLI antes de gravar e pela dobra — nunca aqui, para que uma
+  // mensagem de bastão malformada entre na réplica (sem buraco de `seq`) e receba `malformed`
+  // na dobra, em vez de virar conflito no import.
+  if (Object.prototype.hasOwnProperty.call(msg, 'baton') && msg.baton !== null) {
+    const b = msg.baton;
+    if (typeof b !== 'object' || Array.isArray(b)) {
+      errors.push('baton não é um objeto');
+    } else {
+      if (msg.kind !== 'note') errors.push('baton só é permitido em kind=note');
+      if (msg.requires_ack === true) errors.push('baton exige requires_ack=false');
+      if (typeof b.op !== 'string' || !BATON_OP_PATTERN.test(b.op)) errors.push(`baton.op fora do padrão: ${b.op}`);
+    }
+  }
   return errors;
 }

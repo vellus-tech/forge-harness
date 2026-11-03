@@ -19,6 +19,10 @@ set -uo pipefail
 # redirecionam escrita (o repositório sintético continua sendo o gravado), e carregam config
 # legítima — o `git -c chave=valor` de quem invocou e a proteção contra gc declarada abaixo.
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
+# Mesmo vazamento, vindo do agente: a sessão do Claude Code exporta CLAUDE_CODE_SESSION_ID, que o
+# liaison usa como identidade de sessão do bastão quando falta --session. O runner do CI não a tem;
+# rodar a suíte de dentro de uma sessão sem este unset produz verde que o CI não reproduz.
+unset CLAUDE_CODE_SESSION_ID
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$WS"
@@ -74,6 +78,28 @@ BATS_SUITES=()
 [ -f tests/validators.bats ] && BATS_SUITES+=("tests/validators.bats")
 [ -f tests/snapshot/claude-contract.bats ] && BATS_SUITES+=("tests/snapshot/claude-contract.bats")
 [ -f tests/prevent-aws-credentials-read.bats ] && BATS_SUITES+=("tests/prevent-aws-credentials-read.bats")
+
+# Shard (CI paralelo): fica o gate cujo índice na lista ordenada acima satisfaz índice mod N == K-1.
+# Round-robin sobre a MESMA lista do --list: determinista, sem tabela de custos para envelhecer, e
+# um gate novo entra num shard sem editar nada. NÃO equilibra custo — medido em 2026-10-03 com N=3,
+# o shard 1 concentra por coincidência de índice w151, w214, w217, w250 e w253 (os mais pesados
+# depois do w239); se o shard 1 virar o gargalo do CI, o próximo passo é ponderar por custo medido.
+# As suítes bats ficam fixas no shard 1: são poucas e baratas, e dividi-las por índice só abriria
+# espaço para uma suíte cair em shard nenhum se a regra de índice mudar de um lado e não do outro.
+# Partição provada pelo w273 (união dos shards == lista completa, sem repetição).
+if [ "$SHARD_N" -gt 0 ]; then
+  _sel=()
+  _i=0
+  if [ "${#GATES[@]}" -gt 0 ]; then
+    for _g in "${GATES[@]}"; do
+      [ $((_i % SHARD_N)) -eq $((SHARD_K - 1)) ] && _sel+=("$_g")
+      _i=$((_i + 1))
+    done
+  fi
+  GATES=()
+  [ "${#_sel[@]}" -gt 0 ] && GATES=("${_sel[@]}")
+  [ "$SHARD_K" -eq 1 ] || BATS_SUITES=()
+fi
 
 # Shard (CI paralelo): fica o gate cujo índice na lista ordenada acima satisfaz índice mod N == K-1.
 # Round-robin sobre a MESMA lista do --list: determinista, sem tabela de custos para envelhecer, e

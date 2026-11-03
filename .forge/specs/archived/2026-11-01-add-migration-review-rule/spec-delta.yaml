@@ -1,0 +1,103 @@
+# Spec delta — GERADO por spec-delta-scaffold.mjs na fase verify (§10.4).
+# Preencha os payloads (given/when/then reais, tests, op add vs modify) ANTES do
+# gate do archive — todo marcador de scaffold remanescente bloqueia o pré-flight (§13.1).
+# modify_requirement é SUBSTITUIÇÃO INTEGRAL — nunca patch parcial.
+operations:
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-054
+    content_ref: requirements.md#req-01
+    requirement:
+      id: REQ-FHT-054
+      title: "Rule `migration-review.md` segue a convenção do template"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-054-A
+          given: "o repositório tem `template/.forge/rules/data/migration-review.md` criado com frontmatter e as 5 seções (quando se aplica, quem revisa, checklist, exceção, gate mecânico)"
+          when: "o template for consumido por `/forge:sync-adapters` ou `validate-rules.sh`"
+          then: "reconhecer `template/.forge/rules/data/migration-review.md` como rule válida: frontmatter com `title`, `applies_to` (incluindo `relational-database`, `migrations`), `priority`, `last_reviewed` e `based_on: []`"
+      contracts: []
+      tests:
+        - tests/migration-review-gate.sh#[1]
+        - tests/migration-review-gate.sh#[2]
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-055
+    content_ref: requirements.md#req-02
+    requirement:
+      id: REQ-FHT-055
+      title: "Exigência de revisão especializada antes do merge"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-055-A
+          given: "a rule `migration-review.md` documenta a seção \"Quem revisa\" com a responsabilidade do orquestrador de clonar a head do PR"
+          when: "um PR tocar arquivo de migration"
+          then: "(via rule, norma aplicada por quem conduz o change/PR) exigir revisão do agente `data-engineer` ou do especialista `data-relational`, executada sobre um clone da head do PR, adicional à revisão geral de código"
+      contracts: []
+      tests:
+        - tests/migration-review-gate.sh#[2]
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-056
+    content_ref: requirements.md#req-03
+    requirement:
+      id: REQ-FHT-056
+      title: "Checklist de 13 itens, objetivo e verificável"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-056-A
+          given: "a rule `migration-review.md` tem a seção \"Checklist (13 itens)\" com os 13 itens literais da issue #241"
+          when: "a revisão especializada for executada"
+          then: "fornecer um checklist de exatamente 13 itens, enumerados literalmente abaixo (fonte: issue #241, sem fusão nem split), cada um redigido como condição verificável"
+      contracts: []
+      tests:
+        - tests/migration-review-gate.sh#[2]
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-057
+    content_ref: requirements.md#req-04
+    requirement:
+      id: REQ-FHT-057
+      title: "Exceção por item, só com registro explícito e backlog associado"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-057-A
+          given: "o `migration-review.md` (arquivo de evidência) existe no commit em avaliação, com uma linha `- [exception] <path> item=<N> backlog=<ref> [adr=<ref>]`"
+          when: "um item do checklist não puder ser atendido"
+          then: "exigir que a exceção seja registrada por item, no arquivo de evidência (REQ-05), com o id/link do backlog que resolve a pendência — nunca uma exceção genérica para o PR todo. Para o item 2 (RLS), a exceção exige também o ADR/registro formal que `data-config-sql.md` já cobra (REQ-03 item 2); os outros 12 itens exigem só o registro no arquivo de evidência com backlog"
+      contracts: []
+      tests:
+        - tests/migration-review-gate.sh#[6]
+        - tests/migration-review-gate.sh#[7]
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-058
+    content_ref: requirements.md#req-05
+    requirement:
+      id: REQ-FHT-058
+      title: "Gate mecânico de detecção de migration em push/PR"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-058-A
+          given: "o `pre-push` tem o bloco `MIGRATION_REVIEW_CHECK` (após `AI_CHECK`) chamando `check-migration-review.sh range \"$range\"` por ref do push; `check-migration-review.sh`/`lib/check-migration-review.mjs` existem em `.forge/scripts/`"
+          when: "um `git push` incluir commit(s) que tocam arquivo de migration por convenção de path"
+          then: "reportar via script (`check-migration-review.sh`) a ausência de evidência de parecer de revisão com saída não-zero e mensagem clara, sem depender de rede/`gh` (NFR-01)"
+      contracts: []
+      tests:
+        - tests/migration-review-gate.sh#[3]-[14]
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-059
+    content_ref: requirements.md#req-06
+    requirement:
+      id: REQ-FHT-059
+      title: "`check-data-governance.sh` passa a ler `.sql` (revisão da decisão 3)"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-059-A
+          given: "`check-data-governance.mjs` tem `.sql` em `CODE_EXTS` e `--` em `SENSITIVE_MARKER_RE`"
+          when: "um arquivo `.sql` contiver o marcador `-- forge:sensitive-field=\"<campo>\"` sem entrada correspondente em `data-classification.json`, ou PAN/CPF/e-mail em chamada de log na mesma linha"
+          then: "reportar `CONFLICT` (mesmo contrato do REQ-12a/REQ-12b já existente para `.go/.kt/.ts/.rego/.py`), sem alterar o comportamento para as demais extensões já cobertas"
+      contracts: []
+      tests:
+        - tests/req12-pii-log-gate.sh#[6]-[9]

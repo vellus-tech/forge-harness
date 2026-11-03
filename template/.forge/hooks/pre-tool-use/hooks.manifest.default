@@ -30,3 +30,4 @@ prevent-secrets-leak.sh	^(Write|Edit|MultiEdit|NotebookEdit)$	stdin-json	armado	
 prevent-aws-credentials-read.sh	^(Bash|Read)$	stdin-json	armado	razao=ORQ-20261027-105, nunca ler credencial/config/cache da AWS
 check-language-policy.sh	^(Write|Edit|MultiEdit)$	argv	retido:especifico-dotnet-arme-via-hooks-manifest-do-consumidor	universo=.cs
 validate-naming-conventions.sh	^(Write|Edit|MultiEdit)$	argv	retido:especifico-dotnet-arme-via-hooks-manifest-do-consumidor	universo=.cs
+guard-cross-session-send.sh	^SendMessage$	stdin-json	armado	razao=segredo, destino declarado e contenção por workspace antes de a mensagem sair para outra sessão

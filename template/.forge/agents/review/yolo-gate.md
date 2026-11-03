@@ -38,6 +38,11 @@ Antes de decidir, cheque o `forge.yaml > autonomy`:
   baseline em domínio regulado exige humano (§13.1).
 - **`irreversible_hard_stops`** (deploy prd, promote-staging, remoção de adapter, branch cleanup) —
   nunca são seu escopo, independentemente do mode.
+- **Merge de `/forge:ship --yolo` com mudança de contenção da mensageria nativa** (REQ-12, design
+  §2.7) — antes de decidir sobre o merge, confira a seção "Mudanças de contenção" que `ship.md`
+  já roda (`liaison-ops.sh native containment --range develop..HEAD --format markdown`). Qualquer
+  achado, ou rc 2 (detector indisponível), **não é seu para aprovar**: decida `block` com o motivo
+  `"mudança de contenção exige humano"` em vez de `approve`. Sem achado e rc 0, decida normalmente.
 - **Falhas de execução não são gates.** Uma TASK `[!]`, um `BLOCKER`/`Status: FAIL` no `analysis.md`,
   um conflito de fontes normativas (rule↔ADR) — isso **não** é um gate de aprovação para você
   decidir; é uma falha que deve **parar** o loop e escalar. Yolo decide gates; não mascara falhas.

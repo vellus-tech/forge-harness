@@ -202,12 +202,16 @@ else
 fi
 
 # ── [5] consumidor novo: primeiro sync ───────────────────────────────────────────────────────────
-echo "[5] consumidor novo — enforce-worktree-location.sh, prevent-aws-credentials-read.sh e prevent-secrets-leak.sh armados; check-language-policy.sh e validate-naming-conventions.sh retidos"
+# add-liaison-native-bridge (TASK-19): guard-cross-session-send.sh entrou em hooks.manifest.default
+# com estado `armado`. adopt-aws-credentials-read-hook (ORQ-20261027-105) somou
+# prevent-aws-credentials-read.sh também `armado`, então a instalação nova passa a armar os
+# quatro por padrão.
+echo "[5] consumidor novo — enforce-worktree-location.sh, prevent-secrets-leak.sh, guard-cross-session-send.sh e prevent-aws-credentials-read.sh armados; check-language-policy.sh e validate-naming-conventions.sh retidos"
 T5="$(mktemp -d "$TMPROOT/forge-w215-5.XXXXXX")"; track "$T5"
 nova_fixture "$T5"
 bash "$T5/.forge/scripts/sync-adapters.sh" --set claude >/dev/null 2>&1
 GOT5="$(hooks_of "$T5/.claude/settings.json")"
-EXPECTED5='["enforce-worktree-location.sh","prevent-aws-credentials-read.sh","prevent-secrets-leak.sh"]'
+EXPECTED5='["enforce-worktree-location.sh","guard-cross-session-send.sh","prevent-aws-credentials-read.sh","prevent-secrets-leak.sh"]'
 if [ "$GOT5" != "$EXPECTED5" ]; then
   echo "FAIL [5]: conjunto de ganchos ativos = $GOT5 — esperado $EXPECTED5"
   overall_rc=1

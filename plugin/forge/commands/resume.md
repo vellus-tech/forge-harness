@@ -27,7 +27,11 @@ Leia **apenas** arquivos de estado, na mesma disciplina de custo do `/forge:stat
 5. **Ledger durável** — `bash .forge/scripts/ledger-ops.sh list --status open --by-priority --top 5`
    (ou leia o topo de `.forge/ledger/LEDGER.md`). São os itens de roadmap/dívida/bugs/ideias que
    sobrevivem entre changes; alimentam o "Próximo passo lógico" abaixo. Ver
-   `rules/conventions/ledger-consultation.md`. Ausência = sem itens (nenhuma regressão).
+   `rules/conventions/ledger-consultation.md`. Ausência = sem itens (nenhuma regressão). Item marcado
+   `· sem reverificação há <idade>d` descreve o código de uma data antiga: reverifique-o
+   (`ledger-ops.sh show`/`verify`) antes de sugeri-lo como próximo passo. A lista é só de `open`;
+   itens `planned`/`in-progress` envelhecidos aparecem no `/forge:status`, no `/forge:doctor` e em
+   `ledger-ops.sh stale`.
 6. `.forge/HANDOFF.md` (se existir) — leia **apenas** a seção `## 4. Delta narrativo` (entre os
    marcadores `FORGE:NARRATIVE-DELTA`) e incorpore-a ao mandato. Ausência do arquivo = comportamento
    inalterado (nenhuma regressão).

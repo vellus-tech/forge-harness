@@ -205,6 +205,9 @@ PYEOF
   grep -q 'prevent-aws-credentials-read.sh' "$CLAUDE_DIR/settings.json"
   ! grep -q 'check-language-policy.sh' "$CLAUDE_DIR/settings.json"
   ! grep -q 'validate-naming-conventions.sh' "$CLAUDE_DIR/settings.json"
+  # add-liaison-native-bridge: guard-cross-session-send.sh (matcher ^SendMessage$) nasce armado por
+  # padrão em hooks.manifest.default — soma ao par worktree-guard + prevent-secrets-leak.sh.
+  grep -q 'guard-cross-session-send.sh' "$CLAUDE_DIR/settings.json"
   wired=$(grep -c '"command":' "$CLAUDE_DIR/settings.json")
   [ "$wired" -eq 3 ]
 }
@@ -222,8 +225,19 @@ PYEOF
 
   AUTO_T="$BATS_TEST_TMPDIR/handoff-auto"
   cp -R "$TARGET" "$AUTO_T"
-  sed -i.bak 's/auto: false/auto: true/' "$AUTO_T/.forge/forge.yaml"
-  rm -f "$AUTO_T/.forge/forge.yaml.bak"
+  # Achado desta correção (add-liaison-handoff-baton, TASK-26/27): um `sed` sem escopo trocava
+  # TODO `auto: false` do arquivo, inclusive o de `liaison:` — inofensivo antes desta mudança
+  # (liaison.auto só contribuía para a MESMA condição de SessionStart/SessionEnd que handoff.auto
+  # já satisfazia), mas liaison.auto: true agora TAMBÉM liga PostToolUse (auto_renew ausente vale
+  # true), inflando "wired" para 6 e quebrando a asserção literal abaixo. O teste se chama
+  # "handoff.auto: true" — escopado ao bloco `handoff:`, nunca ao arquivo inteiro.
+  awk '
+    /^handoff:/ { print; f=1; next }
+    f && /^  auto: false$/ && !done { print "  auto: true"; done=1; next }
+    f && /^[a-z]/ { f=0 }
+    { print }
+  ' "$AUTO_T/.forge/forge.yaml" > "$AUTO_T/.forge/forge.yaml.new"
+  mv "$AUTO_T/.forge/forge.yaml.new" "$AUTO_T/.forge/forge.yaml"
   grep -q 'auto: true' "$AUTO_T/.forge/forge.yaml"
 
   (cd "$AUTO_T" && bash .forge/scripts/sync-adapters.sh --adapter claude >/dev/null)
@@ -234,10 +248,12 @@ PYEOF
   grep -q '"SessionEnd"' "$AUTO_SETTINGS"
   grep -q 'on-session-start.sh' "$AUTO_SETTINGS"
   grep -q 'on-session-end.sh' "$AUTO_SETTINGS"
-  # base (issue #125, ORQ-20261027-105): worktree-guard + prevent-secrets-leak.sh +
-  # prevent-aws-credentials-read.sh = 3, mais SessionStart/SessionEnd = 5.
+  # base (issue #125): worktree-guard + prevent-secrets-leak.sh = 2; add-liaison-native-bridge somou
+  # guard-cross-session-send.sh (armado por padrão) = 3; adopt-aws-credentials-read-hook somou
+  # prevent-aws-credentials-read.sh (ORQ-20261027-105, armado por padrão) = 4; mais
+  # SessionStart/SessionEnd = 6.
   wired=$(grep -c '"command":' "$AUTO_SETTINGS")
-  [ "$wired" -eq 5 ]
+  [ "$wired" -eq 6 ]
 }
 
 @test "C5: worktree-guard blocks outside the canonical worktree path (generated mode only)" {

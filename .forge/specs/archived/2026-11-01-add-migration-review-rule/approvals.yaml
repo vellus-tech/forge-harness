@@ -1,0 +1,33 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: approve
+    reason: "Revisor adversarial opus (2 rounds): round 1 REVISE com 2 BLOCKER+5 MAJOR (rastreabilidade dos 13 itens, conflito com data-config-sql.md, padrao de path indefinido, fonte de evidencia sem rede, wiring ausente); round 2 APPROVE apos correcoes. Owner confirmou as 3 decisoes abertas da issue #241."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-31T14:06:00-03:00"
+    commit: "7536b1ec"
+  - gate: design_reviewed
+    decision: approve
+    reason: "Revisor adversarial opus (3 rounds): round 1 REVISE com 1 BLOCKER real (invocacao via runtime.gates nao da escopo de diff, varreria todo historico de migrations) + 4 MAJOR (collect() nao filtra por glob, gate-universe.mjs reprovaria universo vazio legitimo, config aninhada no FORGE.md sem leitor, resolucao do evidence_file via FORGE_CHANGE_ID inexistente no pre-push); corrigido com o padrao check-ai-attribution.sh range + bloco dedicado no pre-push. Round 2 achou leitura de evidencia do disco em vez do blob do commit (MAJOR novo) - corrigido com git show. Round 3: APPROVE COM RESSALVAS MINOR (git diff-tree --root para sha unico), corrigidas."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-31T14:06:11-03:00"
+    commit: "7536b1ec"
+  - gate: tasks_reviewed
+    decision: approve
+    reason: "Revisor adversarial opus (2 rounds): round 1 REVISE com 2 BLOCKER+4 MAJOR (path errado do validate-rules.sh no dogfood, TASK-01 sem asercao de conteudo, padrao de falha errado, red do caso diff-tree em task posterior a implementacao, sem teste do achado 'evidencia so no disco', caso de pre-push contradizendo REQ-05b); round 2: so 1 MAJOR restante (setup do teste do pre-push sem cd/isolamento de blocos irmaos) - corrigido como ajuste textual mecanico, sem mudanca de arquitetura."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-31T14:06:21-03:00"
+    commit: "7536b1ec"
+  - gate: implementation_verified
+    decision: approve
+    reason: "Checkpoint verify REQ a REQ (verification.md): todos os 6 REQ VERIFICADO. Round 1 achou BLOCKER de regressao (4 suites pre-existentes sem stub do novo check-migration-review.sh) + 5 MINOR; corrigido no commit 7536b1ec. Round 2: VERIFIED, 9 suites verdes, sem achado novo."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-31T14:08:22-03:00"
+    commit: "7536b1ec"
+    scope: "verification.md"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "Revisor adversarial opus (4 gates, multiplas rodadas) ja confirmou requirements/design/tasks/verify com achados reais corrigidos (BLOCKER de regressao em 4 suites pre-existentes, 5 MINOR). Conferi amostra de 3 gates isolados (migration-review-gate, req12-pii-log-gate, gw3-data-governance-gate) e todos passam. verification.md: APROVADO, 6/6 REQ VERIFICADO, sem PENDENTE. Decisao final do orquestrador, nao delegada."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-01T12:07:56-03:00"
+    commit: "349edbef"
+    scope: "verification.md"

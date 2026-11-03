@@ -1,0 +1,62 @@
+missing vectors (q0): 0
+=== queries.json (35) ===
+bm25                                         hit@1=0.429 hit@5=0.743 hit@10=0.771 MRR=0.556
+lexical sem links                            hit@1=0.429 hit@5=0.743 hit@10=0.771 MRR=0.556
+lexical (default)                            hit@1=0.457 hit@5=0.743 hit@10=0.771 MRR=0.571
+vetor isolado                                hit@1=0.371 hit@5=0.800 hit@10=0.886 MRR=0.562
+semântico WV=0.5 prop=0                      hit@1=0.429 hit@5=0.743 hit@10=0.857 MRR=0.590
+semântico WV=0.5 prop=1                      hit@1=0.486 hit@5=0.771 hit@10=0.857 MRR=0.609
+semântico WV=1 prop=0                        hit@1=0.429 hit@5=0.829 hit@10=0.857 MRR=0.596
+  + re-rank rep=vector k=5 wce=1             hit@1=0.543 hit@5=0.829 hit@10=0.857 MRR=0.672
+  + re-rank rep=vector k=10 wce=1            hit@1=0.486 hit@5=0.829 hit@10=0.857 MRR=0.643
+  + re-rank rep=vector k=30 wce=1            hit@1=0.486 hit@5=0.829 hit@10=0.857 MRR=0.643
+  + re-rank rep=vector k=5 wce=0.5           hit@1=0.429 hit@5=0.829 hit@10=0.857 MRR=0.602
+  + re-rank rep=vector k=10 wce=0.5          hit@1=0.486 hit@5=0.829 hit@10=0.857 MRR=0.631
+  + re-rank rep=vector k=60 wce=1            hit@1=0.486 hit@5=0.829 hit@10=0.857 MRR=0.643
+  + re-rank rep=bm25 k=5 wce=1               hit@1=0.457 hit@5=0.800 hit@10=0.857 MRR=0.607
+  + re-rank rep=bm25 k=10 wce=1              hit@1=0.457 hit@5=0.800 hit@10=0.857 MRR=0.611
+  + re-rank rep=bm25 k=30 wce=1              hit@1=0.486 hit@5=0.771 hit@10=0.857 MRR=0.623
+  + re-rank rep=bm25 k=5 wce=0.5             hit@1=0.429 hit@5=0.800 hit@10=0.857 MRR=0.592
+  + re-rank rep=bm25 k=10 wce=0.5            hit@1=0.457 hit@5=0.800 hit@10=0.857 MRR=0.599
+  + re-rank rep=bm25 k=60 wce=1              hit@1=0.486 hit@5=0.771 hit@10=0.857 MRR=0.623
+semântico WV=1 prop=1                        hit@1=0.514 hit@5=0.829 hit@10=0.857 MRR=0.643
+  + re-rank rep=vector k=5 wce=1             hit@1=0.600 hit@5=0.857 hit@10=0.857 MRR=0.710
+  + re-rank rep=vector k=10 wce=1            hit@1=0.543 hit@5=0.857 hit@10=0.857 MRR=0.676
+  + re-rank rep=vector k=30 wce=1            hit@1=0.543 hit@5=0.857 hit@10=0.857 MRR=0.674
+  + re-rank rep=vector k=5 wce=0.5           hit@1=0.486 hit@5=0.857 hit@10=0.857 MRR=0.640
+  + re-rank rep=vector k=10 wce=0.5          hit@1=0.514 hit@5=0.857 hit@10=0.857 MRR=0.655
+  + re-rank rep=vector k=60 wce=1            hit@1=0.543 hit@5=0.857 hit@10=0.857 MRR=0.674
+  + re-rank rep=bm25 k=5 wce=1               hit@1=0.486 hit@5=0.829 hit@10=0.857 MRR=0.632
+  + re-rank rep=bm25 k=10 wce=1              hit@1=0.486 hit@5=0.829 hit@10=0.857 MRR=0.627
+  + re-rank rep=bm25 k=30 wce=1              hit@1=0.486 hit@5=0.800 hit@10=0.857 MRR=0.621
+  + re-rank rep=bm25 k=5 wce=0.5             hit@1=0.514 hit@5=0.829 hit@10=0.857 MRR=0.650
+  + re-rank rep=bm25 k=10 wce=0.5            hit@1=0.514 hit@5=0.800 hit@10=0.857 MRR=0.639
+  + re-rank rep=bm25 k=60 wce=1              hit@1=0.486 hit@5=0.800 hit@10=0.857 MRR=0.621
+semântico WV=1.5 prop=0                      hit@1=0.429 hit@5=0.800 hit@10=0.886 MRR=0.610
+  + re-rank rep=vector k=5 wce=1             hit@1=0.543 hit@5=0.857 hit@10=0.886 MRR=0.676
+  + re-rank rep=vector k=10 wce=1            hit@1=0.514 hit@5=0.857 hit@10=0.886 MRR=0.657
+  + re-rank rep=vector k=30 wce=1            hit@1=0.514 hit@5=0.857 hit@10=0.886 MRR=0.657
+  + re-rank rep=vector k=5 wce=0.5           hit@1=0.457 hit@5=0.829 hit@10=0.886 MRR=0.633
+  + re-rank rep=vector k=10 wce=0.5          hit@1=0.486 hit@5=0.829 hit@10=0.886 MRR=0.647
+  + re-rank rep=vector k=60 wce=1            hit@1=0.514 hit@5=0.857 hit@10=0.886 MRR=0.655
+  + re-rank rep=bm25 k=5 wce=1               hit@1=0.514 hit@5=0.857 hit@10=0.886 MRR=0.653
+  + re-rank rep=bm25 k=10 wce=1              hit@1=0.514 hit@5=0.857 hit@10=0.886 MRR=0.657
+  + re-rank rep=bm25 k=30 wce=1              hit@1=0.514 hit@5=0.857 hit@10=0.886 MRR=0.648
+  + re-rank rep=bm25 k=5 wce=0.5             hit@1=0.457 hit@5=0.800 hit@10=0.886 MRR=0.625
+  + re-rank rep=bm25 k=10 wce=0.5            hit@1=0.457 hit@5=0.800 hit@10=0.886 MRR=0.626
+  + re-rank rep=bm25 k=60 wce=1              hit@1=0.514 hit@5=0.857 hit@10=0.886 MRR=0.648
+semântico WV=1.5 prop=1                      hit@1=0.486 hit@5=0.829 hit@10=0.886 MRR=0.634
+  + re-rank rep=vector k=5 wce=1             hit@1=0.571 hit@5=0.857 hit@10=0.886 MRR=0.695
+  + re-rank rep=vector k=10 wce=1            hit@1=0.543 hit@5=0.857 hit@10=0.886 MRR=0.676
+  + re-rank rep=vector k=30 wce=1            hit@1=0.543 hit@5=0.857 hit@10=0.886 MRR=0.676
+  + re-rank rep=vector k=5 wce=0.5           hit@1=0.457 hit@5=0.857 hit@10=0.886 MRR=0.631
+  + re-rank rep=vector k=10 wce=0.5          hit@1=0.486 hit@5=0.857 hit@10=0.886 MRR=0.650
+  + re-rank rep=vector k=60 wce=1            hit@1=0.543 hit@5=0.857 hit@10=0.886 MRR=0.676
+  + re-rank rep=bm25 k=5 wce=1               hit@1=0.514 hit@5=0.857 hit@10=0.886 MRR=0.657
+  + re-rank rep=bm25 k=10 wce=1              hit@1=0.514 hit@5=0.857 hit@10=0.886 MRR=0.648
+  + re-rank rep=bm25 k=30 wce=1              hit@1=0.514 hit@5=0.857 hit@10=0.886 MRR=0.643
+  + re-rank rep=bm25 k=5 wce=0.5             hit@1=0.486 hit@5=0.829 hit@10=0.886 MRR=0.632
+  + re-rank rep=bm25 k=10 wce=0.5            hit@1=0.486 hit@5=0.829 hit@10=0.886 MRR=0.633
+  + re-rank rep=bm25 k=60 wce=1              hit@1=0.514 hit@5=0.857 hit@10=0.886 MRR=0.643
+semântico WV=2 prop=0                        hit@1=0.429 hit@5=0.829 hit@10=0.886 MRR=0.602
+semântico WV=2 prop=1                        hit@1=0.486 hit@5=0.829 hit@10=0.886 MRR=0.626

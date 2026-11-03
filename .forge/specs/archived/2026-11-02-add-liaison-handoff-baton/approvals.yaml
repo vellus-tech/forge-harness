@@ -1,0 +1,99 @@
+# Nota pós-aprovação (2026-11-02, ship): os gates citados nos registros abaixo foram renumerados depois do merge de
+# develop (w321..w339 viraram w325..w343; ex.: w328 dobra -> w332, w330 claim -> w334, w334 e2e -> w338). O texto dos
+# registros é trilha de auditoria e fica como foi aprovado; ver a nota no fim de verification.md.
+approvals:
+  - gate: requirements_reviewed
+    decision: review
+    reason: "Revisor adversarial delegado pelo dono (opus), rodada 1: REVIEW sem BLOCKER; MAJOR M1 REQ-12/NFR-02 (teto de latencia do gancho so no caminho sem bastao; push sincrono sem timeout); 9 MINOR (renovacao concorrente, ruido no inbox, teto de seq, subject das ops, empate contra dona diligente, transporte manual, fim de sessao, janela da trava, estado local)"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:38:18-03:00"
+    iteration: 1
+    commit: "34f9d2c1"
+    scope: "requirements.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: requirements_reviewed
+    decision: approve
+    reason: "Revisor adversarial delegado pelo dono (opus), rodada 2: APPROVE sem BLOCKER nem MAJOR; M1 resolvido (teto de 150 ms nos caminhos sem renovacao, push desacoplado com timeout de 30 s, teto de 2,5 s no caminho que renova); m1-m9 corrigidos; MINOR m-a/m-b/m-c (invalidacao do cache de renovacao, espera da trava no gancho, processo destacado sem timeout(1)) levados ao design; excecao ao item 5 da rule declarada no REQ-16"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:41:00-03:00"
+    iteration: 2
+    commit: "34f9d2c1"
+    scope: "requirements.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: design_reviewed
+    decision: review
+    reason: "Revisor adversarial delegado pelo dono (opus), rodada 1: REVIEW; BLOCKER B1 push concorrente do mesmo self sem serializacao (hub regride, marca de publicacao mente); MAJOR M1 recuperacao da trava nao exclusiva, M2 estado local regravado sem trava, M3 timeout nao mata a arvore de processos, M4 avisos do PostToolUse invisiveis ao agente, M5 namespace em .forge/cache/liaison colide com o clone do transporte git; 5 MINOR"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:56:28-03:00"
+    iteration: 1
+    commit: "85e481ca"
+    scope: "design.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: design_reviewed
+    decision: review
+    reason: "Revisor delegado (opus) rodada 2: REVIEW; B1, M1, M3, M4, M5 resolvidos; MAJOR: M2 contraditorio entre 2.4 e 2.8 sobre quem escreve baton-local.json; trava de push herda recuperacao por idade de 120 s e pode ser tomada durante git push lento (consequencia da correcao do B1, sem BLOCKER pela regra de convergencia). Causa raiz pedida: uma regra de recuperacao servindo duas fronteiras de duracao diferente; mover a fronteira (trava de push sem recuperacao por idade, teto explicito no push manual, destacado nunca recupera, nonce antes do mv no hub e do markPublished)"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T19:59:32-03:00"
+    iteration: 2
+    commit: "85e481ca"
+    scope: "design.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: design_reviewed
+    decision: review
+    reason: "Revisor delegado (opus) rodada 3: REVIEW; correcoes da rodada 2 resolvidas; resta MAJOR de especificacao: identidade do dono da trava de push num fluxo bash de varios processos (pid gravado deve ser o do bash do sync, stillOwned chamado do bash antes do mv no hub e do markPublished); notas de convergencia: trava de push presa por pid reaproveitado apos reboot ou hostname diferente sem saida documentada. Teto de 3 rodadas atingido: escalada ao dono obrigatoria"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T20:01:22-03:00"
+    iteration: 3
+    commit: "85e481ca"
+    scope: "design.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30; correcao textual proposta aplicada no design para decisao do dono, sem nova rodada adversarial"
+  - gate: design_reviewed
+    decision: review
+    reason: "Serie nova; causa raiz escolhida pelo dono em 2026-10-30: opcao C, abandonar a trava de push. Revisor delegado (opus) rodada 1: REVIEW sem BLOCKER, mecanismo da opcao C confirmado; MAJOR 1 escritor de versao antiga (worktree de branch anterior) grava no log do tronco sem trava, sem limite declarado nem deteccao; MAJOR 2 corridas de publicacao sem verificacao deterministica (falta barreira de teste e contador de reparo); 6 MINOR"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T23:14:30-03:00"
+    iteration: 1
+    commit: "7f829893"
+    scope: "design.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: design_reviewed
+    decision: approve
+    reason: "Serie nova; causa raiz escolhida pelo dono em 2026-10-30: opcao C, abandonar a trava de push. Revisor delegado (opus) rodada 2: APPROVE sem BLOCKER nem MAJOR; MAJOR 1 (diario do appendOwn, doctor nomeando worktree com maquinaria antiga, rollout, rule, gate) e MAJOR 2 (barreira FORGE_LIAISON_TEST_BARRIER, contadores de reparo, cenarios forcados com controle) fechados; MINORs de redacao aplicados (diario apos o rename sob a trava do log, sentinela literal do doctor, status gravando a marca, FAIL prefixado com cenario)"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T23:16:27-03:00"
+    iteration: 2
+    commit: "7f829893"
+    scope: "design.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: tasks_reviewed
+    decision: review
+    reason: "Revisor adversarial delegado pelo dono (opus), rodada 1: REVIEW; BLOCKER formato FAIL: nao reconhecido pelo red-classify (exige FAIL [cenario]); MAJOR gate monolitico da trava impede o verde da TASK-05 e TASK-06 nao atomica; MAJOR criterios sem task (inbox condensado, detectClockSkew, 10 eventos concorrentes, aviso de pulled_at, nota de outra sessao); 7 MINOR"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T23:19:15-03:00"
+    iteration: 1
+    commit: "9c59b51f"
+    scope: "tasks.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: tasks_reviewed
+    decision: approve
+    reason: "Revisor adversarial delegado pelo dono (opus), rodada 2: APPROVE sem BLOCKER nem MAJOR; formato FAIL [cenario], pares de gates por task, cobertura e isencoes corrigidos; nota de convergencia aplicada antes do registro (sem stubs em template/.forge/scripts nos commits de vermelho, driver do gate imprimindo FAIL [..] na falha de import); MINORs aplicados (cabecalho, sync concorrente com send, janela residual na rule, prova da TASK-25, historico distinguivel)"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-10-30T23:23:25-03:00"
+    iteration: 2
+    commit: "9c59b51f"
+    scope: "tasks.md"
+    notes: "Aceite formal delegado pelo dono em 2026-10-30"
+  - gate: implementation_verified
+    decision: approve
+    reason: "Checkpoint verify REQ a REQ (verification.md): 16 REQ + 3 NFR, todos VERIFICADO, sem PENDENTE. 34 tasks com red-evidence.sh task provado (classificacao behavioral) para cada par vermelho/verde. Decisao ja delegada pelo mandato original ao subagente implementador (eu, orquestrador, confirmo revisando o verification.md linha a linha e rodando pessoalmente uma amostra de 4 gates criticos: w328 dobra/estabilidade, w330 claim concorrente, w334 e2e, w200 inventario — todos verdes). Desvios honestos documentados (escala reduzida em NFR-02, pgrep nao reconfirmado, fixture de aviso textual ausente) sao riscos residuais baixos, nao bloqueantes."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-02T10:33:14-03:00"
+    commit: "1567ff5f"
+    scope: "verification.md"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "verification.md: APROVADO, 16/16 REQ + 3/3 NFR VERIFICADO, sem PENDENTE. Decisao final do orquestrador apos revisar verification.md por completo, confirmar pessoalmente 4 gates criticos (w328/w330/w334/w200, todos verdes), e resolver o unico follow-up aberto (LDG-0232, item de ledger do limite de msg_id, registrado nesta sessao com FORGE_ROOT explicito contra o develop ja mesclado). O subagente implementador corretamente nao se autoaprovou neste gate HITL e escalou a decisao, como instruido."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-02T10:33:22-03:00"
+    commit: "1567ff5f"
+    scope: "verification.md"

@@ -19,6 +19,11 @@
 #       aplicabilidade reportada pelos nove sítios é idêntica entre si e igual a `isDefectFixing`
 #   [5] MUTAÇÃO (sandbox) — reverter um dos sítios (check-red-first.mjs, evaluateRedFirst) para
 #       `man.type === 'bugfix'` direto faz [4] falhar nomeando o arquivo
+#   [6] LDG-0045 — validate-spec.mjs (décimo sítio, não convertido pela issue #138 original)
+#       testava só `man.type === 'bugfix'` na transição a `verified`: feature + fixes_defects
+#       com evidência pending passava reto por validate-spec.sh, sem o bloqueio que bugfix já
+#       tem. Prova via validate-spec.sh real (não via check-red-first): pending bloqueia,
+#       waived passa — mesmo par que w106 [2]/[3] já prova para type:bugfix.
 set -euo pipefail
 # Isolamento git (LDG-0201): GIT_DIR herdado do ambiente faria os comandos git abaixo obedecerem
 # ao repositório de quem invocou o gate, e não ao repositório sintético criado aqui.
@@ -40,6 +45,7 @@ mk_root "$T"
 SN="$T/.forge/scripts/spec-new.sh"
 RE="$T/.forge/scripts/red-evidence.sh"
 CR="$T/.forge/scripts/check-red-first.sh"
+VS="$T/.forge/scripts/validate-spec.sh"
 
 echo "[1] feature + fixes_defects:[D1] sem evidência — check-red-first reprova nomeando D1"
 FORGE_ROOT="$T" bash "$SN" feat-d1 --type feature --scale 1 >/dev/null
@@ -285,5 +291,22 @@ restored_out="$(FORGE_ROOT="$MT" bash "$MCR" check feat-mut 2>&1)" && restored_r
 echo "OK [5-recontrole] — lib restaurada, check volta a reprovar nomeando D1"
 rm -rf "$MT"
 echo "OK [5]"
+
+echo "[6] LDG-0045 — validate-spec.sh bloqueia feature+fixes_defects com evidência pending na transição a verified"
+FORGE_ROOT="$T" bash "$SN" feat-vs --type feature --scale 1 >/dev/null
+DIR6="$T/.forge/specs/active/feat-vs"
+printf 'fixes_defects: [D1]\n' >> "$DIR6/manifest.yaml"
+FORGE_ROOT="$T" bash "$RE" init feat-vs >/dev/null
+EV6="$DIR6/evidence/red/red-evidence.json"
+grep -q '"status": "pending"' "$EV6" || { echo "FAIL [6]: status inicial != pending ($EV6)"; exit 1; }
+# Mesmo saneamento de tests/w106 (item [2]): spec-delta.yaml nasce em placeholder, ortogonal
+# ao red-first — removido para isolar a evidência pending como único motivo de bloqueio.
+rm -f "$DIR6/spec-delta.yaml"
+printf 'verification:\n  commit: "abc1234"\n  checks: []\n' > "$DIR6/verification.yaml"
+perl -pi -e 's/^status: .*/status: verified/' "$DIR6/manifest.yaml"
+out6="$(FORGE_ROOT="$T" bash "$VS" --path "$DIR6" 2>&1)" && rc6=0 || rc6=$?
+[ "$rc6" -ne 0 ] || { echo "FAIL [6]: validate-spec passou com evidência pending para feature+fixes_defects (esperava FAIL, igual ao que já vale para type:bugfix) — LDG-0045 reaberto"; exit 1; }
+grep -qi "red-evidence" <<<"$out6" || { echo "FAIL [6]: mensagem não cita red-evidence.json ($out6)"; exit 1; }
+echo "OK [6]"
 
 echo "OK"

@@ -44,7 +44,7 @@ O gate de teste do change vive num arquivo só, `tests/adopt-ub-mode-practices-g
   - Padrão de falha: `FAIL \[suppression-grammar`
   - Fixtures de supressão suja (sem referência) são geradas em `/tmp` em tempo de execução pelo próprio gate, nunca versionadas em `tests/` — um arquivo sujo versionado bloquearia o push da própria branch deste change.
 
-- [-] TASK-08 — Higiene: adiciona referência rastreável às duas supressões do próprio harness encontradas durante o design, visíveis ao scanner por estarem em `template/.forge/` (irmão do `.forge/` excluído na TASK-07, não aninhado nele) (rastreia: REQ-03; paths: `template/.forge/scripts/lib/red-evidence-ops.mjs`, `template/.forge/skills/frontend-ui-review/scripts/scan-native-controls.py`, `tests/adopt-ub-mode-practices-gate.sh`; depende: TASK-07)
+- [X] TASK-08 — Higiene: adiciona referência rastreável às duas supressões do próprio harness encontradas durante o design, visíveis ao scanner por estarem em `template/.forge/` (irmão do `.forge/` excluído na TASK-07, não aninhado nele) (rastreia: REQ-03; paths: `template/.forge/scripts/lib/red-evidence-ops.mjs`, `template/.forge/skills/frontend-ui-review/scripts/scan-native-controls.py`, `tests/adopt-ub-mode-practices-gate.sh`; depende: TASK-07)
   - Teste (comando): `bash tests/adopt-ub-mode-practices-gate.sh suppression-grammar`
   - Padrão de falha: `FAIL \[suppression-grammar`
   - Sem par vermelho/verde: as duas linhas já existem e não mudam de comportamento, só ganham comentário de referência — não há vermelho comportamental a observar aqui, só o scanner (TASK-07) confirmando que a referência nova é válida.

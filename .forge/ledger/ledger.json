@@ -4311,7 +4311,7 @@
       "dedup_key": "manual:LDG-0243"
     },
     {
-      "id": "LDG-0244",
+      "id": "LDG-0245",
       "type": "follow-up",
       "title": "Caso automatizado para rotulo [EXTRA-PATH] na saida texto do kb.sh query",
       "detail": "O change extend-kb-corpus-sources (TASK-04) implementou KIND_LABEL em kb-cli.mjs::printText() cobrindo active-spec e extra-path, mas o gate tests/extend-kb-corpus-sources-gate.sh so tem caso automatizado para o rotulo [ACTIVE-SPEC] (caso [32]). O comportamento do [EXTRA-PATH] foi confirmado manualmente pelo gate implementation_verified (iteracao 2) num fixture descartavel, mas sem prova automatizada permanente. Adicionar um caso [40] (ou renumerar) ao gate, com fixture extra-path real, antes da proxima vez que kb-cli.mjs for tocado.",
@@ -4334,7 +4334,7 @@
       "created_at": "2026-11-03T02:24:06-03:00",
       "updated_at": null,
       "resolved_at": null,
-      "dedup_key": "manual:LDG-0244"
+      "dedup_key": "manual:LDG-0245"
     }
   ]
 }

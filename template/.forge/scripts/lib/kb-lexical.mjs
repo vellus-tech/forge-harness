@@ -8,13 +8,16 @@
 import { createHash } from 'node:crypto';
 import { chunk, fingerprint, CHUNK_MAX } from './kb-corpus.mjs';
 
-// Formato 3: nomes genéricos de artefato (design.md, tasks.md, README.md, package.json…) e nomes de
+// Formato 4: cada doc do índice ganha `madr_status` (change extend-kb-corpus-sources, REQ-07) — o
+// bump força a reconstrução automática de todo índice anterior (sem `madr_status` em nenhum doc) no
+// próximo build/query, mesmo que nenhuma fonte tenha mudado de conteúdo (design §2.4). Formato 3:
+// nomes genéricos de artefato (design.md, tasks.md, README.md, package.json…) e nomes de
 // tecnologia (node.js, next.js) deixaram de ser entidade (code-evaluator do PR #252, achado LOG-001:
 // medido no corpus real, o empate de idf entre dezenas de trechos com esses nomes subia documento
 // irrelevante do BM25 #20 para o #3 do RRF só pela ordem alfabética do desempate). Formato 2: siglas
 // genéricas em caixa alta deixaram de ser entidade (emenda do REQ-03, 2026-10-31). Índices de formato
 // anterior são reconstruídos sozinhos na próxima consulta.
-export const INDEX_FORMAT = 3;
+export const INDEX_FORMAT = 4;
 export const BM25_K1 = 1.2;
 export const BM25_B = 0.75;
 
@@ -110,7 +113,7 @@ export function buildIndex(docs, quick = null) {
     chunk_max: CHUNK_MAX,
     fingerprint: fingerprint(docs),
     quick_fingerprint: quick,
-    docs: docs.map((d) => ({ id: d.id, kind: d.kind, sha256: d.sha256 })),
+    docs: docs.map((d) => ({ id: d.id, kind: d.kind, sha256: d.sha256, madr_status: d.madr_status ?? null })),
     chunks,
     len,
     postings: sortObj(postings),

@@ -14,7 +14,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync, realpathSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { collect, fingerprint, quickFingerprint } from './kb-corpus.mjs';
+import { collect, fingerprint, quickFingerprint, readExtraPaths } from './kb-corpus.mjs';
 import { createHash } from 'node:crypto';
 import { buildIndex, serializeIndex, attachTexts, bm25, entityMatch, toDocRanks, INDEX_FORMAT } from './kb-lexical.mjs';
 import { neutralize } from './untrusted-render.mjs';
@@ -68,6 +68,17 @@ function writeAtomic(p, data) {
   const tmp = `${p}.tmp-${process.pid}`;
   writeFileSync(tmp, data);
   renameSync(tmp, p);
+}
+
+// countKinds: conta kinds[d.kind]++ sobre qualquer lista de docs ({id, kind} basta) — compartilhada
+// entre cmdStatus e cmdBuild para não repetir a lógica de extra-path=0 em dois lugares. Quando
+// extraPathsConfigured (resultado de readExtraPaths) não está vazio, força kinds['extra-path'] a
+// existir explicitamente mesmo com zero documentos — o gap de cobertura é visível, nunca silencioso.
+export function countKinds(docs, extraPathsConfigured) {
+  const kinds = {};
+  for (const d of docs) kinds[d.kind] = (kinds[d.kind] || 0) + 1;
+  if (Array.isArray(extraPathsConfigured) && extraPathsConfigured.length) kinds['extra-path'] = kinds['extra-path'] || 0;
+  return kinds;
 }
 
 function build(a) {
@@ -127,6 +138,9 @@ const docOrder = (fusedRows) => fusedRows.map((r) => r.doc);
 
 // search: devolve {mode, mode_reason, results:[...]} — results com explicação por canal.
 async function search(a, idx, q, semState) {
+  // kind/status por doc id (change extend-kb-corpus-sources, REQ-07/REQ-01) — pré-computado uma vez
+  // por consulta para evitar O(n²) quando idx.docs crescer (design §2.4).
+  const docMeta = new Map(idx.docs.map((d) => [d.id, d]));
   const ch = {};
   const best = new Map();
   const note = (name, m) => { ch[name] = new Map([...m].map(([d, v]) => [d, v.rank])); for (const [d, v] of m) if (!best.has(d) || name === 'bm25') best.set(d, v.chunk); };
@@ -166,9 +180,14 @@ async function search(a, idx, q, semState) {
     const f = byDoc.get(o.doc);
     const ci = best.get(o.doc) ?? idx.chunks.findIndex((c) => c.doc === o.doc);
     const c = idx.chunks[ci] || { heading: '', line: 1 };
+    const meta = docMeta.get(o.doc);
+    const kind = meta ? meta.kind : null;
+    const status = meta && meta.madr_status ? meta.madr_status : null;
     return {
       rank: i + 1,
       doc: o.doc,
+      kind,
+      ...(status ? { status } : {}),
       heading: c.heading,
       line: c.line,
       score: f.score,
@@ -189,11 +208,19 @@ export function snippet(text) {
 }
 
 const CH_LABEL = { bm25: 'bm25', entities: 'entidades', links: 'links', vector: 'vetor' };
+// Rótulo visível na saída texto quando o status MADR indica que o ADR não está mais vigente —
+// accepted/proposed/outros valores não reconhecidos não geram rótulo (design §2.4, REQ-07).
+const STATUS_LABEL = { superseded: '[SUPERSEDED] ', deprecated: '[DEPRECATED] ', rejected: '[REJECTED] ' };
+// Rótulo de origem (REQ-01 último critério): resultado de active-spec/extra-path nunca
+// misturado sem marca com baseline estável. baseline/archived-spec/plan/changelog/ledger/liaison
+// preservam a saída atual (sem prefixo) — comportamento inalterado para as fontes já existentes.
+const KIND_LABEL = { 'active-spec': '[ACTIVE-SPEC] ', 'extra-path': '[EXTRA-PATH] ' };
 function printText(out) {
   const lines = [out.mode === 'semantic' ? 'modo: semantic' : `modo: lexical (${out.mode_reason})`];
   if (!out.results.length) lines.push('nenhum resultado');
   for (const r of out.results) {
-    lines.push(`${r.rank}. ${r.doc}${r.heading ? ` — ${r.heading}` : ''} (linha ${r.line})  rrf=${r.score.toFixed(4)}`);
+    const label = `${(r.kind && KIND_LABEL[r.kind]) || ''}${(r.status && STATUS_LABEL[r.status]) || ''}`;
+    lines.push(`${r.rank}. ${label}${r.doc}${r.heading ? ` — ${r.heading}` : ''} (linha ${r.line})  rrf=${r.score.toFixed(4)}`);
     const parts = Object.keys(r.channels).sort().map((k) => (k === 'links' ? `links de ${r.channels.links.from.length} resultado(s) (+${r.channels.links.contribution.toFixed(4)})` : `${CH_LABEL[k] || k} #${r.channels[k].rank} (+${r.channels[k].contribution.toFixed(4)})`));
     if (r.rerank && r.rerank.ce_rank) parts.push(`re-rank ce #${r.rerank.ce_rank} (fusão #${r.rerank.fusion_rank})`);
     lines.push(`   canais: ${parts.join(' · ')}`);
@@ -215,8 +242,10 @@ async function cmdQuery(a) {
 async function cmdBuild(a) {
   const t = Date.now();
   const { idx, skipped } = build(a);
+  const kinds = countKinds(idx.docs, readExtraPaths(a.docRoot));
+  const kindsStr = Object.entries(kinds).sort().map(([k, v]) => `${k}=${v}`).join(' ');
   const sk = Object.entries(skipped).map(([k, v]) => `${k}=${v}`).join(' ');
-  process.stdout.write(`OK índice lexical: ${idx.docs.length} documentos, ${idx.chunks.length} trechos (${((Date.now() - t) / 1000).toFixed(1)}s)${sk ? ` — pulados: ${sk}` : ''}\n`);
+  process.stdout.write(`OK índice lexical: ${idx.docs.length} documentos (${kindsStr}), ${idx.chunks.length} trechos (${((Date.now() - t) / 1000).toFixed(1)}s)${sk ? ` — pulados: ${sk}` : ''}\n`);
   const semState = await loadSemantic(a);
   if (!semState.sem) { process.stdout.write(`vetores não calculados: ${semState.reason}\n`); return; }
   try {
@@ -230,7 +259,7 @@ async function cmdBuild(a) {
 function cmdStatus(a) {
   const { docs, skipped } = collect({ docRoot: a.docRoot, stateRoot: a.stateRoot });
   const st0 = indexState(a, readIndex(a)); const state = st0 === 'atual-conteudo' ? 'atual' : st0;
-  const kinds = {}; for (const d of docs) kinds[d.kind] = (kinds[d.kind] || 0) + 1;
+  const kinds = countKinds(docs, readExtraPaths(a.docRoot));
   const semantic = existsSync(join(semanticDir(a), 'installed.json')) ? 'instalada' : 'não instalada';
   if (a.json) { process.stdout.write(JSON.stringify({ format: 1, index: state, docs: docs.length, kinds, skipped, semantic }) + '\n'); return; }
   process.stdout.write(`índice: ${state} — ${docs.length} documentos (${Object.entries(kinds).sort().map(([k, v]) => `${k}=${v}`).join(' ')})\n`);

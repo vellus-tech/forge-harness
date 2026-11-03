@@ -1,0 +1,130 @@
+# Spec delta — operations this change applies to the baseline at archive time
+# (schema: .forge/schemas/spec-delta.schema.json; doc §10.4).
+# modify_requirement is FULL REPLACEMENT — never a partial patch.
+# For deterministic apply, carry the structured `requirement:` payload
+# (baseline-capability shape) alongside the documentary content_ref.
+operations:
+  - op: modify_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-072
+    full_replacement_ref: requirements.md#req-01
+    requirement:
+      id: REQ-FHT-072
+      title: "Busca unificada indexa o conhecimento próprio do projeto, incluindo specs ativas, nunca conteúdo de peer"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-072-A
+          given: "uma raiz com baseline, specs arquivadas, specs ativas, ledger.json, docs/plans, CHANGELOG.md e um log de liaison próprio com mensagens self, untrusted-peer, sem trust, com authored_by e com body_ref para blob, além de log de outro remetente, código e node_modules"
+          when: "kb.sh build constrói o índice"
+          then: "entram um documento por arquivo das fontes versionadas (incluindo todo arquivo .md/.yaml/.yml sob .forge/specs/active/**, rotulado kind: 'active-spec'), um por entrada de ledger e um por mensagem self sem authored_by (assunto e corpo inline); blobs, mensagens de peer, código, node_modules e .forge/kb nunca entram; JSONL ou ledger ilegíveis são pulados e contados"
+      contracts: []
+      tests:
+        - tests/w309-kb-corpus-gate.sh
+        - tests/extend-kb-corpus-sources-gate.sh
+
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-102
+    content_ref: requirements.md#req-02
+    requirement:
+      id: REQ-FHT-102
+      title: "kb.extra_paths indexa diretórios extras com validação física em camadas e allowlist obrigatória"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-102-A
+          given: "forge.yaml com kb.extra_paths declarando glob(s) e .forge/kb-extra-paths-allowlist.txt com entrada correspondente e # motivo:"
+          when: "kb.sh build/status/query roda"
+          then: "arquivos .md/.yaml/.yml sob o diretório resolvido entram no corpus com kind: 'extra-path'; glob sem allowlist, com sintaxe inválida, absoluto, com segmento ./.., dentro de .forge/*, sobrepondo raiz já coletada (igual/ancestral/descendente), ou cujo caminho físico resolvido (via realpathSync.native, nunca o texto declarado) escape de docRoot ou aponte para dentro de .forge/* — é ignorado com aviso, nunca indexado"
+        - id: SCN-FHT-102-B
+          given: "forge.yaml sem kb.extra_paths (ausente ou [])"
+          when: "kb.sh build/status/query roda"
+          then: "comportamento idêntico ao harness sem este change (retrocompatibilidade total)"
+      contracts: []
+      tests:
+        - tests/w309-kb-corpus-gate.sh
+        - tests/extend-kb-corpus-sources-gate.sh
+
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-103
+    content_ref: requirements.md#req-03
+    requirement:
+      id: REQ-FHT-103
+      title: "forge.schema.json declara o bloco kb.extra_paths com additionalProperties: false"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-103-A
+          given: "forge.yaml com kb: { extra_paths: [<globs>] }"
+          when: "validado contra forge.schema.json"
+          then: "valida sem erro quando extra_paths é array de string; falha quando há chave extra sob kb, ou quando extra_paths não é array"
+      contracts: []
+      tests:
+        - tests/extend-kb-corpus-sources-gate.sh
+
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-104
+    content_ref: requirements.md#req-04
+    requirement:
+      id: REQ-FHT-104
+      title: "kb.sh status/build reportam contagem de documentos por fonte, incluindo active-spec e extra-path"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-104-A
+          given: "um corpus com documentos de múltiplos kind, incluindo active-spec e, quando configurado, extra-path"
+          when: "kb.sh status --json/texto ou kb.sh build roda"
+          then: "a saída inclui a contagem por kind, com extra-path aparecendo como 0 explícito (nunca ausente) quando kb.extra_paths está configurado e resultou em zero documentos"
+      contracts: []
+      tests:
+        - tests/extend-kb-corpus-sources-gate.sh
+
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-105
+    content_ref: requirements.md#req-05
+    requirement:
+      id: REQ-FHT-105
+      title: "Documentação de /forge:kb não afirma cobertura total e orienta o caminho ad-hoc via ledger"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-105-A
+          given: "a documentação do comando/skill forge:kb"
+          when: "lida por um operador"
+          then: "lista as fontes reais (incluindo active-spec/extra-path), qualifica a limitação multi-repositório, e orienta ledger-ops.sh add --type follow-up como caminho para fato/decisão pontual, sem nenhuma frase de cobertura total não qualificada"
+      contracts: []
+      tests:
+        - tests/extend-kb-corpus-sources-gate.sh
+
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-106
+    content_ref: requirements.md#req-06
+    requirement:
+      id: REQ-FHT-106
+      title: "active-spec e extra-path participam do mecanismo existente de fingerprint/staleness"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-106-A
+          given: "um documento já indexado como active-spec ou extra-path"
+          when: "seu conteúdo é editado, ou o arquivo é removido/renomeado, entre dois kb.sh build"
+          then: "kb.sh status reporta 'defasado' até o próximo build (ou, sem build explícito, o próximo kb.sh query já reconstrói e reflete o estado novo); o documento removido desaparece do índice"
+      contracts: []
+      tests:
+        - tests/extend-kb-corpus-sources-gate.sh
+
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-107
+    content_ref: requirements.md#req-07
+    requirement:
+      id: REQ-FHT-107
+      title: "Status MADR (superseded/deprecated/rejected) extraído e rotulado em kb.sh query, sem alterar ranking"
+      normative: SHALL
+      scenarios:
+        - id: SCN-FHT-107-A
+          given: "um documento ADR com cabeçalho MADR '- **Status:** <valor>' (com ou sem sufixo/pontuação, inclusive variantes PT-BR)"
+          when: "kb.sh query retorna esse documento"
+          then: "quando o status é superseded/deprecated/rejected, a saída texto traz o rótulo correspondente e o --json traz o campo status estruturado; accepted e outros valores não geram rótulo; documento sem cabeçalho MADR não tem o campo status, sem erro; ranking/fusão (RRF, re-rank) permanecem inalterados"
+      contracts: []
+      tests:
+        - tests/extend-kb-corpus-sources-gate.sh

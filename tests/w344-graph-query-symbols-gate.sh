@@ -30,12 +30,36 @@
 # symbols.json/symbols.idx.tsv de verdade (TASK-05) — determinismo (dois builds), projeção exata
 # idx<->json (P6), herança sobrevive à integração e é independente de ordem física do walk (26b).
 #
+# STORY-05 (TASK-09/10/11): graph.sh query migra do `node -e` inline para graph-query.mjs.
+#   [1]    controle byte a byte — golden pré-mudança (TASK-02) sem symbols.json
+#   [2]    acerto de símbolo real (processarPedido, fixture golden)
+#   [3]    ranking exato→prefixo→substring
+#   [10a]  --json básico ({nodes,edges,symbols}, sem hint com resultado)
+#   [24a]  desempate entre arquivos (saída humana)
+#   [cli-symlink] guard de CLI via realpathSync funcionando através de symlink real em /tmp —
+#          prova direta do padrão kb-cli.mjs (nunca import.meta.url===file://argv[1])
+#   PBT P1 (completude), P3 (metamórfica substring⊆substring), P4-desempate (permutação)
+#   [7b]   sufixo de defasagem por {mtime,size} sem rebuild
+#   [10b]  --json completo com `stale`
+#   [11]   query nunca escreve em disco (mtime de graph.json/symbols.json intactos)
+#   [22b]  defasagem some após `graph.sh update` real
+#   [6b]   staleness de fingerprint-only (graph.json tamperado) não é confundida com {mtime,size}
+#   [23]   dica de 0-resultados (texto canônico idêntico em modo humano e --json)
+#   [24b]  desempate completo refletido em --json
+#   [14]   ENOENT por símbolo individual (sufixo + missing:true, isolado)
+#   [15]   symbols.json corrompido degrada para nodes/edges-only, sem crash
+#   [16]   entrada legada sem mtime/size → "não verificável"
+#   [16b]  vacuidade genuína (projeto só .go) não dispara aviso falso de formato legado
+#   [17b]  symbols.json órfão pós-"pull" simulado não crasha a query
+#
 # TDD red-first (DD-08): o módulo graph-symbols-extract.mjs é novo sob template/.forge/scripts/
 # (isInfraPath) — o commit vermelho desta task toca só este arquivo em tests/. Red via import()
 # dinâmico + try/catch, convertendo ERR_MODULE_NOT_FOUND numa asserção assert.fail própria
 # (cenário [0]), nunca um stub neutro de produção. [5a]/[DD-02] são export novo em módulo
 # existente/novo: red por comportamento ausente (symbols.json não gravado / módulo ausente),
-# nunca por diff de produção no commit vermelho.
+# nunca por diff de produção no commit vermelho. graph-query.mjs (STORY-05) é módulo NOVO: o
+# commit vermelho de TASK-09 toca só tests/, via import() dinâmico convertido em assert.fail
+# (padrão [0]) quando o módulo ainda não existe.
 set -uo pipefail
 unset CLAUDE_CODE_SESSION_ID
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
@@ -50,6 +74,7 @@ const fs = require('node:fs');
 const [, , WS] = process.argv;
 const LIB = path.join(WS, 'template/.forge/scripts/lib');
 const FIX = path.join(WS, 'tests/fixtures/graph-query-symbols');
+const GRAPH_SH = path.join(WS, 'template/.forge/scripts/graph.sh');
 
 let fail = 0;
 function ok(tag, msg) { console.log(`OK [${tag}]: ${msg}`); }
@@ -805,6 +830,215 @@ async function main() {
     } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
   });
 
+  // =============================================================================================
+  // STORY-05 (TASK-09/10/11) — graph.sh query migra para graph-query.mjs
+  // =============================================================================================
+  const QUERY_MOD_PATH = path.join(LIB, 'graph-query.mjs');
+
+  function runQuery(root, args) {
+    const { execFileSync } = require('node:child_process');
+    try {
+      const out = execFileSync('bash', [GRAPH_SH, 'query', ...args], { stdio: 'pipe', env: { ...process.env, FORGE_ROOT: root } });
+      return { stdout: out.toString(), stderr: '', code: 0 };
+    } catch (e) {
+      return { stdout: (e.stdout || '').toString(), stderr: (e.stderr || '').toString(), code: e.status };
+    }
+  }
+  function buildAt(root) {
+    const { execFileSync } = require('node:child_process');
+    execFileSync('bash', [GRAPH_SH, 'build'], { stdio: 'pipe', env: { ...process.env, FORGE_ROOT: root } });
+  }
+  function updateAt(root) {
+    const { execFileSync } = require('node:child_process');
+    execFileSync('bash', [GRAPH_SH, 'update'], { stdio: 'pipe', env: { ...process.env, FORGE_ROOT: root } });
+  }
+
+  // === [1] controle byte a byte — golden pré-mudança sem symbols.json (RED-first, DD-08) ===
+  await tryCaseAsync('1', async () => {
+    try {
+      await import('file://' + QUERY_MOD_PATH);
+    } catch {
+      assert.fail('RED TASK-09: graph-query.mjs ainda não existe');
+    }
+    const { execFileSync } = require('node:child_process');
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q1-'));
+    try {
+      execFileSync('bash', [path.join(FIX, 'golden-pre-change/make-fixture.sh'), tmp], { stdio: 'pipe' });
+      buildAt(tmp);
+      const symbolsPath = path.join(tmp, '.forge/graph/symbols.json');
+      assert.ok(fs.existsSync(symbolsPath), 'build deveria gravar symbols.json (STORY-03 já integrada)');
+      // cenário de CONTROLE: symbols.json ausente — nodes/edges precisam ser byte a byte iguais
+      // ao motor ANTIGO (golden capturado na TASK-02, antes de qualquer edição desta story).
+      fs.rmSync(symbolsPath);
+      fs.rmSync(path.join(tmp, '.forge/graph/symbols.idx.tsv'), { force: true });
+      const r = runQuery(tmp, ['processar-pedido']);
+      assert.equal(r.code, 0, `query deveria sair exit 0; stderr=${r.stderr}`);
+      const golden = readFix('golden-pre-change/query-golden-pre-change.txt');
+      const lines = r.stdout.split('\n');
+      const nodesEdgesPortion = lines.slice(0, 4).join('\n') + '\n';
+      assert.equal(nodesEdgesPortion, golden, `nodes/edges deveriam ser BYTE A BYTE idênticos ao golden pré-mudança; obteve:\n${r.stdout}`);
+      assert.ok(r.stdout.includes('symbols (0):'), 'seção symbols (0): deveria aparecer (aditiva) mesmo sem symbols.json');
+      ok('1', 'nodes/edges byte a byte idênticos ao golden pré-mudança quando symbols.json está ausente (cenário de controle)');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  // === [2] acerto de símbolo real (fixture golden, symbols.json presente) ===
+  await tryCaseAsync('2', async () => {
+    const { execFileSync } = require('node:child_process');
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q2-'));
+    try {
+      execFileSync('bash', [path.join(FIX, 'golden-pre-change/make-fixture.sh'), tmp], { stdio: 'pipe' });
+      buildAt(tmp);
+      const r = runQuery(tmp, ['processarPedido']);
+      assert.equal(r.code, 0, `query deveria sair exit 0; stderr=${r.stderr}`);
+      assert.match(r.stdout, /^symbols \(1\):$/m, `esperado symbols (1): ao buscar por processarPedido; obteve:\n${r.stdout}`);
+      assert.match(r.stdout, /^  processarPedido \[function\] src\/handlers\/processar-pedido\.js:1 \([a-z]+\)$/m,
+        `esperado linha de símbolo sem sufixo de defasagem; obteve:\n${r.stdout}`);
+      ok('2', 'busca por símbolo real (processarPedido) produz symbols (1): com arquivo:linha');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  // === [3]/[10a] ranking exato→prefixo→substring + --json básico ===
+  await tryCaseAsync('3', async () => {
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q3-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'a'), { recursive: true });
+      fs.mkdirSync(path.join(tmp, 'b'), { recursive: true });
+      fs.mkdirSync(path.join(tmp, 'c'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'a', 'pay.ts'), 'export function Pay() {\n  return 1;\n}\n');
+      fs.writeFileSync(path.join(tmp, 'b', 'payfast.ts'), 'export function PayFast() {\n  return 1;\n}\n');
+      fs.writeFileSync(path.join(tmp, 'c', 'repay.ts'), 'export function repay() {\n  return 1;\n}\n');
+      buildAt(tmp);
+      const r = runQuery(tmp, ['pay', '--json']);
+      assert.equal(r.code, 0, `query --json deveria sair exit 0; stderr=${r.stderr}`);
+      const data = JSON.parse(r.stdout);
+      assert.deepEqual(data.symbols.map((s) => s.name), ['Pay', 'PayFast', 'repay'],
+        `ordem de ranking (exato→prefixo→substring) incorreta; obteve ${JSON.stringify(data.symbols.map((s) => s.name))}`);
+      ok('3', 'ranking exato→prefixo→substring: Pay (exato), PayFast (prefixo), repay (substring)');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  await tryCaseAsync('10a', async () => {
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q10a-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'src', 'f.ts'), 'export function foo() {\n  return 1;\n}\n');
+      buildAt(tmp);
+      const r = runQuery(tmp, ['foo', '--json']);
+      assert.equal(r.code, 0, `query --json deveria sair exit 0; stderr=${r.stderr}`);
+      const data = JSON.parse(r.stdout);
+      assert.ok(Array.isArray(data.nodes) && Array.isArray(data.edges) && Array.isArray(data.symbols),
+        '--json deveria produzir {nodes,edges,symbols}');
+      assert.ok(!('hint' in data), 'hint não deveria aparecer quando há resultados');
+      const sym = data.symbols.find((s) => s.name === 'foo');
+      assert.ok(sym, 'símbolo foo deveria aparecer em --json');
+      for (const k of ['id', 'name', 'type', 'file', 'line', 'layer', 'stale']) {
+        assert.ok(k in sym, `campo ${k} ausente no símbolo --json`);
+      }
+      assert.equal(sym.stale, false, 'stale deveria ser false imediatamente após o build');
+      ok('10a', '--json básico produz {nodes,edges,symbols}, cada símbolo com {id,name,type,file,line,layer,stale}');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  // === [24a] desempate entre arquivos (saída humana) ===
+  await tryCaseAsync('24a', async () => {
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q24a-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'd'), { recursive: true });
+      fs.mkdirSync(path.join(tmp, 'e'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'd', 'dup1.ts'), 'export function Helper() {\n  return 1;\n}\n');
+      fs.writeFileSync(path.join(tmp, 'e', 'dup2.ts'), 'export function Helper() {\n  return 1;\n}\n');
+      buildAt(tmp);
+      const r = runQuery(tmp, ['helper']);
+      assert.equal(r.code, 0, `query deveria sair exit 0; stderr=${r.stderr}`);
+      const idxD = r.stdout.indexOf('d/dup1.ts');
+      const idxE = r.stdout.indexOf('e/dup2.ts');
+      assert.ok(idxD >= 0 && idxE >= 0 && idxD < idxE,
+        `desempate por file (localeCompare) deveria listar d/dup1.ts antes de e/dup2.ts; obteve:\n${r.stdout}`);
+      ok('24a', 'desempate (name,file,line) entre arquivos: d/dup1.ts antes de e/dup2.ts (saída humana)');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  // === [cli-symlink] guard de CLI via realpathSync funciona através de symlink REAL em /tmp ===
+  // Prova direta do bug provado durante o design desta spec: `import.meta.url === 'file://' +
+  // process.argv[1]` quebra sob symlink no macOS (/tmp e /var/folders são symlinks); o padrão
+  // kb-cli.mjs (realpathSync dos dois lados) não quebra. Invoca graph-query.mjs DIRETO via um
+  // symlink real criado em /tmp, sem passar por graph.sh, para isolar exatamente o guard.
+  tryCase('cli-symlink', () => {
+    const { execFileSync } = require('node:child_process');
+    const base = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-symlink-'));
+    try {
+      const linkDir = path.join(base, 'linked');
+      fs.mkdirSync(linkDir);
+      const link = path.join(linkDir, 'graph-query.mjs');
+      fs.symlinkSync(QUERY_MOD_PATH, link);
+
+      const gdir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-symlink-graph-'));
+      try {
+        fs.mkdirSync(path.join(gdir, '.forge/graph'), { recursive: true });
+        const graph = { schema: 'graph/v0', nodes: [{ id: 'x/y.ts', lang: 'ts', layer: 'unknown', loc: 1 }], edges: [] };
+        const graphPath = path.join(gdir, '.forge/graph/graph.json');
+        fs.writeFileSync(graphPath, JSON.stringify(graph));
+        const out = execFileSync('node', [link, graphPath, gdir, 'y'], { stdio: 'pipe' }).toString();
+        assert.match(out, /^nodes \(1\):$/m, 'guard de CLI deveria reconhecer invocação via symlink real em /tmp e executar main()');
+        ok('cli-symlink', 'guard de CLI (realpathSync dos dois lados) funciona invocando graph-query.mjs através de symlink real em /tmp');
+      } finally { fs.rmSync(gdir, { recursive: true, force: true }); }
+    } finally { fs.rmSync(base, { recursive: true, force: true }); }
+  });
+
+  // === PBT P1 — completude (rankSymbols não omite nem inventa matches) ===
+  await tryCaseAsyncSafe('pbt-p1', async () => {
+    const pbt = await import('file://' + path.join(LIB, 'pbt.mjs'));
+    const queryMod = await import('file://' + QUERY_MOD_PATH);
+    const prop = (n) => {
+      const symbols = Array.from({ length: n }, (_, k) => ({ name: `sym${k}abc`, file: `f${k}.ts`, line: 1, type: 'function', layer: 'unknown' }));
+      const term = 'abc';
+      const ranked = queryMod.rankSymbols(symbols, term);
+      const expected = new Set(symbols.filter((s) => s.name.toLowerCase().includes(term)).map((s) => s.name));
+      const got = new Set(ranked.map((s) => s.name));
+      return expected.size === got.size && [...expected].every((x) => got.has(x));
+    };
+    const r = pbt.forAll([pbt.gen.int(1, 15)], prop, { seed: 20261104, runs: 25 });
+    assert.ok(r.ok, `P1 falhou: ${JSON.stringify(r.counterexample)}`);
+    ok('pbt-p1', `P1 (completude) — ${r.runs} casos, seed ${r.seed}`);
+  });
+
+  // === PBT P3 — metamórfica: substring ⊆ substring (termo mais específico ⊆ menos específico) ===
+  await tryCaseAsyncSafe('pbt-p3', async () => {
+    const pbt = await import('file://' + path.join(LIB, 'pbt.mjs'));
+    const queryMod = await import('file://' + QUERY_MOD_PATH);
+    const prop = (n) => {
+      const symbols = [
+        { name: 'AlphaPayFastBeta', file: 'f0.ts', line: 1, type: 'function', layer: 'unknown' },
+        { name: 'onlypay', file: 'f1.ts', line: 1, type: 'function', layer: 'unknown' },
+      ];
+      for (let k = 0; k < n; k++) symbols.push({ name: `decoy${k}`, file: `d${k}.ts`, line: 1, type: 'function', layer: 'unknown' });
+      const term1 = 'payfast', term2 = 'pay'; // term2 é substring de term1
+      const r1 = new Set(queryMod.rankSymbols(symbols, term1).map((s) => s.name));
+      const r2 = new Set(queryMod.rankSymbols(symbols, term2).map((s) => s.name));
+      return [...r1].every((x) => r2.has(x)) && r1.has('AlphaPayFastBeta') && !r1.has('onlypay');
+    };
+    const r = pbt.forAll([pbt.gen.int(0, 10)], prop, { seed: 42, runs: 20 });
+    assert.ok(r.ok, `P3 falhou: ${JSON.stringify(r.counterexample)}`);
+    ok('pbt-p3', `P3 (metamórfica substring⊆substring) — ${r.runs} casos, seed ${r.seed}`);
+  });
+
+  // === PBT P4-desempate — invariância sob permutação da ordem de entrada ===
+  await tryCaseAsyncSafe('pbt-p4-desempate', async () => {
+    const pbt = await import('file://' + path.join(LIB, 'pbt.mjs'));
+    const queryMod = await import('file://' + QUERY_MOD_PATH);
+    const prop = (size) => {
+      const symbols = Array.from({ length: size }, (_, k) => ({ name: 'Dup', file: `f${k}.ts`, line: k, type: 'function', layer: 'unknown' }));
+      const rnd = pbt.makeRandom(size + 1);
+      const shuffled = pbt.shuffle(symbols, rnd);
+      const baseline = JSON.stringify(queryMod.rankSymbols(symbols, 'Dup'));
+      const got = JSON.stringify(queryMod.rankSymbols(shuffled, 'Dup'));
+      return baseline === got;
+    };
+    const r = pbt.forAll([pbt.gen.int(2, 10)], prop, { seed: 999, runs: 25 });
+    assert.ok(r.ok, `P4-desempate falhou: ${JSON.stringify(r.counterexample)}`);
+    ok('pbt-p4-desempate', `P4-desempate (invariância sob permutação) — ${r.runs} casos, seed ${r.seed}`);
+  });
   console.log(fail ? '__GATE_FAIL__' : '__GATE_OK__');
   process.exit(fail);
 }

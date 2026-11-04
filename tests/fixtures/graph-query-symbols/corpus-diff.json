@@ -1,0 +1,406 @@
+{
+  "removed": [
+    {
+      "key": "graph-build.mjs|X|class|181",
+      "reason": "declaração mascarada"
+    },
+    {
+      "key": "graph-build.mjs|case|class|223",
+      "reason": "declaração mascarada"
+    },
+    {
+      "key": "graph-build.mjs|members|class|186",
+      "reason": "declaração mascarada"
+    },
+    {
+      "key": "graph-build.mjs|member|class|253",
+      "reason": "declaração mascarada"
+    },
+    {
+      "key": "graph-build.mjs|swallowing|class|176",
+      "reason": "declaração mascarada"
+    },
+    {
+      "key": "graph-symbols.mjs|X|class|42",
+      "reason": "declaração mascarada"
+    },
+    {
+      "key": "graph-symbols.mjs|else|function|63",
+      "reason": "declaração mascarada"
+    },
+    {
+      "key": "graph-symbols.mjs|else|function|64",
+      "reason": "declaração mascarada"
+    },
+    {
+      "key": "mermaid-to-drawio.mjs|a|class|10",
+      "reason": "declaração mascarada"
+    },
+    {
+      "key": "route-scan.mjs|OrderDto|class|238",
+      "reason": "declaração mascarada"
+    }
+  ],
+  "added": [
+    {
+      "key": "check-push-ahead.sh|fim|function|44",
+      "reason": "função shell"
+    },
+    {
+      "key": "check-push-ahead.sh|now|function|41",
+      "reason": "função shell"
+    },
+    {
+      "key": "check-push-ahead.sh|say_nao|function|43",
+      "reason": "função shell"
+    },
+    {
+      "key": "check-push-ahead.sh|say_ok|function|42",
+      "reason": "função shell"
+    },
+    {
+      "key": "check-push-ahead.sh|yaml_field|function|98",
+      "reason": "função shell"
+    },
+    {
+      "key": "data-agent-bash-guard.sh|nega|function|23",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|_generated_header|function|206",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|_settings_hooks_is_derived|function|230",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|_settings_lib_needs_160_upgrade_warning|function|327",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|adapter_active|function|108",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|canon_scan_scope|function|143",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|check_dotnet|function|1229",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|check_harness|function|85",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|check_java|function|1312",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|check_kotlin|function|1326",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|check_link|function|109",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|check_node|function|1257",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|check_python|function|1292",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|find_marker|function|78",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|have|function|66",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|hint|function|72",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|info|function|70",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|miss|function|69",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|ok|function|68",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|suggest_pack|function|1198",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|tp_sha|function|1104",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|try_install|function|1218",
+      "reason": "função shell"
+    },
+    {
+      "key": "doctor.sh|warn|function|71",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|adb_bench_reachable|function|167",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|cmd_activate|function|254",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|cmd_deactivate|function|329",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|cmd_scan|function|290",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|cmd_status|function|217",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|cmd_strix|function|1190",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|has_pentest_config|function|78",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|has_pentest_strix_config|function|461",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|main|function|1230",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|not_configured_notice|function|175",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|pentest_cfg_strix_list|function|439",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|pentest_cfg_strix|function|412",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|pentest_cfg|function|59",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|pentest_check_entrypoint|function|140",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|pentest_compose_image|function|101",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|pentest_frontmatter_of|function|402",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|pentest_resolve_image|function|124",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|pentest_tool_dir|function|82",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|print_adb_security_warning|function|157",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|print_bench_only_warning|function|152",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|print_strix_authorized_use_warning|function|1069",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|resolve_apk|function|188",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|resolve_forge_md|function|43",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|run_to|function|146",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_child_env|function|503",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_cmd_preflight|function|1079",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_cmd_report|function|1169",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_cmd_scan|function|1093",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_cmd_status|function|1143",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_conditions_examined|function|940",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_engine_sha256|function|962",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_evaluate_conditions|function|927",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_findings_dir|function|491",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_has_dotdot_segment|function|513",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_is_blank|function|535",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_is_safe_run_id|function|567",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_is_valid_cfg_key|function|551",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_kv_read|function|635",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_kv|function|998",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_manifest_write|function|1003",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_not_configured_notice|function|1074",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_overall_verdict|function|948",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_r1_check|function|591",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_r2_check|function|642",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_r3_check|function|731",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_r4_check|function|742",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_r5_check|function|762",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_r6_check|function|777",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_r7_check|function|801",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_r8_check|function|857",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_r8_roots|function|846",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_r9_check|function|901",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_run_id|function|969",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_sanitize|function|982",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_scan_mode|function|475",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_set_verdict|function|579",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_target_kind|function|520",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|strix_timeout_s|function|485",
+      "reason": "função shell"
+    },
+    {
+      "key": "pentest-ops.sh|usage|function|1211",
+      "reason": "função shell"
+    },
+    {
+      "key": "validate-frontmatter.sh|check_file|function|35",
+      "reason": "função shell"
+    },
+    {
+      "key": "validate-frontmatter.sh|field_block|function|27",
+      "reason": "função shell"
+    },
+    {
+      "key": "validate-frontmatter.sh|frontmatter|function|25",
+      "reason": "função shell"
+    }
+  ]
+}

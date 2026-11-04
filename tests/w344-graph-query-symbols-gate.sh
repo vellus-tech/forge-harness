@@ -311,6 +311,13 @@ async function main() {
     ok('8b', 'apóstrofo dentro de comentário não abriu estado de string vazando para a linha seguinte');
   });
 
+  tryCase('python-docstring-escape', () => {
+    const src = 'def actual():\n    """before \\"""\ndef ghost(): pass\n    """\n    pass\n\ndef after(): pass\n';
+    const symbols = extractSymbols('escape.py', 'python', src).symbols;
+    assert.deepEqual(symbols.map((s) => s.name), ['actual', 'after'], 'aspas escapadas não devem fechar a docstring');
+    ok('python-docstring-escape', 'docstring com aspas escapadas não indexa fantasmas nem oculta declarações');
+  });
+
   // === [13a] herança pura isolada ===
   tryCase('13a', () => {
     const synthetic = [
@@ -388,6 +395,13 @@ async function main() {
 
     const removed = [...oldKeys].filter((k) => !newKeys.has(k));
     const added = [...newKeys].filter((k) => !oldKeys.has(k));
+    const oracle = JSON.parse(fs.readFileSync(path.join(FIX, 'corpus-diff.json'), 'utf8'));
+    for (const group of [oracle.removed, oracle.added]) {
+      assert.ok(group.length > 0 && group.every((x) => x.key && x.reason), 'listas fixas devem conter chaves e justificativas');
+      assert.equal(new Set(group.map((x) => x.key)).size, group.length, 'oráculo contém chave duplicada');
+    }
+    assert.deepEqual(removed.sort(), oracle.removed.map((x) => x.key).sort(), 'remoções divergem da lista congelada');
+    assert.deepEqual(added.sort(), oracle.added.map((x) => x.key).sort(), 'adições divergem da lista congelada');
 
     // Verificação MECÂNICA (não por curadoria): roda o PRÓPRIO motor antigo (DECL sem masking)
     // sobre o texto JÁ MASCARADO pelo lexer novo (stripCommentsPreservingLines). Se a chave
@@ -535,32 +549,65 @@ async function main() {
     ok('29-29b-29c', 'regex-com-crase não abriu template literal; precedência //,/* sobre regex; arrow/return/else abrem regex; classe de caracteres não fecha regex prematuramente');
   });
 
-  // === [32] oráculo de corpus real .mjs ===
-  tryCase('32', () => {
-    const files = fs.readdirSync(LIB).filter((n) => n.endsWith('.mjs'));
-    assert.ok(files.length > 10, `esperado >10 arquivos .mjs em lib/, achou ${files.length}`);
-    let total = 0;
-    for (const fn of files) {
-      const src = fs.readFileSync(path.join(LIB, fn), 'utf8');
-      const r = extractSymbols(fn, 'js', src);
-      total += r.symbols.length;
+  // O motor antigo fornece as linhas de referência para cada declaração conhecida.
+  await tryCaseAsync('32', async () => {
+    const old = await import('file://' + path.join(FIX, 'old-engine-snapshot.mjs'));
+    const names = {
+      'api-surface.mjs': ['policyTableAnchored', 'fromChecklist'],
+      'red-classify.mjs': ['classify', 'countsAsRed'],
+      'route-scan.mjs': ['resolveSpec', 'posixDirname', 'posixJoin', 'candidatasVisiveis', 'compose', 'walk', 'scanRoutes', 'routeKeys'],
+      'tasks-graph.mjs': ['trimWrappers', 'parseTasks', 'checkTasksGraph', 'parseSurfaceChecklist', 'checkSurfaceChecklistLiteral', 'checkSurfaceChecklistPresence', 'namesApiSurface'],
+      'untrusted-render.mjs': ['renderUntrusted'],
+    };
+    for (const [file, expected] of Object.entries(names)) {
+      const src = fs.readFileSync(path.join(FIX, 'corpus-snapshot', file + '.txt'), 'utf8');
+      const oldSymbols = old.extractSymbolsOldEngine('js', src);
+      const actual = extractSymbols(file, 'js', src).symbols;
+      for (const name of expected) {
+        const reference = oldSymbols.filter((s) => s.name === name);
+        assert.equal(reference.length, 1, `${file}:${name}: referência antiga ausente ou ambígua`);
+        assert.ok(actual.some((s) => s.name === name && s.line === reference[0].line), `${file}:${name}:${reference[0].line} ausente`);
+      }
     }
-    assert.ok(total > 100, `esperado >100 símbolos agregados sobre lib/*.mjs real, obteve ${total}`);
-    ok('32', `oráculo de corpus real .mjs: ${files.length} arquivos, ${total} símbolos, sem crash`);
+    ok('32', '20 declarações reais verificadas nominalmente no corpus congelado');
   });
 
-  // === [32b] oráculo de corpus real shell ===
+  // === [32b] oráculo nominal de corpus shell congelado ===
   tryCase('32b', () => {
-    const shFiles = walk(path.join(WS, 'template/.forge/scripts'), ['.sh']);
-    assert.ok(shFiles.length > 10, `esperado >10 arquivos .sh sob template/.forge/scripts, achou ${shFiles.length}`);
-    let total = 0;
-    for (const fp of shFiles) {
-      const src = fs.readFileSync(fp, 'utf8');
-      const r = extractSymbols(path.relative(WS, fp), 'shell', src);
-      total += r.symbols.length;
+    const oracle = JSON.parse(fs.readFileSync(path.join(FIX, 'corpus-diff.json'), 'utf8'));
+    for (const file of ['doctor.sh', 'pentest-ops.sh']) {
+      const src = fs.readFileSync(path.join(FIX, 'corpus-snapshot-shell', file + '.txt'), 'utf8');
+      const actual = extractSymbols(file, 'shell', src).symbols;
+      const expected = oracle.added.map((x) => x.key).filter((key) => key.startsWith(file + '|'));
+      assert.ok(expected.length > 0, `${file}: lista nominal vazia`);
+      for (const key of expected) {
+        const [, name, type, line] = key.split('|');
+        assert.ok(actual.some((s) => s.name === name && s.type === type && s.line === Number(line)), `${key} ausente`);
+      }
+      if (file === 'doctor.sh') for (const name of ['tp_sha','suggest_pack','try_install','check_dotnet','check_node','check_python','check_java','check_kotlin']) {
+        assert.ok(expected.some((key) => key.split('|')[1] === name), `${file}:${name} ausente do oráculo`);
+      }
     }
-    assert.ok(total > 50, `esperado >50 funções shell agregadas sobre o corpus real, obteve ${total}`);
-    ok('32b', `oráculo de corpus real shell: ${shFiles.length} arquivos, ${total} funções, sem crash`);
+    ok('32b', 'declarações shell verificadas por nome e linha no corpus congelado');
+  });
+
+  tryCase('33', () => {
+    const phrase = 'busca por nome de símbolo (classe/função) com arquivo:linha, não só por caminho de arquivo';
+    const files = ['template/.forge/commands/graph/query.md', 'template/.forge/rules/conventions/lsp-impact-analysis.md', 'template/.forge/commands/specs/implement.md', 'README.md'];
+    for (const file of files) assert.ok(fs.readFileSync(path.join(WS, file), 'utf8').includes(phrase), `${file}: frase ausente`);
+    const query = fs.readFileSync(path.join(WS, files[0]), 'utf8');
+    assert.ok(query.split('\n').find((line) => line.startsWith('description:')).includes(phrase), 'description de query não contém a frase');
+    const graph = fs.readFileSync(GRAPH_SH, 'utf8');
+    assert.match(graph, /query <term>[^\n]*symbols/);
+    assert.match(graph, /usage: graph\.sh[^\n]*symbols/);
+    const rule = fs.readFileSync(path.join(WS, files[1]), 'utf8');
+    assert.doesNotMatch(rule, /não entende semântica de símbolo/);
+    assert.match(rule, /tipo, overload ou call graph/);
+    const update = fs.readFileSync(path.join(WS, 'template/.forge/commands/graph/update.md'), 'utf8');
+    assert.doesNotMatch(update, /nada é reprocessado|sem reprocessar/i);
+    const updatePlugin = fs.readFileSync(path.join(WS, 'plugin/forge/commands/update.md'), 'utf8');
+    assert.doesNotMatch(updatePlugin, /nada é reprocessado|sem reprocessar/i);
+    ok('33', 'fiação da documentação e das descrições validada');
   });
 
   // === PBT P2 — sem duplicata (file,name,type,line) ===
@@ -651,17 +698,26 @@ async function main() {
         '.forge/graph/graph.json',
         '.forge/graph/cache/fingerprints.json',
         '.forge/graph/cache/summaries.json',
+        '.forge/graph/report.md',
         '.forge/graph/symbols.json',
         '.forge/graph/symbols.idx.tsv',
       ].map((p) => path.join(tmp, p));
       execFileSync('node', [BUILD, tmp, '--if-changed'], { stdio: 'pipe' });
+      fs.utimesSync(path.join(tmp, '.forge/graph/report.md'), 1000000000, 1000000000);
       const before = artifacts.map((p) => fs.statSync(p).mtimeMs);
       execFileSync('node', [BUILD, tmp, '--if-changed'], { stdio: 'pipe' });
       const after = artifacts.map((p) => fs.statSync(p).mtimeMs);
       for (let i = 0; i < artifacts.length; i++) {
         assert.equal(after[i], before[i], `${artifacts[i]} foi regravado no segundo update sem toque real`);
       }
-      ok('12', 'dois updates --if-changed consecutivos sem toque real: zero regravação nos 5 artefatos (mtime)');
+      const reportPath = path.join(tmp, '.forge/graph/report.md');
+      fs.writeFileSync(reportPath, 'relatório corrompido');
+      execFileSync('node', [BUILD, tmp, '--if-changed'], { stdio: 'pipe' });
+      assert.match(fs.readFileSync(reportPath, 'utf8'), /^# Code Graph — report/m, 'update deve reparar relatório alterado');
+      fs.utimesSync(reportPath, 1000000000, 1000000000);
+      execFileSync('node', [BUILD, tmp], { stdio: 'pipe' });
+      assert.notEqual(fs.statSync(reportPath).mtimeMs, 1000000000000, 'build deve forçar a gravação');
+      ok('12', 'dois updates --if-changed consecutivos sem toque real: zero regravação nos 6 artefatos (mtime)');
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
@@ -836,13 +892,10 @@ async function main() {
   const QUERY_MOD_PATH = path.join(LIB, 'graph-query.mjs');
 
   function runQuery(root, args) {
-    const { execFileSync } = require('node:child_process');
-    try {
-      const out = execFileSync('bash', [GRAPH_SH, 'query', ...args], { stdio: 'pipe', env: { ...process.env, FORGE_ROOT: root } });
-      return { stdout: out.toString(), stderr: '', code: 0 };
-    } catch (e) {
-      return { stdout: (e.stdout || '').toString(), stderr: (e.stderr || '').toString(), code: e.status };
-    }
+    const { spawnSync } = require('node:child_process');
+    const result = spawnSync('bash', [GRAPH_SH, 'query', ...args], { encoding: 'utf8', env: { ...process.env, FORGE_ROOT: root } });
+    if (result.error) throw result.error;
+    return { stdout: result.stdout, stderr: result.stderr, code: result.status };
   }
   function buildAt(root) {
     const { execFileSync } = require('node:child_process');
@@ -1151,8 +1204,7 @@ async function main() {
       const term = 'zzz-nao-existe';
       const r = runQuery(tmp, [term]);
       assert.equal(r.code, 0, `query deveria sair exit 0 mesmo com 0 resultados; stderr=${r.stderr}`);
-      const { zeroResultsHint } = await import('file://' + QUERY_MOD_PATH);
-      const expectedHint = zeroResultsHint(term);
+      const expectedHint = 'hint: nenhum node/edge/símbolo casou com "' + term + '". Se symbols.json não existe, rode `graph.sh build` para gerar símbolos; se já existe, tente um termo mais genérico (prefixo/substring) ou `graph.sh symbols` para conferir o índice.';
       assert.ok(r.stdout.includes(expectedHint), `texto canônico de 0-resultados ausente; obteve:\n${r.stdout}`);
       const rJson = runQuery(tmp, [term, '--json']);
       const data = JSON.parse(rJson.stdout);
@@ -1199,6 +1251,7 @@ async function main() {
       const barSym = data.symbols.find((s) => s.name === 'barz');
       const fooSym = data.symbols.find((s) => s.name === 'fooz');
       assert.equal(barSym.missing, true, 'missing:true deveria aparecer no JSON para o símbolo com ENOENT');
+      assert.equal(barSym.stale, true, 'arquivo ausente também deve marcar stale:true');
       assert.ok(!fooSym.missing, 'fooz não deveria ter missing:true');
       ok('14', 'ENOENT por símbolo individual: sufixo + missing:true isolado, sem afetar os demais símbolos');
     } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
@@ -1215,7 +1268,8 @@ async function main() {
       const r = runQuery(tmp, ['foo']);
       assert.equal(r.code, 0, `query deveria sair exit 0 mesmo com symbols.json corrompido; rc=${r.code} stderr=${r.stderr}`);
       assert.match(r.stdout, /^nodes \(\d+\):$/m, 'nodes/edges deveriam continuar funcionando (degrada só symbols)');
-      assert.match(r.stdout, /^symbols \(0\):$/m, 'symbols deveria degradar para vazio com JSON corrompido');
+      assert.doesNotMatch(r.stdout, /^symbols \(/m, 'índice corrompido deve omitir a seção symbols');
+      assert.match(r.stderr, /WARN symbols\.json inválido/, 'degradação deve avisar em stderr');
       ok('15', 'symbols.json corrompido (JSON inválido) degrada para nodes/edges-only, sem crash, exit 0');
     } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
   });

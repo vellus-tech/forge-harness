@@ -17,7 +17,7 @@ A **segunda** é esta skill: o que nenhum analisador vê porque depende de inten
 Ordem fixa. A ordem é o que torna a revisão auditável — sem ela, o que foi verificado depende de quanto contexto sobrou.
 
 1. **Escopo.** Defina os paths .NET afetados (diff da branch, ou o serviço em questão). Não varra o monorepo inteiro quando o change tocou um projeto.
-2. **Baseline de build.** `bash .forge/scripts/dotnet-baseline.sh --root <path> --check`. Se ele reprovar, **diga isso primeiro**: revisar estilo à mão num repositório sem `TreatWarningsAsErrors` é gastar julgamento onde faltava um interruptor.
+2. **Baseline de build.** `bash .forge/scripts/dotnet-baseline.sh --root <path> --check`. Se ele reprovar, **diga isso primeiro**: revisar estilo à mão num repositório sem `TreatWarningsAsErrors` é gastar julgamento onde faltava um interruptor. Se `dotnet build`/`dotnet test` falhar de um jeito que não é erro de compilação do código revisado (zero testes executados, "A especificação de uma solução deve ser feita por `--solution`", "VSTest target is no longer supported"), é armadilha de comando/ambiente, não achado de qualidade — ver `references/dotnet-test-pitfalls.md` antes de reportar como regressão.
 3. **Detecção.** `bash .forge/skills/dotnet-quality-scan/scripts/scan.sh --root <path> [--json /tmp/dotnet-scan.json]`. Saída: uma linha por regra. `OK` quer dizer verificado e limpo, não "não olhei".
 4. **Julgamento.** Cada `FOUND` é candidato, não veredito — leia o arquivo:linha e decida. As exceções legítimas estão em `references/clean-code-rules.md`.
 5. **Relatório.** Uma linha por regra, incluindo as que passaram. Achado sem `arquivo:linha` não entra.
@@ -36,5 +36,6 @@ Rode esta revisão numa sessão **separada** daquela que escreveu o código. Um 
 
 - `references/clean-code-rules.md` — cada regra, por que ela existe e quando a exceção é legítima
 - `references/detection-commands.md` — os comandos crus, para auditar o que o scanner faz
+- `references/dotnet-test-pitfalls.md` — armadilhas de comando/ambiente ao rodar ou escrever teste .NET (`.slnx`, Microsoft.Testing.Platform, `DOTNET_ROOT`, Testcontainers, mock de gRPC, raw string literal, `MeterListener`) — não são achados do scanner, mas custam uma rodada perdida quando o baseline de build/teste falha por elas
 - `.forge/capabilities/backend-dotnet-relational/PROFILE.md` — a camada de build e a armadilha do IDE1006
 - `.forge/rules/conventions/code-style.md` — a versão agnóstica de stack destas mesmas diretrizes

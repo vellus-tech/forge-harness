@@ -118,6 +118,20 @@ expõe todo uso de cor que não passou pelo tema. Uma UI perfeita nos dois temas
 UI que respeitou os tokens. Onde der, automatize: assert sobre **valor computado de estilo**
 (`getComputedStyle`) por tema, não sobre "a classe existe".
 
+### B1 — Comparação tela a tela com a prancha aprovada
+Passar em acessibilidade, contraste e nos gates da Fase A prova que a tela é usável — não que é a
+tela aprovada. Quando existe um artefato de design aprovado pelo dono, o aceite exige uma captura por
+tela **e por modo**, lado a lado com a prancha, antes de declarar pronto; olhar só um print no modo
+claro esconde justamente as divergências que o framework introduz no outro (fundo errado no escuro,
+barra fora de ordem, tamanho de fonte menor, menu diferente, favicon errado). Quando o produto roda
+sobre um framework com tema próprio (Infima do Docusaurus, Chakra, MUI), confira que as variáveis do
+tema do produto estão amarradas aos tokens em **todos** os seletores de modo que o framework usa (ex.:
+`:root` e `html[data-theme="light"]`/`html[data-theme="dark"]` no Docusaurus) — esses frameworks
+redefinem variáveis por modo com especificidade maior que `:root`, então o tema do framework sobrepõe
+o token do produto justamente no modo que ninguém olhou; e confira a unidade `rem`, porque o framework
+pode fixar a raiz num tamanho menor que o padrão do browser (14px em vez de 16px), encolhendo todo
+texto em `rem` sem que nenhum valor do produto tenha mudado.
+
 ---
 
 ## Fase C — Revisão semântica (julgamento)
@@ -153,6 +167,18 @@ asseguravam **estrutura** ("renderiza", "classe existe"), não **comportamento r
 resolve a cor certa no tema dark", "clicar no header reordena via a API real"). Exija testes que
 exercitem tema renderizado e caminho real de dados. No mínimo, os gates A1/A2 devem virar **CI gate**
 — eles *são* o teste que faltava.
+
+### D1 — E2E de cerimônia de autenticação: trocar o sujeito do teste, nunca abrir mão do teste
+Fluxo de login/convite com WebAuthn (ou qualquer cerimônia equivalente) não se valida só com `curl`
+contra o link — "carregou com 200" não é evidência de que um fluxo de várias etapas (servidor aceitar
+o código, criar e verificar a credencial) funciona; a correção real pode estar numa etapa que o curl
+nunca exercita (ex.: URL truncada na cópia, só visível no log de acesso da borda/balanceador). Depois
+de um incidente em que um navegador automatizado completou sozinho a cerimônia numa conta real, a
+resposta certa não é proibir o navegador automatizado e sobrar só o curl — é rodar o E2E sempre contra
+uma **identidade descartável** criada para o teste, com **autenticador virtual declarado
+explicitamente** (via CDP), conferido no event store/backend e com a conta apagada ao fim; a credencial
+do titular nunca entra no navegador automatizado. Um risco de teste se resolve trocando o sujeito do
+teste, não abrindo mão do teste.
 
 ---
 

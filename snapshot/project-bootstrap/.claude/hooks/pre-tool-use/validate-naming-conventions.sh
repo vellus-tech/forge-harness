@@ -48,8 +48,8 @@ esac
 
 # Estrutura .NET canônica permite PascalCase em qualquer profundidade
 # (<project_name> usa src/, tests/, deploy/; refactoring-plan introduzirá services/).
-if [[ "$DIR" =~ /(src|tests|services|deploy)(/|$) ]]; then
-    : # PascalCase permitido em código .NET
+if [[ "$DIR" =~ /(src|tests?|services|deploy)(/|$) ]]; then
+    : # PascalCase permitido em código .NET (test/ e tests/: repositórios Payments.* usam as duas grafias)
 elif [[ "$BASENAME" =~ [A-Z] ]] && [[ ! "$FILE" =~ \.(csproj|sln|props|targets)$ ]]; then
     violations+=("Diretório '$BASENAME' não está em kebab-case")
 fi

@@ -23,7 +23,7 @@ Regras de economia de contexto para implementações que duram horas ou dias. An
 ## Regras de execução
 
 - **Todo comando externo com timeout**: use `perl -e 'alarm N; exec @ARGV' -- <cmd>`. N razoável por tipo: smoke ≤120s, build ≤180s, test suite ≤300s, query de banco ≤30s.
-- **Falha irrecuperável**: marque `[!]` na task, emita uma linha descrevendo o bloqueio e pare. Nunca pule para outra task de wave diferente.
+- **Falha irrecuperável**: marque `[!]` na task, emita uma linha descrevendo o bloqueio e pare. Nunca pule para outra task de wave diferente. **Premissa nomeada (REQ-01/REQ-02):** quando a causa é "gate falha após 2 tentativas de correção", o bloco de falha (`tasks.md`/`PROGRESS-TRACKING.md`) ganha os campos `Gate:`, `Premissa:` e `Ator(es) com o desequilíbrio:` no formato descrito em `.forge/commands/specs/implement.md` e `.forge/agents/coding/task-coder.md` §3.7 — a retomada que repete a forma da tentativa anterior sob a mesma premissa não atende ao requisito, mesmo que autorizada.
 - **Retomada idempotente**: ao reiniciar após interrupção, leia `progress.json` para saber onde parar — nunca releia todos os artefatos.
 
 ## Anti-padrões explicitamente proibidos

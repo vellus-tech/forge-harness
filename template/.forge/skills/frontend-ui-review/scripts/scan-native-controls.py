@@ -720,7 +720,7 @@ def main() -> int:
         try:
             m.feed(text)
             m.close()
-        except Exception as err:  # noqa: BLE001 — qualquer falha do parser vira "não analisado"
+        except Exception as err:  # noqa: BLE001 — qualquer falha do parser vira "não analisado" (LDG-0232)
             m = f"html.parser falhou: {err}"
         # interpolação de template ({{ }} no Vue; {…} no Svelte, inclusive spread e atributo) é JS que o
         # html.parser lê como texto e tag: '<DsBox>', '<style>' ou '<!--' dentro dela viram nós falsos.

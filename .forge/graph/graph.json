@@ -1,10 +1,10 @@
 {
   "schema": "graph/v0",
-  "generated_at": "2026-11-02T21:33:49.913Z",
+  "generated_at": "2026-11-03T23:12:26.943Z",
   "engine": "native",
-  "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/liaison-handoff-baton",
+  "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/adopt-ub-mode-practices",
   "stats": {
-    "nodes": 581,
+    "nodes": 588,
     "edges": 100,
     "languages": [
       "csharp",
@@ -16,23 +16,23 @@
       "shell",
       "ts"
     ],
-    "summaries_stale": 581,
+    "summaries_stale": 588,
     "census": {
       "csharp": 10,
       "go": 15,
       "java": 14,
-      "js": 134,
+      "js": 135,
       "kotlin": 6,
       "python": 21,
-      "shell": 352,
+      "shell": 358,
       "ts": 29
     },
     "layer_coverage": {
-      "classified": 368,
-      "unclassified": 213,
+      "classified": 371,
+      "unclassified": 217,
       "out_of_taxonomy": 0,
-      "denominator": 581,
-      "ratio": 0.6334
+      "denominator": 588,
+      "ratio": 0.631
     }
   },
   "nodes": [
@@ -157,6 +157,14 @@
       "summary": null
     },
     {
+      "id": "template/.forge/hooks/pre-tool-use/prevent-aws-credentials-read.sh",
+      "lang": "shell",
+      "loc": 133,
+      "fingerprint": "7b83dd6d9d8aff29724ce6686b170f4b644290e522f547bee8effb0379c1337d",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
       "id": "template/.forge/hooks/pre-tool-use/prevent-secrets-leak.sh",
       "lang": "shell",
       "loc": 213,
@@ -168,7 +176,7 @@
       "id": "template/.forge/hooks/pre-tool-use/validate-naming-conventions.sh",
       "lang": "shell",
       "loc": 72,
-      "fingerprint": "6da2e2d56708c37bcbe8a518b9f2e75b0c8ad0a17eb36ca6f01479efdf24a603",
+      "fingerprint": "c475d029cd73be1891da8e1fcf18f95196b24e03bd6e5fe8641c8136b900e2b7",
       "layer": "unknown",
       "summary": null
     },
@@ -257,6 +265,14 @@
       "lang": "shell",
       "loc": 140,
       "fingerprint": "16af5a52e02e39dc9fd5006c6fa858e71746b6a54a935442117ea9a105bc7905",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/check-attack-premise.sh",
+      "lang": "shell",
+      "loc": 206,
+      "fingerprint": "39b166fbd86f45c57c898fef36cf13f261796f02c147b805c2a508dbfc00887a",
       "layer": "unknown",
       "summary": null
     },
@@ -373,6 +389,14 @@
       "summary": null
     },
     {
+      "id": "template/.forge/scripts/check-suppression-reference.sh",
+      "lang": "shell",
+      "loc": 192,
+      "fingerprint": "c0c71b4708ea22ecd29323bca7bd778ff08040efdac036af5bf673231a1f5eb9",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
       "id": "template/.forge/scripts/check-worktree-prereqs.sh",
       "lang": "shell",
       "loc": 14,
@@ -416,7 +440,7 @@
       "id": "template/.forge/scripts/doctor.sh",
       "lang": "shell",
       "loc": 1365,
-      "fingerprint": "e536ae70a6a731868ac5ad44fa4f860a331f1819eec2f8e309bcce225c9e97f6",
+      "fingerprint": "96577dcde75b09a399de940786a342088b1789a73cebd31b8b46da425d187f70",
       "layer": "unknown",
       "summary": null
     },
@@ -527,8 +551,8 @@
     {
       "id": "template/.forge/scripts/liaison-ops.sh",
       "lang": "shell",
-      "loc": 2950,
-      "fingerprint": "15d6220af73dd8872e6855424d1187dde441db8a6b1d39ad7a108a2e8c4dd5d4",
+      "loc": 2985,
+      "fingerprint": "578f8d1cb4f3d189eef5b3f406601c8b347108e09802413818c167a872967e93",
       "layer": "unknown",
       "summary": null
     },
@@ -855,16 +879,16 @@
     {
       "id": "template/.forge/scripts/lib/kb-cli.mjs",
       "lang": "js",
-      "loc": 325,
-      "fingerprint": "caf8759a4932e71bfd6f2b7cad7ae75039fd64e891b60b39d35620b9e8ee8397",
+      "loc": 354,
+      "fingerprint": "531ce8609131cf440ebc8be8fb1a8a7f17238baf987d22c203ac492026af96f5",
       "layer": "unknown",
       "summary": null
     },
     {
       "id": "template/.forge/scripts/lib/kb-corpus.mjs",
       "lang": "js",
-      "loc": 169,
-      "fingerprint": "f13596998c0cc3c9cc7d0daea128acaa5e192b6dadec8c4927ef15b95ff4c5ad",
+      "loc": 343,
+      "fingerprint": "54d3cb8f48d228298544710d58a1b6ebf76934769e2da409a96e6b7bac78a8ba",
       "layer": "unknown",
       "summary": null
     },
@@ -895,8 +919,8 @@
     {
       "id": "template/.forge/scripts/lib/kb-lexical.mjs",
       "lang": "js",
-      "loc": 166,
-      "fingerprint": "8192711e64a7fd9ce24cad7167dd739cbffaa255e91a6369bd230ad93bf3f0b0",
+      "loc": 169,
+      "fingerprint": "e5802abb89e8180ecf826718e1086791ef487455dd8ae1523b95ad0831486ea2",
       "layer": "unknown",
       "summary": null
     },
@@ -975,8 +999,8 @@
     {
       "id": "template/.forge/scripts/lib/liaison-import.mjs",
       "lang": "js",
-      "loc": 507,
-      "fingerprint": "561a512a7eb659aa9bc2723c9c4008fb6b7b8780043d22ce1fba99a865c9ba45",
+      "loc": 571,
+      "fingerprint": "42275d4bce93619366e77499b7f66a6a41320b7f31fd350375eb335b67a80605",
       "layer": "unknown",
       "summary": null
     },
@@ -1151,8 +1175,8 @@
     {
       "id": "template/.forge/scripts/lib/red-classify.mjs",
       "lang": "js",
-      "loc": 122,
-      "fingerprint": "ed8436e48dcc11deddded055b079a2d4755920b459d2613b1183561c8aefc3b0",
+      "loc": 132,
+      "fingerprint": "edf0399950d621222399a582183635f946128419601e80cd824bc114617a1842",
       "layer": "unknown",
       "summary": null
     },
@@ -1183,8 +1207,8 @@
     {
       "id": "template/.forge/scripts/lib/red-replay.mjs",
       "lang": "js",
-      "loc": 1031,
-      "fingerprint": "4028e473f01e1d22d6318a23f68f8f0c5c0247b267a2145886e5e2bdf4ce2497",
+      "loc": 1052,
+      "fingerprint": "7cf55e4b4c1555394f6e10788fc50908ec884540dc010c046730aac763920d16",
       "layer": "unknown",
       "summary": null
     },
@@ -1295,7 +1319,7 @@
     {
       "id": "template/.forge/scripts/lib/transports/_common.sh",
       "lang": "shell",
-      "loc": 657,
+      "loc": 652,
       "fingerprint": "198fc5bc0782e8d1a16043e5666d06a87e505ee2b02f7affa2ec526eb12c611f",
       "layer": "unknown",
       "summary": null
@@ -1639,8 +1663,8 @@
     {
       "id": "template/.forge/skills/data-relational-practices/scripts/scan.sh",
       "lang": "shell",
-      "loc": 377,
-      "fingerprint": "e0f637f7e804a2bead90439f7d8a85b986691910dcf2945d5d4cbeaf020a9a82",
+      "loc": 381,
+      "fingerprint": "02704afe194b7bcf3ecae43867f8c13e6a303ecc752ebb5dbe5e6f148be99dea",
       "layer": "unknown",
       "summary": null
     },
@@ -1655,8 +1679,8 @@
     {
       "id": "template/.forge/skills/dotnet-quality-scan/scripts/scan.sh",
       "lang": "shell",
-      "loc": 159,
-      "fingerprint": "6aafef723d632f200e069fb7260b0c6d6e3a5c20e8e9d830d15b3527562a047e",
+      "loc": 192,
+      "fingerprint": "5f45aad91f9a6ea87bb4795160dfd6d2b16cd54ec8284853632b9c6989dc0fa4",
       "layer": "unknown",
       "summary": null
     },
@@ -1672,7 +1696,7 @@
       "id": "template/.forge/skills/frontend-ui-review/scripts/scan-native-controls.py",
       "lang": "python",
       "loc": 838,
-      "fingerprint": "f249c45550f69aff95b322580fabb6eb526fcbbdf5fa34f094752f43bbd29177",
+      "fingerprint": "99f88b6b26d04145bd0f60387a076c8871ee62cf7fd4ab7f6e8796339127ac7a",
       "layer": "unknown",
       "summary": null
     },
@@ -1725,6 +1749,14 @@
       "summary": null
     },
     {
+      "id": "tests/adopt-ub-mode-practices-gate.sh",
+      "lang": "shell",
+      "loc": 748,
+      "fingerprint": "0117a0cae7748998c2d2892f8cf84fb3e4ffd353ffb5e9044f25fc2e6a3a80e7",
+      "layer": "test",
+      "summary": null
+    },
+    {
       "id": "tests/check-authz-gate.sh",
       "lang": "shell",
       "loc": 168,
@@ -1745,6 +1777,14 @@
       "lang": "shell",
       "loc": 24,
       "fingerprint": "70447fc277b0c2664e2c51d7ebe7311822793f496c584b4a3297fe644139ff12",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/extend-kb-corpus-sources-gate.sh",
+      "lang": "shell",
+      "loc": 543,
+      "fingerprint": "166d14f246b7106d3ac00659b72a0a11822406c9ac3a5833c163caf9b36b5c0e",
       "layer": "test",
       "summary": null
     },
@@ -2799,8 +2839,8 @@
     {
       "id": "tests/migration-review-gate.sh",
       "lang": "shell",
-      "loc": 457,
-      "fingerprint": "b5a4959ef207cdbf8b05b1efaf213c893d7bca3ca41852534603e30c9d937504",
+      "loc": 459,
+      "fingerprint": "972543b42bf99c62025523d94b3604b9c8520a83e8c6b47bf16357b41e39ce5a",
       "layer": "test",
       "summary": null
     },
@@ -2839,8 +2879,8 @@
     {
       "id": "tests/run-all.sh",
       "lang": "shell",
-      "loc": 332,
-      "fingerprint": "bda287a10fcefa3d5fc8a0eacfe7f8b21a0c1d81e5458195b72ab0773ac574f4",
+      "loc": 333,
+      "fingerprint": "b94bada541aa91ff20cbb6caf0d69e3d7b92e7ddf213c4d7dbbe08cdfbb1e8e5",
       "layer": "test",
       "summary": null
     },
@@ -2935,8 +2975,8 @@
     {
       "id": "tests/w106-red-first-gate.sh",
       "lang": "shell",
-      "loc": 1010,
-      "fingerprint": "607cbc4ee22120aed2c917508df7452d2d97f8d1fb06facd78b00f6caee6e3d1",
+      "loc": 1020,
+      "fingerprint": "d42c13160eda4a2581205ae2050b61a6daf44c13558d1b56c12e74be63500bc8",
       "layer": "test",
       "summary": null
     },
@@ -3599,8 +3639,8 @@
     {
       "id": "tests/w215-hook-wiring-derived-gate.sh",
       "lang": "shell",
-      "loc": 1478,
-      "fingerprint": "29da00bf315ac6b44393ea680c0c4f4114690cc5b61abb805ec36088653ed730",
+      "loc": 1480,
+      "fingerprint": "e48d5a5f0162b12fe5d6c69515f755a9c5b7fec1638cdb4d1c82b0069e4fb1fa",
       "layer": "test",
       "summary": null
     },
@@ -3663,8 +3703,8 @@
     {
       "id": "tests/w223-delegacao-arvore-do-hook-gate.sh",
       "lang": "shell",
-      "loc": 1042,
-      "fingerprint": "652d20b18015a39e2549f1a69604c24f10a5231e572b65d43c986514e7ccd5ba",
+      "loc": 1060,
+      "fingerprint": "64cf2d4ccbd25dcc91affb8871eba836861d27052fcea21ddce97c2ee34fc566",
       "layer": "test",
       "summary": null
     },
@@ -3679,8 +3719,8 @@
     {
       "id": "tests/w227-naming-path-provenance-gate.sh",
       "lang": "shell",
-      "loc": 270,
-      "fingerprint": "d26baceef4500d787e210df89dbb8594fae370199d3c3f2e96dc3ddc101ce2dc",
+      "loc": 297,
+      "fingerprint": "0abce08defe70db99375e7bee8a52ea153888c018cce409c30ae5e65498ddb36",
       "layer": "test",
       "summary": null
     },
@@ -3696,7 +3736,7 @@
       "id": "tests/w238-settings-json-merge-gate.sh",
       "lang": "shell",
       "loc": 1232,
-      "fingerprint": "2bd90464c200291b0481389db841328d1d541262577894c522b03c3b3485b57c",
+      "fingerprint": "d0c3962b7cca9d7f5c549702eeececebe0702f17e8610464ca5ee8587b72fbaa",
       "layer": "test",
       "summary": null
     },
@@ -4199,8 +4239,8 @@
     {
       "id": "tests/w309-kb-corpus-gate.sh",
       "lang": "shell",
-      "loc": 149,
-      "fingerprint": "3f47f6ec5e59b96cb36896403360f69471771e22432f9987f2233bbe5e394e8e",
+      "loc": 158,
+      "fingerprint": "5e18e97caa8b5730054ad014a3bea4c0b09886db3f8c514cc19e5a9adf24bed6",
       "layer": "test",
       "summary": null
     },
@@ -4311,8 +4351,16 @@
     {
       "id": "tests/w321-liaison-symlink-traversal-gate.sh",
       "lang": "shell",
-      "loc": 1308,
-      "fingerprint": "1b89def33af8eb108e22793c9b758986c7776475c2d1c8b04662882f7bf07445",
+      "loc": 1576,
+      "fingerprint": "590a8956ee1c908159b7ae4a24b87bc0895d711c4c00ef6effd2f554b4ebb282",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w322-excerpt-truncation-gate.sh",
+      "lang": "shell",
+      "loc": 103,
+      "fingerprint": "86be411ba8d8480f2e158dd17a25e160be8f5890047783fbed88637c649895cc",
       "layer": "test",
       "summary": null
     },
@@ -4567,8 +4615,8 @@
     {
       "id": "tests/w62-handoff-hook-gate.sh",
       "lang": "shell",
-      "loc": 74,
-      "fingerprint": "901bc913ac2c97dc936c07da28b47a65e08969ee133630d09e5f3cf675680001",
+      "loc": 76,
+      "fingerprint": "701d3e492c9d5ba16c553b6f996479fd112ee619303e47a3807035a8bb6a5381",
       "layer": "test",
       "summary": null
     },
@@ -4705,6 +4753,14 @@
       "lang": "shell",
       "loc": 40,
       "fingerprint": "178ea0c7c4cdf88f8be71c5de131944e3578175422ac3687752155955a8dd799",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "tools/spike-complexity-duplication.mjs",
+      "lang": "js",
+      "loc": 214,
+      "fingerprint": "2be31c87400fcdf47a15503e9ef07a6ff9208e47622b76f2cd65131cefdfdbaf",
       "layer": "unknown",
       "summary": null
     },

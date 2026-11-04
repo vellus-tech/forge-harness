@@ -1,0 +1,72 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: approve
+    reason: "aprovação delegada a revisor adversarial opus/high (2a rodada), conferiu contra ub-mode real (SKILL.md master 3da62bf) e código real do forge-harness; 3 BLOCKERs e 6 MAJORs da 1a rodada resolvidos. Notas para o design (consequências diretas das correções, regra de convergência, dono decide): (a) REQ-01 ancora a 2a falha em task-coder 3.7 e coding-loop 67, que param na 1a falha; a regra de 2 tentativas vive em implement.md 54 (omitido da lista de docs) e gate-runner SKILL.md 14; restaurar implement.md e definir a série do coding-loop como reinvocações do operador; (b) checklist de superfície ainda cita Tentativas e progress.json; (c) fora de escopo ainda diz sem licença, contradiz a nota MIT do REQ-06; (d) REQ-03 case-insensitive com padrão de chave Jira aceita utf-8, sha-256, iso-8601; a chave Jira deve ser case-sensitive; cores hex só com dígitos ainda passam; (e) REQ-02: opção de gate em tests chamado em runtime é inviável, tests não é publicado no pacote; (f) REQ-05: excluir explicitamente o .forge do DevPortal (cerca de 4 mil .mjs do harness); (g) implementation_verified é delegável ao yolo-gate, só human_archive_approval garante humano."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-02T12:37:21-03:00"
+    iteration: 1
+    commit: "31d1f9ea"
+    scope: "requirements.md"
+  - gate: design_reviewed
+    decision: approve
+    reason: "aprovação final delegada a revisor adversarial opus/high, 6a rodada (2a iteração HITL). 1a iteração deu Review com 6 MAJOR (base do diff fail-open sem origin/develop, scanner bloqueando consumidor que versiona .forge, exclusão não extensível pelo consumidor, mitigação do REQ-01 sem caminho até o humano no archive, reprovação do REQ-02 sem consequência nem checagem na retomada, universo do spike contaminado por .next) — todos corrigidos e conferidos. Ponto (a) NÃO ratificado como estava: substituído pelo resolvedor canônico de check-red-first.sh com reprovação em base vazia. Ponto (b) ratificado como limite declarado (approval-log recusa autonomous em hard-stop). Notas para /forge:tasks: ancorar a exclusão .forge/ na raiz do repo (senão template/.forge do dogfood deixa de ser varrido); mutação cobrir também a linha nova do archive.md e a chamada --list no verify.md; ADR 0001 tem escopo do engine do grafo, citar zero-dep como princípio; affected_paths e capacidades devem incluir verify.md, archive.md, ship.md e hooks/git/pre-push; typo 'also' em design.md:75."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-02T13:22:26-03:00"
+    iteration: 2
+    commit: "31d1f9ea"
+    scope: "design.md"
+  - gate: tasks_reviewed
+    decision: review
+    reason: "revisor adversarial delegado (opus), rodada 1, registrada retroativamente: Teste/Padrão incompatíveis com red-evidence.sh task (grep sem saída = vermelho-padrao, script direto sobre fixture de violação = verde-falha), TASK-06/12 só de teste sem declarar vermelho-vazio, TASK-08 impossível de ficar vermelha (alvo sob a exclusão .forge/ e contradição com a nota do design_reviewed), modo --list e preflight task-coder.md:106 sem TASK, spike em template/.forge publicado dependendo de devDependency, execução real do spike sem dono, TASK-15 com caminho inexistente e título não literal."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-02T13:39:50-03:00"
+    iteration: 1
+    commit: "31d1f9ea"
+    scope: "tasks.md"
+  - gate: tasks_reviewed
+    decision: review
+    reason: "revisor adversarial delegado (opus), rodada 2, registrada retroativamente: a exclusão estreitada a subdiretórios de estado reabriu o M2 do design_reviewed (consumidor que versiona .forge/scripts volta a ser varrido) e deixou .forge/evals deste repo (9369 arquivos versionados, 10 supressões deliberadas em fixtures) fora da exclusão, e o design reescreveu a descrição do M2; TASK-09 duplicava escopo da TASK-07 (vermelho-passa); TASK-13 com padrão em prosa e decisão de parser em aberto."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-02T13:39:51-03:00"
+    iteration: 2
+    commit: "31d1f9ea"
+    scope: "tasks.md"
+  - gate: tasks_reviewed
+    decision: approve
+    reason: "aprovação delegada a revisor adversarial (opus), rodada 3 após 2 Reviews. Conferido: rastreabilidade de REQ-01..07/NFR-01/02 sem TASK órfã; dependências só para waves anteriores; gate único tests/adopt-ub-mode-practices-gate.sh por grupo com padrão FAIL [grupo, compatível com red-classify (shell-gate); TASK-06/08/12/14/15/16 declaram sem par vermelho/verde, e TASK-14/15 são as exceções documentais com Teste N/A explícito; --list e preflight task-coder.md:106 com TASK; TASK-09 distinta da TASK-07; spike em tools/ com grupo spike; TASK-16 com FORGE_ROOT e título literal do design §2.5. RATIFICAÇÃO: design.md §2.2 foi editado durante este gate sem nova iteração de design_reviewed; a exclusão passou de **/.forge/** em qualquer profundidade (texto aprovado na iteração 2) para .forge/** ancorado na raiz, que é o que a nota do próprio design_reviewed pedia; medido: template/.forge fica varrido (só 2 supressões sem referência, ambas na TASK-08), .forge/evals e o .forge/ do consumidor ficam excluídos, M2 preservado. Notas para /forge:implement, por convergência (consequências diretas das correções, não reabrem o ciclo; o dono decide): (1) o parser de tasks-graph.mjs lê prosa como path em TASK-13/14/15 (ex.: 'onde o resultado é gravado)'), então tire os comentários de dentro de paths:; (2) TASK-02/03/04/05/08/09/10/11 estendem o gate sem listá-lo em paths:, o que contraria 'somente o escopo (paths declarados)' do implement.md, então inclua tests/adopt-ub-mode-practices-gate.sh; (3) o teste da TASK-08 (suppression-grammar sobre fixtures em /tmp) não verifica as duas linhas reais: um cenário que confere as duas linhas contra a gramática daria Red real; (4) o grupo spike depende de npx jscpd (rede) dentro do run-all permanente, então fixe a versão e trate a ausência de rede de forma explícita; (5) o ramo npx @babel/parser do design §2.3 é desnecessário porque tools/ resolve do node_modules deste repo; (6) core.hooksPath deste repo aponta para .forge/hooks/git, que não existe, e o pre-push não roda hoje, fora do escopo."
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-02T13:40:03-03:00"
+    iteration: 3
+    commit: "31d1f9ea"
+    scope: "tasks.md"
+  - gate: implementation_verified
+    decision: review
+    autonomous: true
+    reason: "Reexecutei: suíte do change PASS 53/53 (53 cabeçalhos = 53 OK, 0 FAIL), plugin-sync e w242 rc=0, 16/16 TASKs [X], LDG-0233 e ADR 0006 no índice, Payments.DevPortal sem modificação rastreada; check-attack-premise.sh e o wiring em implement/task-coder/ship/pre-push existem e funcionam. Porém a higiene da TASK-08 está incompleta: em red-evidence-ops.mjs o LDG-0232 foi posto na linha 486 (continuação) e não na linha 484 da supressão, e o próprio scanner por linha reprova a 484 (reproduzido num repo descartável), então a alegação de REQ-03 no verification.md e o LDG-0232 resolved estão imprecisos e nenhum cenário do gate cobre a TASK-08. Secundários: check-attack-premise.sh aceita placeholder '<idem>' como campo preenchido (1º bloco copiado do template reabre a série e a 2ª ocorrência passa sem premissa, reproduzido); spike-result/ADR 0006 atribuem 2 de 4 falsos positivos a LogicalExpression mas a tabela só sustenta 1; manifest segue implementing não commitado."
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-11-03T01:40:36-03:00"
+    commit: "1813f413"
+    scope: "verification.md"
+  - gate: implementation_verified
+    decision: review
+    autonomous: true
+    reason: "Rodada 2/3. Achados 1, 2 e 4 corrigidos de fato; achado 3 não. (1) LDG-0232 agora na linha 484, a mesma do eslint-disable-next-line (sed 482-488 conferido; grammar-12 passa). (2) Reproduzido independentemente com PROGRESS-TRACKING sintético (TASK-07, gate npm test): '<idem>'/'<idem>' reprova rc 1; '<preenchido só...>', valor com espaços e premissa real com ator '<idem>' também reprovam; premissa+ator reais aprovam rc 0; o script do commit anterior ao fix aprovava rc 0 (controle). Nota não bloqueante: placeholder entre crases ('`<idem>`') ainda aprova, mas o template de task-coder.md usa a forma sem crase, então a cópia literal fica coberta. (4) manifest.yaml diz status: implemented, commitado em 1d385e08, sem modificação pendente. (3) NÃO resolvido: a recontagem acrescentada a spike-result.md para operationPage está numericamente errada. Contagem mecânica com o próprio parser e o próprio conjunto DECISION_TYPES de tools/spike-complexity-duplication.mjs sobre Payments.DevPortal@35e63e23 scripts/lib/openapi.mjs: operationPage CC=18 = 5 IfStatement + 3 ForOfStatement + 3 ConditionalExpression + 5 LogicalExpression(??) + 1 LogicalExpression(||), ou seja, 8 pontos estruturais e 9 de expressão, e não '~6 estruturais (3 if, 3 for) e ~11 ??/?:'. Além disso, ADR 0006 (linha 47) e design.md (linha 153) definem o viés como LogicalExpression (&&/||/??) apenas; descontando só as 6 LogicalExpression, operationPage fica com CC=12, ainda acima do limiar 10. Portanto, pela definição da própria ADR, só schemaFields (CC 13 → 7) é explicado pelo viés, e a afirmação '2 dos 4' continua sem sustentação; a mensagem do commit cf0436a1 diz que a ADR e o design.md foram cobertos, mas nenhum dos dois foi alterado. Correção esperada: corrigir os números da linha de operationPage e então, ou reescrever a afirmação para '1 de 4 inteiramente (schemaFields), operationPage parcialmente (CC 12 sem LogicalExpression)', ou ampliar explicitamente o viés para incluir ConditionalExpression em spike-result, ADR 0006 e design.md, com justificativa, já que o ternário é ponto de decisão na métrica de McCabe padrão. A decisão da ADR (sinal não bloqueante) não depende disso. Sem regressão: suíte do change PASS com 55 cenários, plugin-sync-gate PASS, tasks.md com 16 [X] e 0 [ ]/[-]/[!], Payments.DevPortal só com os não rastreados já existentes (.next/, next-env.d.ts, tsconfig.tsbuildinfo) e HEAD 35e63e23."
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-11-03T01:49:39-03:00"
+    commit: "edca0de7"
+    scope: "verification.md"
+  - gate: implementation_verified
+    decision: approve
+    autonomous: true
+    reason: "Rodada 3/3. Recontagem mecânica independente (script próprio em scratchpad, @babel/parser deste repo, mesmo DECISION_TYPES e mesmo walk de tools/spike-complexity-duplication.mjs, que desce em funções aninhadas) sobre Payments.DevPortal@35e63e2 scripts/lib/openapi.mjs: operationPage (linha 143) CC=18 = IfStatement 5 + ForOfStatement 3 + ConditionalExpression 3 + LogicalExpression(??) 5 + LogicalExpression(||) 1; sem LogicalExpression CC=12, acima do limiar 10. schemaFields (linha 130) CC=13 = IfStatement 2 + ConditionalExpression 4 + LogicalExpression(??) 5 + LogicalExpression(||) 1; sem LogicalExpression CC=7. Bate exatamente com o citado. spike-result.md (linhas 23 e 43), ADR 0006 (linha 47) e design.md (linha 153) dizem todos 1 de 4 (só schemaFields, 13->7) e tratam operationPage como falso-positivo só pela razão estrutural (18->12, acima do limiar); a única ocorrência de '2 dos 4' é a citação histórica do erro em spike-result linha 43. verification.md registra as rodadas 1 e 2 e admite o erro da própria correção da rodada 1. Sem regressão: suíte do change PASS 55 cenários (0 linhas FAIL de topo; os FAIL vistos são saídas esperadas dentro de OK), plugin-sync-gate PASS, tasks.md 16 [X] e 0 [ ]/[-]/[!], manifest status implemented sem modificação pendente, Payments.DevPortal HEAD 35e63e2 só com os não rastreados preexistentes (.next/, next-env.d.ts, tsconfig.tsbuildinfo). Nota não bloqueante: spike-result linha 23 diz 'recontada mecanicamente duas vezes' e logo depois '1ª recontagem, na rodada 1, estava errada', mas a recontagem da rodada 1 foi manual (como verification.md registra); ambiguidade de redação, não de número."
+    decided_by: "forge-yolo (opus, high)"
+    decided_at: "2026-11-03T01:53:53-03:00"
+    commit: "fd1dc5c3"
+    scope: "verification.md"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "aprovado pelo usuario em 2026-11-03: delta de 7 REQs (forge-harness-template) revisado e correto"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-03T08:30:50-03:00"
+    commit: "9c1310dc"
+    scope: "spec-delta.yaml"

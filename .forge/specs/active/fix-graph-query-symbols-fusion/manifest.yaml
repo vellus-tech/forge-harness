@@ -59,7 +59,7 @@ gates:
   implementation_verified: false
   human_archive_approval: false
 dev_loop:
-  sharded: false
+  sharded: true
   stories_path: stories/
   epic_context_compiled: true
 quick_plan:

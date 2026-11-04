@@ -692,6 +692,119 @@ async function main() {
     }
   });
 
+  // === [4]/[4c]/[6a]/[17a]/[28] — integridade referencial symbols<->graph em validate-graph.mjs
+  // (STORY-04/TASK-08). RED-first: validate-graph.mjs hoje nunca lê symbols.json — [4]/[4c]/[6a]/
+  // [17a] detectam a ausência do comportamento; [28] é controle negativo (já verde hoje, e deve
+  // continuar verde depois).
+  const VALIDATE = path.join(LIB, 'validate-graph.mjs');
+
+  function writeGraphFixture(dir) {
+    const graphDir = path.join(dir, '.forge/graph');
+    fs.mkdirSync(graphDir, { recursive: true });
+    const graph = {
+      schema: 'graph/v0',
+      generated_at: new Date().toISOString(),
+      engine: 'native',
+      root: dir,
+      stats: { nodes: 1, edges: 0, languages: ['ts'], summaries_stale: 0, census: { ts: 1 }, layer_coverage: { classified: 1, unclassified: 0, out_of_taxonomy: 0, denominator: 1, ratio: 1 } },
+      nodes: [{ id: 'src/a.ts', lang: 'ts', loc: 1, fingerprint: 'a'.repeat(64), layer: 'domain', summary: null }],
+      edges: [],
+    };
+    fs.writeFileSync(path.join(graphDir, 'graph.json'), JSON.stringify(graph, null, 2) + '\n');
+    return { graphDir, graph };
+  }
+
+  await tryCaseAsync('4', async () => {
+    const { execFileSync } = require('node:child_process');
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-val-orphan-'));
+    try {
+      const { graphDir } = writeGraphFixture(tmp);
+      const symbols = { schema: 'symbols/v0', engine: 'native-regex', note: 'x', stats: {}, symbols: [{ id: 'src/ghost.ts#Foo', file: 'src/ghost.ts', name: 'Foo', type: 'function', line: 1, layer: 'unknown', mtime: 1, size: 1 }], edges: [] };
+      fs.writeFileSync(path.join(graphDir, 'symbols.json'), JSON.stringify(symbols, null, 2) + '\n');
+      let out, rc = 0;
+      try { out = execFileSync('node', [VALIDATE, path.join(graphDir, 'graph.json'), tmp], { stdio: 'pipe' }).toString(); }
+      catch (e) { rc = e.status; out = (e.stdout || '').toString() + (e.stderr || '').toString(); }
+      assert.notEqual(rc, 0, 'validate-graph deveria reprovar symbol.file órfão (src/ghost.ts não existe em graph.json)');
+      assert.match(out, /src\/ghost\.ts/, 'mensagem de FAIL deveria citar o arquivo órfão explicitamente');
+      ok('4', 'validate-graph reprova symbol.file órfão com mensagem explícita citando o arquivo');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  await tryCaseAsync('4c', async () => {
+    const { execFileSync } = require('node:child_process');
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-val-corrupt-'));
+    try {
+      const { graphDir } = writeGraphFixture(tmp);
+      fs.writeFileSync(path.join(graphDir, 'symbols.json'), '{ not valid json');
+      let out, rc = 0;
+      try { out = execFileSync('node', [VALIDATE, path.join(graphDir, 'graph.json'), tmp], { stdio: 'pipe' }).toString(); }
+      catch (e) { rc = e.status; out = (e.stdout || '').toString() + (e.stderr || '').toString(); }
+      assert.notEqual(rc, 0, 'validate-graph deveria reprovar symbols.json corrompido');
+      assert.match(out, /symbols\.json/i, 'FAIL de symbols.json corrompido deveria citar symbols.json');
+      assert.doesNotMatch(out, /referential integrity|orphan symbol file/i, 'FAIL de parse deveria ser DEDICADO, distinto da mensagem de órfão');
+      ok('4c', 'symbols.json corrompido produz FAIL dedicado (parse), distinto da mensagem de órfão');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  await tryCaseAsync('6a', async () => {
+    const { execFileSync } = require('node:child_process');
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-val-mutation-'));
+    try {
+      const { graphDir } = writeGraphFixture(tmp);
+      // controle: symbol.file existe de verdade em graph.json -> validate deveria passar (OK)
+      const symbolsControl = { schema: 'symbols/v0', engine: 'native-regex', note: 'x', stats: {}, symbols: [{ id: 'src/a.ts#Foo', file: 'src/a.ts', name: 'Foo', type: 'function', line: 1, layer: 'domain', mtime: 1, size: 1 }], edges: [] };
+      fs.writeFileSync(path.join(graphDir, 'symbols.json'), JSON.stringify(symbolsControl, null, 2) + '\n');
+      let rcControl = 0;
+      try { execFileSync('node', [VALIDATE, path.join(graphDir, 'graph.json'), tmp], { stdio: 'pipe' }); }
+      catch (e) { rcControl = e.status; }
+      assert.equal(rcControl, 0, 'controle: symbol.file existente em graph.json não deveria reprovar');
+
+      // recontrole (mutação): symbol.file inexistente -> validate DEVE reprovar
+      const symbolsMutated = { schema: 'symbols/v0', engine: 'native-regex', note: 'x', stats: {}, symbols: [{ id: 'src/removed.ts#Foo', file: 'src/removed.ts', name: 'Foo', type: 'function', line: 1, layer: 'domain', mtime: 1, size: 1 }], edges: [] };
+      fs.writeFileSync(path.join(graphDir, 'symbols.json'), JSON.stringify(symbolsMutated, null, 2) + '\n');
+      let rcMutated = 0;
+      try { execFileSync('node', [VALIDATE, path.join(graphDir, 'graph.json'), tmp], { stdio: 'pipe' }); }
+      catch (e) { rcMutated = e.status; }
+      assert.notEqual(rcMutated, 0, 'mutação: symbol.file inexistente (src/removed.ts) deveria reprovar');
+      ok('6a', 'mutação com controle/recontrole: arquivo existente passa, arquivo inexistente reprova');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  await tryCaseAsync('17a', async () => {
+    const { execFileSync } = require('node:child_process');
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-val-pull-'));
+    try {
+      const { graphDir } = writeGraphFixture(tmp);
+      // symbols.json referencia src/a.ts (existe em graph.json) — simula um pull que REMOVEU o
+      // node do graph.json sem reconstruir symbols.json (órfão pós-pull, sem rebuild do grafo).
+      const symbols = { schema: 'symbols/v0', engine: 'native-regex', note: 'x', stats: {}, symbols: [{ id: 'src/a.ts#Foo', file: 'src/a.ts', name: 'Foo', type: 'function', line: 1, layer: 'domain', mtime: 1, size: 1 }], edges: [] };
+      fs.writeFileSync(path.join(graphDir, 'symbols.json'), JSON.stringify(symbols, null, 2) + '\n');
+      const graphAfterPull = JSON.parse(fs.readFileSync(path.join(graphDir, 'graph.json'), 'utf8'));
+      graphAfterPull.nodes = [];
+      graphAfterPull.stats.nodes = 0;
+      fs.writeFileSync(path.join(graphDir, 'graph.json'), JSON.stringify(graphAfterPull, null, 2) + '\n');
+      let rc = 0, out = '';
+      try { out = execFileSync('node', [VALIDATE, path.join(graphDir, 'graph.json'), tmp], { stdio: 'pipe' }).toString(); }
+      catch (e) { rc = e.status; out = (e.stdout || '').toString() + (e.stderr || '').toString(); }
+      assert.notEqual(rc, 0, 'órfão pós-pull (symbols.json aponta para node removido do graph.json) deveria reprovar');
+      assert.match(out, /src\/a\.ts/, 'FAIL deveria citar src/a.ts como órfão');
+      ok('17a', 'órfão pós-"git pull" simulado (graph.json reconstruído sem rebuild de symbols.json) reprova');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  tryCase('28', () => {
+    const { execFileSync } = require('node:child_process');
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-val-nosymbols-'));
+    try {
+      const { graphDir } = writeGraphFixture(tmp);
+      let rc = 0, out = '';
+      try { out = execFileSync('node', [VALIDATE, path.join(graphDir, 'graph.json'), tmp], { stdio: 'pipe' }).toString(); }
+      catch (e) { rc = e.status; out = (e.stdout || '').toString() + (e.stderr || '').toString(); }
+      assert.equal(rc, 0, `ausência de symbols.json não deveria reprovar validate; saída: ${out}`);
+      ok('28', 'ausência de symbols.json pula a checagem de integridade referencial (controle negativo)');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
   console.log(fail ? '__GATE_FAIL__' : '__GATE_OK__');
   process.exit(fail);
 }

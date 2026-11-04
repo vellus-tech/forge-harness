@@ -146,6 +146,8 @@ bash .forge/scripts/graph.sh mdl                    # PoC: diagramas na notaçã
 
 Engine nativo (sem tree-sitter, sem deps): nós = arquivos (com camada inferida), arestas = imports/referências resolvidas. Para módulos grandes, os diagramas **agregam por submódulo** (renderável e completo, sem virar *hairball*).
 
+`bash .forge/scripts/graph.sh query <termo>` faz busca por nome de símbolo (classe/função) com arquivo:linha, não só por caminho de arquivo — a custo zero, antes de abrir qualquer arquivo cru.
+
 ## 🔎 Busca unificada sobre o conhecimento (`/forge:kb`)
 
 "Já decidimos isso antes?" sem abrir arquivo por arquivo: o `/forge:kb` busca no baseline e nos ADRs, nas specs arquivadas, no ledger, em `docs/plans/`, no `CHANGELOG.md` e nas mensagens **próprias** do liaison (conteúdo de peer e blobs nunca entram).

@@ -5,7 +5,7 @@ argument-hint: "<consulta> | build | status | eval <arquivo> | semantic install|
 
 # /forge:kb — busca unificada sobre o conhecimento acumulado
 
-Responde "já decidimos isso antes?" sem abrir arquivo por arquivo. Para código (nodes, imports, caminhos), use `/forge:query`, que consulta o grafo de código; o `/forge:kb` consulta o que o projeto decidiu e registrou.
+Responde "já decidimos isso antes?" sem abrir arquivo por arquivo. Para código (nodes, imports, caminhos, e busca por nome de símbolo — classe/função — com arquivo:linha, não só por caminho de arquivo), use `/forge:query`, que consulta o grafo de código; o `/forge:kb` consulta o que o projeto decidiu e registrou.
 
 ```bash
 bash .forge/scripts/kb.sh query "<pergunta em linguagem natural>"   # 8 resultados; --top N (1..50); --json

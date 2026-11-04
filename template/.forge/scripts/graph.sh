@@ -5,7 +5,8 @@
 #   update        full deterministic rebuild every time; rewrites an artifact only when it
 #                 actually changed (--if-changed) — cosmetic-only edits write nothing
 #   validate      run forge validate graph (§19.5)
-#   query <term>  grep the graph for nodes/edges matching a term (cheap lookup before reading files)
+#   query <term>  grep the graph for nodes/edges matching a term, plus symbols (class/function) by
+#                 name with file:line, not just file path (cheap lookup before reading files)
 #   path <a> <b>  show whether an import path exists from node a to node b (BFS over resolved edges)
 # Usage: graph.sh <subcommand> [args]   (FORGE_ROOT overrides the repo root)
 set -euo pipefail
@@ -52,5 +53,5 @@ case "$cmd" in
     [ -f "$GRAPH" ] || { echo "FAIL (no graph — run: graph.sh build)"; exit 1; }
     node "$SCRIPT_DIR/lib/mdl-gen.mjs" "$ROOT" "$@" ;;
   *)
-    echo "FAIL (usage: graph.sh build|update|validate|query <term>|path <a> <b>|deps [--module <m>] [--by-project] [--json]|symbols|mdl [--service <s>])"; exit 1 ;;
+    echo "FAIL (usage: graph.sh build|update|validate|query <term> [matches nodes/edges + symbols by name, file:line]|path <a> <b>|deps [--module <m>] [--by-project] [--json]|symbols|mdl [--service <s>])"; exit 1 ;;
 esac

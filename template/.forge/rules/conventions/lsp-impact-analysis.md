@@ -51,9 +51,9 @@ Para mudanças que cruzam artefatos, **confronte manualmente as fontes** — ide
 
 ## CodeGraph nativo — camada complementar (quando disponível)
 
-O harness constrói um grafo de imports/refs determinista e zero-tokens (`/forge:codegraph`, ADR `0001-graph-engine`), independente de LSP instalado. Ele não entende semântica de símbolo dentro de uma linguagem — quem faz isso é o LSP/diagnóstico da coluna direita da tabela acima — mas cobre exatamente onde o LSP para: relações **entre arquivos e entre linguagens** (fan-in/fan-out, camada, caminho de import). Use-o como primeiro filtro, barato, antes de abrir arquivo cru ou de decidir o escopo de um `grep`:
+O harness constrói um grafo de imports/refs determinista e zero-tokens (`/forge:codegraph`, ADR `0001-graph-engine`), independente de LSP instalado. Ele **localiza a declaração de um símbolo por nome** (capacidade nova, limitada — `graph.sh query <termo>` casa contra `symbols.json` e devolve arquivo:linha por correspondência exata/prefixo/substring) e cobre exatamente onde o LSP para: relações **entre arquivos e entre linguagens** (fan-in/fan-out, camada, caminho de import). Resolver **tipo, overload ou call graph** continua papel do LSP/diagnóstico da coluna direita da tabela acima — o grafo nativo não entende esse nível de semântica dentro de uma linguagem. Use-o como primeiro filtro, barato, antes de abrir arquivo cru ou de decidir o escopo de um `grep`:
 
-- `bash .forge/scripts/graph.sh query <termo>` — localiza o nó, suas dependências e camada, a custo zero, antes de ler o arquivo (§16.2).
+- `bash .forge/scripts/graph.sh query <termo>` — busca por nome de símbolo (classe/função) com arquivo:linha, não só por caminho de arquivo; localiza o nó, suas dependências e camada, a custo zero, antes de ler o arquivo (§16.2).
 - `bash .forge/scripts/graph.sh path <de> <para>` — existe cadeia de import entre dois arquivos/módulos?
 - `bash .forge/scripts/impact.sh --files <paths>` — conjunto de arquivos que dependem (transitivamente) dos arquivos-semente; é o mesmo mecanismo obrigatório em scale ≥3 antes de `/forge:tasks`/`/forge:implement` (`.forge/commands/graph/impact.md`).
 

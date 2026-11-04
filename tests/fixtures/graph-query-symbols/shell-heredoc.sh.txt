@@ -1,0 +1,51 @@
+cat <<EOF
+class Ghost in heredoc body
+EOF
+after_plain_heredoc() {
+  echo ok
+}
+
+cmd <<<"$var"
+after_herestring() {
+  echo ok
+}
+
+cat <<"EOF2"
+body2
+EOF2
+after_dq_tag_heredoc() {
+  echo ok
+}
+
+cat << EOF3
+body3
+EOF3
+after_space_tag_heredoc() {
+  echo ok
+}
+
+cat <<\EOF4
+body4
+EOF4
+after_escaped_tag_heredoc() {
+  echo ok
+}
+
+cat <<'EOF5'
+body5
+EOF5
+after_sq_tag_heredoc() {
+  echo ok
+}
+
+cat <<-EOF6
+	EOF6
+after_dash_tab_heredoc() {
+  echo ok
+}
+
+cat <<EOF7
+	EOF7
+never_indexed_after_unclosed() {
+  echo ok
+}

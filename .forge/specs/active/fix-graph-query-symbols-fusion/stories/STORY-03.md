@@ -3,7 +3,7 @@ story_id: STORY-03
 epic: fix-graph-query-symbols-fusion
 title: Walk unificado + integração em graph-build.mjs
 depends_on: [STORY-02]
-status: todo
+status: done
 ---
 
 # STORY-03 — Walk unificado + integração em graph-build.mjs
@@ -48,17 +48,17 @@ Extrair `walkSourceFiles({root, includeGlobs})` para `graph-walk.mjs` como funç
 
 ## Tasks
 
-- [ ] TASK-04 — Extrair `walkSourceFiles({root, includeGlobs})` para `graph-walk.mjs`; `graph-build.mjs` refatorado para importar e usar, preservando golden w141 byte a byte (paths: `template/.forge/scripts/lib/graph-walk.mjs` novo, `template/.forge/scripts/lib/graph-build.mjs`, `manifest.yaml` (adiciona `graph-walk.mjs` a `affected_paths`), `README.md` contagem `scripts/ (179→180)`; depende: TASK-03). Teste: `bash tests/w344-graph-query-symbols-gate.sh && bash tests/w141-codegraph-layer-map-gate.sh && bash tests/w200-readme-inventory-gate.sh`. Padrão de falha: `^FAIL [DD-02]` (`import()` dinâmico de `graph-walk.mjs` ainda inexistente).
-- [ ] TASK-05 — `graph-build.mjs` chama `extractSymbols`/`assembleSymbolsArtifacts` dentro do walk unificado, grava `symbols.json`+`symbols.idx.tsv`, resolve herança em ordem canônica `(file,line)`; `.gitignore` raiz e `installer/gitignore.patch` ganham as duas entradas (paths: `template/.forge/scripts/lib/graph-build.mjs`, `.gitignore`, `installer/gitignore.patch`; depende: TASK-04). Teste: `bash tests/w344-graph-query-symbols-gate.sh && bash tests/w133-gitignore-reconcile-gate.sh`. Padrão de falha: `^FAIL [5a]` (determinismo, arquivos ainda não gravados). Cenários: [5a] determinismo, [6c]/P6 projeção exata, [7] deslocamento de `line` sem invalidar fingerprint, [9a] `include_paths` via `graph.sh build`, [13b] herança sobrevive à integração, [26b] herança independente de ordem (regressão real), [27] gitignore.patch contém `symbols.idx.tsv`.
+- [X] TASK-04 — Extrair `walkSourceFiles({root, includeGlobs})` para `graph-walk.mjs`; `graph-build.mjs` refatorado para importar e usar, preservando golden w141 byte a byte (paths: `template/.forge/scripts/lib/graph-walk.mjs` novo, `template/.forge/scripts/lib/graph-build.mjs`, `manifest.yaml` (adiciona `graph-walk.mjs` a `affected_paths`), `README.md` contagem `scripts/ (179→180)`; depende: TASK-03). Teste: `bash tests/w344-graph-query-symbols-gate.sh && bash tests/w141-codegraph-layer-map-gate.sh && bash tests/w200-readme-inventory-gate.sh`. Padrão de falha: `^FAIL [DD-02]` (`import()` dinâmico de `graph-walk.mjs` ainda inexistente).
+- [X] TASK-05 — `graph-build.mjs` chama `extractSymbols`/`assembleSymbolsArtifacts` dentro do walk unificado, grava `symbols.json`+`symbols.idx.tsv`, resolve herança em ordem canônica `(file,line)`; `.gitignore` raiz e `installer/gitignore.patch` ganham as duas entradas (paths: `template/.forge/scripts/lib/graph-build.mjs`, `.gitignore`, `installer/gitignore.patch`; depende: TASK-04). Teste: `bash tests/w344-graph-query-symbols-gate.sh && bash tests/w133-gitignore-reconcile-gate.sh`. Padrão de falha: `^FAIL [5a]` (determinismo, arquivos ainda não gravados). Cenários: [5a] determinismo, [6c]/P6 projeção exata, [7] deslocamento de `line` sem invalidar fingerprint, [9a] `include_paths` via `graph.sh build`, [13b] herança sobrevive à integração, [26b] herança independente de ordem (regressão real), [27] gitignore.patch contém `symbols.idx.tsv`.
 
 ## Acceptance criteria
 
-- [ ] `walkSourceFiles({root, includeGlobs})` retorna `{files, census}` sem mutar closure; respeita `include_paths`/`SKIP_DIRS`/`SKIP_UNDER_BIN`; inclui `.sh`/`.go`.
-- [ ] `tests/w141-codegraph-layer-map-gate.sh [2]` (golden byte a byte de `graph.json`) permanece verde depois da refatoração de `graph-build.mjs`.
-- [ ] `symbols.json`/`symbols.idx.tsv` são gerados por `graph.sh build`, deterministicamente (dois builds idênticos incluindo `mtime`/`size`).
-- [ ] Herança resolvida (`edges.kind==='inherits'`) é idêntica sob permutação da ordem física do walk.
-- [ ] `.gitignore` e `installer/gitignore.patch` contêm `symbols.idx.tsv`; `tests/w133-gitignore-reconcile-gate.sh` verde com asserção nova sobre os dois artefatos.
-- [ ] Commits vermelhos de TASK-04/TASK-05 tocam só `tests/`.
+- [X] `walkSourceFiles({root, includeGlobs})` retorna `{files, census}` sem mutar closure; respeita `include_paths`/`SKIP_DIRS`/`SKIP_UNDER_BIN`; inclui `.sh`/`.go`.
+- [X] `tests/w141-codegraph-layer-map-gate.sh [2]` (golden byte a byte de `graph.json`) permanece verde depois da refatoração de `graph-build.mjs`.
+- [X] `symbols.json`/`symbols.idx.tsv` são gerados por `graph.sh build`, deterministicamente (dois builds idênticos incluindo `mtime`/`size`).
+- [X] Herança resolvida (`edges.kind==='inherits'`) é idêntica sob permutação da ordem física do walk.
+- [X] `.gitignore` e `installer/gitignore.patch` contêm `symbols.idx.tsv`; `tests/w133-gitignore-reconcile-gate.sh` verde com asserção nova sobre os dois artefatos.
+- [X] Commits vermelhos de TASK-04/TASK-05 tocam só `tests/`.
 
 ## Out of scope
 

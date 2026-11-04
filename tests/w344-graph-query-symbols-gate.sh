@@ -36,6 +36,7 @@
 #   [3]    ranking exato→prefixo→substring
 #   [10a]  --json básico ({nodes,edges,symbols}, sem hint com resultado)
 #   [24a]  desempate entre arquivos (saída humana)
+#   [24c]  desempate NUMÉRICO de line (9 antes de 12; localeCompare de string inverteria)
 #   [cli-symlink] guard de CLI via realpathSync funcionando através de symlink real em /tmp —
 #          prova direta do padrão kb-cli.mjs (nunca import.meta.url===file://argv[1])
 #   PBT P1 (completude), P3 (metamórfica substring⊆substring), P4-desempate (permutação)
@@ -51,6 +52,9 @@
 #   [16]   entrada legada sem mtime/size → "não verificável"
 #   [16b]  vacuidade genuína (projeto só .go) não dispara aviso falso de formato legado
 #   [17b]  symbols.json órfão pós-"pull" simulado não crasha a query
+#   [7]    edição cosmética desloca line 12→15, mantém fingerprint e preserva summary do cache
+#   [12c]  graph.sh update honra --if-changed (fiação real, não só o módulo) e build força escrita
+#   [15b]  graph.json corrompido é FAIL com exit != 0 (distinto da degradação de symbols.json)
 #
 # TDD red-first (DD-08): o módulo graph-symbols-extract.mjs é novo sob template/.forge/scripts/
 # (isInfraPath) — o commit vermelho desta task toca só este arquivo em tests/. Red via import()
@@ -600,6 +604,8 @@ async function main() {
     const graph = fs.readFileSync(GRAPH_SH, 'utf8');
     assert.match(graph, /query <term>[^\n]*symbols/);
     assert.match(graph, /usage: graph\.sh[^\n]*symbols/);
+    assert.doesNotMatch(graph, /cosmetic-only edits write nothing/,
+      'cabeçalho do graph.sh não pode afirmar que edição cosmética não escreve nada (REQ-06)');
     const rule = fs.readFileSync(path.join(WS, files[1]), 'utf8');
     assert.doesNotMatch(rule, /não entende semântica de símbolo/);
     assert.match(rule, /tipo, overload ou call graph/);
@@ -738,6 +744,41 @@ async function main() {
     }
   });
 
+  // === [12c] a MESMA garantia precisa ser provada atravessando `graph.sh update` ===
+  // O [12] chama graph-build.mjs direto; se alguém remover `--if-changed` de graph.sh, o [12]
+  // continua verde e a promessa de REQ-06 (update honesto) volta a quebrar sem gate.
+  await tryCaseAsync('12c', async () => {
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-ifchanged-wiring-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'src', 'a.ts'), 'export class A {}\n');
+      fs.writeFileSync(path.join(tmp, 'script.sh'), '#!/usr/bin/env bash\nfoo() {\n  echo hi\n}\n');
+      buildAt(tmp);
+      const artifacts = [
+        '.forge/graph/graph.json',
+        '.forge/graph/cache/fingerprints.json',
+        '.forge/graph/cache/summaries.json',
+        '.forge/graph/report.md',
+        '.forge/graph/symbols.json',
+        '.forge/graph/symbols.idx.tsv',
+      ].map((p) => path.join(tmp, p));
+      const fixed = 1000000000;
+      for (const p of artifacts) fs.utimesSync(p, fixed, fixed);
+      const before = artifacts.map((p) => fs.statSync(p).mtimeMs);
+      updateAt(tmp);
+      const after = artifacts.map((p) => fs.statSync(p).mtimeMs);
+      for (let i = 0; i < artifacts.length; i++) {
+        assert.equal(after[i], before[i],
+          `${artifacts[i]} foi regravado por graph.sh update sem toque real (fiação de --if-changed ausente ou quebrada)`);
+      }
+      for (const p of artifacts) fs.utimesSync(p, fixed, fixed);
+      const beforeBuild = fs.statSync(artifacts[0]).mtimeMs;
+      buildAt(tmp);
+      assert.notEqual(fs.statSync(artifacts[0]).mtimeMs, beforeBuild, 'graph.sh build deve forçar a gravação de graph.json');
+      ok('12c', 'graph.sh update honra --if-changed (6 artefatos intactos) e graph.sh build força a gravação');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
   await tryCaseAsync('12b', async () => {
     const { execFileSync } = require('node:child_process');
     const BUILD = path.join(LIB, 'graph-build.mjs');
@@ -826,6 +867,7 @@ async function main() {
       catch (e) { rc = e.status; out = (e.stdout || '').toString() + (e.stderr || '').toString(); }
       assert.notEqual(rc, 0, 'validate-graph deveria reprovar symbol.file órfão (src/ghost.ts não existe em graph.json)');
       assert.match(out, /src\/ghost\.ts/, 'mensagem de FAIL deveria citar o arquivo órfão explicitamente');
+      assert.match(out, /graph\.sh build/, 'mensagem de FAIL deveria instruir a rodar graph.sh build (REQ-07)');
       ok('4', 'validate-graph reprova symbol.file órfão com mensagem explícita citando o arquivo');
     } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
   });
@@ -888,6 +930,7 @@ async function main() {
       catch (e) { rc = e.status; out = (e.stdout || '').toString() + (e.stderr || '').toString(); }
       assert.notEqual(rc, 0, 'órfão pós-pull (symbols.json aponta para node removido do graph.json) deveria reprovar');
       assert.match(out, /src\/a\.ts/, 'FAIL deveria citar src/a.ts como órfão');
+      assert.match(out, /graph\.sh build/, 'FAIL de órfão pós-pull deveria instruir a rodar graph.sh build');
       ok('17a', 'órfão pós-"git pull" simulado (graph.json reconstruído sem rebuild de symbols.json) reprova');
     } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
   });
@@ -1113,6 +1156,39 @@ async function main() {
     ok('pbt-p4-desempate', `P4-desempate (invariância sob permutação) — ${r.runs} casos, seed ${r.seed}`);
   });
 
+  // === [7] edição cosmética: line desloca, fingerprint não muda, summary do cache é preservado ===
+  await tryCaseAsync('7', async () => {
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q7-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      const f = path.join(tmp, 'src', 'a.ts');
+      const comments = Array.from({ length: 11 }, (_, k) => `// linha ${k + 1}`);
+      fs.writeFileSync(f, comments.join('\n') + '\nexport class Foo {}\n');
+      buildAt(tmp);
+      const graphPath = path.join(tmp, '.forge/graph/graph.json');
+      const symbolsPath = path.join(tmp, '.forge/graph/symbols.json');
+      const summariesPath = path.join(tmp, '.forge/graph/cache/summaries.json');
+      const beforeGraph = JSON.parse(fs.readFileSync(graphPath, 'utf8'));
+      const beforeNode = beforeGraph.nodes.find((n) => n.id === 'src/a.ts');
+      const beforeSym = JSON.parse(fs.readFileSync(symbolsPath, 'utf8')).symbols.find((s) => s.name === 'Foo');
+      assert.equal(beforeSym.line, 12, 'Foo deveria estar na linha 12 antes da edição cosmética');
+      fs.writeFileSync(summariesPath, JSON.stringify({
+        'src/a.ts': { fingerprint: beforeNode.fingerprint, summary: 'summary-from-cache' },
+      }, null, 2) + '\n');
+      fs.writeFileSync(f, comments.concat(['// linha 12', '// linha 13', '// linha 14']).join('\n') + '\nexport class Foo {}\n');
+      updateAt(tmp);
+      const afterGraph = JSON.parse(fs.readFileSync(graphPath, 'utf8'));
+      const afterNode = afterGraph.nodes.find((n) => n.id === 'src/a.ts');
+      const afterSym = JSON.parse(fs.readFileSync(symbolsPath, 'utf8')).symbols.find((s) => s.name === 'Foo');
+      assert.equal(afterSym.line, 15, `Foo deveria deslocar para a linha 15; obteve ${afterSym.line}`);
+      assert.equal(afterNode.fingerprint, beforeNode.fingerprint, 'fingerprint estrutural não deveria mudar com comentário (só line desloca)');
+      assert.equal(afterNode.summary, 'summary-from-cache', 'summary do cache deveria ser carregado por fingerprint após edição cosmética');
+      const cached = JSON.parse(fs.readFileSync(summariesPath, 'utf8'));
+      assert.equal(cached['src/a.ts'].summary, 'summary-from-cache', 'cache de summaries deveria preservar a entrada');
+      ok('7', 'edição cosmética desloca line 12→15, mantém fingerprint e preserva summary do cache (zero tokens)');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
   // === [7b] sufixo de defasagem por {mtime,size} sem rebuild ===
   await tryCaseAsync('7b', async () => {
     const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q7b-'));
@@ -1251,6 +1327,30 @@ async function main() {
     } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
   });
 
+  // === [24c] desempate NUMÉRICO de line: 9 antes de 12 (localeCompare de string inverteria) ===
+  await tryCaseAsync('24c', async () => {
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q24c-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      const lines = Array.from({ length: 8 }, (_, k) => `// linha ${k + 1}`);
+      lines.push('export function Dup() {}');   // linha 9
+      lines.push('// gap 10', '// gap 11');
+      lines.push('export function Dup() {}');   // linha 12
+      fs.writeFileSync(path.join(tmp, 'src', 'dup.ts'), lines.join('\n') + '\n');
+      buildAt(tmp);
+      const r = runQuery(tmp, ['Dup']);
+      assert.equal(r.code, 0, `query deveria sair exit 0; stderr=${r.stderr}`);
+      const i9 = r.stdout.indexOf('src/dup.ts:9');
+      const i12 = r.stdout.indexOf('src/dup.ts:12');
+      assert.ok(i9 >= 0 && i12 >= 0 && i9 < i12,
+        `desempate numérico de line deveria listar :9 antes de :12; obteve:\n${r.stdout}`);
+      const rJson = runQuery(tmp, ['Dup', '--json']);
+      const data = JSON.parse(rJson.stdout);
+      assert.deepEqual(data.symbols.map((s) => s.line), [9, 12], '--json deveria refletir o desempate numérico');
+      ok('24c', 'desempate numérico de line: 9 antes de 12 (não localeCompare de string)');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
   // === [14] ENOENT por símbolo individual (sufixo + missing:true, isolado) ===
   await tryCaseAsync('14', async () => {
     const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q14-'));
@@ -1295,6 +1395,21 @@ async function main() {
   });
 
   // === [16] entrada legada sem mtime/size → "não verificável" ===
+  // === [15b] graph.json corrompido NÃO degrada: é FAIL com exit != 0 ===
+  await tryCaseAsync('15b', async () => {
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q15b-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'src', 'f.ts'), 'export function foo() {\n  return 1;\n}\n');
+      buildAt(tmp);
+      fs.writeFileSync(path.join(tmp, '.forge/graph/graph.json'), '{ not valid json');
+      const r = runQuery(tmp, ['foo']);
+      assert.notEqual(r.code, 0, 'graph.json corrompido deveria sair != 0 — a degradação graciosa vale para symbols, não para o grafo de arquivos');
+      assert.match(r.stdout + r.stderr, /graph\.json inválido/, 'FAIL deveria nomear graph.json como inválido');
+      ok('15b', 'graph.json corrompido produz FAIL com exit != 0, sem confundir com a degradação de symbols.json');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
   await tryCaseAsync('16', async () => {
     const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q16-'));
     try {

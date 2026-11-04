@@ -38,7 +38,7 @@ export function zeroResultsHint(term) {
 // =============================================================================================
 export function readSymbolsSafely(root) {
   const p = join(root, '.forge/graph/symbols.json');
-  const unavailable = 'aviso: symbols.json ausente ou em formato legado — rode `graph.sh update` para habilitar busca por símbolo';
+  const unavailable = 'aviso: symbols.json ausente ou em formato legado — rode `graph.sh build` para habilitar busca por símbolo';
   if (!existsSync(p)) return { symbols: [], warning: unavailable, invalid: true };
 
   let raw;
@@ -140,7 +140,17 @@ async function main() {
     return;
   }
 
-  const g = JSON.parse(readFileSync(graphPath, 'utf8'));
+  // graph.json é a entrada essencial da consulta: corrupção aqui é FAIL, não degradação. A
+  // degradação graciosa do REQ-10 vale para a camada de símbolos (aditiva), nunca para o grafo
+  // de arquivos — um consumidor que checa o rc precisa ver o erro, não um exit 0 silencioso.
+  let g;
+  try {
+    g = JSON.parse(readFileSync(graphPath, 'utf8'));
+  } catch (err) {
+    console.log(`FAIL (graph.json inválido: ${err && err.message ? err.message : err}) — rode \`graph.sh build\``);
+    process.exitCode = 1;
+    return;
+  }
   const t = term.toLowerCase();
   const n = g.nodes.filter((x) => x.id.toLowerCase().includes(t));
   const e = g.edges.filter((x) => x.from.toLowerCase().includes(t) || x.to.toLowerCase().includes(t));
@@ -198,7 +208,7 @@ async function main() {
 const invokedAsScript = (() => { try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); } catch { return false; } })();
 if (invokedAsScript) {
   main().catch((err) => {
-    process.stderr.write(`WARN: erro inesperado em graph-query.mjs (${err && err.message ? err.message : err})\n`);
-    process.exitCode = 0;
+    process.stderr.write(`FAIL: erro inesperado em graph-query.mjs (${err && err.message ? err.message : err})\n`);
+    process.exitCode = 1;
   });
 }

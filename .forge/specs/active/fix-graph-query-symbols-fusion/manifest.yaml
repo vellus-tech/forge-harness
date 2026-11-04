@@ -3,7 +3,7 @@ type: bugfix
 mode: brownfield
 rigor: spec-anchored
 scale: 2
-status: implementing
+status: implemented
 created_at: "2026-11-03"
 updated_at: "2026-11-04"
 owner: "Milton Antonio da Silva Jr"
@@ -21,6 +21,7 @@ affected_paths:
   - template/.forge/scripts/lib/validate-graph.mjs
   - template/.forge/commands/graph/update.md
   - template/.forge/commands/graph/query.md
+  - template/.forge/commands/graph/kb.md
   - template/.forge/commands/graph/codegraph.md
   - template/.forge/rules/conventions/lsp-impact-analysis.md
   - template/.forge/commands/specs/implement.md
@@ -30,6 +31,7 @@ affected_paths:
   - .gitignore
   - plugin/forge/commands/query.md
   - plugin/forge/commands/update.md
+  - plugin/forge/commands/kb.md
   - plugin/forge/commands/implement.md
   - plugin/forge/commands/codegraph.md
   - tests/fixtures/graph-query-symbols/

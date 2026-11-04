@@ -3,7 +3,7 @@ story_id: STORY-07
 epic: fix-graph-query-symbols-fusion
 title: Regressão completa, PBT e fechamento do Red SDD
 depends_on: [STORY-06]
-status: todo
+status: done
 ---
 
 # STORY-07 — Regressão completa, PBT e fechamento do Red SDD

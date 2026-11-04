@@ -105,7 +105,7 @@ if (existsSync(symbolsPath)) {
       if (s && s.file && !ids.has(s.file)) orphanSymbolFiles.add(s.file);
     }
     for (const f of [...orphanSymbolFiles].sort()) {
-      errors.push(`orphan symbol file: "${f}" is referenced by symbols.json but has no matching node in graph.json (referential integrity)`);
+      errors.push(`orphan symbol file: "${f}" is referenced by symbols.json but has no matching node in graph.json (referential integrity — rode \`graph.sh build\` para regenerar symbols.json)`);
     }
   } else if (symbolsDoc && !Array.isArray(symbolsDoc.symbols)) {
     errors.push('symbols.json: symbols must be an array');

@@ -3,7 +3,9 @@
 # Subcommands:
 #   build         (re)build .forge/graph/graph.json from the repo (deterministic, zero tokens)
 #   update        full deterministic rebuild every time; rewrites an artifact only when it
-#                 actually changed (--if-changed) — cosmetic-only edits write nothing
+#                 actually changed (--if-changed). Edição cosmética pode regravar graph.json (loc)
+#                 e symbols.json/symbols.idx.tsv ({mtime,size}); fingerprints/summaries/report
+#                 permanecem intocados.
 #   validate      run forge validate graph (§19.5)
 #   query <term>  grep the graph for nodes/edges matching a term, plus symbols (class/function) by
 #                 name with file:line, not just file path (cheap lookup before reading files)

@@ -87,6 +87,57 @@ async function main() {
     if (typeof fn !== 'function') bad('0', `export ausente ou não-função: ${label}`);
   }
 
+  // === [DD-02] graph-walk.mjs — walk unificado puro (STORY-03/TASK-04) ===
+  // RED-first (DD-08, módulo novo): import() dinâmico convertido em assert.fail quando o módulo
+  // ainda não existe. Isolado dos demais blocos deste gate — uma falha aqui não aborta o arquivo
+  // inteiro (diferente do [0] acima, que é a guarda de existência do módulo de símbolos).
+  await tryCaseAsync('DD-02', async () => {
+    let walkMod;
+    try {
+      walkMod = await import('file://' + path.join(LIB, 'graph-walk.mjs'));
+    } catch (e) {
+      assert.fail('RED TASK-04: graph-walk.mjs ainda não existe');
+    }
+    const { walkSourceFiles, SKIP_DIRS, SKIP_UNDER_BIN, CENSUS_EXT, LANG: WALK_LANG, SKIP_FILE } = walkMod;
+    assert.equal(typeof walkSourceFiles, 'function', 'walkSourceFiles ausente ou não-função');
+    for (const [label, v] of Object.entries({ SKIP_DIRS, SKIP_UNDER_BIN, CENSUS_EXT, LANG: WALK_LANG, SKIP_FILE })) {
+      assert.ok(v !== undefined, `constante ausente: ${label}`);
+    }
+
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-walk-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'node_modules'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'node_modules', 'skip.js'), 'skip');
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'src', 'a.ts'), 'export const a = 1;\n');
+      fs.writeFileSync(path.join(tmp, 'src', 'b.go'), 'package main\n');
+      fs.writeFileSync(path.join(tmp, 'src', 'c.sh'), '#!/usr/bin/env bash\n');
+      fs.writeFileSync(path.join(tmp, 'src', 'd.rb'), '# ruby, sem LANG\n');
+      fs.mkdirSync(path.join(tmp, 'bin', 'Debug'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'bin', 'Debug', 'skip.cs'), 'class Skip {}\n');
+      fs.writeFileSync(path.join(tmp, 'bin', 'real.cs'), 'class Real {}\n');
+      fs.mkdirSync(path.join(tmp, '.hidden'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, '.hidden', 'forced.ts'), 'export const forced = 1;\n');
+
+      // sem includeGlobs: comportamento de hoje — node_modules/ e bin/Debug/ podados, .hidden/
+      // pulado por prefixo de ponto, census conta .rb mesmo sem entrar em files
+      const plain = walkSourceFiles({ root: tmp });
+      const relPlain = plain.files.map((f) => path.relative(tmp, f)).sort();
+      assert.deepEqual(relPlain, ['bin/real.cs', 'src/a.ts', 'src/c.sh'].sort(),
+        `walk sem include_paths: esperado 3 arquivos, obteve ${JSON.stringify(relPlain)}`);
+      assert.equal(plain.census.ruby, 1, 'census deveria contar .rb mesmo sem LANG-match');
+      assert.ok(!('go' in plain.census) === false, 'census deveria contar .go também');
+
+      // com includeGlobs casando .hidden: forcedInclude vence o prefixo de ponto
+      const forced = walkSourceFiles({ root: tmp, includeGlobs: [/^\.hidden(?:\/.*)?$/] });
+      const relForced = forced.files.map((f) => path.relative(tmp, f)).sort();
+      assert.ok(relForced.includes('.hidden/forced.ts'), 'include_paths deveria forçar .hidden/ a entrar no walk');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+    ok('DD-02', 'walkSourceFiles pura: {files,census} sem closure, respeita SKIP_DIRS/SKIP_UNDER_BIN/include_paths, inclui .sh/.go');
+  });
+
   // === [0] parte 2: vacuidade por linguagem ===
   tryCase('0', () => {
     const cases = [

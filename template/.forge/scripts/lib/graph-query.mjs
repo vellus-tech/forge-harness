@@ -27,7 +27,7 @@ import { compareSymbolNames } from './graph-symbols-extract.mjs';
 // Texto canônico de 0-resultados (REQ-05) — mesma string em modo humano e no campo `hint` do
 // `--json`, para nunca divergir entre as duas superfícies.
 export function zeroResultsHint(term) {
-  return `hint: nenhum resultado para "${term}" — confira o termo ou rode "graph.sh build"/"graph.sh update" se o grafo estiver desatualizado`;
+  return `hint: nenhum node/edge/símbolo casou com "${term}". Se symbols.json não existe, rode \`graph.sh build\` para gerar símbolos; se já existe, tente um termo mais genérico (prefixo/substring) ou \`graph.sh symbols\` para conferir o índice.`;
 }
 
 // =============================================================================================
@@ -51,7 +51,7 @@ export function readSymbolsSafely(root) {
   try {
     parsed = JSON.parse(raw);
   } catch {
-    return { symbols: [], warning: 'WARN: symbols.json corrompido (JSON inválido) — degradando para nodes/edges-only' };
+    return { symbols: [], warning: 'WARN symbols.json inválido — mostrando só nodes/edges; rode graph.sh build', invalid: true };
   }
 
   const symbols = Array.isArray(parsed && parsed.symbols) ? parsed.symbols : [];
@@ -106,7 +106,7 @@ export function computeSymbolStatus(sym, root) {
   try {
     st = statSync(join(root, sym.file));
   } catch (e) {
-    if (e && e.code === 'ENOENT') return { verifiable: true, stale: false, missing: true };
+    if (e && e.code === 'ENOENT') return { verifiable: true, stale: true, missing: true };
     return { verifiable: false, stale: false, missing: false };
   }
   const stale = st.mtimeMs !== sym.mtime || st.size !== sym.size;
@@ -148,8 +148,10 @@ async function main() {
   // nodes/edges-only (WARN em stderr), nunca derruba a seção já calculada acima (REQ-10, [17b]).
   let ranked = [];
   let enriched = [];
+  let invalid = false;
   try {
-    const { symbols, warning } = readSymbolsSafely(root);
+    const { symbols, warning, invalid: invalidIndex } = readSymbolsSafely(root);
+    invalid = !!invalidIndex;
     if (warning) process.stderr.write(warning + '\n');
     ranked = rankSymbols(symbols, term);
     enriched = ranked.slice(0, 20).map((s) => {
@@ -181,7 +183,7 @@ async function main() {
   n.slice(0, 20).forEach((x) => console.log(`  ${x.id} [${x.lang}/${x.layer}] loc=${x.loc}`));
   console.log(`edges (${e.length}):`);
   e.slice(0, 20).forEach((x) => console.log(`  ${x.from} -> ${x.to} (${x.kind}${x.resolved ? '' : ' unresolved'})`));
-  console.log(`symbols (${ranked.length}):`);
+  if (!invalid) console.log(`symbols (${ranked.length}):`);
   enriched.forEach((x) => {
     const s = x.sym;
     console.log(`  ${s.name} [${s.type}] ${s.file}:${s.line} (${s.layer})${staleSuffix(x.status)}`);

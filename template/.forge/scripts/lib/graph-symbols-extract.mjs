@@ -42,7 +42,14 @@ function stripPython(src) {
     if ((c === '"' || c === "'") && src[i + 1] === c && src[i + 2] === c) {
       const q = c;
       let j = i + 3;
-      while (j < n && !(src[j] === q && src[j + 1] === q && src[j + 2] === q)) { mask(j); j++; }
+      while (j < n) {
+        if (src[j] === q && src[j + 1] === q && src[j + 2] === q) {
+          let bs = 0, k = j - 1;
+          while (k >= 0 && src[k] === '\\') { bs++; k--; }
+          if (bs % 2 === 0) break;
+        }
+        mask(j); j++;
+      }
       if (j < n) j += 3; // consome a aspa tripla de fechamento, sem mascarar
       i = j;
       continue;

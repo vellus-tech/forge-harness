@@ -91,7 +91,7 @@ _Descoberta, build, query e impacto sobre o grafo de conhecimento do repo._
 | `/forge:onboard` | `[<módulo ou capability>]` | Tour de arquitetura e domínio para um agente/humano novo no repositório — camadas, módulos, fluxos de dependência e pontos de concentração, derivados do grafo de código. |
 | `/forge:kb` | `<consulta> \| build \| status \| eval <arquivo> \| semantic install\|remove\|status` | Busca unificada sobre o conhecimento acumulado (baseline, ADRs, specs arquivadas, ledger, planos, CHANGELOG, liaison próprio). Lexical zero-dep por padrão; camada semântica local opcional. Sem LLM, sem rede na busca. |
 | `/forge:query` | `<termo> \| path <de> <para>` | Consulta o grafo de código (nodes/edges/caminhos) antes de abrir arquivos crus — lookup barato para localizar módulos, dependências e caminhos de import; inclui busca por nome de símbolo (classe/função) com arquivo:linha, não só por caminho de arquivo. |
-| `/forge:update` | — | Atualiza o grafo de código — reconstrução completa determinística a cada chamada; regrava cada artefato só se o conteúdo realmente mudou. Mudança cosmética (comentário, whitespace) não regrava nada e custa zero tokens. |
+| `/forge:update` | — | Atualiza o grafo com reconstrução completa determinística; grava cada artefato quando seu conteúdo muda. O índice de símbolos inclui mtime e tamanho dos arquivos e pode ser regravado após edições cosméticas. |
 
 
 <a id="docs"></a>

@@ -369,7 +369,10 @@ const report = [
   `## Unresolved edges (external deps or unknown targets)`, '',
   `- ${edges.filter((e) => !e.resolved).length} unresolved`, '',
 ].join('\n');
-writeFileSync(join(outDir, 'report.md'), report + '\n');
+const reportPath = join(outDir, 'report.md');
+if (!ifChanged || !textUnchanged(report + '\n', reportPath)) {
+  writeFileSync(reportPath, report + '\n');
+}
 
 // STORY-03/TASK-05 (REQ-03): symbols.json/symbols.idx.tsv — herança resolvida iterando os
 // símbolos em ordem CANÔNICA (file,line), nunca a ordem de readdirSync (design.md DD-02). O

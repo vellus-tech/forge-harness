@@ -3,7 +3,7 @@ story_id: STORY-01
 epic: fix-graph-query-symbols-fusion
 title: Red SDD-level do defeito original + fixtures congeladas
 depends_on: []
-status: todo
+status: done
 ---
 
 # STORY-01 — Red SDD-level do defeito original + fixtures congeladas

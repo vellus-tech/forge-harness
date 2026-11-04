@@ -15,11 +15,11 @@
   "base_strategy": "ancestry",
   "graft_from": null,
   "revert_patch": null,
-  "replay_head": "9b2bb83295f172b24337136bc6fffcb7ce9822ea",
+  "replay_head": "da581189e230dccc90aec97ddebf3d08083c055b",
   "setup_command": null,
   "reproduces": "bugfix.md §1",
   "recorded_at": "2026-11-04T23:41:13.283Z",
-  "replayed_at": "2026-11-04T23:43:56.148Z",
+  "replayed_at": "2026-11-04T23:51:18.726Z",
   "waived_at": null,
   "fix_files": [
     "template/.forge/scripts/lib/graph-query.mjs",
@@ -91,11 +91,11 @@
       "base_strategy": "ancestry",
       "graft_from": null,
       "revert_patch": null,
-      "replay_head": "9b2bb83295f172b24337136bc6fffcb7ce9822ea",
+      "replay_head": "da581189e230dccc90aec97ddebf3d08083c055b",
       "setup_command": null,
       "reproduces": "bugfix.md §1",
       "recorded_at": "2026-11-04T23:41:13.283Z",
-      "replayed_at": "2026-11-04T23:43:56.148Z",
+      "replayed_at": "2026-11-04T23:51:18.726Z",
       "waived_at": null
     }
   ]

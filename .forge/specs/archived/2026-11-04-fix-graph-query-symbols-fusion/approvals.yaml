@@ -54,3 +54,15 @@ approvals:
     iteration: 3
     commit: "110139ad"
     scope: "tasks.md"
+  - gate: implementation_verified
+    decision: approve
+    reason: "finalizacao autorizada pelo dono na sessao de 2026-11-04; w344/w345 verdes, Red observado, revisao adversarial tratada"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-04T20:50:41-03:00"
+    commit: "da581189"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "archive autorizado pelo dono na sessao de 2026-11-04 como parte de finalizar, mergear e publicar a 0.21.0"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-04T20:50:46-03:00"
+    commit: "da581189"

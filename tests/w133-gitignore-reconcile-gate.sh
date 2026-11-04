@@ -46,6 +46,11 @@ grep -q '# >>> forge (managed) >>>' "$T/limpo/.gitignore" || { echo "FAIL [0]: m
 mkdir -p "$T/limpo/.forge/cache"; : > "$T/limpo/.forge/cache/x.json"
 git -C "$T/limpo" check-ignore -q .forge/cache/x.json \
   || { echo "FAIL [0]: instalação limpa não ignora .forge/cache/ — nenhum vermelho adiante prova nada"; exit 1; }
+mkdir -p "$T/limpo/.forge/graph"; : > "$T/limpo/.forge/graph/symbols.json"; : > "$T/limpo/.forge/graph/symbols.idx.tsv"
+git -C "$T/limpo" check-ignore -q .forge/graph/symbols.json \
+  || { echo "FAIL [0]: instalação limpa não ignora .forge/graph/symbols.json (STORY-03)"; exit 1; }
+git -C "$T/limpo" check-ignore -q .forge/graph/symbols.idx.tsv \
+  || { echo "FAIL [0]: instalação limpa não ignora .forge/graph/symbols.idx.tsv (STORY-03)"; exit 1; }
 echo "OK [0]"
 
 echo "[1] bloco já presente e desatualizado recebe os padrões novos no update"
@@ -67,7 +72,7 @@ EOF
 node "$WS/bin/forge.mjs" update --target "$T/antigo" --no-plugin --skip-postcheck --no-backup >"$T/up1.log" 2>&1 \
   || { echo "FAIL [1]: update reprovou"; tail -20 "$T/up1.log"; exit 1; }
 faltando=""
-for pat in '.forge.bak-*/' '.forge/cache/' '.forge/graph/graph.json'; do
+for pat in '.forge.bak-*/' '.forge/cache/' '.forge/graph/graph.json' '.forge/graph/symbols.json' '.forge/graph/symbols.idx.tsv'; do
   grep -qxF "$pat" "$T/antigo/.gitignore" || faltando="$faltando $pat"
 done
 [ -z "$faltando" ] || { echo "FAIL [1]: bloco existente não recebeu padrão novo (append-once):$faltando"; exit 1; }

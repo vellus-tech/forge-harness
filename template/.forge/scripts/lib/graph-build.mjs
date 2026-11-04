@@ -8,11 +8,12 @@
 //
 // Usage: graph-build.mjs <repo-root> [--out <dir>]
 // Output: "OK .forge/graph/graph.json (N nodes, M edges; S summaries stale)" or "FAIL (...)".
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, renameSync } from 'node:fs';
 import { join, resolve, relative, extname, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 import { readForgeFrontmatter, compileLayerMap, resolveLayer, layerCoverage } from './graph-layers.mjs';
 import { walkSourceFiles, LANG } from './graph-walk.mjs';
+import { extractSymbols, assembleSymbolsArtifacts } from './graph-symbols-extract.mjs';
 
 const root = resolve(process.argv[2] || '.');
 const outArg = process.argv.indexOf('--out');
@@ -203,6 +204,15 @@ function resolveJvmTargets(spec) {
   return [];
 }
 
+// STORY-03/TASK-05 (REQ-03): extractSymbols roda por arquivo dentro deste MESMO walk único — o
+// que já aplica include_paths/SKIP_UNDER_BIN — usando o `src` já lido em srcCache (via read()
+// abaixo). symbolsByFile/layerByFile/mtimeSizeByFile alimentam assembleSymbolsArtifacts depois
+// do loop; `mtime`/`size` vêm do arquivo-fonte (statSync), não da hora do build — dois builds
+// sobre fontes inalteradas produzem symbols.json/idx.tsv byte a byte idênticos.
+const symbolsByFile = [];
+const layerByFile = new Map();
+const mtimeSizeByFile = new Map();
+
 for (const f of files) {
   const src = read(f);
   const lang = LANG[extname(f)];
@@ -217,6 +227,12 @@ for (const f of files) {
   const roles = rolesFor(id);
   if (roles.length) node.roles = roles;
   nodes.push(node);
+
+  const { symbols: fileSymbols, inherit } = extractSymbols(id, lang, src);
+  symbolsByFile.push({ file: id, symbols: fileSymbols, inherit });
+  layerByFile.set(id, layer);
+  const st = statSync(f);
+  mtimeSizeByFile.set(id, { mtime: st.mtimeMs, size: st.size });
 
   if (lang === 'js' || lang === 'ts') {
     for (const m of src.matchAll(JS_IMPORT)) {
@@ -317,5 +333,23 @@ const report = [
   `- ${edges.filter((e) => !e.resolved).length} unresolved`, '',
 ].join('\n');
 writeFileSync(join(outDir, 'report.md'), report + '\n');
+
+// STORY-03/TASK-05 (REQ-03): symbols.json/symbols.idx.tsv — herança resolvida iterando os
+// símbolos em ordem CANÔNICA (file,line), nunca a ordem de readdirSync (design.md DD-02). O
+// array já vem ordenado por `file` aqui (id é o path relativo, símbolos dentro de cada entrada
+// já estão em ordem de linha pela extração) antes de alimentar assembleSymbolsArtifacts —
+// resolveInheritance é pura e, mesmo sob permutação, produz o mesmo resultado (26a/26b), mas a
+// ordem de entrada nunca é a do walk físico.
+const canonicalSymbolsByFile = symbolsByFile.slice().sort((a, b) => a.file.localeCompare(b.file, 'en'));
+const { symbolsJson, idxTsv } = assembleSymbolsArtifacts(canonicalSymbolsByFile, { layerByFile, mtimeSizeByFile });
+// par atômico (nunca grava um sem o outro): escreve ambos os temporários por completo, só então
+// renomeia ambos — uma falha a meio da escrita nunca deixa um symbols.json/idx.tsv truncado ou
+// desacompanhado do seu par no caminho final.
+const symbolsTmp = join(outDir, '.symbols.json.tmp');
+const idxTmp = join(outDir, '.symbols.idx.tsv.tmp');
+writeFileSync(symbolsTmp, JSON.stringify(symbolsJson, null, 2) + '\n');
+writeFileSync(idxTmp, idxTsv);
+renameSync(symbolsTmp, join(outDir, 'symbols.json'));
+renameSync(idxTmp, join(outDir, 'symbols.idx.tsv'));
 
 console.log(`OK .forge/graph/graph.json (${nodes.length} nodes, ${edges.length} edges; ${summariesStale} summaries stale)`);

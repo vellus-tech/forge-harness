@@ -14,6 +14,7 @@ affected_capabilities:
 affected_paths:
   - template/.forge/scripts/graph.sh
   - template/.forge/scripts/lib/graph-build.mjs
+  - template/.forge/scripts/lib/graph-walk.mjs
   - template/.forge/scripts/lib/graph-symbols.mjs
   - template/.forge/scripts/lib/graph-symbols-extract.mjs
   - template/.forge/scripts/lib/graph-query.mjs

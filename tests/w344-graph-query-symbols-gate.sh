@@ -123,7 +123,7 @@ async function main() {
       // pulado por prefixo de ponto, census conta .rb mesmo sem entrar em files
       const plain = walkSourceFiles({ root: tmp });
       const relPlain = plain.files.map((f) => path.relative(tmp, f)).sort();
-      assert.deepEqual(relPlain, ['bin/real.cs', 'src/a.ts', 'src/c.sh'].sort(),
+      assert.deepEqual(relPlain, ['bin/real.cs', 'src/a.ts', 'src/b.go', 'src/c.sh'].sort(),
         `walk sem include_paths: esperado 3 arquivos, obteve ${JSON.stringify(relPlain)}`);
       assert.equal(plain.census.ruby, 1, 'census deveria contar .rb mesmo sem LANG-match');
       assert.ok(!('go' in plain.census) === false, 'census deveria contar .go também');

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// lib/graph-query.mjs — STORY-05 de fix-graph-query-symbols-fusion (TASK-09): migra `graph.sh
+// lib/graph-query.mjs — STORY-05 de fix-graph-query-symbols-fusion (TASK-09/10): migra `graph.sh
 // query` do `node -e` inline para módulo próprio.
 //
 // Contrato herdado (golden pré-mudança, TASK-01/TASK-02): a saída `nodes (N):`/`edges (N):` é
@@ -9,17 +9,23 @@
 // é decisão do CLI (design.md DD-09). `tieBreak` nunca reimplementa `localeCompare` em paralelo:
 // reusa `compareSymbolNames`, já exportado por graph-symbols-extract.mjs (STORY-02, DD-04).
 //
-// Defasagem por {mtime,size} e degradação graciosa (REQ-04/REQ-10) chegam em TASK-10/TASK-11.
+// Defasagem por {mtime,size} (REQ-04), `--json` completo e dica de 0-resultados (REQ-05) chegam
+// nesta task. Degradação graciosa (ENOENT individual/JSON corrompido/formato legado, REQ-10)
+// chega em TASK-11.
 //
 // Guard de CLI via `realpathSync` dos dois lados (padrão kb-cli.mjs) — NUNCA
 // `import.meta.url === 'file://' + process.argv[1]`, que quebra em `/tmp` symlinkado no macOS
 // (provado durante o design desta spec).
 //
 // Uso: graph-query.mjs <graph.json> <forge-root> <termo> [--json]
-import { readFileSync, existsSync, realpathSync } from 'node:fs';
+import { readFileSync, statSync, existsSync, realpathSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compareSymbolNames } from './graph-symbols-extract.mjs';
+
+export function zeroResultsHint(term) {
+  return `hint: nenhum resultado para "${term}" — confira o termo ou rode "graph.sh build"/"graph.sh update" se o grafo estiver desatualizado`;
+}
 
 export function readSymbolsSafely(root) {
   const p = join(root, '.forge/graph/symbols.json');
@@ -51,6 +57,18 @@ export function rankSymbols(symbols, term) {
     .map((x) => x.s);
 }
 
+// staleness por {mtime,size} — stat() SÓ nos resultados retornados (≤20, decisão do CLI). Nunca
+// consulta o fingerprint estrutural do node em graph.json — mecanismo distinto (cenário [6b]).
+export function computeSymbolStatus(sym, root) {
+  const st = statSync(join(root, sym.file));
+  const stale = st.mtimeMs !== sym.mtime || st.size !== sym.size;
+  return { stale };
+}
+
+function staleSuffix(status) {
+  return status.stale ? ' (linha possivelmente defasada)' : '';
+}
+
 async function main() {
   const [graphPath, root, ...rest] = process.argv.slice(2);
   if (!graphPath || !root) {
@@ -74,14 +92,17 @@ async function main() {
 
   const { symbols } = readSymbolsSafely(root);
   const ranked = rankSymbols(symbols, term);
-  const displayed = ranked.slice(0, 20);
+  const enriched = ranked.slice(0, 20).map((s) => ({ sym: s, status: computeSymbolStatus(s, root) }));
+
+  const zeroResults = n.length === 0 && e.length === 0 && ranked.length === 0;
 
   if (asJson) {
     const data = {
       nodes: n.slice(0, 20).map((x) => ({ id: x.id, lang: x.lang, layer: x.layer, loc: x.loc })),
       edges: e.slice(0, 20).map((x) => ({ from: x.from, to: x.to, kind: x.kind, resolved: !!x.resolved })),
-      symbols: displayed.map((s) => ({ id: s.id, name: s.name, type: s.type, file: s.file, line: s.line, layer: s.layer, stale: false })),
+      symbols: enriched.map((x) => ({ id: x.sym.id, name: x.sym.name, type: x.sym.type, file: x.sym.file, line: x.sym.line, layer: x.sym.layer, stale: !!x.status.stale })),
     };
+    if (zeroResults) data.hint = zeroResultsHint(term);
     console.log(JSON.stringify(data, null, 2));
     return;
   }
@@ -91,7 +112,8 @@ async function main() {
   console.log(`edges (${e.length}):`);
   e.slice(0, 20).forEach((x) => console.log(`  ${x.from} -> ${x.to} (${x.kind}${x.resolved ? '' : ' unresolved'})`));
   console.log(`symbols (${ranked.length}):`);
-  displayed.forEach((s) => console.log(`  ${s.name} [${s.type}] ${s.file}:${s.line} (${s.layer})`));
+  enriched.forEach((x) => console.log(`  ${x.sym.name} [${x.sym.type}] ${x.sym.file}:${x.sym.line} (${x.sym.layer})${staleSuffix(x.status)}`));
+  if (zeroResults) console.log(zeroResultsHint(term));
 }
 
 // Executa só quando chamado como script (nunca quando importado por um teste). Compara caminhos

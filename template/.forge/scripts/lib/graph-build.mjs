@@ -19,6 +19,34 @@ const root = resolve(process.argv[2] || '.');
 const outArg = process.argv.indexOf('--out');
 const outDir = outArg >= 0 ? resolve(process.argv[outArg + 1]) : join(root, '.forge/graph');
 const cacheDir = join(outDir, 'cache');
+// --if-changed (STORY-04/TASK-06, DD-05): só passado por `graph.sh update`, nunca por `build`
+// (build sempre regrava, semântica preservada). A RECONSTRUÇÃO é sempre completa e
+// determinística (walk + extração inteiros, nenhum atalho) — a única coisa que `--if-changed`
+// pula é a ESCRITA quando o conteúdo novo é idêntico ao que já está em disco. Isso é o que
+// corrige a defasagem presa do fingerprint estrutural (REQ-04): symbols.json/idx.tsv comparam
+// {mtime,size} por símbolo (incluídos na comparação, nunca excluídos), então editar só o corpo
+// de uma função — que não muda o fingerprint estrutural de arquivo — ainda assim regrava.
+const ifChanged = process.argv.includes('--if-changed');
+
+// leitura segura de um JSON em disco: ausente/corrompido ⇒ undefined (nunca propaga exceção).
+function readJsonSafe(p) {
+  try { return JSON.parse(readFileSync(p, 'utf8')); } catch { return undefined; }
+}
+// compara newObj contra o conteúdo ATUAL do arquivo em disco, ignorando as chaves de topo em
+// `stripKeys` (generated_at/root) — nunca contra um cache em memória (DD-05 i). Disco
+// ausente/corrompido conta como "mudou" (escreve incondicionalmente, DD-05 ii).
+function jsonUnchanged(newObj, diskPath, stripKeys = []) {
+  const disk = readJsonSafe(diskPath);
+  if (disk === undefined) return false;
+  const strip = (o) => { const c = { ...o }; for (const k of stripKeys) delete c[k]; return c; };
+  try { return JSON.stringify(strip(newObj)) === JSON.stringify(strip(disk)); } catch { return false; }
+}
+// mesma política para o par texto puro (symbols.idx.tsv — não é JSON).
+function textUnchanged(newText, diskPath) {
+  let disk;
+  try { disk = readFileSync(diskPath, 'utf8'); } catch { return false; }
+  return disk === newText;
+}
 
 // As cinco constantes de poda do walk (SKIP_DIRS, SKIP_UNDER_BIN, CENSUS_EXT, LANG, SKIP_FILE)
 // agora vivem em graph-walk.mjs (STORY-03/TASK-04, DD-02) — importadas acima, nunca duplicadas.
@@ -306,13 +334,22 @@ if (governanceBlocks.authz || governanceBlocks.observability) {
 }
 
 mkdirSync(cacheDir, { recursive: true });
-writeFileSync(join(outDir, 'graph.json'), JSON.stringify(graph, null, 2) + '\n');
+const graphPath = join(outDir, 'graph.json');
+if (!ifChanged || !jsonUnchanged(graph, graphPath, ['generated_at', 'root'])) {
+  writeFileSync(graphPath, JSON.stringify(graph, null, 2) + '\n');
+}
 // fingerprints cache (drives incremental update)
 const fp = {}; for (const n of nodes) fp[n.id] = n.fingerprint;
-writeFileSync(join(cacheDir, 'fingerprints.json'), JSON.stringify(fp, null, 2) + '\n');
+const fingerprintsPath = join(cacheDir, 'fingerprints.json');
+if (!ifChanged || !jsonUnchanged(fp, fingerprintsPath, [])) {
+  writeFileSync(fingerprintsPath, JSON.stringify(fp, null, 2) + '\n');
+}
 // summaries cache (preserve carried-over)
 const sum = {}; for (const n of nodes) if (n.summary) sum[n.id] = { fingerprint: n.fingerprint, summary: n.summary };
-writeFileSync(join(cacheDir, 'summaries.json'), JSON.stringify(sum, null, 2) + '\n');
+const summariesPath = join(cacheDir, 'summaries.json');
+if (!ifChanged || !jsonUnchanged(sum, summariesPath, [])) {
+  writeFileSync(summariesPath, JSON.stringify(sum, null, 2) + '\n');
+}
 // report.md (human-readable, deterministic)
 const cov = graph.stats.layer_coverage;
 const byLayer = {};
@@ -342,14 +379,25 @@ writeFileSync(join(outDir, 'report.md'), report + '\n');
 // ordem de entrada nunca é a do walk físico.
 const canonicalSymbolsByFile = symbolsByFile.slice().sort((a, b) => a.file.localeCompare(b.file, 'en'));
 const { symbolsJson, idxTsv } = assembleSymbolsArtifacts(canonicalSymbolsByFile, { layerByFile, mtimeSizeByFile });
-// par atômico (nunca grava um sem o outro): escreve ambos os temporários por completo, só então
-// renomeia ambos — uma falha a meio da escrita nunca deixa um symbols.json/idx.tsv truncado ou
-// desacompanhado do seu par no caminho final.
-const symbolsTmp = join(outDir, '.symbols.json.tmp');
-const idxTmp = join(outDir, '.symbols.idx.tsv.tmp');
-writeFileSync(symbolsTmp, JSON.stringify(symbolsJson, null, 2) + '\n');
-writeFileSync(idxTmp, idxTsv);
-renameSync(symbolsTmp, join(outDir, 'symbols.json'));
-renameSync(idxTmp, join(outDir, 'symbols.idx.tsv'));
+const symbolsJsonPath = join(outDir, 'symbols.json');
+const symbolsIdxPath = join(outDir, 'symbols.idx.tsv');
+// comparação INCLUI {mtime,size} por símbolo (nunca excluída — REQ-04): editar só o corpo de uma
+// função já muda size/mtime do arquivo-fonte, então já diverge aqui mesmo sem fingerprint
+// estrutural diferente. Par atômico: se qualquer um dos dois mudou, ambos são regravados juntos
+// (nunca um sem o outro sob --if-changed).
+const symbolsChanged = !ifChanged
+  || !jsonUnchanged(symbolsJson, symbolsJsonPath, [])
+  || !textUnchanged(idxTsv, symbolsIdxPath);
+if (symbolsChanged) {
+  // par atômico (nunca grava um sem o outro): escreve ambos os temporários por completo, só então
+  // renomeia ambos — uma falha a meio da escrita nunca deixa um symbols.json/idx.tsv truncado ou
+  // desacompanhado do seu par no caminho final.
+  const symbolsTmp = join(outDir, '.symbols.json.tmp');
+  const idxTmp = join(outDir, '.symbols.idx.tsv.tmp');
+  writeFileSync(symbolsTmp, JSON.stringify(symbolsJson, null, 2) + '\n');
+  writeFileSync(idxTmp, idxTsv);
+  renameSync(symbolsTmp, symbolsJsonPath);
+  renameSync(idxTmp, symbolsIdxPath);
+}
 
 console.log(`OK .forge/graph/graph.json (${nodes.length} nodes, ${edges.length} edges; ${summariesStale} summaries stale)`);

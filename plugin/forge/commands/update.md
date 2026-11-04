@@ -1,5 +1,5 @@
 ---
-description: Atualiza o grafo de código incrementalmente — só reprocessa se os fingerprints estruturais mudaram. Mudança cosmética (comentário, whitespace) é no-op e custa zero tokens.
+description: Atualiza o grafo de código — reconstrução completa determinística a cada chamada; regrava cada artefato só se o conteúdo realmente mudou. Mudança cosmética (comentário, whitespace) não regrava nada e custa zero tokens.
 argument-hint: ""
 ---
 
@@ -11,10 +11,12 @@ argument-hint: ""
 bash .forge/scripts/graph.sh update
 ```
 
-Recalcula os fingerprints estruturais e compara com o cache:
+Refaz o walk e a extração por completo (determinístico, nunca um atalho) e compara o resultado
+contra o que já está em disco antes de gravar — `--if-changed` grava só o que divergiu:
 
-- **Sem mudança estrutural** (só comentários/whitespace/reindentação) → "graph up to date (zero tokens)" — nada é reprocessado, summaries cacheados preservados.
+- **Sem mudança estrutural** (só comentários/whitespace/reindentação) → "graph up to date (zero tokens)" — nenhum artefato é regravado, summaries cacheados preservados.
 - **Mudança estrutural** (novo import, nova declaração, arquivo novo/removido) → grafo regenerado; summaries dos nós alterados marcados stale para recuradoria sob demanda.
+- **`symbols.json`/`symbols.idx.tsv`** regravam sempre que `{mtime,size}` de algum arquivo-fonte divergir do que foi registrado — mesmo quando o fingerprint estrutural do arquivo não mudou (editar só o corpo de uma função não altera o fingerprint, mas muda size/mtime).
 
 ## Quando rodar
 

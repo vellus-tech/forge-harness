@@ -2,7 +2,8 @@
 # forge graph (W4.1) — dispatcher for the code graph (engine: native, ADR 0001).
 # Subcommands:
 #   build         (re)build .forge/graph/graph.json from the repo (deterministic, zero tokens)
-#   update        rebuild only if structural fingerprints changed; cosmetic-only edits are a no-op
+#   update        full deterministic rebuild every time; rewrites an artifact only when it
+#                 actually changed (--if-changed) — cosmetic-only edits write nothing
 #   validate      run forge validate graph (§19.5)
 #   query <term>  grep the graph for nodes/edges matching a term (cheap lookup before reading files)
 #   path <a> <b>  show whether an import path exists from node a to node b (BFS over resolved edges)
@@ -20,7 +21,7 @@ case "$cmd" in
   update)
     if [ ! -f "$GRAPH" ]; then node "$SCRIPT_DIR/lib/graph-build.mjs" "$ROOT"; exit $?; fi
     before="$(node -e 'const fs=require("fs");const p=process.argv[1];try{process.stdout.write(fs.readFileSync(p,"utf8"))}catch{}' "$ROOT/.forge/graph/cache/fingerprints.json" | shasum -a 256)"
-    node "$SCRIPT_DIR/lib/graph-build.mjs" "$ROOT" >/dev/null
+    node "$SCRIPT_DIR/lib/graph-build.mjs" "$ROOT" --if-changed >/dev/null
     after="$(shasum -a 256 < "$ROOT/.forge/graph/cache/fingerprints.json")"
     if [ "$before" = "$after" ]; then echo "OK graph up to date (no structural change — zero tokens)";
     else echo "OK graph updated (structural change detected)"; fi ;;

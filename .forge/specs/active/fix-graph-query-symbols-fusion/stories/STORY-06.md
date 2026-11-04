@@ -3,7 +3,7 @@ story_id: STORY-06
 epic: fix-graph-query-symbols-fusion
 title: Documentação/rule e changelog
 depends_on: [STORY-05]
-status: todo
+status: done
 ---
 
 # STORY-06 — Documentação/rule e changelog
@@ -41,18 +41,18 @@ Fiar a documentação e as rules que instruem o agente a usar a nova capacidade 
 
 ## Tasks
 
-- [ ] TASK-12 — Fiação de documentação/rule: frase canônica em `query.md` (corpo+`description:`), `lsp-impact-analysis.md` (:54 ajuste de precisão + :56 adição), `implement.md`:51, `README.md`, `graph.sh`:7/:59, `codegraph.md` (se citar), `slash-commands.md`, `kb.md`, `update.md` (remove frases falsas) + descrição da skill `forge:update`; `npm run build:plugin` sem diff pendente (paths: `template/.forge/commands/graph/query.md`, `template/.forge/rules/conventions/lsp-impact-analysis.md`, `template/.forge/commands/specs/implement.md`, `README.md`, `template/.forge/scripts/graph.sh`, `template/.forge/commands/graph/codegraph.md`, `docs/refer/slash-commands.md`, `template/.forge/commands/graph/kb.md`, `template/.forge/commands/graph/update.md`, `plugin/forge/commands/query.md`, `plugin/forge/commands/update.md`, `plugin/forge/commands/implement.md`, `plugin/forge/commands/codegraph.md`, `plugin/forge/commands/kb.md`; depende: TASK-11). Teste: `bash tests/w344-graph-query-symbols-gate.sh && npm run build:plugin && git diff --exit-code -- plugin/forge/`. Padrão de falha: `^FAIL [33]` (`grep -L` da frase canônica nos 4 arquivos-alvo produz saída não vazia).
-- [ ] TASK-13 — `CHANGELOG.md` ganha entrada da mudança de comportamento observável; reconciliação final da contagem `scripts/ (N)`/badge `gates-NNN` do `README.md` (paths: `CHANGELOG.md`, `README.md`; depende: TASK-12). Teste: `bash tests/w200-readme-inventory-gate.sh`. Sem par vermelho/verde de comportamento — atualização de prosa + checagem de integridade do estado atual (`scripts/ (181)`/`gates-244` neste ponto, antes do `w345` da STORY-07 levar a `245`).
+- [X] TASK-12 — Fiação de documentação/rule: frase canônica em `query.md` (corpo+`description:`), `lsp-impact-analysis.md` (:54 ajuste de precisão + :56 adição), `implement.md`:51, `README.md`, `graph.sh`:7/:59, `codegraph.md` (se citar), `slash-commands.md`, `kb.md`, `update.md` (remove frases falsas) + descrição da skill `forge:update`; `npm run build:plugin` sem diff pendente (paths: `template/.forge/commands/graph/query.md`, `template/.forge/rules/conventions/lsp-impact-analysis.md`, `template/.forge/commands/specs/implement.md`, `README.md`, `template/.forge/scripts/graph.sh`, `template/.forge/commands/graph/codegraph.md`, `docs/refer/slash-commands.md`, `template/.forge/commands/graph/kb.md`, `template/.forge/commands/graph/update.md`, `plugin/forge/commands/query.md`, `plugin/forge/commands/update.md`, `plugin/forge/commands/implement.md`, `plugin/forge/commands/codegraph.md`, `plugin/forge/commands/kb.md`; depende: TASK-11). Teste: `bash tests/w344-graph-query-symbols-gate.sh && npm run build:plugin && git diff --exit-code -- plugin/forge/`. Padrão de falha: `^FAIL [33]` (`grep -L` da frase canônica nos 4 arquivos-alvo produz saída não vazia).
+- [X] TASK-13 — `CHANGELOG.md` ganha entrada da mudança de comportamento observável; reconciliação final da contagem `scripts/ (N)`/badge `gates-NNN` do `README.md` (paths: `CHANGELOG.md`, `README.md`; depende: TASK-12). Teste: `bash tests/w200-readme-inventory-gate.sh`. Sem par vermelho/verde de comportamento — atualização de prosa + checagem de integridade do estado atual (`scripts/ (181)`/`gates-244` neste ponto, antes do `w345` da STORY-07 levar a `245`).
 
 ## Acceptance criteria
 
-- [ ] `grep -L "busca por nome de símbolo (classe/função) com arquivo:linha, não só por caminho de arquivo" template/.forge/commands/graph/query.md template/.forge/rules/conventions/lsp-impact-analysis.md template/.forge/commands/specs/implement.md README.md` produz saída vazia.
-- [ ] `description:` do frontmatter de `query.md` contém a frase canônica.
-- [ ] `lsp-impact-analysis.md:54` não contradiz mais a capacidade nova (distinção precisa entre "localiza declaração" e "resolve semântica profunda").
-- [ ] `update.md`/skill `forge:update` não afirmam mais que "nada é reprocessado".
-- [ ] `npm run build:plugin` roda sem diff pendente (`git diff --exit-code -- plugin/forge/` passa).
-- [ ] `CHANGELOG.md` registra a mudança de comportamento observável de `graph.sh symbols`/`query`/`update`.
-- [ ] `tests/w200-readme-inventory-gate.sh` confirma `scripts/ (N)`/badge `gates-NNN` corretos no estado atual.
+- [X] `grep -L "busca por nome de símbolo (classe/função) com arquivo:linha, não só por caminho de arquivo" template/.forge/commands/graph/query.md template/.forge/rules/conventions/lsp-impact-analysis.md template/.forge/commands/specs/implement.md README.md` produz saída vazia.
+- [X] `description:` do frontmatter de `query.md` contém a frase canônica.
+- [X] `lsp-impact-analysis.md:54` não contradiz mais a capacidade nova (distinção precisa entre "localiza declaração" e "resolve semântica profunda").
+- [X] `update.md`/skill `forge:update` não afirmam mais que "nada é reprocessado".
+- [X] `npm run build:plugin` roda sem diff pendente (`git diff --exit-code -- plugin/forge/` passa).
+- [X] `CHANGELOG.md` registra a mudança de comportamento observável de `graph.sh symbols`/`query`/`update`.
+- [X] `tests/w200-readme-inventory-gate.sh` confirma `scripts/ (N)`/badge `gates-NNN` corretos no estado atual.
 
 ## Out of scope
 

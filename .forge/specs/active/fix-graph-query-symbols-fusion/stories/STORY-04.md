@@ -3,7 +3,7 @@ story_id: STORY-04
 epic: fix-graph-query-symbols-fusion
 title: update honesto + wrapper symbols + validate-graph.mjs
 depends_on: [STORY-03]
-status: todo
+status: done
 ---
 
 # STORY-04 — update honesto + wrapper symbols + validate-graph.mjs
@@ -46,19 +46,19 @@ Tornar `graph.sh update` honesto de fato (flag `--if-changed`, escopo assimétri
 
 ## Tasks
 
-- [ ] TASK-06 — Flag `--if-changed` em `graph-build.mjs`; `graph.sh` passa a flag só em `update`; texto de `graph.sh:5` corrigido (paths: `template/.forge/scripts/lib/graph-build.mjs`, `template/.forge/scripts/graph.sh`; depende: TASK-05). Teste: `bash tests/w344-graph-query-symbols-gate.sh && bash tests/w41-graph-gate.sh`. Padrão de falha: `^FAIL [12]` (update sempre reescreve incondicionalmente hoje). Cenários: [5b] não-regravação sob `--if-changed`, [12] honestidade (dois updates sem toque = sem regravação, via `mtime` do arquivo de saída), [12b] arquivo de saída corrompido força escrita incondicional, [22a] `{mtime,size}` atualiza em `symbols.json` após editar só o corpo (dado, sem passar por `query`).
-- [ ] TASK-07 — `graph-symbols.mjs` vira wrapper fino sobre `walkSourceFiles`+`extractSymbols`+`assembleSymbolsArtifacts` (paths: `template/.forge/scripts/lib/graph-symbols.mjs`, `tests/graph-symbols-gate.sh`; depende: TASK-06). Teste: `bash tests/w344-graph-query-symbols-gate.sh && bash tests/graph-symbols-gate.sh`. Padrão de falha: `^FAIL [9b]` (universo ampliado ainda não herdado). Cenários: [9b] universo ampliado via wrapper standalone, [25] sem side-effect (regressão).
-- [ ] TASK-08 — `validate-graph.mjs` ganha checagem de integridade referencial guardada por `existsSync(symbolsPath)` (paths: `template/.forge/scripts/lib/validate-graph.mjs`; depende: TASK-07). Teste: `bash tests/w344-graph-query-symbols-gate.sh`. Padrão de falha: `^FAIL [4]`. Cenários: [4] reprova órfão com mensagem explícita, [4c] `symbols.json` corrompido → `FAIL` dedicado, [6a] mutação (arquivo inexistente reprova), [17a] órfão pós-`git pull` (parte `validate`), [28] ausência de `symbols.json` não reprova.
+- [X] TASK-06 — Flag `--if-changed` em `graph-build.mjs`; `graph.sh` passa a flag só em `update`; texto de `graph.sh:5` corrigido (paths: `template/.forge/scripts/lib/graph-build.mjs`, `template/.forge/scripts/graph.sh`; depende: TASK-05). Teste: `bash tests/w344-graph-query-symbols-gate.sh && bash tests/w41-graph-gate.sh`. Padrão de falha: `^FAIL [12]` (update sempre reescreve incondicionalmente hoje). Cenários: [5b] não-regravação sob `--if-changed`, [12] honestidade (dois updates sem toque = sem regravação, via `mtime` do arquivo de saída), [12b] arquivo de saída corrompido força escrita incondicional, [22a] `{mtime,size}` atualiza em `symbols.json` após editar só o corpo (dado, sem passar por `query`).
+- [X] TASK-07 — `graph-symbols.mjs` vira wrapper fino sobre `walkSourceFiles`+`extractSymbols`+`assembleSymbolsArtifacts` (paths: `template/.forge/scripts/lib/graph-symbols.mjs`, `tests/graph-symbols-gate.sh`; depende: TASK-06). Teste: `bash tests/w344-graph-query-symbols-gate.sh && bash tests/graph-symbols-gate.sh`. Padrão de falha: `^FAIL [9b]` (universo ampliado ainda não herdado). Cenários: [9b] universo ampliado via wrapper standalone, [25] sem side-effect (regressão).
+- [X] TASK-08 — `validate-graph.mjs` ganha checagem de integridade referencial guardada por `existsSync(symbolsPath)` (paths: `template/.forge/scripts/lib/validate-graph.mjs`; depende: TASK-07). Teste: `bash tests/w344-graph-query-symbols-gate.sh`. Padrão de falha: `^FAIL [4]`. Cenários: [4] reprova órfão com mensagem explícita, [4c] `symbols.json` corrompido → `FAIL` dedicado, [6a] mutação (arquivo inexistente reprova), [17a] órfão pós-`git pull` (parte `validate`), [28] ausência de `symbols.json` não reprova.
 
 ## Acceptance criteria
 
-- [ ] Dois `update` consecutivos sem toque real não regravam nenhum dos 5 artefatos (verificado só por `mtime` do arquivo de saída, nunca inode).
-- [ ] Editar só o corpo de uma função (mesma `line`/`name`/`type`) e rodar `update` real atualiza `{mtime,size}` em `symbols.json`.
-- [ ] `graph.sh symbols` isolado sobre diretório oculto declarado em `include_paths` indexa a função shell esperada.
-- [ ] `graph.sh symbols` standalone não altera `mtime` de `graph.json`/`fingerprints.json`/`report.md`.
-- [ ] `validate-graph.mjs` reprova com mensagem explícita quando `symbol.file` não existe em `graph.json`; não reprova por staleness cosmética; pula a checagem quando `symbols.json` ausente; `FAIL` dedicado quando `symbols.json` corrompido.
-- [ ] `tests/w41-graph-gate.sh`, `tests/graph-symbols-gate.sh` verdes; strings `'zero tokens'`/`'structural change'` inalteradas.
-- [ ] Commits vermelhos das três tasks tocam só `tests/`.
+- [X] Dois `update` consecutivos sem toque real não regravam nenhum dos 5 artefatos (verificado só por `mtime` do arquivo de saída, nunca inode).
+- [X] Editar só o corpo de uma função (mesma `line`/`name`/`type`) e rodar `update` real atualiza `{mtime,size}` em `symbols.json`.
+- [X] `graph.sh symbols` isolado sobre diretório oculto declarado em `include_paths` indexa a função shell esperada.
+- [X] `graph.sh symbols` standalone não altera `mtime` de `graph.json`/`fingerprints.json`/`report.md`.
+- [X] `validate-graph.mjs` reprova com mensagem explícita quando `symbol.file` não existe em `graph.json`; não reprova por staleness cosmética; pula a checagem quando `symbols.json` ausente; `FAIL` dedicado quando `symbols.json` corrompido.
+- [X] `tests/w41-graph-gate.sh`, `tests/graph-symbols-gate.sh` verdes; strings `'zero tokens'`/`'structural change'` inalteradas.
+- [X] Commits vermelhos das três tasks tocam só `tests/`.
 
 ## Out of scope
 

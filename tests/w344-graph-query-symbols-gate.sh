@@ -607,6 +607,21 @@ async function main() {
     assert.doesNotMatch(update, /nada é reprocessado|sem reprocessar/i);
     const updatePlugin = fs.readFileSync(path.join(WS, 'plugin/forge/commands/update.md'), 'utf8');
     assert.doesNotMatch(updatePlugin, /nada é reprocessado|sem reprocessar/i);
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-plugin-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'template/.forge/scripts/lib'), { recursive: true });
+      fs.cpSync(path.join(WS, 'template/.forge/commands'), path.join(tmp, 'template/.forge/commands'), { recursive: true });
+      fs.copyFileSync(path.join(LIB, 'plugin-build.mjs'), path.join(tmp, 'template/.forge/scripts/lib/plugin-build.mjs'));
+      fs.copyFileSync(path.join(WS, 'package.json'), path.join(tmp, 'package.json'));
+      const build = require('node:child_process').spawnSync('npm', ['run', 'build:plugin'], { cwd: tmp, encoding: 'utf8' });
+      assert.equal(build.status, 0, `build:plugin falhou: ${build.stderr || build.stdout}`);
+      const generated = path.join(tmp, 'plugin/forge/commands');
+      const published = path.join(WS, 'plugin/forge/commands');
+      const names = fs.readdirSync(generated).sort();
+      assert.ok(names.length > 0, 'plugin gerado sem comandos');
+      assert.deepEqual(names, fs.readdirSync(published).sort(), 'lista de comandos do plugin divergente');
+      for (const name of names) assert.equal(fs.readFileSync(path.join(generated,name),'utf8'), fs.readFileSync(path.join(published,name),'utf8'), `plugin divergente: ${name}`);
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
     ok('33', 'fiação da documentação e das descrições validada');
   });
 
@@ -736,6 +751,10 @@ async function main() {
       execFileSync('node', [BUILD, tmp, '--if-changed'], { stdio: 'pipe' });
       const parsed = JSON.parse(fs.readFileSync(graphPath, 'utf8'));
       assert.equal(parsed.schema, 'graph/v0', 'graph.json corrompido deveria ser reescrito incondicionalmente sob --if-changed');
+      const summaries = path.join(tmp, '.forge/graph/cache/summaries.json');
+      fs.writeFileSync(summaries, '{ invalid');
+      execFileSync('node', [BUILD, tmp, '--if-changed'], { stdio: 'pipe' });
+      assert.deepEqual(JSON.parse(fs.readFileSync(summaries, 'utf8')), {}, 'cache de resumos corrompido deve ser reconstruído');
       ok('12b', 'graph.json corrompido em disco força escrita incondicional sob --if-changed');
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
@@ -930,7 +949,8 @@ async function main() {
       const lines = r.stdout.split('\n');
       const nodesEdgesPortion = lines.slice(0, 4).join('\n') + '\n';
       assert.equal(nodesEdgesPortion, golden, `nodes/edges deveriam ser BYTE A BYTE idênticos ao golden pré-mudança; obteve:\n${r.stdout}`);
-      assert.ok(r.stdout.includes('symbols (0):'), 'seção symbols (0): deveria aparecer (aditiva) mesmo sem symbols.json');
+      assert.doesNotMatch(r.stdout, /^symbols \(/m, 'índice ausente deve omitir a seção symbols');
+      assert.match(r.stderr, /aviso: symbols\.json ausente ou em formato legado/, 'índice ausente deve produzir aviso');
       ok('1', 'nodes/edges byte a byte idênticos ao golden pré-mudança quando symbols.json está ausente (cenário de controle)');
     } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
   });
@@ -1289,6 +1309,7 @@ async function main() {
       assert.equal(r.code, 0, `query com symbols.json legado deveria sair exit 0; stderr=${r.stderr}`);
       assert.match(r.stdout, /foo \[function\] src\/f\.ts:1 \([a-z]+\) \(não verificável\)/,
         `esperado sufixo "não verificável"; obteve:\n${r.stdout}`);
+      assert.match(r.stderr, /aviso: symbols\.json ausente ou em formato legado/, 'formato legado deve produzir aviso');
       ok('16', 'entrada legada sem mtime/size produz sufixo "não verificável", sem crash');
     } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
   });

@@ -1178,6 +1178,105 @@ async function main() {
       ok('24b', 'desempate (name,file,line) completo refletido em --json: d/dup1.ts antes de e/dup2.ts');
     } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
   });
+
+  // === [14] ENOENT por símbolo individual (sufixo + missing:true, isolado) ===
+  await tryCaseAsync('14', async () => {
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q14-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'src', 'f.ts'), 'export function fooz() {\n  return 1;\n}\n');
+      fs.writeFileSync(path.join(tmp, 'src', 'g.ts'), 'export function barz() {\n  return 1;\n}\n');
+      buildAt(tmp);
+      fs.rmSync(path.join(tmp, 'src', 'g.ts')); // remove o arquivo SEM atualizar symbols.json
+      const r = runQuery(tmp, ['z']);
+      assert.equal(r.code, 0, `query deveria sair exit 0; stderr=${r.stderr}`);
+      assert.match(r.stdout, /^  fooz \[function\] src\/f\.ts:1 \([a-z]+\)$/m,
+        `fooz não deveria ser afetado pelo ENOENT de outro símbolo; obteve:\n${r.stdout}`);
+      assert.match(r.stdout, /barz \[function\] src\/g\.ts:1 \([a-z]+\) \(arquivo não encontrado — rode graph\.sh build\)/,
+        `barz deveria ter sufixo de ENOENT; obteve:\n${r.stdout}`);
+      const rJson = runQuery(tmp, ['z', '--json']);
+      const data = JSON.parse(rJson.stdout);
+      const barSym = data.symbols.find((s) => s.name === 'barz');
+      const fooSym = data.symbols.find((s) => s.name === 'fooz');
+      assert.equal(barSym.missing, true, 'missing:true deveria aparecer no JSON para o símbolo com ENOENT');
+      assert.ok(!fooSym.missing, 'fooz não deveria ter missing:true');
+      ok('14', 'ENOENT por símbolo individual: sufixo + missing:true isolado, sem afetar os demais símbolos');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  // === [15] symbols.json corrompido degrada para nodes/edges-only, sem crash ===
+  await tryCaseAsync('15', async () => {
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q15-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'src', 'f.ts'), 'export function foo() {\n  return 1;\n}\n');
+      buildAt(tmp);
+      fs.writeFileSync(path.join(tmp, '.forge/graph/symbols.json'), '{ not valid json');
+      const r = runQuery(tmp, ['foo']);
+      assert.equal(r.code, 0, `query deveria sair exit 0 mesmo com symbols.json corrompido; rc=${r.code} stderr=${r.stderr}`);
+      assert.match(r.stdout, /^nodes \(\d+\):$/m, 'nodes/edges deveriam continuar funcionando (degrada só symbols)');
+      assert.match(r.stdout, /^symbols \(0\):$/m, 'symbols deveria degradar para vazio com JSON corrompido');
+      ok('15', 'symbols.json corrompido (JSON inválido) degrada para nodes/edges-only, sem crash, exit 0');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  // === [16] entrada legada sem mtime/size → "não verificável" ===
+  await tryCaseAsync('16', async () => {
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q16-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'src', 'f.ts'), 'export function foo() {\n  return 1;\n}\n');
+      buildAt(tmp);
+      const symbolsPath = path.join(tmp, '.forge/graph/symbols.json');
+      const parsed = JSON.parse(fs.readFileSync(symbolsPath, 'utf8'));
+      for (const s of parsed.symbols) { delete s.mtime; delete s.size; }
+      fs.writeFileSync(symbolsPath, JSON.stringify(parsed, null, 2) + '\n');
+      const r = runQuery(tmp, ['foo']);
+      assert.equal(r.code, 0, `query com symbols.json legado deveria sair exit 0; stderr=${r.stderr}`);
+      assert.match(r.stdout, /foo \[function\] src\/f\.ts:1 \([a-z]+\) \(não verificável\)/,
+        `esperado sufixo "não verificável"; obteve:\n${r.stdout}`);
+      ok('16', 'entrada legada sem mtime/size produz sufixo "não verificável", sem crash');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  // === [16b] vacuidade genuína (projeto só .go) não dispara aviso falso de formato legado ===
+  tryCase('16b', () => {
+    const { spawnSync, execFileSync } = require('node:child_process');
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q16b-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'src', 'main.go'), 'package main\nfunc Foo() {}\n');
+      execFileSync('bash', [GRAPH_SH, 'build'], { stdio: 'pipe', env: { ...process.env, FORGE_ROOT: tmp } });
+      const symbolsPath = path.join(tmp, '.forge/graph/symbols.json');
+      const parsed = JSON.parse(fs.readFileSync(symbolsPath, 'utf8'));
+      assert.deepEqual(parsed.symbols, [], 'projeto só .go deveria produzir symbols:[] genuinamente vazio');
+      const res = spawnSync('bash', [GRAPH_SH, 'query', 'main'], { env: { ...process.env, FORGE_ROOT: tmp } });
+      assert.equal(res.status, 0, 'query deveria sair exit 0');
+      assert.equal(res.stderr.toString(), '',
+        `symbols:[] genuinamente vazio (.go) NÃO deveria disparar WARN em stderr; obteve: ${res.stderr.toString()}`);
+      ok('16b', 'vacuidade genuína de symbols (projeto só .go) não dispara aviso falso de formato legado');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  // === [17b] symbols.json órfão pós-"pull" simulado não crasha a query ===
+  tryCase('17b', () => {
+    const { spawnSync, execFileSync } = require('node:child_process');
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q17b-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'src', 'a.ts'), 'export function alfa() {\n  return 1;\n}\n');
+      fs.writeFileSync(path.join(tmp, 'src', 'b.ts'), 'export function beta() {\n  return 1;\n}\n');
+      execFileSync('bash', [GRAPH_SH, 'build'], { stdio: 'pipe', env: { ...process.env, FORGE_ROOT: tmp } });
+      // simula um "git pull" que removeu src/b.ts sem ninguém rodar graph.sh update/build de novo
+      fs.rmSync(path.join(tmp, 'src', 'b.ts'));
+      const res = spawnSync('bash', [GRAPH_SH, 'query', 'a'], { env: { ...process.env, FORGE_ROOT: tmp } });
+      assert.equal(res.status, 0, 'query não deveria crashar nem sair != 0 com symbols.json órfão pós-pull simulado');
+      const out = res.stdout.toString();
+      assert.doesNotMatch(out, /Error:|at Object\.|at Module\./, 'saída não deveria conter rastro de exceção não tratada');
+      ok('17b', 'query não crasha com symbols.json referenciando arquivo removido pós-"pull" simulado (exit 0)');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
   console.log(fail ? '__GATE_FAIL__' : '__GATE_OK__');
   process.exit(fail);
 }

@@ -1,10 +1,10 @@
 {
   "schema": "graph/v0",
-  "generated_at": "2026-11-03T23:12:26.943Z",
+  "generated_at": "2026-11-04T15:34:01.553Z",
   "engine": "native",
-  "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/adopt-ub-mode-practices",
+  "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/fix-graph-query-symbols-fusion",
   "stats": {
-    "nodes": 588,
+    "nodes": 584,
     "edges": 100,
     "languages": [
       "csharp",
@@ -16,23 +16,23 @@
       "shell",
       "ts"
     ],
-    "summaries_stale": 588,
+    "summaries_stale": 584,
     "census": {
       "csharp": 10,
       "go": 15,
       "java": 14,
-      "js": 135,
+      "js": 134,
       "kotlin": 6,
       "python": 21,
-      "shell": 358,
+      "shell": 355,
       "ts": 29
     },
     "layer_coverage": {
-      "classified": 371,
-      "unclassified": 217,
+      "classified": 370,
+      "unclassified": 214,
       "out_of_taxonomy": 0,
-      "denominator": 588,
-      "ratio": 0.631
+      "denominator": 584,
+      "ratio": 0.6336
     }
   },
   "nodes": [
@@ -269,14 +269,6 @@
       "summary": null
     },
     {
-      "id": "template/.forge/scripts/check-attack-premise.sh",
-      "lang": "shell",
-      "loc": 206,
-      "fingerprint": "39b166fbd86f45c57c898fef36cf13f261796f02c147b805c2a508dbfc00887a",
-      "layer": "unknown",
-      "summary": null
-    },
-    {
       "id": "template/.forge/scripts/check-authz.sh",
       "lang": "shell",
       "loc": 17,
@@ -385,14 +377,6 @@
       "lang": "shell",
       "loc": 110,
       "fingerprint": "76d4f6e26d0f8c0cb7c3619429c5c345bc0191383714afa5fd89cb859c153715",
-      "layer": "unknown",
-      "summary": null
-    },
-    {
-      "id": "template/.forge/scripts/check-suppression-reference.sh",
-      "lang": "shell",
-      "loc": 192,
-      "fingerprint": "c0c71b4708ea22ecd29323bca7bd778ff08040efdac036af5bf673231a1f5eb9",
       "layer": "unknown",
       "summary": null
     },
@@ -837,22 +821,6 @@
       "summary": null
     },
     {
-      "id": "template/.forge/scripts/lib/heredoc-hash-lint.mjs",
-      "lang": "js",
-      "loc": 134,
-      "fingerprint": "dda67e90da4bd28114974046abc385f2d9ab26449d527e285989944a136d9e06",
-      "layer": "unknown",
-      "summary": null
-    },
-    {
-      "id": "template/.forge/scripts/lib/hooks-manifest.mjs",
-      "lang": "js",
-      "loc": 303,
-      "fingerprint": "ab1f8bf3d4dabd512ba3f9cf269e173b6cfeefc80b767282ae5d265c8700521e",
-      "layer": "unknown",
-      "summary": null
-    },
-    {
       "id": "template/.forge/scripts/lib/impact-freshness.mjs",
       "lang": "js",
       "loc": 55,
@@ -1033,14 +1001,6 @@
       "lang": "js",
       "loc": 172,
       "fingerprint": "e907c707b1576a69726fcf47f0306ca972c10dec4db1a318f6dda5202ca99f11",
-      "layer": "unknown",
-      "summary": null
-    },
-    {
-      "id": "template/.forge/scripts/lib/liaison-push-union.mjs",
-      "lang": "js",
-      "loc": 94,
-      "fingerprint": "9713395b8757aba27a4f43ce200ffe0e7cad42744b6cb5138d49b56af560f37b",
       "layer": "unknown",
       "summary": null
     },
@@ -1696,7 +1656,7 @@
       "id": "template/.forge/skills/frontend-ui-review/scripts/scan-native-controls.py",
       "lang": "python",
       "loc": 838,
-      "fingerprint": "99f88b6b26d04145bd0f60387a076c8871ee62cf7fd4ab7f6e8796339127ac7a",
+      "fingerprint": "f249c45550f69aff95b322580fabb6eb526fcbbdf5fa34f094752f43bbd29177",
       "layer": "unknown",
       "summary": null
     },
@@ -1746,14 +1706,6 @@
       "loc": 80,
       "fingerprint": "8aad56defb8a7bcc9c68945f1f7450a1d92d9cce50193059aa37ec4defe236aa",
       "layer": "unknown",
-      "summary": null
-    },
-    {
-      "id": "tests/adopt-ub-mode-practices-gate.sh",
-      "lang": "shell",
-      "loc": 748,
-      "fingerprint": "0117a0cae7748998c2d2892f8cf84fb3e4ffd353ffb5e9044f25fc2e6a3a80e7",
-      "layer": "test",
       "summary": null
     },
     {
@@ -2839,8 +2791,8 @@
     {
       "id": "tests/migration-review-gate.sh",
       "lang": "shell",
-      "loc": 459,
-      "fingerprint": "972543b42bf99c62025523d94b3604b9c8520a83e8c6b47bf16357b41e39ce5a",
+      "loc": 457,
+      "fingerprint": "b5a4959ef207cdbf8b05b1efaf213c893d7bca3ca41852534603e30c9d937504",
       "layer": "test",
       "summary": null
     },
@@ -3703,8 +3655,8 @@
     {
       "id": "tests/w223-delegacao-arvore-do-hook-gate.sh",
       "lang": "shell",
-      "loc": 1060,
-      "fingerprint": "64cf2d4ccbd25dcc91affb8871eba836861d27052fcea21ddce97c2ee34fc566",
+      "loc": 1042,
+      "fingerprint": "652d20b18015a39e2549f1a69604c24f10a5231e572b65d43c986514e7ccd5ba",
       "layer": "test",
       "summary": null
     },
@@ -4137,22 +4089,6 @@
       "lang": "shell",
       "loc": 53,
       "fingerprint": "0afd6be43cd85b2a6bfd669a85ee531448b601701ad8d258fe6486723c6ca1a7",
-      "layer": "test",
-      "summary": null
-    },
-    {
-      "id": "tests/w238-settings-json-merge-gate.sh",
-      "lang": "shell",
-      "loc": 1222,
-      "fingerprint": "2c199ecd802e64ec67f307922c9f0ccef672f12cfd950e8cfcc16f7dbcaca065",
-      "layer": "test",
-      "summary": null
-    },
-    {
-      "id": "tests/w250-data-engineer-agents-gate.sh",
-      "lang": "shell",
-      "loc": 1151,
-      "fingerprint": "f30cd7c1d8f39a69fb262407e28ce2db8ed60e3ad022bd0ed810a8404867c76d",
       "layer": "test",
       "summary": null
     },
@@ -4757,14 +4693,6 @@
       "summary": null
     },
     {
-      "id": "tools/spike-complexity-duplication.mjs",
-      "lang": "js",
-      "loc": 214,
-      "fingerprint": "2be31c87400fcdf47a15503e9ef07a6ff9208e47622b76f2cd65131cefdfdbaf",
-      "layer": "unknown",
-      "summary": null
-    },
-    {
       "id": "tools/validate-forge.mjs",
       "lang": "js",
       "loc": 108,
@@ -5229,12 +5157,6 @@
     {
       "from": "template/.forge/scripts/lib/red-evidence-ops.mjs",
       "to": "template/.forge/scripts/lib/defect-scope.mjs",
-      "kind": "import",
-      "resolved": true
-    },
-    {
-      "from": "template/.forge/scripts/lib/red-evidence-ops.mjs",
-      "to": "template/.forge/scripts/lib/red-evidence-ops.mjs",
       "kind": "import",
       "resolved": true
     },

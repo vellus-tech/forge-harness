@@ -1,0 +1,191 @@
+# Spec delta — operations this change applies to the baseline at archive time
+# (schema: .forge/schemas/spec-delta.schema.json; doc §10.4).
+# modify_requirement is FULL REPLACEMENT — never a partial patch.
+# Todos os 10 REQs (bugfix.md §2) entram como add_requirement em forge-harness-template,
+# próximos ids livres REQ-FHT-115..124 — confirmado contra origin/develop (fetch + git show
+# origin/develop:.../spec.yaml, não contra o checkout local da worktree, que estava em base
+# defasada @5996048e): maior id em origin/develop é REQ-FHT-114 (arquivado por
+# adopt-ub-mode-practices, PR #270, bf5e1b1a) no momento desta escrita. Renumeração obrigatória
+# na implementação se outro change arquivar REQ-FHT-115+ antes deste — reconferir com o mesmo
+# comando de fetch antes do /forge:archive. Cenários resumem o critério de aceite integral de
+# bugfix.md — ler lá para o detalhe completo (regexes, numeração de testes, listas nominais).
+operations:
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-115
+    content_ref: bugfix.md#req-01
+    requirement:
+      id: REQ-FHT-115
+      title: "Extrator de símbolos puro com identidade/dedup/desempate definidos"
+      normative: "SHALL"
+      scenarios:
+        - id: SCN-FHT-115-A
+          given: "graph-symbols-extract.mjs::extractSymbols(rel, lang, src) recebe o mesmo src que graph-symbols.mjs indexava antes"
+          when: "build/update roda sobre um corpus multi-linguagem (cs/ts/js/py/java/kt/sh)"
+          then: "produz o mesmo conjunto (name,type,line) do motor antigo, exceto duas categorias anotadas (remoções de fantasma do REQ-02, adições de shell/export-const-arrow), com id=file#name (não-único) e chave de dedup (file,name,type,line)"
+      tests:
+        - tests/w344-graph-query-symbols-gate.sh
+        - tests/w345-graph-symbols-property-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-116
+    content_ref: bugfix.md#req-02
+    requirement:
+      id: REQ-FHT-116
+      title: "Lexer de pilha de frames para comentário/string/regex/substituição de comando"
+      normative: "SHALL"
+      scenarios:
+        - id: SCN-FHT-116-A
+          given: "stripCommentsPreservingLines(src, lang) processa código JS/TS com literal de regex contendo crase/aspas (ex. /`/g) ou código shell com substituição de comando aninhada em aspas duplas externas (ex. x=\"$(grep -E '...' \"$y\" ...)\")"
+          when: "o masking roda sobre esse código seguido de uma declaração real"
+          then: "a declaração real continua indexada com line correta — nenhum estado de string/template-literal/aspas é aberto indevidamente pela paridade aparente de aspas/crase dentro do regex ou da substituição de comando"
+        - id: SCN-FHT-116-B
+          given: "código com comentário // ou #, string com fantasma de declaração (\"class Ghost\"), docstring Python, e heredoc shell contendo texto que bateria com DECL, mais N linhas de comentário inseridas acima de uma declaração real"
+          when: "o masking roda sobre esse código"
+          then: "nenhum fantasma gera símbolo (comentário/string/docstring/heredoc mascarados corretamente) e a declaração real desloca line em exatamente N, nunca mais nem menos"
+      tests:
+        - tests/w344-graph-query-symbols-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-117
+    content_ref: bugfix.md#req-03
+    requirement:
+      id: REQ-FHT-117
+      title: "Integração da extração de símbolos no walk unificado de graph-build.mjs"
+      normative: "SHALL"
+      scenarios:
+        - id: SCN-FHT-117-A
+          given: "graph-build.mjs roda build/update sobre um repositório com arquivos .sh/.go e um diretório oculto declarado em codegraph.include_paths"
+          when: "a extração de símbolos acontece dentro do mesmo walk de build (não um walk próprio)"
+          then: "symbols.json/symbols.idx.tsv cobrem .sh/.go e o diretório include_paths, preservam edges de herança, e não entram no controle de versão (installer/gitignore.patch ganha a entrada symbols.idx.tsv para consumidores; o .gitignore local deste repositório ganha AS DUAS entradas, symbols.json e symbols.idx.tsv)"
+      tests:
+        - tests/w344-graph-query-symbols-gate.sh
+        - tests/w133-gitignore-reconcile-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-118
+    content_ref: bugfix.md#req-04
+    requirement:
+      id: REQ-FHT-118
+      title: "Defasagem de símbolo por mtime/size, não por fingerprint estrutural"
+      normative: "SHALL"
+      scenarios:
+        - id: SCN-FHT-118-A
+          given: "um arquivo indexado é modificado fora de build/update (mtime/size divergem do valor gravado em symbols.json)"
+          when: "graph.sh query roda sobre um símbolo desse arquivo"
+          then: "o resultado ganha o sufixo '(linha possivelmente defasada)' (ou stale:true no --json); tocar só o fingerprint estrutural (node.fingerprint) sem mudar mtime/size não produz esse sinal"
+        - id: SCN-FHT-118-B
+          given: "o corpo (não a assinatura/linha) de uma função já indexada é editado, e graph.sh update roda depois"
+          when: "graph.sh query roda sobre esse símbolo após o update"
+          then: "o sufixo de defasagem NÃO aparece mais — o update real atualizou {mtime,size} em symbols.json porque esses campos entram na comparação de 'mudou de verdade' só para symbols.json (correção do achado B1)"
+      tests:
+        - tests/w344-graph-query-symbols-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-119
+    content_ref: bugfix.md#req-05
+    requirement:
+      id: REQ-FHT-119
+      title: "graph.sh query funde nodes/edges/símbolos com ranking e desempate determinísticos"
+      normative: "SHALL"
+      scenarios:
+        - id: SCN-FHT-119-A
+          given: "symbols.json existe e contém um nome de símbolo que não aparece no caminho do arquivo"
+          when: "graph.sh query <nome> roda (CLI ou --json)"
+          then: "a seção symbols(N) aparece com ranking exato→prefixo→substring e desempate determinístico (name,file,line); sem symbols.json, nodes/edges continuam byte a byte iguais ao comportamento anterior"
+        - id: SCN-FHT-119-B
+          given: "um termo de busca não casa nenhum node, edge nem símbolo"
+          when: "graph.sh query <termo> roda (com ou sem symbols.json presente)"
+          then: "imprime o texto exato da dica de 0-resultados em stdout, exit 0; no --json, o campo hint aparece só nesse caso"
+      tests:
+        - tests/w344-graph-query-symbols-gate.sh
+        - tests/w345-graph-symbols-property-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-120
+    content_ref: bugfix.md#req-06
+    requirement:
+      id: REQ-FHT-120
+      title: "graph.sh update honesto, com escopo de comparação diferenciado por artefato"
+      normative: "SHALL"
+      scenarios:
+        - id: SCN-FHT-120-A
+          given: "dois update consecutivos rodam sem nenhum arquivo tocado"
+          when: "o segundo update é observado"
+          then: "nenhum dos 5 artefatos (graph.json/symbols.json/symbols.idx.tsv/fingerprints.json/summaries.json) é regravado (mtime inalterado), e a documentação (update.md, descrição da skill) deixa de afirmar que nada é reprocessado"
+      tests:
+        - tests/w344-graph-query-symbols-gate.sh
+        - tests/w41-graph-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-121
+    content_ref: bugfix.md#req-07
+    requirement:
+      id: REQ-FHT-121
+      title: "Integridade referencial entre symbols.json e graph.json"
+      normative: "SHALL"
+      scenarios:
+        - id: SCN-FHT-121-A
+          given: "symbols.json referencia um symbol.file que não existe como node.id em graph.json"
+          when: "graph.sh validate roda"
+          then: "reprova com mensagem explícita mandando rodar graph.sh build; sem symbols.json presente, a checagem é pulada sem reprovar"
+      tests:
+        - tests/w344-graph-query-symbols-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-122
+    content_ref: bugfix.md#req-08
+    requirement:
+      id: REQ-FHT-122
+      title: "graph.sh symbols como wrapper fino, sem efeito colateral no grafo de arquivos"
+      normative: "SHALL"
+      scenarios:
+        - id: SCN-FHT-122-A
+          given: "graph.sh symbols roda isolado, sem um build/update prévio na mesma invocação"
+          when: "a execução termina"
+          then: "graph.json/cache/fingerprints.json/report.md não têm o mtime alterado; layer vem do graph.json existente quando presente, 'unknown' quando ausente"
+      tests:
+        - tests/w344-graph-query-symbols-gate.sh
+        - tests/graph-symbols-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-123
+    content_ref: bugfix.md#req-09
+    requirement:
+      id: REQ-FHT-123
+      title: "Fiação de documentação/rule declarando a busca por símbolo"
+      normative: "SHALL"
+      scenarios:
+        - id: SCN-FHT-123-A
+          given: "query.md (corpo + frontmatter description), lsp-impact-analysis.md, implement.md e README.md (linha nova no bloco 'Code graph & arquitetura' — hoje não existe nenhuma linha de graph.sh query ali) são varridos pela frase canônica 'busca por nome de símbolo (classe/função) com arquivo:linha, não só por caminho de arquivo'"
+          when: "grep -L roda sobre os quatro arquivos-alvo"
+          then: "saída vazia (os quatro contêm a frase exata); npm run build:plugin não produz diff pendente entre template/.forge/commands/ e plugin/forge/"
+        - id: SCN-FHT-123-B
+          given: "docs/refer/slash-commands.md:93 e graph.sh:7/:59 (cabeçalho e string de uso do dispatcher) citam a mudança em prosa própria (comentário bash/linha de tabela, não a frase canônica inteira); lsp-impact-analysis.md:54 ('não entende semântica de símbolo') precisa coexistir com a frase canônica nova sem contradizê-la"
+          when: "os três locais são conferidos"
+          then: "graph.sh:7/:59 e slash-commands.md:93 citam a seção symbols do retorno de query; lsp-impact-analysis.md:54 é ajustado para qualificar a limitação (sem resolução de tipo/call graph) sem negar a localização por nome que a frase canônica de :56 afirma"
+      tests:
+        - tests/w344-graph-query-symbols-gate.sh
+  - op: add_requirement
+    capability: forge-harness-template
+    requirement_id: REQ-FHT-124
+    content_ref: bugfix.md#req-10
+    requirement:
+      id: REQ-FHT-124
+      title: "Degradação graciosa de graph.sh query em arquivo ausente/corrompido"
+      normative: "SHALL"
+      scenarios:
+        - id: SCN-FHT-124-A
+          given: "symbols.json referencia um arquivo que foi apagado (ENOENT no stat() daquele arquivo)"
+          when: "graph.sh query roda sobre o símbolo correspondente"
+          then: "aquele resultado mostra o sufixo '(arquivo não encontrado — rode graph.sh build)' e, no --json, stale:true + missing:true; nenhum WARN em stderr; exit 0; os demais resultados não são afetados"
+        - id: SCN-FHT-124-B
+          given: "symbols.json está corrompido (JSON parcial, parse falha)"
+          when: "graph.sh query roda"
+          then: "emite WARN em stderr ('symbols.json inválido — mostrando só nodes/edges; rode graph.sh build'), degrada para nodes/edges-only (seção symbols omitida por completo), exit 0, sem crash"
+        - id: SCN-FHT-124-C
+          given: "symbols.json tem uma entrada legada sem mtime/size (schema anterior a esta fatia)"
+          when: "graph.sh query roda sobre esse símbolo"
+          then: "a entrada é tratada como 'não verificável' — não marca stale, sem WARN, sem crash — comportamento diferente dos outros dois casos, nunca generalizado como 'aviso em todos os três'"
+      tests:
+        - tests/w344-graph-query-symbols-gate.sh

@@ -590,6 +590,108 @@ async function main() {
     ok('pbt-p5', `P5 (invariância cosmética) — ${r.runs} casos, seed ${r.seed}`);
   });
 
+  // === [5b]/[12]/[12b]/[22a] — `--if-changed` honesto em graph-build.mjs (STORY-04/TASK-06) ===
+  // RED-first (DD-08, export/flag novo em módulo existente): hoje graph-build.mjs ignora
+  // `--if-changed` (flag inexistente) e sempre regrava incondicionalmente — os 4 cenários abaixo
+  // detectam isso por COMPORTAMENTO real (mtime do arquivo de saída), nunca por diff de produção.
+  await tryCaseAsync('5b', async () => {
+    const { execFileSync } = require('node:child_process');
+    const BUILD = path.join(LIB, 'graph-build.mjs');
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-ifchanged-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'src', 'a.ts'), 'export class A {}\n');
+      execFileSync('node', [BUILD, tmp], { stdio: 'pipe' });
+      const graphPath = path.join(tmp, '.forge/graph/graph.json');
+      const mtime1 = fs.statSync(graphPath).mtimeMs;
+      execFileSync('node', [BUILD, tmp, '--if-changed'], { stdio: 'pipe' });
+      const mtime2 = fs.statSync(graphPath).mtimeMs;
+      assert.equal(mtime2, mtime1, 'graph.json não deveria ser regravado sob --if-changed quando nada mudou');
+      ok('5b', 'graph.json não regravado sob --if-changed sem mudança real');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  await tryCaseAsync('12', async () => {
+    const { execFileSync } = require('node:child_process');
+    const BUILD = path.join(LIB, 'graph-build.mjs');
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-honest-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'src', 'a.ts'), 'export class A {}\n');
+      fs.writeFileSync(path.join(tmp, 'script.sh'), '#!/usr/bin/env bash\nfoo() {\n  echo hi\n}\n');
+      execFileSync('node', [BUILD, tmp], { stdio: 'pipe' });
+      const artifacts = [
+        '.forge/graph/graph.json',
+        '.forge/graph/cache/fingerprints.json',
+        '.forge/graph/cache/summaries.json',
+        '.forge/graph/symbols.json',
+        '.forge/graph/symbols.idx.tsv',
+      ].map((p) => path.join(tmp, p));
+      execFileSync('node', [BUILD, tmp, '--if-changed'], { stdio: 'pipe' });
+      const before = artifacts.map((p) => fs.statSync(p).mtimeMs);
+      execFileSync('node', [BUILD, tmp, '--if-changed'], { stdio: 'pipe' });
+      const after = artifacts.map((p) => fs.statSync(p).mtimeMs);
+      for (let i = 0; i < artifacts.length; i++) {
+        assert.equal(after[i], before[i], `${artifacts[i]} foi regravado no segundo update sem toque real`);
+      }
+      ok('12', 'dois updates --if-changed consecutivos sem toque real: zero regravação nos 5 artefatos (mtime)');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  await tryCaseAsync('12b', async () => {
+    const { execFileSync } = require('node:child_process');
+    const BUILD = path.join(LIB, 'graph-build.mjs');
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-corrupt-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'src', 'a.ts'), 'export class A {}\n');
+      execFileSync('node', [BUILD, tmp], { stdio: 'pipe' });
+      const graphPath = path.join(tmp, '.forge/graph/graph.json');
+      fs.writeFileSync(graphPath, '{ not valid json ');
+      execFileSync('node', [BUILD, tmp, '--if-changed'], { stdio: 'pipe' });
+      const parsed = JSON.parse(fs.readFileSync(graphPath, 'utf8'));
+      assert.equal(parsed.schema, 'graph/v0', 'graph.json corrompido deveria ser reescrito incondicionalmente sob --if-changed');
+      ok('12b', 'graph.json corrompido em disco força escrita incondicional sob --if-changed');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  await tryCaseAsync('22a', async () => {
+    const { execFileSync } = require('node:child_process');
+    const BUILD = path.join(LIB, 'graph-build.mjs');
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-mtime-size-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      const target = path.join(tmp, 'src', 'f.ts');
+      fs.writeFileSync(target, 'export function foo() {\n  return 1;\n}\n');
+      execFileSync('node', [BUILD, tmp], { stdio: 'pipe' });
+      const symbolsPath = path.join(tmp, '.forge/graph/symbols.json');
+      const before = JSON.parse(fs.readFileSync(symbolsPath, 'utf8'));
+      const beforeSym = before.symbols.find((s) => s.name === 'foo');
+      assert.ok(beforeSym, 'símbolo foo deveria existir antes da edição');
+
+      // edita só o CORPO (mesmo name/line/type) — tamanho do arquivo muda
+      fs.writeFileSync(target, 'export function foo() {\n  return 12345;\n}\n');
+      const future = new Date(Date.now() + 5000);
+      fs.utimesSync(target, future, future);
+
+      execFileSync('node', [BUILD, tmp, '--if-changed'], { stdio: 'pipe' });
+      const after = JSON.parse(fs.readFileSync(symbolsPath, 'utf8'));
+      const afterSym = after.symbols.find((s) => s.name === 'foo');
+      assert.ok(afterSym, 'símbolo foo deveria existir depois da edição');
+      assert.notEqual(afterSym.size, beforeSym.size, 'size deveria mudar após editar o corpo da função');
+      assert.notEqual(afterSym.mtime, beforeSym.mtime, 'mtime deveria mudar após editar o corpo da função');
+      ok('22a', `{mtime,size} de symbols.json atualizados após editar só o corpo (size ${beforeSym.size}->${afterSym.size})`);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
   console.log(fail ? '__GATE_FAIL__' : '__GATE_OK__');
   process.exit(fail);
 }

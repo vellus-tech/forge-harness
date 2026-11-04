@@ -299,8 +299,9 @@ for (const f of files) {
 
 // carry over cached summaries by fingerprint (zero tokens on cosmetic changes)
 let summariesStale = 0;
-const prevSummaries = existsSync(join(cacheDir, 'summaries.json'))
-  ? JSON.parse(readFileSync(join(cacheDir, 'summaries.json'), 'utf8')) : {};
+const cachedSummaries = readJsonSafe(join(cacheDir, 'summaries.json'));
+const prevSummaries = cachedSummaries && typeof cachedSummaries === 'object' && !Array.isArray(cachedSummaries)
+  ? cachedSummaries : {};
 for (const n of nodes) {
   const cached = prevSummaries[n.id];
   if (cached && cached.fingerprint === n.fingerprint && cached.summary) n.summary = cached.summary;

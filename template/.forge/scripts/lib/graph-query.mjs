@@ -38,7 +38,8 @@ export function zeroResultsHint(term) {
 // =============================================================================================
 export function readSymbolsSafely(root) {
   const p = join(root, '.forge/graph/symbols.json');
-  if (!existsSync(p)) return { symbols: [], warning: null };
+  const unavailable = 'aviso: symbols.json ausente ou em formato legado — rode `graph.sh update` para habilitar busca por símbolo';
+  if (!existsSync(p)) return { symbols: [], warning: unavailable, invalid: true };
 
   let raw;
   try {
@@ -61,7 +62,7 @@ export function readSymbolsSafely(root) {
   // (ex. só .go), que seria um falso positivo (design.md DD-07, cenário [16b]).
   let warning = null;
   if (symbols.length > 0 && !symbols.some((s) => s && s.mtime != null)) {
-    warning = 'WARN: symbols.json em formato legado (sem mtime/size) — defasagem não verificável';
+    warning = unavailable;
   }
 
   return { symbols, warning };

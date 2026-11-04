@@ -61,7 +61,7 @@ gates:
 dev_loop:
   sharded: false
   stories_path: stories/
-  epic_context_compiled: false
+  epic_context_compiled: true
 quick_plan:
   enabled: false
   skipped_phases: []

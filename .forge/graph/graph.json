@@ -837,6 +837,22 @@
       "summary": null
     },
     {
+      "id": "template/.forge/scripts/lib/heredoc-hash-lint.mjs",
+      "lang": "js",
+      "loc": 134,
+      "fingerprint": "dda67e90da4bd28114974046abc385f2d9ab26449d527e285989944a136d9e06",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/hooks-manifest.mjs",
+      "lang": "js",
+      "loc": 303,
+      "fingerprint": "ab1f8bf3d4dabd512ba3f9cf269e173b6cfeefc80b767282ae5d265c8700521e",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
       "id": "template/.forge/scripts/lib/impact-freshness.mjs",
       "lang": "js",
       "loc": 55,
@@ -1017,6 +1033,14 @@
       "lang": "js",
       "loc": 172,
       "fingerprint": "e907c707b1576a69726fcf47f0306ca972c10dec4db1a318f6dda5202ca99f11",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/liaison-push-union.mjs",
+      "lang": "js",
+      "loc": 94,
+      "fingerprint": "9713395b8757aba27a4f43ce200ffe0e7cad42744b6cb5138d49b56af560f37b",
       "layer": "unknown",
       "summary": null
     },
@@ -4117,6 +4141,22 @@
       "summary": null
     },
     {
+      "id": "tests/w238-settings-json-merge-gate.sh",
+      "lang": "shell",
+      "loc": 1222,
+      "fingerprint": "2c199ecd802e64ec67f307922c9f0ccef672f12cfd950e8cfcc16f7dbcaca065",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w250-data-engineer-agents-gate.sh",
+      "lang": "shell",
+      "loc": 1151,
+      "fingerprint": "f30cd7c1d8f39a69fb262407e28ce2db8ed60e3ad022bd0ed810a8404867c76d",
+      "layer": "test",
+      "summary": null
+    },
+    {
       "id": "tests/w30-schemas-gate.sh",
       "lang": "shell",
       "loc": 105,
@@ -5189,6 +5229,12 @@
     {
       "from": "template/.forge/scripts/lib/red-evidence-ops.mjs",
       "to": "template/.forge/scripts/lib/defect-scope.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/red-evidence-ops.mjs",
+      "to": "template/.forge/scripts/lib/red-evidence-ops.mjs",
       "kind": "import",
       "resolved": true
     },

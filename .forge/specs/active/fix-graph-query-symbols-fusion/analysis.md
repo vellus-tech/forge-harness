@@ -23,7 +23,7 @@ Análise feita sobre a árvore de trabalho do worktree `fix/graph/query-symbols-
 ## Achados resolvidos
 
 - **A1**: artefatos do change (`bugfix.md`, `proposal.md`, `manifest.yaml`, `approvals.yaml`, `spec-delta.yaml`, `evidence/`, `impact.json`, `analysis.md`) commitados nesta sessão, SHA a confirmar após o commit. Carimbos de `approvals.yaml` passam a referenciar commits que de fato contêm o artefato aprovado a partir deste ponto; histórico anterior (commits `5996048e`/`b174b297` etc., onde o artefato ainda não existia) permanece registrado como estava — não é reescrito.
-- **A2**: branch rebaseada sobre `origin/develop` (`b9bfe0ca`) nesta sessão; contagens de `scripts/`/badge em `tasks.md` recalculadas contra o valor real pós-rebase (178→179/180/181 scripts, 243→244/245 gates — confirmar números exatos após o rebase).
+- **A2**: branch rebaseada sobre `origin/develop` (`b9bfe0ca`) nesta sessão; contagens de `scripts/`/badge em `tasks.md` recalculadas contra o valor real pós-rebase: base 178 scripts/243 gates (confirmado por `find`), TASK-03 178→179/243→244, TASK-04 179→180, TASK-09 180→181, TASK-14 244→245.
 - **A11**: `.forge/graph/symbols.json` legado removido; `graph.sh update`/`impact.sh --change` rerodados sobre estado limpo.
 
 ## Pendências operacionais (não bloqueiam o artefato)

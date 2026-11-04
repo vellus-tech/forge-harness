@@ -29,14 +29,9 @@ case "$cmd" in
     node "$SCRIPT_DIR/lib/validate-graph.mjs" "$GRAPH" "$ROOT" ;;
   query)
     [ -f "$GRAPH" ] || { echo "FAIL (no graph — run: graph.sh build)"; exit 1; }
-    term="${1:-}"; [ -n "$term" ] || { echo "FAIL (usage: graph.sh query <term>)"; exit 1; }
-    node -e '
-      const g=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));const t=process.argv[2].toLowerCase();
-      const n=g.nodes.filter(x=>x.id.toLowerCase().includes(t));
-      const e=g.edges.filter(x=>x.from.toLowerCase().includes(t)||x.to.toLowerCase().includes(t));
-      console.log(`nodes (${n.length}):`);n.slice(0,20).forEach(x=>console.log(`  ${x.id} [${x.lang}/${x.layer}] loc=${x.loc}`));
-      console.log(`edges (${e.length}):`);e.slice(0,20).forEach(x=>console.log(`  ${x.from} -> ${x.to} (${x.kind}${x.resolved?"":" unresolved"})`));
-    ' "$GRAPH" "$term" ;;
+    # termo e --json podem vir em qualquer posição relativa (DD-09) — validação fica no módulo,
+    # fonte única de verdade do contrato (STORY-05/TASK-09).
+    node "$SCRIPT_DIR/lib/graph-query.mjs" "$GRAPH" "$ROOT" "$@" ;;
   path)
     [ -f "$GRAPH" ] || { echo "FAIL (no graph — run: graph.sh build)"; exit 1; }
     a="${1:-}"; b="${2:-}"; [ -n "$a" ] && [ -n "$b" ] || { echo "FAIL (usage: graph.sh path <from> <to>)"; exit 1; }

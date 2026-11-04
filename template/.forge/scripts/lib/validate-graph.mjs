@@ -11,7 +11,7 @@
 // Output: "OK graph (N nodes, M edges; W warnings)" or "FAIL (<reasons>)".
 // Usage: validate-graph.mjs <graph.json> [<repo-root>]
 import { readFileSync, existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { resolve, dirname, join } from 'node:path';
 import { execSync } from 'node:child_process';
 import { classifyOrphans, readLayerMap } from './graph-layers.mjs';
 
@@ -83,6 +83,32 @@ if (orphanIds.length) {
     const more = candidates.length > 10 ? `, +${candidates.length - 10} more` : '';
     warnings.push(`${candidates.length} orphan node(s) to review — dead code or unresolved imports: ${shown}${more}`
       + (byDesign.length ? ` (${byDesign.length} further orphan(s) are by design — ${why} — and are not reported)` : ''));
+  }
+}
+
+// integridade referencial symbols.json <-> graph.json (STORY-04/TASK-08, DD-06). Ausência de
+// symbols.json pula a checagem inteira (sem FAIL — controle negativo [28]): a camada de
+// símbolos é opt-in, e não ter rodado `graph.sh symbols`/`update` não é um defeito do grafo de
+// arquivos. symbols.json corrompido no parse é FAIL DEDICADO (mensagem distinta de "órfão"),
+// mesmo padrão já usado acima para graph.json corrompido — nunca deixa o processo cair com
+// stack trace não tratado. `{mtime,size}` divergente (arquivo ainda existe, só mudou de
+// conteúdo) é staleness COSMÉTICA e NUNCA reprova aqui — só a ausência total do arquivo
+// (symbol.file sem node.id correspondente em graph.json) é órfão de verdade e reprova.
+const symbolsPath = join(dirname(graphPath), 'symbols.json');
+if (existsSync(symbolsPath)) {
+  let symbolsDoc;
+  try { symbolsDoc = JSON.parse(readFileSync(symbolsPath, 'utf8')); }
+  catch (e) { errors.push(`symbols.json parse: ${e.message}`); symbolsDoc = null; }
+  if (symbolsDoc && Array.isArray(symbolsDoc.symbols)) {
+    const orphanSymbolFiles = new Set();
+    for (const s of symbolsDoc.symbols) {
+      if (s && s.file && !ids.has(s.file)) orphanSymbolFiles.add(s.file);
+    }
+    for (const f of [...orphanSymbolFiles].sort()) {
+      errors.push(`orphan symbol file: "${f}" is referenced by symbols.json but has no matching node in graph.json (referential integrity)`);
+    }
+  } else if (symbolsDoc && !Array.isArray(symbolsDoc.symbols)) {
+    errors.push('symbols.json: symbols must be an array');
   }
 }
 

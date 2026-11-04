@@ -1,0 +1,4 @@
+nodes (1):
+  src/handlers/processar-pedido.js [js/application] loc=4
+edges (1):
+  src/handlers/index.js -> src/handlers/processar-pedido.js (import)

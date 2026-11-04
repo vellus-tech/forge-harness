@@ -64,7 +64,7 @@ Executa uma onda de TASKs de um módulo deste projeto, sob o tracker em `docs/pr
      — vínculo determinista módulo→change para o manifest não congelar em `tasks-ready`; no-op se
      o módulo não tiver change SDD mapeável
    - Atualizar `PROGRESS-TRACKING.md` no `main`
-5. **Onda falhou (algum `[!]`)** → bloco "Última falha" preenchido no tracker com sintoma + próxima ação humana. Operador resolve e re-invoca.
+5. **Onda falhou (algum `[!]`)** → bloco "Última falha" preenchido no tracker com sintoma + próxima ação humana. **O bloco acumula uma entrada por ocorrência (nunca sobrescreve as anteriores)** — a partir da 2ª ocorrência consecutiva do mesmo par (TASK, Gate) desde a última retomada informada, a entrada também exige `Premissa:`/`Ator(es) com o desequilíbrio:` (receita "Premissa nomeada" em `.forge/skills/gate-runner/SKILL.md`; mecanismo em `.forge/agents/coding/task-coder.md` §3.7). Operador resolve e re-invoca.
 
 ## Exemplos
 

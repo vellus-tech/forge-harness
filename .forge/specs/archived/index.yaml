@@ -79,3 +79,7 @@ archived:
     archived_at: "2026-11-03"
     kind: baseline_update
     path: 2026-11-03-extend-kb-corpus-sources
+  - change_id: adopt-ub-mode-practices
+    archived_at: "2026-11-03"
+    kind: baseline_update
+    path: 2026-11-03-adopt-ub-mode-practices

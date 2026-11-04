@@ -17,6 +17,24 @@ Gates deterministas complementam os loops builder→validator (probabilísticos)
 
 ## Receitas
 
+**Premissa nomeada** (REQ-01/REQ-02, "Attack the Premise" — `/forge:implement` e `coding-loop`/`task-coder`, só quando a causa do `[!]` é literalmente "gate falha após 2 tentativas de correção"): depois de escrever o bloco de falha (`tasks.md`: bloco único; `PROGRESS-TRACKING.md`: entrada acumulada, nunca sobrescrita), rode:
+
+```bash
+bash .forge/scripts/check-attack-premise.sh --file <tasks.md|PROGRESS-TRACKING.md> --task-id <TASK-NN> >/tmp/gate-attack-premise.log 2>&1 \
+  && echo "OK attack-premise:<TASK-NN>" || echo "FAIL attack-premise:<TASK-NN> ($(tail -1 /tmp/gate-attack-premise.log))"
+```
+
+Reprovado: complete `Gate:`/`Premissa:`/`Ator(es) com o desequilíbrio:` antes de reportar o HALT ao humano — não emita o relatório com os campos vazios. `--list --file <path>` lista toda TASK com os campos já preenchidos, insumo da seção "Premissas atacadas" de `verify.md`.
+
+**Supressão sem referência** (REQ-03/REQ-04 — `@ts-ignore`/`@ts-expect-error`/`@ts-nocheck`/`eslint-disable*` em JS/TS, `# noqa`/`# type: ignore` em Python, sobre as linhas ADICIONADAS do diff, nunca o arquivo inteiro): chamado em `/forge:ship` (`--staged`, antes do commit) e no hook `pre-push` (`--range <base>...<head>`, base já resolvida pela cadeia de `_redfirst_resolve_base`):
+
+```bash
+bash .forge/scripts/check-suppression-reference.sh --staged >/tmp/gate-suppression-ref.log 2>&1 \
+  && echo "OK suppression-ref" || echo "FAIL suppression-ref ($(tail -1 /tmp/gate-suppression-ref.log))"
+```
+
+Reprovado: a mensagem nomeia `<arquivo>:<linha>` e o trecho sem referência — adicione `LDG-NNNN`/`ADR-NNNN`/`ISSUE-NNN`/`issue #NNN`/`closes #NNN`/`fixes #NNN` ao comentário de supressão antes de prosseguir. Código gerado/vendorizado e todo `.forge/**` da raiz do repositório ficam fora do escopo automaticamente; exclusão adicional do consumidor via `.forge/suppression-scan-exclude.txt` (glob por linha, `# motivo: <justificativa>` obrigatório).
+
 **Parseabilidade** (parser nativo do formato):
 
 ```bash

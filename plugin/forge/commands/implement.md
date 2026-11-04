@@ -9,7 +9,7 @@ Argumentos: `$ARGUMENTS` (change-id opcional; sem argumento, use o único change
 
 ## Pré-flight (obrigatório)
 
-1. Status `tasks-ready` (ou `implementing` — retomada idempotente: continue da primeira task não-`[X]`).
+1. Status `tasks-ready` (ou `implementing` — retomada idempotente: continue da primeira task não-`[X]`). **Pré-condição de retomada (REQ-01/REQ-02):** se a primeira task não-`[X]` estiver em `[!]` por causa literalmente "gate falha após 2 tentativas de correção", rode `bash .forge/scripts/check-attack-premise.sh --file tasks.md --task-id <TASK-NN>` antes de reinvocar qualquer correção — reprovado, **recuse a retomada** e peça ao humano para completar `Premissa:`/`Ator(es) com o desequilíbrio:` no bloco da task; as outras duas causas do `[!]` (dependência externa indisponível, decisão de produto necessária) não exigem essa checagem.
 2. **Scale ≥ 3:** `analysis.md` deve existir sem achados BLOCKER abertos (`/forge:analyze` é obrigatório antes — pare e indique se ausente).
 3. **Scale ≥ 3:** trabalhe em worktree dedicado — carregue a skill `using-git-worktrees` (localização canônica `.forge/worktrees/<change-id>`). Posse de worktree se confere, não se presume: ao criar, grave um marcador de posse (sessão e horário); antes de qualquer operação destrutiva (`reset`, `checkout -f`, `clean`) confira o marcador e pare se for de outra sessão. Toda operação endereça por caminho absoluto com `git -C`, com `pwd`/`git branch --show-current` confirmados contra o esperado antes de escrever — o cwd herdado pelo shell não é o que o mandato diz em prosa. Enquanto houver sessão par ativa no mesmo repositório, estado que importa não fica em árvore de trabalho: commite assim que existe.
 4. **ADR de origem:** se o change deriva de um ADR, confira que o ADR está `Aceito` (não substituído/rejeitado) — ADR rejeitado só em conversa, sem o arquivo atualizado, deixa o plano antigo executável; pare e escale se o status não bate com o que o change assume.
@@ -65,6 +65,8 @@ Para cada task `[ ]` cuja(s) dependência(s) estejam `[X]`:
 5. Marque `[X]` e emita **uma linha** de progresso (`TASK-NN ✓ <título> (<sha curto>)`) — sem resumos entre tasks (§17.6).
 
 **Falha irrecuperável** (gate falha após 2 tentativas de correção, dependência externa indisponível, decisão de produto necessária): marque `[!]`, **pare a execução** e reporte o que travou — humano decide. Não pule para a próxima task de outra wave.
+
+**Premissa nomeada (REQ-01/REQ-02) — só quando a causa é literalmente "gate falha após 2 tentativas de correção":** antes de reportar o HALT, acrescente ao bloco `[!]` da task em `tasks.md`, imediatamente após a linha `> FALHA: gate falha após 2 tentativas de correção — <sintoma>`, as linhas `> Gate: <nome do teste/gate que reprovou>`, `> Premissa: <a suposição que as duas tentativas compartilhavam>` e `> Ator(es) com o desequilíbrio: <quem/o que carrega a responsabilidade mal distribuída>`. Rode `bash .forge/scripts/check-attack-premise.sh --file tasks.md --task-id <TASK-NN>`: reprovado, complete os campos antes de emitir o relatório de HALT ao humano — não reporte com os campos vazios. As outras duas causas do `[!]` não exigem nenhum campo novo nem essa chamada.
 
 **Bloqueio que não pode ser resolvido pela sessão:** registre o impedimento também no ledger durável (`/forge:ledger`), além da pasta do change — um gate escopado pelos paths tocados pode recusar o próprio registro de deferral dentro da pasta do change (push que só toca registro de estado, não entrega), e o ledger sobrevive mesmo quando isso acontece.
 

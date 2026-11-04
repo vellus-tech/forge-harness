@@ -226,19 +226,21 @@ ZERO2=0000000000000000000000000000000000000000
 # copiado de .forge/hooks/) e .forge/scripts/ só com check-migration-review.sh +
 # lib/check-migration-review.mjs reais — nunca .forge/scripts/ inteiro (isso incluiria
 # scripts/tests/ e ativaria HARNESS_SUITE, além dos demais blocos delegados). Os blocos irmãos
-# (DOCS_LIB, RED_LIB, AI_CHECK, ACKS) recebem stub de uma linha, mesmo padrão de
-# tests/w223-delegacao-arvore-do-hook-gate.sh, para que [12]/[13] fiquem determinísticos.
+# (DOCS_LIB, RED_LIB, AI_CHECK, ACKS, SUPPRESSION_CHECK) recebem stub de uma linha, mesmo padrão
+# de tests/w223-delegacao-arvore-do-hook-gate.sh, para que [12]/[13] fiquem determinísticos.
 mkminrepo() {
   local d="$1"
   mkdir -p "$d/.forge/hooks/git/lib" "$d/.forge/scripts/lib"
   cp "$PRE_PUSH" "$d/.forge/hooks/git/pre-push"
   chmod +x "$d/.forge/hooks/git/pre-push"
   printf '#!/usr/bin/env bash\ncheck_docs_reviewed() { return 0; }\n' > "$d/.forge/hooks/git/lib/check-docs-reviewed.sh"
-  printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n' > "$d/.forge/hooks/git/lib/check-red-first.sh"
+  printf '#!/usr/bin/env bash\ncheck_red_first() { return 0; }\n_redfirst_resolve_base() { printf "%%s\\n" "$1"; }\n' > "$d/.forge/hooks/git/lib/check-red-first.sh"
   printf '#!/usr/bin/env bash\nexit 0\n' > "$d/.forge/scripts/check-ai-attribution.sh"
   chmod +x "$d/.forge/scripts/check-ai-attribution.sh"
   printf '#!/usr/bin/env bash\nexit 0\n' > "$d/.forge/scripts/check-liaison-acks.sh"
   chmod +x "$d/.forge/scripts/check-liaison-acks.sh"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$d/.forge/scripts/check-suppression-reference.sh"
+  chmod +x "$d/.forge/scripts/check-suppression-reference.sh"
   cp "$SH" "$d/.forge/scripts/check-migration-review.sh"
   chmod +x "$d/.forge/scripts/check-migration-review.sh"
   cp "$MJS" "$d/.forge/scripts/lib/check-migration-review.mjs"

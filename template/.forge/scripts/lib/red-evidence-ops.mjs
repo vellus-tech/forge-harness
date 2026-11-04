@@ -481,9 +481,9 @@ async function cmdEnsure(changeDir, argv) {
     if (entry.status === 'waived') { skippedWaived++; continue; }
     const view = projectEntryToFlat(current.change_id, entry);
     if (!view.test_path || !view.command) { skippedIncomplete++; continue; }
-    // eslint-disable-next-line no-await-in-loop -- cada entrada é UM teste real, deliberadamente
-    // sequencial (mesmo espírito do "sem cache" da Onda E: custo proporcional, nunca paralelo
-    // demais para o replay efêmero em worktree git que lib/red-replay.mjs já usa).
+    // eslint-disable-next-line no-await-in-loop -- LDG-0232: cada entrada é UM teste real,
+    // deliberadamente sequencial (mesmo espírito do "sem cache" da Onda E: custo proporcional,
+    // nunca paralelo demais para o replay efêmero em worktree git que lib/red-replay.mjs já usa).
     const result = await runReplay({ root, evidence: view, timeoutS });
     const persisted = persistReplayResult(ev, current, result, { id: entry.id });
     if (persisted.refused) {

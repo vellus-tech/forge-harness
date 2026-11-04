@@ -52,7 +52,11 @@ Grave `verification.md` no change:
 ## Checks deterministas
 (resumo do verification.yaml + paths dos logs)
 ## Desvios e observações
+## Premissas atacadas
+(gerado por `check-attack-premise.sh --list`, nunca escrito à mão)
 ```
+
+**`## Premissas atacadas`** (REQ-01) é gerada, nunca escrita à mão: rode `bash .forge/scripts/check-attack-premise.sh --list --file tasks.md` e, quando o change usou `coding-loop`, também `--list --file docs/product/modules/<modulo>/PROGRESS-TRACKING.md`; cole a saída (toda TASK com `Premissa:`/`Ator(es) com o desequilíbrio:` preenchidos) nesta seção. Zero premissas atacadas é um resultado normal — a seção então registra a contagem `0`, nunca é omitida.
 
 A coluna `Status` usa só dois tokens, e nenhum outro: `VERIFICADO` quando o nível de teste rodou de verdade contra o comportamento real, e `PENDENTE` quando a saída aplicada foi a 3ª da ordem de `testing/change-test-contract.md` (evidência pendente declarada explicitamente após esgotadas as duas primeiras). Nunca use "não verificado" nem qualquer variante que apenas nega o token positivo — a negação por prefixo passa despercebida numa leitura rápida da tabela; os dois tokens têm de ser palavras inteiras e distintas entre si. Um REQ com `PENDENTE` em qualquer linha impede `## Resultado: APROVADO`.
 

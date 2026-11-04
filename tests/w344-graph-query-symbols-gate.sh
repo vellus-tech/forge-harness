@@ -26,10 +26,16 @@
 #   [32b]  oráculo de corpus real shell (.sh de template/.forge/scripts/**) — plausível, sem crash
 #   PBT P2 (sem duplicata), P4-herança (invariância sob permutação), P5 (invariância cosmética)
 #
+# STORY-03: [DD-02] walk unificado puro (graph-walk.mjs, TASK-04). [5a] graph-build.mjs grava
+# symbols.json/symbols.idx.tsv de verdade (TASK-05) — determinismo (dois builds), projeção exata
+# idx<->json (P6), herança sobrevive à integração e é independente de ordem física do walk (26b).
+#
 # TDD red-first (DD-08): o módulo graph-symbols-extract.mjs é novo sob template/.forge/scripts/
 # (isInfraPath) — o commit vermelho desta task toca só este arquivo em tests/. Red via import()
 # dinâmico + try/catch, convertendo ERR_MODULE_NOT_FOUND numa asserção assert.fail própria
-# (cenário [0]), nunca um stub neutro de produção.
+# (cenário [0]), nunca um stub neutro de produção. [5a]/[DD-02] são export novo em módulo
+# existente/novo: red por comportamento ausente (symbols.json não gravado / módulo ausente),
+# nunca por diff de produção no commit vermelho.
 set -uo pipefail
 unset CLAUDE_CODE_SESSION_ID
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_CONFIG
@@ -136,6 +142,97 @@ async function main() {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
     ok('DD-02', 'walkSourceFiles pura: {files,census} sem closure, respeita SKIP_DIRS/SKIP_UNDER_BIN/include_paths, inclui .sh/.go');
+  });
+
+  // === [5a] graph-build.mjs grava symbols.json/symbols.idx.tsv de verdade (STORY-03/TASK-05) ===
+  // RED-first (DD-08, export novo em módulo existente): roda `graph.sh build` (via node direto no
+  // script, mesma invocação) sobre um fixture sintético e verifica que os dois artefatos existem,
+  // têm conteúdo coerente, são determinísticos entre duas rodadas (byte a byte, incluindo
+  // mtime/size) e que a herança sobrevive à integração E é independente da ordem física do walk
+  // (26b — duas cópias do mesmo fixture, criadas em ORDEM INVERSA de arquivo, mtime forçado igual
+  // via utimesSync para isolar a variável "ordem" de "tempo de criação").
+  await tryCaseAsync('5a', async () => {
+    const { execFileSync } = require('node:child_process');
+    const BUILD = path.join(LIB, 'graph-build.mjs');
+
+    function writeProject(dir, order) {
+      // order: array de [relPath, conteúdo], escrito NESTA ordem — simula walk físico distinto.
+      for (const [rel, content] of order) {
+        const p = path.join(dir, rel);
+        fs.mkdirSync(path.dirname(p), { recursive: true });
+        fs.writeFileSync(p, content);
+      }
+      // mtime fixo e idêntico em ambas as cópias — isola "ordem de criação" de "ordem de walk".
+      const fixedTime = new Date('2026-01-01T00:00:00Z');
+      for (const [rel] of order) {
+        fs.utimesSync(path.join(dir, rel), fixedTime, fixedTime);
+      }
+    }
+
+    const FILES = [
+      ['base.ts', 'export class Base {}\n'],
+      ['child.ts', 'export class Child extends Base {}\n'],
+      ['dup/a.ts', 'export class Dup {}\n'],
+      ['dup/b.ts', 'export class Dup {}\n'],
+      ['script.sh', '#!/usr/bin/env bash\nfoo() {\n  echo hi\n}\n'],
+      ['mod.py', 'class PyBase:\n    pass\n\n\nclass PyChild(PyBase):\n    pass\n'],
+    ];
+    const REVERSED = FILES.slice().reverse();
+
+    const tmpA = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-build-a-'));
+    const tmpB = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-build-b-'));
+    try {
+      writeProject(tmpA, FILES);
+      writeProject(tmpB, REVERSED);
+
+      execFileSync('node', [BUILD, tmpA], { stdio: 'pipe' });
+      const symJsonPathA = path.join(tmpA, '.forge/graph/symbols.json');
+      const idxPathA = path.join(tmpA, '.forge/graph/symbols.idx.tsv');
+      assert.ok(fs.existsSync(symJsonPathA) && fs.statSync(symJsonPathA).size > 0,
+        'symbols.json deveria existir e não estar vazio após graph.sh build');
+      assert.ok(fs.existsSync(idxPathA) && fs.statSync(idxPathA).size > 0,
+        'symbols.idx.tsv deveria existir e não estar vazio após graph.sh build (par atômico)');
+
+      const symA1 = fs.readFileSync(symJsonPathA, 'utf8');
+      const idxA1 = fs.readFileSync(idxPathA, 'utf8');
+      const parsedA1 = JSON.parse(symA1);
+      assert.equal(parsedA1.schema, 'symbols/v0', 'schema deveria ser symbols/v0');
+      const childEdge = parsedA1.edges.find((e) => e.kind === 'inherits' && e.from === 'child.ts#Child');
+      assert.ok(childEdge && childEdge.resolved === true && childEdge.to === 'base.ts#Base',
+        `herança Child->Base deveria resolver (TS); obteve ${JSON.stringify(childEdge)}`);
+      const pyEdge = parsedA1.edges.find((e) => e.kind === 'inherits' && e.from === 'mod.py#PyChild');
+      assert.ok(pyEdge && pyEdge.resolved === true && pyEdge.to === 'mod.py#PyBase',
+        `herança PyChild->PyBase deveria resolver (python); obteve ${JSON.stringify(pyEdge)}`);
+
+      // [6c]/P6 — idx.tsv é projeção EXATA de symbols.json
+      const idxLinesA1 = idxA1.split('\n').filter(Boolean);
+      assert.equal(idxLinesA1.length, parsedA1.symbols.length, 'idx.tsv deveria ter uma linha por símbolo');
+      for (let i = 0; i < parsedA1.symbols.length; i++) {
+        const s = parsedA1.symbols[i];
+        assert.equal(idxLinesA1[i], `${s.name}\t${s.file}\t${s.line}\t${s.type}\t${s.layer}`,
+          `linha ${i} do idx.tsv não é projeção exata do símbolo correspondente`);
+      }
+
+      // determinismo: segunda rodada sobre a MESMA árvore (fontes inalteradas) é byte a byte igual
+      execFileSync('node', [BUILD, tmpA], { stdio: 'pipe' });
+      const symA2 = fs.readFileSync(symJsonPathA, 'utf8');
+      const idxA2 = fs.readFileSync(idxPathA, 'utf8');
+      assert.equal(symA2, symA1, 'symbols.json deveria ser byte a byte idêntico entre duas rodadas (mtime/size inclusos)');
+      assert.equal(idxA2, idxA1, 'symbols.idx.tsv deveria ser byte a byte idêntico entre duas rodadas');
+
+      // [26b] independência de ordem física do walk: fixture B (ordem de criação invertida,
+      // mtime forçado igual) produz symbols.json/idx.tsv byte a byte IDÊNTICOS ao A.
+      execFileSync('node', [BUILD, tmpB], { stdio: 'pipe' });
+      const symB = fs.readFileSync(path.join(tmpB, '.forge/graph/symbols.json'), 'utf8');
+      const idxB = fs.readFileSync(path.join(tmpB, '.forge/graph/symbols.idx.tsv'), 'utf8');
+      assert.equal(symB, symA1, 'symbols.json não deveria depender da ordem física do walk (26b)');
+      assert.equal(idxB, idxA1, 'symbols.idx.tsv não deveria depender da ordem física do walk (26b)');
+
+      ok('5a', 'symbols.json/symbols.idx.tsv gravados, determinísticos entre rodadas, projeção exata, herança integrada e independente de ordem física do walk');
+    } finally {
+      fs.rmSync(tmpA, { recursive: true, force: true });
+      fs.rmSync(tmpB, { recursive: true, force: true });
+    }
   });
 
   // === [0] parte 2: vacuidade por linguagem ===

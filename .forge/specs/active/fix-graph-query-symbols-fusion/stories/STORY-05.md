@@ -3,7 +3,7 @@ story_id: STORY-05
 epic: fix-graph-query-symbols-fusion
 title: graph.sh query migra para graph-query.mjs
 depends_on: [STORY-04]
-status: todo
+status: done
 ---
 
 # STORY-05 — graph.sh query migra para graph-query.mjs
@@ -46,20 +46,20 @@ Criar `graph-query.mjs` com ranking/desempate puros, migrar `graph.sh query` do 
 
 ## Tasks
 
-- [ ] TASK-09 — Criar `graph-query.mjs`: `rankSymbols`/`tieBreak` puros, guard de CLI via `realpathSync`; `graph.sh query` chama o módulo, `nodes`/`edges` preservadas byte a byte (paths: `template/.forge/scripts/lib/graph-query.mjs` novo, `template/.forge/scripts/graph.sh`, `README.md` contagem `scripts/ (180→181)`; depende: TASK-08). Teste: `bash tests/w344-graph-query-symbols-gate.sh && bash tests/w41-graph-gate.sh && bash tests/w200-readme-inventory-gate.sh`. Padrão de falha: `^FAIL [1]` (módulo ausente). Cenários: [1] controle (golden pré-mudança sem `symbols.json`), [2] acerto de símbolo, [3] ranking+desempate, [10a] `--json` básico, [24a] desempate entre arquivos (saída humana); regressão `w41-graph-gate.sh [7]` sob `/tmp` symlinkado; PBT P1, P3, P4-desempate.
-- [ ] TASK-10 — Seção `symbols (N):` com defasagem por `{mtime,size}`, `--json` completo (`stale`), dica de 0-resultados (paths: `template/.forge/scripts/lib/graph-query.mjs`; depende: TASK-09). Teste: `bash tests/w344-graph-query-symbols-gate.sh`. Padrão de falha: `^FAIL [7b]`. Cenários: [7b] sufixo de defasagem, [10b] `--json` completo (`stale`), [11] `query` não escreve em disco, [22b] defasagem some após `update` real (visível via query), [6b] staleness de fingerprint-only não marca stale, [23] dica de 0-resultados (texto exato), [24b] desempate completo com `--json`.
-- [ ] TASK-11 — Degradação graciosa: `readSymbolsSafely()`, ENOENT por símbolo, entrada legada, aviso de formato legado/vacuidade (paths: `template/.forge/scripts/lib/graph-query.mjs`; depende: TASK-10). Teste: `bash tests/w344-graph-query-symbols-gate.sh`. Padrão de falha: `^FAIL [14]`. Cenários: [14] ENOENT, [15] JSON corrompido (degrada sem crash), [16] legado sem mtime/size, [16b] vacuidade (`symbols:[]` não dispara aviso falso), [17b] `query` não crasha com `symbols.json` órfão pós-pull.
+- [X] TASK-09 — Criar `graph-query.mjs`: `rankSymbols`/`tieBreak` puros, guard de CLI via `realpathSync`; `graph.sh query` chama o módulo, `nodes`/`edges` preservadas byte a byte (paths: `template/.forge/scripts/lib/graph-query.mjs` novo, `template/.forge/scripts/graph.sh`, `README.md` contagem `scripts/ (180→181)`; depende: TASK-08). Teste: `bash tests/w344-graph-query-symbols-gate.sh && bash tests/w41-graph-gate.sh && bash tests/w200-readme-inventory-gate.sh`. Padrão de falha: `^FAIL [1]` (módulo ausente). Cenários: [1] controle (golden pré-mudança sem `symbols.json`), [2] acerto de símbolo, [3] ranking+desempate, [10a] `--json` básico, [24a] desempate entre arquivos (saída humana); regressão `w41-graph-gate.sh [7]` sob `/tmp` symlinkado; PBT P1, P3, P4-desempate.
+- [X] TASK-10 — Seção `symbols (N):` com defasagem por `{mtime,size}`, `--json` completo (`stale`), dica de 0-resultados (paths: `template/.forge/scripts/lib/graph-query.mjs`; depende: TASK-09). Teste: `bash tests/w344-graph-query-symbols-gate.sh`. Padrão de falha: `^FAIL [7b]`. Cenários: [7b] sufixo de defasagem, [10b] `--json` completo (`stale`), [11] `query` não escreve em disco, [22b] defasagem some após `update` real (visível via query), [6b] staleness de fingerprint-only não marca stale, [23] dica de 0-resultados (texto exato), [24b] desempate completo com `--json`.
+- [X] TASK-11 — Degradação graciosa: `readSymbolsSafely()`, ENOENT por símbolo, entrada legada, aviso de formato legado/vacuidade (paths: `template/.forge/scripts/lib/graph-query.mjs`; depende: TASK-10). Teste: `bash tests/w344-graph-query-symbols-gate.sh`. Padrão de falha: `^FAIL [14]`. Cenários: [14] ENOENT, [15] JSON corrompido (degrada sem crash), [16] legado sem mtime/size, [16b] vacuidade (`symbols:[]` não dispara aviso falso), [17b] `query` não crasha com `symbols.json` órfão pós-pull.
 
 ## Acceptance criteria
 
-- [ ] `nodes`/`edges` de `graph.sh query` idênticos byte a byte ao golden `query-golden-pre-change.txt` quando `symbols.json` ausente (cenário de controle).
-- [ ] Busca por nome de símbolo real (ex. `processarPedido`) produz `symbols (N):` com `arquivo:linha`.
-- [ ] Desempate determinístico `(name,file,line)` com `localeCompare('en')`+numérico, idêntico sob permutação de ordem de criação de arquivos.
-- [ ] `--json` produz `{nodes,edges,symbols,hint?}`; cada símbolo com `{id,name,type,file,line,layer,stale}`.
-- [ ] Sufixo de defasagem aparece só com divergência real de `{mtime,size}` e some após `update` real.
-- [ ] `query` nunca lança exceção não tratada e sempre sai `exit 0`, inclusive com `symbols.json` ausente/corrompido/legado/ENOENT.
-- [ ] `tests/w41-graph-gate.sh` (inclusive `[7]` sob `/tmp` symlinkado) e `tests/w344-graph-query-symbols-gate.sh` verdes.
-- [ ] Commits vermelhos das três tasks tocam só `tests/`.
+- [x] `nodes`/`edges` de `graph.sh query` idênticos byte a byte ao golden `query-golden-pre-change.txt` quando `symbols.json` ausente (cenário de controle).
+- [x] Busca por nome de símbolo real (ex. `processarPedido`) produz `symbols (N):` com `arquivo:linha`.
+- [x] Desempate determinístico `(name,file,line)` com `localeCompare('en')`+numérico, idêntico sob permutação de ordem de criação de arquivos.
+- [x] `--json` produz `{nodes,edges,symbols,hint?}`; cada símbolo com `{id,name,type,file,line,layer,stale}`.
+- [x] Sufixo de defasagem aparece só com divergência real de `{mtime,size}` e some após `update` real.
+- [x] `query` nunca lança exceção não tratada e sempre sai `exit 0`, inclusive com `symbols.json` ausente/corrompido/legado/ENOENT.
+- [x] `tests/w41-graph-gate.sh` (inclusive `[7]` sob `/tmp` symlinkado) e `tests/w344-graph-query-symbols-gate.sh` verdes.
+- [x] Commits vermelhos das três tasks tocam só `tests/`.
 
 ## Out of scope
 

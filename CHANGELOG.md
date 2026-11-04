@@ -1,5 +1,25 @@
 ## [Unreleased]
 
+## [0.20.0] (2026-11-03)
+
+### Added
+
+- **Scanner de supressão sem referência rastreável, HALT com premissa nomeada e spike de medição real de complexidade/duplicação (change `adopt-ub-mode-practices`, absorvendo práticas do `ub-mode`).** O `[!]` (HALT após 2 tentativas de correção na mesma task) passa a exigir, em `/forge:implement` e em `coding-loop`/`task-coder`, nomear `Premissa:` e `Ator(es) com o desequilíbrio:` antes de uma retomada contar como informada, já que reinvocar sem os campos preenchidos conta como a mesma série. `check-suppression-reference.sh` (novo), cabeado em `/forge:ship` e no hook `pre-push`, bloqueia supressão (`eslint-disable`, `noqa`, etc.) sem identificador LDG/ADR/ISSUE rastreável fora de código gerado/vendorizado. Spike de complexidade ciclomática e duplicação, executado só-leitura sobre um consumidor real (`Payments.DevPortal`), documentado em ADR 0006 como sinal não-bloqueante (50% de falso-positivo no limiar testado, viés conhecido do instrumento que conta `&&`/`||`/`??` como decisão). Gate `tests/adopt-ub-mode-practices-gate.sh` (55 cenários).
+- **`kb.sh` passa a indexar specs ativas e fontes extras configuráveis (change `extend-kb-corpus-sources`).** Reverte a exclusão de `.forge/specs/active/**` (agora `kind: active-spec`) e adiciona `kb.extra_paths` em `forge.yaml` para indexar ADRs/runbooks fora de `.forge/product/current` (ex.: sub-repositório do Payments), com allowlist obrigatória e validação por caminho físico (`realpathSync.native`, mesmo padrão de SEC-001/NODE-201, de modo que symlink commitado não escapa a raiz). Status MADR (Accepted/Superseded/Deprecated/Rejected) extraído e exibido como rótulo (`[SUPERSEDED] 0012-...`) sem alterar ranking/fusão/re-rank. Fontes novas participam do mecanismo de staleness já existente (fingerprint + quickFingerprint), sem mecanismo novo. Gates `tests/w309-kb-corpus-gate.sh` + `tests/extend-kb-corpus-sources-gate.sh` (48 cenários).
+- **Hook `PreToolUse` bloqueia leitura de credencial/config/cache da AWS (ORQ-20261027-105).** `prevent-aws-credentials-read.sh` (novo, matcher `Bash`/`Read`) nasce armado por padrão em `hooks.manifest.default`, somando ao conjunto de hooks de segurança universal (`enforce-worktree-location.sh`, `prevent-secrets-leak.sh`, `guard-cross-session-send.sh`); consumidor novo passa a ter 4 hooks `PreToolUse` armados por padrão, antes 3. Gate `tests/prevent-aws-credentials-read.bats`.
+
+### Fixed
+
+- **`check-suppression-reference.sh`/`check-attack-premise.sh` (acima) não eram os únicos pontos tocados pela absorção do ub-mode; correções de fiação pós-archive:** `tests/snapshot/claude-contract.bats` e `tests/w62-handoff-hook-gate.sh` recontam hooks armados por padrão; `tests/migration-review-gate.sh` e `tests/w223-delegacao-arvore-do-hook-gate.sh` ganham o sexto alvo delegado (`check-suppression-reference.sh`) nas fixtures genéricas de delegação de hook.
+- **`red-classify.mjs` não reconhecia `FsCheck Falsifiable` sob MTP, Microsoft.Testing.Platform (Closes LDG-0021).** Saída de propriedade falsificada do FsCheck rodando via MTP, em vez do runner clássico VSTest, caía em `unknown`, travando o `/forge:red replay`.
+- **`truncateExcerpt` não garantia janela em torno da asserção (Closes LDG-0020).** Gate `tests/w322-excerpt-truncation-gate.sh`.
+- **Gancho de nomenclatura de diretórios do forge-harness reprovava `test/` (singular) indevidamente.** `validate-naming-conventions.sh` passa a isentar o diretório singular do CI do próprio forge-harness.
+- **Bug real achado durante reconciliação de release: `tests/run-all.sh --shard` duplicava o filtro de índice `mod N`, aplicando a partição duas vezes em sequência e perdendo metade dos itens de cada fatia do CI** (gate `w273` cobre a partição; a duplicação não tinha teste próprio porque surgiu de um merge, não de edição direta).
+
+### Changed
+
+- Badge de gates do README passa de 240 (na 0.19.0) para 243. Scripts de `template/.forge/scripts/`: 178.
+
 ## [0.19.0] — 2026-11-02
 
 ### Added

@@ -216,19 +216,26 @@ async function main() {
     const removed = [...oldKeys].filter((k) => !newKeys.has(k));
     const added = [...newKeys].filter((k) => !oldKeys.has(k));
 
+    // Verificação MECÂNICA (não por curadoria): roda o PRÓPRIO motor antigo (DECL sem masking)
+    // sobre o texto JÁ MASCARADO pelo lexer novo (stripCommentsPreservingLines). Se a chave
+    // removida não reaparece quando o motor antigo lê o texto mascarado, o masking é a causa
+    // mecânica comprovada da remoção — nunca uma afirmação de curadoria manual. Cobre também o
+    // caso de fantasma cross-line (ex. `\s+` do motor antigo casando um comentário "// ... function"
+    // com o início de linha seguinte).
+    const oldOnMaskedKeysByFile = new Map();
+    function oldKeysOnMasked(file, lang) {
+      if (oldOnMaskedKeysByFile.has(file)) return oldOnMaskedKeysByFile.get(file);
+      const masked = maskedByFile.get(file);
+      const set = new Set(oldMod.extractSymbolsOldEngine(lang, masked).map((s) => `${file}|${s.name}|${s.type}|${s.line}`));
+      oldOnMaskedKeysByFile.set(file, set);
+      return set;
+    }
     const unconfirmedRemovals = [];
     for (const k of removed) {
-      const [file, name, , lineStr] = k.split('|');
-      const line = Number(lineStr);
-      const src = srcByFile.get(file);
-      const masked = maskedByFile.get(file);
-      const origLine = (src.split('\n')[line - 1] || '');
-      const maskLine = (masked.split('\n')[line - 1] || '');
-      const re = new RegExp('\\b' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b');
-      const m = re.exec(origLine);
-      const seg = m ? maskLine.slice(m.index, m.index + name.length) : null;
-      const isGhost = m && seg === ' '.repeat(name.length);
-      if (!isGhost) unconfirmedRemovals.push(k);
+      const [file] = k.split('|');
+      const lang = shFiles.some((fn) => stripTxt(fn) === file) ? 'shell' : 'js';
+      const stillThere = oldKeysOnMasked(file, lang).has(k);
+      if (stillThere) unconfirmedRemovals.push(k);
     }
 
     const unconfirmedAdditions = [];
@@ -384,7 +391,7 @@ async function main() {
   });
 
   // === PBT P2 — sem duplicata (file,name,type,line) ===
-  tryCaseAsyncSafe('pbt-p2', async () => {
+  await tryCaseAsyncSafe('pbt-p2', async () => {
     const pbt = await import('file://' + path.join(LIB, 'pbt.mjs'));
     const prop = (n) => {
       let src = '';
@@ -400,7 +407,7 @@ async function main() {
   });
 
   // === PBT P4-herança — invariância sob permutação ===
-  tryCaseAsyncSafe('pbt-p4', async () => {
+  await tryCaseAsyncSafe('pbt-p4', async () => {
     const pbt = await import('file://' + path.join(LIB, 'pbt.mjs'));
     const prop = (size) => {
       const files = Array.from({ length: size }, (_, k) => ({
@@ -418,7 +425,7 @@ async function main() {
   });
 
   // === PBT P5 — invariância cosmética ===
-  tryCaseAsyncSafe('pbt-p5', async () => {
+  await tryCaseAsyncSafe('pbt-p5', async () => {
     const pbt = await import('file://' + path.join(LIB, 'pbt.mjs'));
     const prop = (nInserted) => {
       const before = 'class Foo {}\n';

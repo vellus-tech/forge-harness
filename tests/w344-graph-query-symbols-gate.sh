@@ -1039,6 +1039,145 @@ async function main() {
     assert.ok(r.ok, `P4-desempate falhou: ${JSON.stringify(r.counterexample)}`);
     ok('pbt-p4-desempate', `P4-desempate (invariância sob permutação) — ${r.runs} casos, seed ${r.seed}`);
   });
+
+  // === [7b] sufixo de defasagem por {mtime,size} sem rebuild ===
+  await tryCaseAsync('7b', async () => {
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q7b-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      const f = path.join(tmp, 'src', 'f.ts');
+      fs.writeFileSync(f, 'export function foo() {\n  return 1;\n}\n');
+      buildAt(tmp);
+      const before = runQuery(tmp, ['foo']);
+      assert.ok(!before.stdout.includes('defasada'), 'sem edição após o build, não deveria haver sufixo de defasagem');
+      fs.writeFileSync(f, 'export function foo() {\n  return 99999;\n}\n');
+      fs.utimesSync(f, new Date(Date.now() + 5000), new Date(Date.now() + 5000));
+      const after = runQuery(tmp, ['foo']);
+      assert.equal(after.code, 0, `query deveria sair exit 0; stderr=${after.stderr}`);
+      assert.match(after.stdout, /foo \[function\] src\/f\.ts:1 \([a-z]+\) \(linha possivelmente defasada\)/,
+        `esperado sufixo de defasagem; obteve:\n${after.stdout}`);
+      ok('7b', 'sufixo de defasagem aparece quando {mtime,size} divergem do indexado, sem rebuild');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  // === [10b] --json completo com stale ===
+  await tryCaseAsync('10b', async () => {
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q10b-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      const f = path.join(tmp, 'src', 'f.ts');
+      fs.writeFileSync(f, 'export function foo() {\n  return 1;\n}\n');
+      buildAt(tmp);
+      fs.writeFileSync(f, 'export function foo() {\n  return 999999;\n}\n');
+      fs.utimesSync(f, new Date(Date.now() + 5000), new Date(Date.now() + 5000));
+      const r = runQuery(tmp, ['foo', '--json']);
+      assert.equal(r.code, 0, `query --json deveria sair exit 0; stderr=${r.stderr}`);
+      const data = JSON.parse(r.stdout);
+      const sym = data.symbols.find((s) => s.name === 'foo');
+      assert.ok(sym, 'símbolo foo deveria aparecer em --json');
+      assert.equal(sym.stale, true, 'stale deveria ser true após edição sem rebuild');
+      ok('10b', '--json completo com stale:true refletindo a defasagem real');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  // === [11] query nunca escreve em disco ===
+  await tryCaseAsync('11', async () => {
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q11-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'src', 'f.ts'), 'export function foo() {\n  return 1;\n}\n');
+      buildAt(tmp);
+      const graphPath = path.join(tmp, '.forge/graph/graph.json');
+      const symbolsPath = path.join(tmp, '.forge/graph/symbols.json');
+      const mtimeGraphBefore = fs.statSync(graphPath).mtimeMs;
+      const mtimeSymbolsBefore = fs.statSync(symbolsPath).mtimeMs;
+      runQuery(tmp, ['foo']);
+      runQuery(tmp, ['foo', '--json']);
+      const mtimeGraphAfter = fs.statSync(graphPath).mtimeMs;
+      const mtimeSymbolsAfter = fs.statSync(symbolsPath).mtimeMs;
+      assert.equal(mtimeGraphAfter, mtimeGraphBefore, 'graph.json não deveria ser tocado por query');
+      assert.equal(mtimeSymbolsAfter, mtimeSymbolsBefore, 'symbols.json não deveria ser tocado por query');
+      ok('11', 'query nunca escreve em disco (mtime de graph.json/symbols.json intactos após query humana e --json)');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  // === [22b] defasagem some após `graph.sh update` real ===
+  await tryCaseAsync('22b', async () => {
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q22b-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      const f = path.join(tmp, 'src', 'f.ts');
+      fs.writeFileSync(f, 'export function foo() {\n  return 1;\n}\n');
+      buildAt(tmp);
+      fs.writeFileSync(f, 'export function foo() {\n  return 42;\n}\n');
+      fs.utimesSync(f, new Date(Date.now() + 5000), new Date(Date.now() + 5000));
+      const beforeUpdate = runQuery(tmp, ['foo']);
+      assert.match(beforeUpdate.stdout, /defasada/, 'antes do update real, sufixo de defasagem deveria aparecer');
+      updateAt(tmp);
+      const afterUpdate = runQuery(tmp, ['foo']);
+      assert.ok(!afterUpdate.stdout.includes('defasada'), `após update real, sufixo de defasagem deveria sumir; obteve:\n${afterUpdate.stdout}`);
+      ok('22b', 'defasagem aparece antes do update real e some depois (visível via query, sem reler artefato nenhum manualmente)');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  // === [6b] staleness de fingerprint-only (mecanismo distinto) não é confundida com {mtime,size} ===
+  await tryCaseAsync('6b', async () => {
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q6b-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'src', 'f.ts'), 'export function foo() {\n  return 1;\n}\n');
+      buildAt(tmp);
+      const graphPath = path.join(tmp, '.forge/graph/graph.json');
+      const graph = JSON.parse(fs.readFileSync(graphPath, 'utf8'));
+      const node = graph.nodes.find((x) => x.id === 'src/f.ts');
+      assert.ok(node, 'node src/f.ts deveria existir em graph.json');
+      node.fingerprint = 'f'.repeat(64); // diverge DELIBERADAMENTE — mecanismo distinto de {mtime,size}
+      fs.writeFileSync(graphPath, JSON.stringify(graph, null, 2) + '\n');
+      const r = runQuery(tmp, ['foo']);
+      assert.equal(r.code, 0, `query deveria sair exit 0; stderr=${r.stderr}`);
+      assert.ok(!r.stdout.includes('defasada'),
+        `fingerprint estrutural tamperado (mecanismo distinto) não deveria marcar stale via {mtime,size}; obteve:\n${r.stdout}`);
+      ok('6b', 'staleness de fingerprint-only (graph.json tamperado) não é confundida com defasagem de {mtime,size}');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  // === [23] dica de 0-resultados (texto canônico idêntico em modo humano e --json) ===
+  await tryCaseAsync('23', async () => {
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q23-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'src', 'f.ts'), 'export function foo() {\n  return 1;\n}\n');
+      buildAt(tmp);
+      const term = 'zzz-nao-existe';
+      const r = runQuery(tmp, [term]);
+      assert.equal(r.code, 0, `query deveria sair exit 0 mesmo com 0 resultados; stderr=${r.stderr}`);
+      const { zeroResultsHint } = await import('file://' + QUERY_MOD_PATH);
+      const expectedHint = zeroResultsHint(term);
+      assert.ok(r.stdout.includes(expectedHint), `texto canônico de 0-resultados ausente; obteve:\n${r.stdout}`);
+      const rJson = runQuery(tmp, [term, '--json']);
+      const data = JSON.parse(rJson.stdout);
+      assert.equal(data.hint, expectedHint, 'campo hint do --json deveria ser o mesmo texto canônico do modo humano');
+      ok('23', 'dica de 0-resultados com texto canônico idêntico em modo humano e --json, exit 0');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  // === [24b] desempate completo refletido em --json ===
+  await tryCaseAsync('24b', async () => {
+    const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'w344-q24b-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'd'), { recursive: true });
+      fs.mkdirSync(path.join(tmp, 'e'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'd', 'dup1.ts'), 'export function Helper() {\n  return 1;\n}\n');
+      fs.writeFileSync(path.join(tmp, 'e', 'dup2.ts'), 'export function Helper() {\n  return 1;\n}\n');
+      buildAt(tmp);
+      const r = runQuery(tmp, ['helper', '--json']);
+      assert.equal(r.code, 0, `query --json deveria sair exit 0; stderr=${r.stderr}`);
+      const data = JSON.parse(r.stdout);
+      const files = data.symbols.map((s) => s.file);
+      assert.deepEqual(files, ['d/dup1.ts', 'e/dup2.ts'], `desempate por file deveria ordenar d/ antes de e/; obteve ${JSON.stringify(files)}`);
+      ok('24b', 'desempate (name,file,line) completo refletido em --json: d/dup1.ts antes de e/dup2.ts');
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
   console.log(fail ? '__GATE_FAIL__' : '__GATE_OK__');
   process.exit(fail);
 }

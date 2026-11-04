@@ -3,7 +3,7 @@ story_id: STORY-02
 epic: fix-graph-query-symbols-fusion
 title: Extrator puro de símbolos + lexer de pilha de frames
 depends_on: [STORY-01]
-status: todo
+status: done
 ---
 
 # STORY-02 — Extrator puro de símbolos + lexer de pilha de frames

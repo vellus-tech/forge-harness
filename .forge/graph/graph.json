@@ -1,11 +1,11 @@
 {
   "schema": "graph/v0",
-  "generated_at": "2026-11-03T23:12:26.943Z",
+  "generated_at": "2026-11-04T23:51:29.196Z",
   "engine": "native",
-  "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/adopt-ub-mode-practices",
+  "root": "/Users/milton/Documents/projects/forge-harness/.forge/worktrees/fix-graph-query-symbols-fusion",
   "stats": {
-    "nodes": 588,
-    "edges": 100,
+    "nodes": 598,
+    "edges": 106,
     "languages": [
       "csharp",
       "go",
@@ -16,23 +16,23 @@
       "shell",
       "ts"
     ],
-    "summaries_stale": 588,
+    "summaries_stale": 598,
     "census": {
       "csharp": 10,
       "go": 15,
       "java": 14,
-      "js": 135,
+      "js": 141,
       "kotlin": 6,
       "python": 21,
-      "shell": 358,
+      "shell": 362,
       "ts": 29
     },
     "layer_coverage": {
-      "classified": 371,
-      "unclassified": 217,
+      "classified": 378,
+      "unclassified": 220,
       "out_of_taxonomy": 0,
-      "denominator": 588,
-      "ratio": 0.631
+      "denominator": 598,
+      "ratio": 0.6321
     }
   },
   "nodes": [
@@ -487,8 +487,8 @@
     {
       "id": "template/.forge/scripts/graph.sh",
       "lang": "shell",
-      "loc": 61,
-      "fingerprint": "9ee287fe2d8ff657180c74913b25c6d2f1a043f94904ec5fd5691b1193550e0d",
+      "loc": 60,
+      "fingerprint": "e7551d6dea53931551cb31186b7093eaa7bfc6d6b7518bc074e4e3cfdf21276c",
       "layer": "unknown",
       "summary": null
     },
@@ -767,8 +767,8 @@
     {
       "id": "template/.forge/scripts/lib/graph-build.mjs",
       "lang": "js",
-      "loc": 386,
-      "fingerprint": "72e14826c9e39e58824a909e2fa1da0e58d2e8c31c243d2c5bd263b91585f724",
+      "loc": 408,
+      "fingerprint": "990e8783c55c9e24ceb4e256f49af61b1bc541810cb14ecb6d1c145844004b48",
       "layer": "unknown",
       "summary": null
     },
@@ -797,10 +797,34 @@
       "summary": null
     },
     {
+      "id": "template/.forge/scripts/lib/graph-query.mjs",
+      "lang": "js",
+      "loc": 215,
+      "fingerprint": "4704c6d42d008dde405cb3aacea91c7ad20786fe1918bdafc5e7dc8894009157",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/graph-symbols-extract.mjs",
+      "lang": "js",
+      "loc": 511,
+      "fingerprint": "ec7c207833cc8cfef271963ec34bd6aeb8d23a2ba48ba4d182f8c24ec3aa7d7f",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
       "id": "template/.forge/scripts/lib/graph-symbols.mjs",
       "lang": "js",
-      "loc": 94,
-      "fingerprint": "fa23104a4add6d002a5f0a7db471355436eec7de4b4d34c6b7bb02ef7d84a417",
+      "loc": 68,
+      "fingerprint": "a21556b3aa6d9d83c72c1eff9001b9c368df2af0a2b57fa444c4d516bfd133f6",
+      "layer": "unknown",
+      "summary": null
+    },
+    {
+      "id": "template/.forge/scripts/lib/graph-walk.mjs",
+      "lang": "js",
+      "loc": 96,
+      "fingerprint": "dfb05c1cf31252b391ddc0cc74d5433d0b697731a019bdeca16fda361756ec18",
       "layer": "unknown",
       "summary": null
     },
@@ -817,22 +841,6 @@
       "lang": "shell",
       "loc": 1134,
       "fingerprint": "522de901402ed0feab1eff90d310c2079e78fba40405c7125cff5f30048999ac",
-      "layer": "unknown",
-      "summary": null
-    },
-    {
-      "id": "template/.forge/scripts/lib/heredoc-hash-lint.mjs",
-      "lang": "js",
-      "loc": 134,
-      "fingerprint": "dda67e90da4bd28114974046abc385f2d9ab26449d527e285989944a136d9e06",
-      "layer": "unknown",
-      "summary": null
-    },
-    {
-      "id": "template/.forge/scripts/lib/hooks-manifest.mjs",
-      "lang": "js",
-      "loc": 303,
-      "fingerprint": "ab1f8bf3d4dabd512ba3f9cf269e173b6cfeefc80b767282ae5d265c8700521e",
       "layer": "unknown",
       "summary": null
     },
@@ -1033,14 +1041,6 @@
       "lang": "js",
       "loc": 172,
       "fingerprint": "e907c707b1576a69726fcf47f0306ca972c10dec4db1a318f6dda5202ca99f11",
-      "layer": "unknown",
-      "summary": null
-    },
-    {
-      "id": "template/.forge/scripts/lib/liaison-push-union.mjs",
-      "lang": "js",
-      "loc": 94,
-      "fingerprint": "9713395b8757aba27a4f43ce200ffe0e7cad42744b6cb5138d49b56af560f37b",
       "layer": "unknown",
       "summary": null
     },
@@ -1383,8 +1383,8 @@
     {
       "id": "template/.forge/scripts/lib/validate-graph.mjs",
       "lang": "js",
-      "loc": 133,
-      "fingerprint": "ae59cd0b2f1f3a86f063d2bec7713712481130214abc66dcaef1db70df854cd6",
+      "loc": 159,
+      "fingerprint": "95477acd143a413ff11310657fe2ebfb53e94dc255a7af052675b2f56b58e2ab",
       "layer": "unknown",
       "summary": null
     },
@@ -1881,6 +1881,38 @@
       "lang": "go",
       "loc": 9,
       "fingerprint": "8d6e9c7e8a9dc684ee7d72b99c2e55b346557e31d0804e5b33ab6ffb936580d8",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/graph-query-symbols/golden-pre-change/make-fixture.sh",
+      "lang": "shell",
+      "loc": 30,
+      "fingerprint": "27e4f70f2bc6389f526f7511310cd9ba96d12b17302fa5f8c4bc1fc356baba8d",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/graph-query-symbols/old-engine-snapshot.mjs",
+      "lang": "js",
+      "loc": 59,
+      "fingerprint": "b85ec2e4700c15a6b00d51bd43e747567d5eca620e5c6eb0e90899f3f1223e59",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/graph-query-symbols/red-task01/repro.sh",
+      "lang": "shell",
+      "loc": 41,
+      "fingerprint": "4988ec803275264f3f3856914cf89757ac2963f69b7d32d6af275d5b7cf2a788",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/fixtures/graph-query-symbols/red-task01/src/handlers/h1.js",
+      "lang": "js",
+      "loc": 8,
+      "fingerprint": "069a3d0093a88daad68d43b90f20ea058e5e532d2f53bef49b4564bab82f8b2d",
       "layer": "test",
       "summary": null
     },
@@ -2783,8 +2815,8 @@
     {
       "id": "tests/graph-symbols-gate.sh",
       "lang": "shell",
-      "loc": 72,
-      "fingerprint": "2531709274d21c428e263c9cc4b049c9e8bedae9c67d89f6e65e9c166f43a72a",
+      "loc": 127,
+      "fingerprint": "609c24c5598b4d10b281b1161bbcaa340978c441baee79b7413759fd5d3007ad",
       "layer": "test",
       "summary": null
     },
@@ -3095,8 +3127,8 @@
     {
       "id": "tests/w133-gitignore-reconcile-gate.sh",
       "lang": "shell",
-      "loc": 135,
-      "fingerprint": "a1860bbdbce2a5af2960a8378a61114f98c15bcf33d7aef844a9c10fb5a4f0e0",
+      "loc": 140,
+      "fingerprint": "5ee522a935555e1518c41712ab607a201bfb474bde6611acfd3bbacf2a10e1ab",
       "layer": "test",
       "summary": null
     },
@@ -3223,8 +3255,8 @@
     {
       "id": "tests/w151-heavy-mutex-gate.sh",
       "lang": "shell",
-      "loc": 1352,
-      "fingerprint": "e6f40f11efd20311abc5221bb61fc0994a4195a0d5a34b349120fd6cb302cae8",
+      "loc": 1356,
+      "fingerprint": "2ca8b2a2bebd0b6887f52da130204d14b3fd7ea59fc34b7d8d8334a7d3ffb5d3",
       "layer": "test",
       "summary": null
     },
@@ -4141,22 +4173,6 @@
       "summary": null
     },
     {
-      "id": "tests/w238-settings-json-merge-gate.sh",
-      "lang": "shell",
-      "loc": 1222,
-      "fingerprint": "2c199ecd802e64ec67f307922c9f0ccef672f12cfd950e8cfcc16f7dbcaca065",
-      "layer": "test",
-      "summary": null
-    },
-    {
-      "id": "tests/w250-data-engineer-agents-gate.sh",
-      "lang": "shell",
-      "loc": 1151,
-      "fingerprint": "f30cd7c1d8f39a69fb262407e28ce2db8ed60e3ad022bd0ed810a8404867c76d",
-      "layer": "test",
-      "summary": null
-    },
-    {
       "id": "tests/w30-schemas-gate.sh",
       "lang": "shell",
       "loc": 105,
@@ -4537,6 +4553,30 @@
       "lang": "shell",
       "loc": 202,
       "fingerprint": "2e46b5ee46a34b428fe0eab2d5b89039fdb0832bd8e0d7c28dcce3df3da36dd7",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w344-graph-query-symbols-gate.sh",
+      "lang": "shell",
+      "loc": 1494,
+      "fingerprint": "3877bb42e44868c2a374b4cd8e66d3c6876920802f55e5a94cdce2d26e03df04",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w345-graph-symbols-property-gate.driver.mjs",
+      "lang": "js",
+      "loc": 264,
+      "fingerprint": "96c17ba8c3df878e7a65e9be4166011220c615604ff33b1815b4d8e36b6631f3",
+      "layer": "test",
+      "summary": null
+    },
+    {
+      "id": "tests/w345-graph-symbols-property-gate.sh",
+      "lang": "shell",
+      "loc": 41,
+      "fingerprint": "e9ecdf2949109e1ea9f87ffdae5face795bf66163c85999cd8960f142fb2d933",
       "layer": "test",
       "summary": null
     },
@@ -4975,8 +5015,44 @@
       "resolved": true
     },
     {
+      "from": "template/.forge/scripts/lib/graph-build.mjs",
+      "to": "template/.forge/scripts/lib/graph-symbols-extract.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/graph-build.mjs",
+      "to": "template/.forge/scripts/lib/graph-walk.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
       "from": "template/.forge/scripts/lib/graph-layers.mjs",
       "to": "template/.forge/scripts/lib/yaml-lite.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/graph-query.mjs",
+      "to": "template/.forge/scripts/lib/graph-symbols-extract.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/graph-symbols.mjs",
+      "to": "template/.forge/scripts/lib/graph-layers.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/graph-symbols.mjs",
+      "to": "template/.forge/scripts/lib/graph-symbols-extract.mjs",
+      "kind": "import",
+      "resolved": true
+    },
+    {
+      "from": "template/.forge/scripts/lib/graph-symbols.mjs",
+      "to": "template/.forge/scripts/lib/graph-walk.mjs",
       "kind": "import",
       "resolved": true
     },
@@ -5229,12 +5305,6 @@
     {
       "from": "template/.forge/scripts/lib/red-evidence-ops.mjs",
       "to": "template/.forge/scripts/lib/defect-scope.mjs",
-      "kind": "import",
-      "resolved": true
-    },
-    {
-      "from": "template/.forge/scripts/lib/red-evidence-ops.mjs",
-      "to": "template/.forge/scripts/lib/red-evidence-ops.mjs",
       "kind": "import",
       "resolved": true
     },

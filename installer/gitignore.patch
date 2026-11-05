@@ -7,6 +7,7 @@
 .forge/graph/report.md
 .forge/graph/cache/fingerprints.json
 .forge/graph/symbols.json
+.forge/graph/symbols.idx.tsv
 .forge/graph/module-deps.json
 # busca unificada (/forge:kb): índice, vetores e camada semântica instalada são derivados e locais.
 .forge/kb/

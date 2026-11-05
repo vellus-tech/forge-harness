@@ -45,3 +45,10 @@ tests/**/*.actual
 # O bloco gerenciado do installer/gitignore.patch já ignora este caminho nos consumidores; este
 # repositório é a fonte do bloco e não o aplica em si.
 .forge/kb/
+
+# Índice de símbolos (declarações + herança, STORY-03 de fix-graph-query-symbols-fusion):
+# regenerável em segundos por `graph.sh build`, igual a graph/cache/. Diferente de graph.json
+# (dogfood deliberado, versionado), estes dois nunca entram — mesmo motivo do bloco gerenciado
+# acima, repetido aqui porque este repositório não aplica o próprio installer/gitignore.patch.
+.forge/graph/symbols.json
+.forge/graph/symbols.idx.tsv

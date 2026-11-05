@@ -4437,6 +4437,266 @@
       "updated_at": null,
       "resolved_at": null,
       "dedup_key": "manual:LDG-0246"
+    },
+    {
+      "id": "LDG-0249",
+      "type": "tech-debt",
+      "title": "drift — Base da branch (`5996048e`) 2 commits atrás de `origin/develop` (`b9bfe0ca`) — Em develop, `scripts/` já conta 178 (não 176) e o badge já está em `gates-243` (não 242) por causa de `adopt-ub-m",
+      "detail": "",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "fix-graph-query-symbols-fusion",
+        "origin": "archive",
+        "ref": "A2"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "fix-graph-query-symbols-fusion"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-04T20:44:20-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "fix-graph-query-symbols-fusion:A2"
+    },
+    {
+      "id": "LDG-0250",
+      "type": "tech-debt",
+      "title": "coverage — DD-07 vs TASK-11 — DD-07 define aviso em stderr para 2 casos (ausente / presente sem mtime); TASK-11 só testa o caso negativo `[16b]`. Falta cenário positivo para cada ramo. Pendente — corr",
+      "detail": "",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "fix-graph-query-symbols-fusion",
+        "origin": "archive",
+        "ref": "A3"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "fix-graph-query-symbols-fusion"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-04T20:44:20-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "fix-graph-query-symbols-fusion:A3"
+    },
+    {
+      "id": "LDG-0251",
+      "type": "tech-debt",
+      "title": "coverage — DD-05(ii)/DD-06/DD-07/DD-09 (`--json` em qualquer posição) sem REQ/cenário correspondente em `bugfix.md`/`spec-delta.yaml` — Comportamentos observáveis decididos no design não voltaram ao a",
+      "detail": "",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "fix-graph-query-symbols-fusion",
+        "origin": "archive",
+        "ref": "A4"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "fix-graph-query-symbols-fusion"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-04T20:44:20-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "fix-graph-query-symbols-fusion:A4"
+    },
+    {
+      "id": "LDG-0252",
+      "type": "tech-debt",
+      "title": "conflict — `rules/testing/regression-red-first.md` item 4 (\"teste permanece na suíte depois do Green\") vs `repro.sh` da TASK-01 — `repro.sh` não segue o padrão `*-gate.sh`, não é descoberto por `run-a",
+      "detail": "",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "fix-graph-query-symbols-fusion",
+        "origin": "archive",
+        "ref": "A5"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "fix-graph-query-symbols-fusion"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-04T20:44:20-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "fix-graph-query-symbols-fusion:A5"
+    },
+    {
+      "id": "LDG-0253",
+      "type": "tech-debt",
+      "title": "coverage — `lib/mdl-gen.mjs:22`/`:119` (`graph.sh mdl`), consumidor não declarado — Após o change, `build` sempre grava `symbols.json`; `graph.sh mdl` passa a emitir ESPECIALIZAÇÃO por padrão em todo ",
+      "detail": "",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "fix-graph-query-symbols-fusion",
+        "origin": "archive",
+        "ref": "A6"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "fix-graph-query-symbols-fusion"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-04T20:44:20-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "fix-graph-query-symbols-fusion:A6"
+    },
+    {
+      "id": "LDG-0254",
+      "type": "tech-debt",
+      "title": "coverage — `manifest.affected_paths` incompleto — Faltam `template/.forge/commands/graph/kb.md`, `plugin/forge/commands/kb.md` (tocados pela TASK-12). Pendente — corrigir manifest + regenerar impact.j",
+      "detail": "",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "fix-graph-query-symbols-fusion",
+        "origin": "archive",
+        "ref": "A7"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "fix-graph-query-symbols-fusion"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-04T20:44:20-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "fix-graph-query-symbols-fusion:A7"
+    },
+    {
+      "id": "LDG-0255",
+      "type": "tech-debt",
+      "title": "conflict — `bugfix.md §5` intro/§5.1 ainda prescreve stub neutro no vermelho, substituído pelo DD-08 só no design/tasks — `bugfix.md` é fonte de requisitos e ficou com mecânica que `red-replay.mjs` re",
+      "detail": "",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "fix-graph-query-symbols-fusion",
+        "origin": "archive",
+        "ref": "A8"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "fix-graph-query-symbols-fusion"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-04T20:44:20-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "fix-graph-query-symbols-fusion:A8"
+    },
+    {
+      "id": "LDG-0256",
+      "type": "tech-debt",
+      "title": "drift — `design.md §1`: não cita ADR 0005 (emenda o ADR 0001); afirma \"nenhuma rule de architecture/\" quando há 14 (nenhuma aplicável, mas a frase está imprecisa) — Cosmético, não muda nenhuma decisão",
+      "detail": "",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "fix-graph-query-symbols-fusion",
+        "origin": "archive",
+        "ref": "A9"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "fix-graph-query-symbols-fusion"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-04T20:44:20-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "fix-graph-query-symbols-fusion:A9"
+    },
+    {
+      "id": "LDG-0257",
+      "type": "tech-debt",
+      "title": "risk — Red da TASK-09 ancorado em `[1]` (controle, passa naturalmente na base) em vez de `[2]` (acerto de símbolo, falha de fato) — Mesma classe de achado já corrigida 3x nas rodadas anteriores de des",
+      "detail": "",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "fix-graph-query-symbols-fusion",
+        "origin": "archive",
+        "ref": "A10"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "fix-graph-query-symbols-fusion"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-04T20:44:20-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "fix-graph-query-symbols-fusion:A10"
+    },
+    {
+      "id": "LDG-0258",
+      "type": "tech-debt",
+      "title": "risk — `.forge/graph/symbols.json` legado (111 símbolos) já presente no worktree, untracked, fora do `.gitignore` até a TASK-05 — Contradiz \"não existe neste repositório\" de `bugfix.md §1`. Resolvido ",
+      "detail": "",
+      "severity": "MEDIUM",
+      "priority": null,
+      "status": "open",
+      "source": {
+        "change_id": "fix-graph-query-symbols-fusion",
+        "origin": "archive",
+        "ref": "A11"
+      },
+      "links": {
+        "adr": [],
+        "capability": [],
+        "change": [
+          "fix-graph-query-symbols-fusion"
+        ],
+        "promoted_to": null
+      },
+      "created_at": "2026-11-04T20:44:20-03:00",
+      "updated_at": null,
+      "resolved_at": null,
+      "dedup_key": "fix-graph-query-symbols-fusion:A11"
     }
   ]
 }

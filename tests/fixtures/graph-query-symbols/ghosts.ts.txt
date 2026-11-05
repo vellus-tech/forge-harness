@@ -1,0 +1,22 @@
+// class Ghost
+"class Ghost"
+'class Ghost'
+`class Ghost`
+class Real {}
+const f = (s) => s.replace(/`/g, '');
+function AfterRegexBacktick() {}
+x = //comentario real
+function AfterLineCommentPrecedence() {}
+y = (/* bloco */ 1);
+function AfterBlockCommentPrecedence() {}
+const chk = (s) => /`/.test(s);
+function AfterArrow() {}
+function useReturn() { return /`/.test(x); }
+function AfterReturn() {}
+function useElse() { if (x) {} else /`/.test(x); }
+function AfterElse() {}
+const re2 = /['"]/g;
+function AfterCharClassQuotes() {}
+const re3 = /[\]\/]/g;
+function AfterCharClassEscape() {}
+export const ArrowExport = (a, b) => a + b;

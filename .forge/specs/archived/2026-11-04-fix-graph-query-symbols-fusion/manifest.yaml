@@ -1,0 +1,75 @@
+id: fix-graph-query-symbols-fusion
+type: bugfix
+mode: brownfield
+rigor: spec-anchored
+scale: 2
+status: archived
+created_at: "2026-11-03"
+updated_at: "2026-11-04"
+owner: "Milton Antonio da Silva Jr"
+parent:
+  baseline: .forge/product/current
+affected_capabilities:
+  - forge-harness-template
+affected_paths:
+  - template/.forge/scripts/graph.sh
+  - template/.forge/scripts/lib/graph-build.mjs
+  - template/.forge/scripts/lib/graph-walk.mjs
+  - template/.forge/scripts/lib/graph-symbols.mjs
+  - template/.forge/scripts/lib/graph-symbols-extract.mjs
+  - template/.forge/scripts/lib/graph-query.mjs
+  - template/.forge/scripts/lib/validate-graph.mjs
+  - template/.forge/commands/graph/update.md
+  - template/.forge/commands/graph/query.md
+  - template/.forge/commands/graph/kb.md
+  - template/.forge/commands/graph/codegraph.md
+  - template/.forge/rules/conventions/lsp-impact-analysis.md
+  - template/.forge/commands/specs/implement.md
+  - README.md
+  - docs/refer/slash-commands.md
+  - installer/gitignore.patch
+  - .gitignore
+  - plugin/forge/commands/query.md
+  - plugin/forge/commands/update.md
+  - plugin/forge/commands/kb.md
+  - plugin/forge/commands/implement.md
+  - plugin/forge/commands/codegraph.md
+  - tests/fixtures/graph-query-symbols/
+  - CHANGELOG.md
+  - tests/w344-graph-query-symbols-gate.sh
+  - tests/w345-graph-symbols-property-gate.sh
+  - tests/w41-graph-gate.sh
+  - tests/w141-codegraph-layer-map-gate.sh
+  - tests/w165-codegraph-scan-roots-gate.sh
+  - tests/graph-symbols-gate.sh
+  - tests/mdl-gen-gate.sh
+  - tests/graph-deps-gate.sh
+  - tests/graph-jvm-gate.sh
+  - tests/graph-govern-gate.sh
+  - tests/w172-impact-freshness-wiring-gate.sh
+  - tests/w42-impact-gate.sh
+  - tests/w43-c4-gate.sh
+  - tests/w100-spec-delta-pipeline-gate.sh
+  - tests/check-authz-gate.sh
+  - tests/w133-gitignore-reconcile-gate.sh
+dependencies:
+  specs: []
+  code: []
+gates:
+  requirements_reviewed: true
+  design_reviewed: true
+  tasks_reviewed: true
+  implementation_verified: true
+  human_archive_approval: true
+dev_loop:
+  sharded: true
+  stories_path: stories/
+  epic_context_compiled: true
+quick_plan:
+  enabled: false
+  skipped_phases: []
+  justification:
+archive:
+  kind: baseline_update
+  eligible: true
+  reason: "deltas applied to baseline on 2026-11-04"

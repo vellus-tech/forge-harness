@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Added
+
+- **`graph.sh query`/`symbols` passam a buscar por nome de símbolo (classe/função), não só por caminho de arquivo (change `fix-graph-query-symbols-fusion`).** O `query <termo>` agora devolve uma seção `symbols (N):` ranqueada (correspondência exata, prefixo e substring, com desempate determinístico por nome/arquivo/linha) junto de `nodes`/`edges`, mostrando arquivo e linha da declaração; a saída se degrada graciosamente para nodes/edges-only quando `symbols.json` está ausente, corrompido ou em formato legado, sem nunca lançar erro. O universo coberto por `symbols` foi ampliado para incluir arquivos `.sh` e caminhos declarados em `include_paths`, antes fora do extrator. `graph.sh update` deixa de prometer que "nada é reprocessado": o walk e a extração sempre são refeitos por completo (determinístico), e cada artefato (`graph.json`, `fingerprints.json`, `summaries.json`, `symbols.json`, `symbols.idx.tsv`) só é regravado em disco quando o conteúdo realmente muda, com `symbols.json`/`.tsv` tratando `{mtime,size}` como parte da comparação (edição que não move a linha da declaração ainda assim marca defasagem). Gate `tests/w344-graph-query-symbols-gate.sh`.
+
 ## [0.20.0] (2026-11-03)
 
 ### Added

@@ -1,0 +1,18 @@
+# class Ghost
+x = "class Ghost2"
+
+
+class Base:
+    """
+    Docstring with prose describing the base class.
+    class Ghost3 should not be indexed from inside here.
+    """
+
+    def method_one(self):
+        pass
+
+
+class Real(Base):
+    # don't index this
+    def real_method(self):
+        pass

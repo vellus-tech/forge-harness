@@ -613,7 +613,10 @@ wait_lock_file() {  # wait_lock_file — poll até o lock do holder aparecer (at
 }
 
 echo "[7] HIGH — mutex disputado por dono externo: deleção pura não entra na fila, push misto entra"
-HOLDER1="$(start_holder 6)"
+# Posse de 20s, não 6s: o cenário roda DUAS passadas do pre-push antes de soltar o holder, e sob
+# carga (Defender/CI local) o primeiro push sozinho já passou de 6s — o holder expirava antes da
+# segunda passada e o push misto adquiria o lock, virando falso `rc=0` no lugar do `rc=75`.
+HOLDER1="$(start_holder 20)"
 wait_lock_file || { echo "FAIL [7]: setup — holder externo não adquiriu o lock a tempo"; kill "$HOLDER1" 2>/dev/null; wait "$HOLDER1" 2>/dev/null; exit 1; }
 
 out7a="$(push_out_heavy "$feed1" 3)"; rc7a=$?
@@ -639,7 +642,7 @@ perl -pi -e 's/if \[ "\$_pp_so_delecao" != 1 \] && \[ -n "\$HEAVY_LIB" \] && _he
 if cmp -s "$FHOOK" "$T/hook.orig3"; then
   echo "FAIL [8]: mutação não alterou o hook da fixture — o padrão de busca não casou"; exit 1
 fi
-HOLDER2="$(start_holder 6)"
+HOLDER2="$(start_holder 20)"
 wait_lock_file || { echo "FAIL [8]: setup — holder externo não adquiriu o lock a tempo"; kill "$HOLDER2" 2>/dev/null; wait "$HOLDER2" 2>/dev/null; cp "$T/hook.orig3" "$FHOOK"; exit 1; }
 outm3="$(push_out_heavy "$feed1" 2)"; rcm3=$?
 case "$outm3" in

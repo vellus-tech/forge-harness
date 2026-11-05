@@ -44,7 +44,7 @@ Cada gate novo foi provado por mutação real na cópia do worktree, com restaur
 
 ## 5. Suíte completa
 
-PENDENTE — executar `bash tests/run-all.sh` na árvore final (pós-archive) e substituir esta linha pelo resultado `PASS/FAIL`, incluindo o total de gates.
+Executada na árvore final (pós-archive) em três shards isolados, como o CI: shard 1 `PASS=85` (82 gates + 3 suítes bats), shard 2 `PASS=82`, shard 3 `PASS=81`; total **248/248**, 0 FAIL, 0 SKIP, 0 UNVERIFIED. `OK — suíte 100% verde`.
 
 ## 6. Revisão adversarial independente
 

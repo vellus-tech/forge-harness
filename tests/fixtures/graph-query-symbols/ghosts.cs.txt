@@ -1,0 +1,10 @@
+// class Ghost
+/* class Ghost2 */
+string s = "class Ghost3";
+public class Real : BaseThing
+{
+    public void DoThing() {}
+}
+public interface IReal : IBase, IOther
+{
+}

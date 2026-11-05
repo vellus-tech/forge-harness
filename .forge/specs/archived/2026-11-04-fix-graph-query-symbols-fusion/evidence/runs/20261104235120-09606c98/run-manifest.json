@@ -1,0 +1,117 @@
+{
+  "schema": "run-manifest/v1",
+  "run_id": "20261104235120-09606c98",
+  "stage": "archive",
+  "status": "passed",
+  "started_at": "2026-11-04T23:50:46Z",
+  "finished_at": "2026-11-04T23:51:20.688Z",
+  "duration_ms": 34688,
+  "git": {
+    "repo": true,
+    "branch": "fix/graph/query-symbols-fusion",
+    "head_sha": "da581189e230dccc90aec97ddebf3d08083c055b",
+    "dirty": true,
+    "changed_files": [
+      ".forge/ledger/LEDGER.md",
+      ".forge/ledger/ledger.json",
+      ".forge/product/current/CHANGELOG.md",
+      ".forge/product/current/capabilities/forge-harness-template/spec.yaml",
+      ".forge/specs/active/fix-graph-query-symbols-fusion/analysis.md",
+      ".forge/specs/active/fix-graph-query-symbols-fusion/approvals.yaml",
+      ".forge/specs/active/fix-graph-query-symbols-fusion/bugfix.md",
+      ".forge/specs/active/fix-graph-query-symbols-fusion/design.md",
+      ".forge/specs/active/fix-graph-query-symbols-fusion/epic_context.md",
+      ".forge/specs/active/fix-graph-query-symbols-fusion/evidence/red/red-evidence.json",
+      ".forge/specs/active/fix-graph-query-symbols-fusion/evidence/runs/20261104234357-9cb342d1/run-manifest.json",
+      ".forge/specs/active/fix-graph-query-symbols-fusion/impact.json",
+      ".forge/specs/active/fix-graph-query-symbols-fusion/manifest.yaml",
+      ".forge/specs/active/fix-graph-query-symbols-fusion/proposal.md",
+      ".forge/specs/active/fix-graph-query-symbols-fusion/spec-delta.yaml",
+      ".forge/specs/active/fix-graph-query-symbols-fusion/stories/STORY-01.md",
+      ".forge/specs/active/fix-graph-query-symbols-fusion/stories/STORY-02.md",
+      ".forge/specs/active/fix-graph-query-symbols-fusion/stories/STORY-03.md",
+      ".forge/specs/active/fix-graph-query-symbols-fusion/stories/STORY-04.md",
+      ".forge/specs/active/fix-graph-query-symbols-fusion/stories/STORY-05.md",
+      ".forge/specs/active/fix-graph-query-symbols-fusion/stories/STORY-06.md",
+      ".forge/specs/active/fix-graph-query-symbols-fusion/stories/STORY-07.md",
+      ".forge/specs/active/fix-graph-query-symbols-fusion/tasks.md",
+      ".forge/specs/active/fix-graph-query-symbols-fusion/verification.yaml",
+      ".forge/specs/archived/2026-11-04-fix-graph-query-symbols-fusion/",
+      ".forge/specs/archived/index.yaml"
+    ],
+    "diff_stat": ".forge/ledger/LEDGER.md                            |  12 +-\n .forge/ledger/ledger.json                          | 260 +++++++++++++++++++++\n .forge/product/current/CHANGELOG.md                |   6 +\n .../capabilities/forge-harness-template/spec.yaml  | 185 ++++++++++++---\n .../fix-graph-query-symbols-fusion/analysis.md     |  45 ----\n .../fix-graph-query-symbols-fusion/approvals.yaml  |  56 -----\n .../fix-graph-query-symbols-fusion/bugfix.md       | 254 --------------------\n .../fix-graph-query-symbols-fusion/design.md       | 134 -----------\n .../fix-graph-query-symbols-fusion/epic_context.md |  54 -----\n .../evidence/red/red-evidence.json                 | 102 --------\n .../runs/20261104234357-9cb342d1/run-manifest.json | 258 --------------------\n .../fix-graph-query-symbols-fusion/impact.json     |  45 ----\n .../fix-graph-query-symbols-fusion/manifest.yaml   |  74 ------\n .../fix-graph-query-symbols-fusion/proposal.md     |  77 ------\n .../fix-graph-query-symbols-fusion/spec-delta.yaml | 191 ---------------\n .../stories/STORY-01.md                            |  61 -----\n .../stories/STORY-02.md                            |  64 -----\n .../stories/STORY-03.md                            |  67 ------\n .../stories/STORY-04.md                            |  66 ------\n .../stories/STORY-05.md                            |  67 ------\n .../stories/STORY-06.md                            |  60 -----\n .../stories/STORY-07.md                            |  60 -----\n .../active/fix-graph-query-symbols-fusion/tasks.md | 136 -----------\n .../verification.yaml                              |  14 --\n .forge/specs/archived/index.yaml                   |   4 +\n 25 files changed, 439 insertions(+), 1913 deletions(-)",
+    "diff_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+  },
+  "inputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "951d7453cd2479bc3f84fa54434c87c4deb2035893b636c9e0fa559ac99102c2",
+      "bytes": 2265,
+      "kind": "file"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "edcee98db353ec74362a68f89375ed08b5be2563a5a716df8e9bb2b2ffa3034c",
+      "bytes": 55766,
+      "kind": "file"
+    },
+    {
+      "path": "verification.yaml",
+      "exists": true,
+      "sha256": "7a5861e9cd74f71321a905cb8dabb76ab49d86b3becc66b23e1d888f22df8b94",
+      "bytes": 432,
+      "kind": "file"
+    },
+    {
+      "path": "spec-delta.yaml",
+      "exists": true,
+      "sha256": "15e5ff15ff0e459f1805ca5f1912db6750395ef1ac48e39e2cfb714bd215b0ed",
+      "bytes": 12154,
+      "kind": "file"
+    },
+    {
+      "path": "impact.json",
+      "exists": true,
+      "sha256": "ef474be34b72e09d4a49f71589757d37c37556503cb325d252577bf4e0361983",
+      "bytes": 1638,
+      "kind": "file"
+    }
+  ],
+  "commands": [
+    {
+      "name": "archive-spec",
+      "command": "archive-spec.sh fix-graph-query-symbols-fusion",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "manifest.yaml",
+      "exists": true,
+      "sha256": "951d7453cd2479bc3f84fa54434c87c4deb2035893b636c9e0fa559ac99102c2",
+      "bytes": 2265,
+      "kind": "file"
+    },
+    {
+      "path": "evidence/runs",
+      "exists": true,
+      "sha256": "ae2901067472d065bb4998fc890e6231b22c5d138512351b4637ea490f0f62cd",
+      "bytes": null,
+      "kind": "directory"
+    }
+  ],
+  "runner": {
+    "name": "local",
+    "profile": "standard"
+  },
+  "budgets": {
+    "profile": "standard",
+    "budget_class": "medium",
+    "expected_runs": 1,
+    "estimated_timeout_s": 300,
+    "uses_llm": false,
+    "uses_subagent": false
+  }
+}

@@ -1,0 +1,1266 @@
+{
+  "removed": [
+    {
+      "key": "graph-build.mjs|X|class|146",
+      "reason": "declaração mascarada"
+    },
+    {
+      "key": "graph-build.mjs|case|class|188",
+      "reason": "declaração mascarada"
+    },
+    {
+      "key": "graph-build.mjs|members|class|151",
+      "reason": "declaração mascarada"
+    },
+    {
+      "key": "graph-build.mjs|member|class|218",
+      "reason": "declaração mascarada"
+    },
+    {
+      "key": "graph-build.mjs|swallowing|class|141",
+      "reason": "declaração mascarada"
+    },
+    {
+      "key": "mermaid-to-drawio.mjs|a|class|10",
+      "reason": "declaração mascarada"
+    },
+    {
+      "key": "route-scan.mjs|OrderDto|class|238",
+      "reason": "declaração mascarada"
+    }
+  ],
+  "added": [
+    {
+      "key": "_common.sh|_dir_anchor|function|148",
+      "reason": "shell novo"
+    },
+    {
+      "key": "_common.sh|_dir_ensure_subdir|function|160",
+      "reason": "shell novo"
+    },
+    {
+      "key": "_common.sh|_dir_phys_expected|function|135",
+      "reason": "shell novo"
+    },
+    {
+      "key": "_common.sh|_dir_publish_dir|function|221",
+      "reason": "shell novo"
+    },
+    {
+      "key": "_common.sh|_dir_publish_file|function|207",
+      "reason": "shell novo"
+    },
+    {
+      "key": "_common.sh|_dir_pull_copy|function|644",
+      "reason": "shell novo"
+    },
+    {
+      "key": "_common.sh|_dir_pull|function|619",
+      "reason": "shell novo"
+    },
+    {
+      "key": "_common.sh|_dir_push_blobs|function|455",
+      "reason": "shell novo"
+    },
+    {
+      "key": "_common.sh|_dir_push_classify|function|299",
+      "reason": "shell novo"
+    },
+    {
+      "key": "_common.sh|_dir_push_cleanup_own_tmp|function|57",
+      "reason": "shell novo"
+    },
+    {
+      "key": "_common.sh|_dir_push_union|function|385",
+      "reason": "shell novo"
+    },
+    {
+      "key": "_common.sh|_dir_push|function|480",
+      "reason": "shell novo"
+    },
+    {
+      "key": "_common.sh|_dir_read_hub_own_log|function|235",
+      "reason": "shell novo"
+    },
+    {
+      "key": "_common.sh|_dir_reject_symlink|function|114",
+      "reason": "shell novo"
+    },
+    {
+      "key": "_common.sh|_liaison_conference_ok|function|353",
+      "reason": "shell novo"
+    },
+    {
+      "key": "_common.sh|_liaison_hub_io|function|184",
+      "reason": "shell novo"
+    },
+    {
+      "key": "_common.sh|_liaison_push_deadline_s|function|25",
+      "reason": "shell novo"
+    },
+    {
+      "key": "_common.sh|_liaison_test_barrier|function|36",
+      "reason": "shell novo"
+    },
+    {
+      "key": "_common.sh|_liaison_unique_suffix|function|176",
+      "reason": "shell novo"
+    },
+    {
+      "key": "approval-log.sh|validate_approvals|function|118",
+      "reason": "shell novo"
+    },
+    {
+      "key": "arg-guards.sh|forge_reject_flag_as_value|function|64",
+      "reason": "shell novo"
+    },
+    {
+      "key": "arg-guards.sh|forge_reject_unknown|function|28",
+      "reason": "shell novo"
+    },
+    {
+      "key": "arg-guards.sh|forge_require_value|function|96",
+      "reason": "shell novo"
+    },
+    {
+      "key": "arvore-rastreada.sh|arvore_confere|function|88",
+      "reason": "shell novo"
+    },
+    {
+      "key": "arvore-rastreada.sh|arvore_retrato|function|140",
+      "reason": "shell novo"
+    },
+    {
+      "key": "arvore-rastreada.sh|arvore_sentinela_fim|function|154",
+      "reason": "shell novo"
+    },
+    {
+      "key": "arvore-rastreada.sh|arvore_snapshot|function|54",
+      "reason": "shell novo"
+    },
+    {
+      "key": "arvore-rastreada.sh|copia_conferida|function|109",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-ai-attribution.sh|_fail_banner|function|56",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-ai-attribution.sh|_scan_file|function|39",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-ai-attribution.sh|_tmpfile|function|54",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-dockerfile-multiarch.sh|check_file|function|24",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-dockerfile-multiarch.sh|collect_targets|function|15",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-docs-reviewed.sh|_docs_is_user_facing|function|40",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-docs-reviewed.sh|_docs_resolve_base|function|13",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-docs-reviewed.sh|check_docs_reviewed|function|75",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-heavy-mutex.sh|report|function|46",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-push-ahead.sh|fim|function|44",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-push-ahead.sh|now|function|41",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-push-ahead.sh|say_nao|function|43",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-push-ahead.sh|say_ok|function|42",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-push-ahead.sh|yaml_field|function|98",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-red-first.sh|_redfirst_has_fix_commit|function|35",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-red-first.sh|_redfirst_hook_forge_dir|function|75",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-red-first.sh|_redfirst_resolve_base|function|17",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-red-first.sh|_redfirst_resolve_delegated|function|88",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-red-first.sh|_redfirst_should_check|function|56",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-red-first.sh|_redfirst_touched_files|function|52",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-red-first.sh|check_red_first|function|124",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-secrets.sh|_toplevel_of|function|56",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-suppression-reference.sh|_diff_base|function|51",
+      "reason": "shell novo"
+    },
+    {
+      "key": "check-suppression-reference.sh|_resolve_base|function|36",
+      "reason": "shell novo"
+    },
+    {
+      "key": "data-agent-bash-guard.sh|nega|function|23",
+      "reason": "shell novo"
+    },
+    {
+      "key": "deferral-ops.sh|_init_deferrals|function|43",
+      "reason": "shell novo"
+    },
+    {
+      "key": "deferral-ops.sh|_now|function|40",
+      "reason": "shell novo"
+    },
+    {
+      "key": "deferral-ops.sh|_update_open_count|function|47",
+      "reason": "shell novo"
+    },
+    {
+      "key": "deferral-ops.sh|_write_json|function|41",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|_generated_header|function|206",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|_settings_hooks_is_derived|function|230",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|_settings_lib_needs_160_upgrade_warning|function|327",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|adapter_active|function|108",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|canon_scan_scope|function|143",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|check_dotnet|function|1229",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|check_harness|function|85",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|check_java|function|1312",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|check_kotlin|function|1326",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|check_link|function|109",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|check_node|function|1257",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|check_python|function|1292",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|find_marker|function|78",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|have|function|66",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|hint|function|72",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|info|function|70",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|miss|function|69",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|ok|function|68",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|suggest_pack|function|1198",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|tp_sha|function|1104",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|try_install|function|1218",
+      "reason": "shell novo"
+    },
+    {
+      "key": "doctor.sh|warn|function|71",
+      "reason": "shell novo"
+    },
+    {
+      "key": "dotnet-baseline.sh|bad|function|51",
+      "reason": "shell novo"
+    },
+    {
+      "key": "dotnet-baseline.sh|materialize|function|76",
+      "reason": "shell novo"
+    },
+    {
+      "key": "dotnet-baseline.sh|say|function|50",
+      "reason": "shell novo"
+    },
+    {
+      "key": "forge-root.sh|forge_main_root|function|26",
+      "reason": "shell novo"
+    },
+    {
+      "key": "forge-root.sh|forge_resolve_root|function|35",
+      "reason": "shell novo"
+    },
+    {
+      "key": "forge-root.sh|forge_warn_root_divergence|function|78",
+      "reason": "shell novo"
+    },
+    {
+      "key": "forge-root.sh|forge_worktree_root|function|61",
+      "reason": "shell novo"
+    },
+    {
+      "key": "forge-runtime.sh|forge_get_runtime|function|22",
+      "reason": "shell novo"
+    },
+    {
+      "key": "forge-runtime.sh|forge_run_gate|function|47",
+      "reason": "shell novo"
+    },
+    {
+      "key": "forge-runtime.sh|forge_runtime_gate_entries|function|73",
+      "reason": "shell novo"
+    },
+    {
+      "key": "forge-runtime.sh|forge_runtime_gates_phase|function|93",
+      "reason": "shell novo"
+    },
+    {
+      "key": "forge-runtime.sh|forge_runtime_gates|function|33",
+      "reason": "shell novo"
+    },
+    {
+      "key": "fs-union.sh|_fsu_hub|function|123",
+      "reason": "shell novo"
+    },
+    {
+      "key": "fs-union.sh|_fsu_raiz|function|117",
+      "reason": "shell novo"
+    },
+    {
+      "key": "fs-union.sh|t_probe|function|125",
+      "reason": "shell novo"
+    },
+    {
+      "key": "fs-union.sh|t_pull|function|142",
+      "reason": "shell novo"
+    },
+    {
+      "key": "fs-union.sh|t_push|function|140",
+      "reason": "shell novo"
+    },
+    {
+      "key": "fs.sh|_fs_hub|function|38",
+      "reason": "shell novo"
+    },
+    {
+      "key": "fs.sh|_fs_raiz|function|32",
+      "reason": "shell novo"
+    },
+    {
+      "key": "fs.sh|t_probe|function|40",
+      "reason": "shell novo"
+    },
+    {
+      "key": "fs.sh|t_pull|function|57",
+      "reason": "shell novo"
+    },
+    {
+      "key": "fs.sh|t_push|function|55",
+      "reason": "shell novo"
+    },
+    {
+      "key": "gate-ordinal.sh|_local_ordinals|function|72",
+      "reason": "shell novo"
+    },
+    {
+      "key": "gate-universe.sh|forge_universe_check|function|54",
+      "reason": "shell novo"
+    },
+    {
+      "key": "gate-universe.sh|forge_universe_waiver|function|31",
+      "reason": "shell novo"
+    },
+    {
+      "key": "gh.sh|t_probe|function|17",
+      "reason": "shell novo"
+    },
+    {
+      "key": "gh.sh|t_pull|function|25",
+      "reason": "shell novo"
+    },
+    {
+      "key": "gh.sh|t_push|function|23",
+      "reason": "shell novo"
+    },
+    {
+      "key": "git.sh|_git_branch_check|function|76",
+      "reason": "shell novo"
+    },
+    {
+      "key": "git.sh|_git_branch|function|53",
+      "reason": "shell novo"
+    },
+    {
+      "key": "git.sh|_git_checkout_safe|function|136",
+      "reason": "shell novo"
+    },
+    {
+      "key": "git.sh|_git_cleanup_orphans|function|62",
+      "reason": "shell novo"
+    },
+    {
+      "key": "git.sh|_git_descarta_arvore|function|90",
+      "reason": "shell novo"
+    },
+    {
+      "key": "git.sh|_git_descarta_cache_antigo|function|97",
+      "reason": "shell novo"
+    },
+    {
+      "key": "git.sh|_git_init_run|function|149",
+      "reason": "shell novo"
+    },
+    {
+      "key": "git.sh|_git_old_cache|function|55",
+      "reason": "shell novo"
+    },
+    {
+      "key": "git.sh|_git_reject_links|function|121",
+      "reason": "shell novo"
+    },
+    {
+      "key": "git.sh|_git_run_base|function|56",
+      "reason": "shell novo"
+    },
+    {
+      "key": "git.sh|_git_run_dir|function|57",
+      "reason": "shell novo"
+    },
+    {
+      "key": "git.sh|_git_scan_tree|function|106",
+      "reason": "shell novo"
+    },
+    {
+      "key": "git.sh|t_probe|function|166",
+      "reason": "shell novo"
+    },
+    {
+      "key": "git.sh|t_pull|function|398",
+      "reason": "shell novo"
+    },
+    {
+      "key": "git.sh|t_push|function|183",
+      "reason": "shell novo"
+    },
+    {
+      "key": "handoff-gen.sh|fm_field|function|42",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_alive|function|274",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_beneficiary_orphaned|function|658",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_claim|function|739",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_diag|function|416",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_die69|function|71",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_enqueue|function|560",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_ensure_sidecar|function|240",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_escalate_and_reclaim|function|699",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_fmt_age|function|389",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_head_ticket|function|579",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_is_ancestor|function|50",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_leave_queue|function|536",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_lock_age|function|673",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_now_us20|function|524",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_on_exit|function|309",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_on_sig|function|323",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_queue_enabled|function|531",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_queue_report|function|395",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_reclaim_orphan|function|628",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_reentrant_now|function|616",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_release_once|function|302",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_resolve_root|function|91",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_resolve_stale_after|function|820",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_resource|function|223",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_stale_grace|function|686",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_state1|function|270",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_token|function|264",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_yaml_root|function|85",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_yaml_stale_after|function|811",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|_fhm_yaml_timeout|function|793",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|forge_heavy_mutex_acquire|function|841",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|forge_heavy_mutex_arm_trap|function|346",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|forge_heavy_mutex_path|function|490",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|forge_heavy_mutex_release|function|1115",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-mutex.sh|forge_heavy_mutex_status|function|443",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-run.sh|_hr_alias|function|52",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-run.sh|_hr_num|function|153",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-run.sh|_hr_paths|function|89",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-run.sh|_hr_reset_ignored_signals|function|228",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-run.sh|_hr_sig|function|272",
+      "reason": "shell novo"
+    },
+    {
+      "key": "heavy-run.sh|_hr_usage|function|43",
+      "reason": "shell novo"
+    },
+    {
+      "key": "ledger-ops.sh|_asof_valid|function|225",
+      "reason": "shell novo"
+    },
+    {
+      "key": "ledger-ops.sh|_git_date|function|131",
+      "reason": "shell novo"
+    },
+    {
+      "key": "ledger-ops.sh|_init_ledger|function|180",
+      "reason": "shell novo"
+    },
+    {
+      "key": "ledger-ops.sh|_reject_unknown|function|94",
+      "reason": "shell novo"
+    },
+    {
+      "key": "ledger-ops.sh|_render|function|181",
+      "reason": "shell novo"
+    },
+    {
+      "key": "ledger-ops.sh|_require_git_date|function|142",
+      "reason": "shell novo"
+    },
+    {
+      "key": "ledger-ops.sh|_require_value|function|95",
+      "reason": "shell novo"
+    },
+    {
+      "key": "ledger-ops.sh|_resolve_stale_days|function|195",
+      "reason": "shell novo"
+    },
+    {
+      "key": "ledger-ops.sh|_validate_enum_field|function|157",
+      "reason": "shell novo"
+    },
+    {
+      "key": "ledger-ops.sh|_write_json|function|179",
+      "reason": "shell novo"
+    },
+    {
+      "key": "liaison-ops.sh|_apply_bundle|function|287",
+      "reason": "shell novo"
+    },
+    {
+      "key": "liaison-ops.sh|_baton_flags|function|204",
+      "reason": "shell novo"
+    },
+    {
+      "key": "liaison-ops.sh|_baton_resolve_session|function|177",
+      "reason": "shell novo"
+    },
+    {
+      "key": "liaison-ops.sh|_chan_ok|function|149",
+      "reason": "shell novo"
+    },
+    {
+      "key": "liaison-ops.sh|_git_date|function|147",
+      "reason": "shell novo"
+    },
+    {
+      "key": "liaison-ops.sh|_id_ok|function|148",
+      "reason": "shell novo"
+    },
+    {
+      "key": "liaison-ops.sh|_load_transport|function|256",
+      "reason": "shell novo"
+    },
+    {
+      "key": "liaison-ops.sh|_native_ancestor_is_claude|function|575",
+      "reason": "shell novo"
+    },
+    {
+      "key": "liaison-ops.sh|_native_operator_guard|function|596",
+      "reason": "shell novo"
+    },
+    {
+      "key": "liaison-ops.sh|_native_state_dir|function|564",
+      "reason": "shell novo"
+    },
+    {
+      "key": "liaison-ops.sh|_read_self|function|216",
+      "reason": "shell novo"
+    },
+    {
+      "key": "liaison-ops.sh|_read_transport|function|232",
+      "reason": "shell novo"
+    },
+    {
+      "key": "liaison-ops.sh|_reject_unknown|function|161",
+      "reason": "shell novo"
+    },
+    {
+      "key": "liaison-ops.sh|_render|function|381",
+      "reason": "shell novo"
+    },
+    {
+      "key": "liaison-ops.sh|_resolve_cross_session|function|458",
+      "reason": "shell novo"
+    },
+    {
+      "key": "liaison-ops.sh|_scan_secret_or_fail|function|396",
+      "reason": "shell novo"
+    },
+    {
+      "key": "liaison-ops.sh|_write_body_blob|function|421",
+      "reason": "shell novo"
+    },
+    {
+      "key": "manual.sh|_manual_hub|function|30",
+      "reason": "shell novo"
+    },
+    {
+      "key": "manual.sh|t_probe|function|19",
+      "reason": "shell novo"
+    },
+    {
+      "key": "manual.sh|t_pull|function|37",
+      "reason": "shell novo"
+    },
+    {
+      "key": "manual.sh|t_push|function|35",
+      "reason": "shell novo"
+    },
+    {
+      "key": "node-baseline.sh|bad|function|55",
+      "reason": "shell novo"
+    },
+    {
+      "key": "node-baseline.sh|say|function|54",
+      "reason": "shell novo"
+    },
+    {
+      "key": "on-post-tool-use.sh|_baton_auto_renew_false|function|35",
+      "reason": "shell novo"
+    },
+    {
+      "key": "on-post-tool-use.sh|_claim_msgid|function|194",
+      "reason": "shell novo"
+    },
+    {
+      "key": "on-post-tool-use.sh|_consume_publish_results|function|204",
+      "reason": "shell novo"
+    },
+    {
+      "key": "on-post-tool-use.sh|_emit_context|function|183",
+      "reason": "shell novo"
+    },
+    {
+      "key": "on-post-tool-use.sh|_extract_holders|function|88",
+      "reason": "shell novo"
+    },
+    {
+      "key": "on-post-tool-use.sh|_flush_context|function|186",
+      "reason": "shell novo"
+    },
+    {
+      "key": "on-post-tool-use.sh|_mark_warned_once|function|147",
+      "reason": "shell novo"
+    },
+    {
+      "key": "on-post-tool-use.sh|_rebuild_cold|function|113",
+      "reason": "shell novo"
+    },
+    {
+      "key": "on-post-tool-use.sh|_remove_holder_entry|function|127",
+      "reason": "shell novo"
+    },
+    {
+      "key": "on-post-tool-use.sh|_stat_mtime_ms|function|71",
+      "reason": "shell novo"
+    },
+    {
+      "key": "on-post-tool-use.sh|_stat_size|function|70",
+      "reason": "shell novo"
+    },
+    {
+      "key": "on-post-tool-use.sh|_yaml_auto|function|24",
+      "reason": "shell novo"
+    },
+    {
+      "key": "on-session-end.sh|_yaml_auto|function|21",
+      "reason": "shell novo"
+    },
+    {
+      "key": "on-session-start.sh|_yaml_auto|function|17",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|adb_bench_reachable|function|167",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|cmd_activate|function|254",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|cmd_deactivate|function|329",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|cmd_scan|function|290",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|cmd_status|function|217",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|cmd_strix|function|1190",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|has_pentest_config|function|78",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|has_pentest_strix_config|function|461",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|main|function|1230",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|not_configured_notice|function|175",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|pentest_cfg_strix_list|function|439",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|pentest_cfg_strix|function|412",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|pentest_cfg|function|59",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|pentest_check_entrypoint|function|140",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|pentest_compose_image|function|101",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|pentest_frontmatter_of|function|402",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|pentest_resolve_image|function|124",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|pentest_tool_dir|function|82",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|print_adb_security_warning|function|157",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|print_bench_only_warning|function|152",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|print_strix_authorized_use_warning|function|1069",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|resolve_apk|function|188",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|resolve_forge_md|function|43",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|run_to|function|146",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_child_env|function|503",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_cmd_preflight|function|1079",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_cmd_report|function|1169",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_cmd_scan|function|1093",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_cmd_status|function|1143",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_conditions_examined|function|940",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_engine_sha256|function|962",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_evaluate_conditions|function|927",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_findings_dir|function|491",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_has_dotdot_segment|function|513",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_is_blank|function|535",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_is_safe_run_id|function|567",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_is_valid_cfg_key|function|551",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_kv_read|function|635",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_kv|function|998",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_manifest_write|function|1003",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_not_configured_notice|function|1074",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_overall_verdict|function|948",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_r1_check|function|591",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_r2_check|function|642",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_r3_check|function|731",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_r4_check|function|742",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_r5_check|function|762",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_r6_check|function|777",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_r7_check|function|801",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_r8_check|function|857",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_r8_roots|function|846",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_r9_check|function|901",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_run_id|function|969",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_sanitize|function|982",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_scan_mode|function|475",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_set_verdict|function|579",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_target_kind|function|520",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|strix_timeout_s|function|485",
+      "reason": "shell novo"
+    },
+    {
+      "key": "pentest-ops.sh|usage|function|1211",
+      "reason": "shell novo"
+    },
+    {
+      "key": "prevent-aws-credentials-read.sh|ler_campo|function|37",
+      "reason": "shell novo"
+    },
+    {
+      "key": "prevent-secrets-leak.sh|b64dec|function|50",
+      "reason": "shell novo"
+    },
+    {
+      "key": "red-evidence.sh|_manifest_is_defect_fixing|function|65",
+      "reason": "shell novo"
+    },
+    {
+      "key": "resolve-skill.sh|_check_required_files|function|40",
+      "reason": "shell novo"
+    },
+    {
+      "key": "run-all.sh|classificar|function|94",
+      "reason": "shell novo"
+    },
+    {
+      "key": "run-all.sh|run_one|function|125",
+      "reason": "shell novo"
+    },
+    {
+      "key": "scaffold-markers.mjs|hasScaffoldMarkers|function|13",
+      "reason": "arrow function"
+    },
+    {
+      "key": "scan-exclude.sh|forge_find_prune_args|function|36",
+      "reason": "shell novo"
+    },
+    {
+      "key": "scan-exclude.sh|forge_scan_skip|function|52",
+      "reason": "shell novo"
+    },
+    {
+      "key": "smoke-adapters.sh|is_active|function|18",
+      "reason": "shell novo"
+    },
+    {
+      "key": "spec-advance-module.sh|idx_of|function|62",
+      "reason": "shell novo"
+    },
+    {
+      "key": "spec-advance-module.sh|step_to|function|79",
+      "reason": "shell novo"
+    },
+    {
+      "key": "spec-new.sh|fill|function|64",
+      "reason": "shell novo"
+    },
+    {
+      "key": "spec-transition.sh|in_chain|function|58",
+      "reason": "shell novo"
+    },
+    {
+      "key": "spec-verify.sh|_redfirst_status|function|242",
+      "reason": "shell novo"
+    },
+    {
+      "key": "spec-verify.sh|run_check|function|133",
+      "reason": "shell novo"
+    },
+    {
+      "key": "validate-frontmatter.sh|check_file|function|35",
+      "reason": "shell novo"
+    },
+    {
+      "key": "validate-frontmatter.sh|field_block|function|27",
+      "reason": "shell novo"
+    },
+    {
+      "key": "validate-frontmatter.sh|frontmatter|function|25",
+      "reason": "shell novo"
+    },
+    {
+      "key": "validate-spec.sh|run_one|function|26",
+      "reason": "shell novo"
+    },
+    {
+      "key": "wave-ops.sh|_now|function|42",
+      "reason": "shell novo"
+    },
+    {
+      "key": "wave-ops.sh|_read_json|function|44",
+      "reason": "shell novo"
+    },
+    {
+      "key": "wave-ops.sh|_write_json|function|46",
+      "reason": "shell novo"
+    },
+    {
+      "key": "worktree-classify.sh|forge_wt_classify|function|91",
+      "reason": "shell novo"
+    },
+    {
+      "key": "worktree-classify.sh|forge_wt_default_refs|function|137",
+      "reason": "shell novo"
+    },
+    {
+      "key": "worktree-classify.sh|forge_wt_head_branch|function|32",
+      "reason": "shell novo"
+    },
+    {
+      "key": "worktree-classify.sh|forge_wt_ignored_present|function|50",
+      "reason": "shell novo"
+    },
+    {
+      "key": "worktree-classify.sh|forge_wt_is_ancestor|function|63",
+      "reason": "shell novo"
+    },
+    {
+      "key": "worktree-classify.sh|forge_wt_is_detached|function|39",
+      "reason": "shell novo"
+    },
+    {
+      "key": "worktree-classify.sh|forge_wt_merged_state|function|73",
+      "reason": "shell novo"
+    },
+    {
+      "key": "worktree-classify.sh|forge_wt_naoverificado_causa|function|115",
+      "reason": "shell novo"
+    },
+    {
+      "key": "worktree-classify.sh|forge_wt_ref_exists|function|59",
+      "reason": "shell novo"
+    },
+    {
+      "key": "worktree-classify.sh|forge_wt_tracked_dirty|function|43",
+      "reason": "shell novo"
+    },
+    {
+      "key": "worktree-reconcile.sh|_wtr_ls_remote_once|function|212",
+      "reason": "shell novo"
+    },
+    {
+      "key": "worktree-reconcile.sh|_wtr_remote_cache_file|function|243",
+      "reason": "shell novo"
+    },
+    {
+      "key": "worktree-reconcile.sh|_wtr_remote_sha|function|265",
+      "reason": "shell novo"
+    },
+    {
+      "key": "worktree-reconcile.sh|_wtr_yaml_field|function|192",
+      "reason": "shell novo"
+    },
+    {
+      "key": "worktree-reconcile.sh|print_block|function|274",
+      "reason": "shell novo"
+    }
+  ]
+}

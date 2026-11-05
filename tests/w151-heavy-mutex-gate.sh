@@ -310,8 +310,12 @@ t4b="$(PATH="$BOX/stub:$PATH" LIBP="$LIB" LC_TIME=fr_FR.UTF-8 \
 # Controle negativo, no mesmo fôlego: a MESMA leitura SEM o LC_ALL=C tem de divergir. Sem ele o
 # cenário passaria idêntico com a fixação removida da biblioteca — que é exatamente a mutação que
 # ele existe para matar.
-t4x="$(PATH="$BOX/stub:$PATH" LC_TIME=C            ps -o lstart= -p $$ 2>/dev/null | tr -s ' ' | sed 's/^ *//;s/ *$//')"
-t4y="$(PATH="$BOX/stub:$PATH" LC_TIME=fr_FR.UTF-8  ps -o lstart= -p $$ 2>/dev/null | tr -s ' ' | sed 's/^ *//;s/ *$//')"
+# LC_ALL= explícito: o controle negativo precisa exercitar a precedência LC_ALL > LC_TIME.
+# Sem zerar LC_ALL, um ambiente que o exporta (o shell do agente exporta LC_ALL=C.UTF-8 neste
+# Mac) faz as duas leituras caírem no mesmo ramo do stub e o cenário reprova por herança do
+# ambiente, não por defeito do código — o mesmo acoplamento que o sujeito fabricado removeu.
+t4x="$(PATH="$BOX/stub:$PATH" LC_ALL= LC_TIME=C            ps -o lstart= -p $$ 2>/dev/null | tr -s ' ' | sed 's/^ *//;s/ *$//')"
+t4y="$(PATH="$BOX/stub:$PATH" LC_ALL= LC_TIME=fr_FR.UTF-8  ps -o lstart= -p $$ 2>/dev/null | tr -s ' ' | sed 's/^ *//;s/ *$//')"
 [ "$t4x" != "$t4y" ] \
   || { echo "FAIL [T4]: sem LC_ALL=C a leitura NÃO divergiu ('$t4x' vs '$t4y') — o cenário passaria com a fixação removida, e a estabilidade medida acima não teria causa provada"; exit 1; }
 echo "OK [T4]"

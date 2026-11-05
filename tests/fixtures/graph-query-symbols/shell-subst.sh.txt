@@ -1,0 +1,18 @@
+x="$(grep -E 'pat' "$y" 'z')"
+after_dq_subst() {
+  echo ok
+}
+
+w="`grep "$y"`"
+after_backtick_subst() {
+  echo ok
+}
+
+orphans="$(node -e '
+const a = 1;
+const b = "`not a close`";
+console.log(a + b);
+')"
+after_multiline_node_subst() {
+  echo ok
+}

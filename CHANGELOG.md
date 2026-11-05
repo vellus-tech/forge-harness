@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [0.21.0] (2026-11-05)
+
+### Added
+
+- **`graph.sh query`/`symbols` passam a buscar por nome de símbolo (classe/função), não só por caminho de arquivo (change `fix-graph-query-symbols-fusion`).** O `query <termo>` agora devolve uma seção `symbols (N):` ranqueada (correspondência exata, prefixo e substring, com desempate determinístico por nome/arquivo/linha) junto de `nodes`/`edges`, mostrando arquivo e linha da declaração; a saída se degrada graciosamente para nodes/edges-only quando `symbols.json` está ausente, corrompido ou em formato legado, sem nunca lançar erro. O universo coberto por `symbols` foi ampliado para incluir arquivos `.sh` e caminhos declarados em `include_paths`, antes fora do extrator. `graph.sh update` deixa de prometer que "nada é reprocessado": o walk e a extração sempre são refeitos por completo (determinístico), e cada artefato (`graph.json`, `fingerprints.json`, `summaries.json`, `symbols.json`, `symbols.idx.tsv`) só é regravado em disco quando o conteúdo realmente muda, com `symbols.json`/`.tsv` tratando `{mtime,size}` como parte da comparação (edição que não move a linha da declaração ainda assim marca defasagem). Gate `tests/w344-graph-query-symbols-gate.sh`.
+
 ## [0.20.0] (2026-11-03)
 
 ### Added
@@ -921,7 +927,11 @@ consolidação (Fase 8) + code graph com insights de arquitetura.
 - Toda a camada Quality (eval/meta) é **opt-in** (`quality.evals_enabled: false` por default).
 - Pendente para v0.1.0 final: teste manual em Claude Code real (contrato C10) + remoção dos wrappers deprecados.
 
-[Unreleased]: https://github.com/vellus-tech/forge-harness/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/vellus-tech/forge-harness/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/vellus-tech/forge-harness/compare/v0.20.0...v0.21.0
+[0.20.0]: https://github.com/vellus-tech/forge-harness/compare/v0.19.0...v0.20.0
+[0.19.0]: https://github.com/vellus-tech/forge-harness/compare/v0.18.0...v0.19.0
+[0.18.0]: https://github.com/vellus-tech/forge-harness/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/vellus-tech/forge-harness/compare/v0.16.0...v0.17.0
 [0.1.0-rc12]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc11...v0.1.0-rc12
 [0.1.0-rc11]: https://github.com/vellus-tech/forge-harness/compare/v0.1.0-rc10...v0.1.0-rc11

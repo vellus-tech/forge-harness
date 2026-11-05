@@ -68,4 +68,59 @@ node -e '
 ' "$S"
 echo "OK [3]"
 
+echo "[9b] universo ampliado via wrapper standalone (.sh / include_paths — STORY-04/TASK-07)"
+T2="$(mktemp -d /tmp/forge-sym9b.XXXXXX)"
+mkdir -p "$T2/.forge/graph" "$T2/scripts" "$T2/.hidden"
+cat > "$T2/scripts/deploy.sh" <<'EOF'
+#!/usr/bin/env bash
+run_deploy() {
+  echo deploying
+}
+EOF
+cat > "$T2/.hidden/secret.ts" <<'EOF'
+export function hiddenFn() { return 1; }
+EOF
+cat > "$T2/.forge/FORGE.md" <<'EOF'
+---
+codegraph:
+  include_paths:
+    - .hidden
+---
+# FORGE
+EOF
+node "$LIB" "$T2" >/dev/null
+S2="$T2/.forge/graph/symbols.json"
+node -e '
+  const s=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
+  const names=s.symbols.map(x=>x.name);
+  if(!names.includes("run_deploy")) throw new Error("função shell run_deploy não indexada pelo wrapper standalone");
+  if(!names.includes("hiddenFn")) throw new Error("include_paths não foi herdado pelo wrapper standalone (.hidden/ deveria entrar)");
+' "$S2" || { echo "FAIL [9b]: universo ampliado (.sh/include_paths) não herdado pelo wrapper standalone"; exit 1; }
+rm -rf "$T2"
+echo "OK [9b]"
+
+echo "[25] graph.sh symbols isolado não altera graph.json/fingerprints.json/report.md (regressão — STORY-04/TASK-07)"
+T3="$(mktemp -d /tmp/forge-sym25.XXXXXX)"
+mkdir -p "$T3/src"
+cat > "$T3/src/a.ts" <<'EOF'
+export class A {}
+EOF
+cp -R "$WS/template/.forge" "$T3/.forge"
+FORGE_ROOT="$T3" bash "$T3/.forge/scripts/graph.sh" build >/dev/null
+GJ="$T3/.forge/graph/graph.json"
+FP="$T3/.forge/graph/cache/fingerprints.json"
+RM="$T3/.forge/graph/report.md"
+mtime_gj1="$(node -e 'console.log(require("fs").statSync(process.argv[1]).mtimeMs)' "$GJ")"
+mtime_fp1="$(node -e 'console.log(require("fs").statSync(process.argv[1]).mtimeMs)' "$FP")"
+mtime_rm1="$(node -e 'console.log(require("fs").statSync(process.argv[1]).mtimeMs)' "$RM")"
+FORGE_ROOT="$T3" bash "$T3/.forge/scripts/graph.sh" symbols >/dev/null
+mtime_gj2="$(node -e 'console.log(require("fs").statSync(process.argv[1]).mtimeMs)' "$GJ")"
+mtime_fp2="$(node -e 'console.log(require("fs").statSync(process.argv[1]).mtimeMs)' "$FP")"
+mtime_rm2="$(node -e 'console.log(require("fs").statSync(process.argv[1]).mtimeMs)' "$RM")"
+[ "$mtime_gj1" = "$mtime_gj2" ] || { echo "FAIL [25]: graph.json alterado por graph.sh symbols isolado"; exit 1; }
+[ "$mtime_fp1" = "$mtime_fp2" ] || { echo "FAIL [25]: fingerprints.json alterado por graph.sh symbols isolado"; exit 1; }
+[ "$mtime_rm1" = "$mtime_rm2" ] || { echo "FAIL [25]: report.md alterado por graph.sh symbols isolado"; exit 1; }
+rm -rf "$T3"
+echo "OK [25]"
+
 echo "OK"

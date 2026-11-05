@@ -350,7 +350,20 @@ EOF
   echo "OK [premise-mutation-3] — a chamada em §3.7 é a causa real do coding-loop-wiring-2"
 
   _scn "[premise-mutation-4] pré-condição de retomada 1 (implement.md, preflight): removê-la faz implement-wiring-4 cair"
-  _check_resume1() { PRE1="$(awk '/^1\. Status \`tasks-ready\`/{f=1} f{print} /^2\./{exit}' "$IMPL")"; grep -qiE 'recuse a retomada' <<<"$PRE1"; }
+  _check_resume1() {
+    # sed em vez de awk: o range é o mesmo, mas o runner de CI (mawk/Ubuntu) não deixava claro
+    # qual ponta faltava quando o controle falhava. O diagnóstico viaja no log do controle.
+    local PRE1
+    PRE1="$(sed -n '/^1\. Status `tasks-ready`/,/^2\./p' "$IMPL")"
+    if [ -z "$PRE1" ]; then
+      echo "seção de preflight vazia em $IMPL (linhas=$(wc -l < "$IMPL" 2>/dev/null || echo '?'))"
+      return 1
+    fi
+    grep -qiE 'recuse a retomada' <<<"$PRE1" || {
+      echo "frase ausente na seção de preflight de $IMPL: $(printf '%s' "$PRE1" | head -c 160)"
+      return 1
+    }
+  }
   _mutate_and_check premise-mutation-4 "$IMPL" 's/\*\*recuse a retomada\*\*/**aceite a retomada**/' _check_resume1
   echo "OK [premise-mutation-4] — a pré-condição no preflight do implement.md é a causa real do implement-wiring-4"
 

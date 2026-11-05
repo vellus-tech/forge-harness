@@ -240,7 +240,10 @@ executados=$((executados + 1))
 UNIV=()
 while IFS= read -r _f; do
   [ -n "$_f" ] && UNIV+=("$WS/$_f")
-done < <(git -C "$WS" ls-files tests/ 2>/dev/null)
+# Corpus congelado do gate w344: são cópias de arquivos de produção usadas como DADOS de
+# comparação pelo cenário [18]; nunca são sourced nem executadas. Sem a exclusão, o detector
+# lê o texto como se fossem gates e acusa as escritas legítimas dos scripts copiados.
+done < <(git -C "$WS" ls-files tests/ 2>/dev/null | grep -vE '^tests/fixtures/graph-query-symbols/corpus-snapshot(-shell)?/')
 PISO="${#UNIV[@]}"
 if [ "$PISO" -eq 0 ]; then
   _falha "[1] universo-vazio: 'git ls-files tests/' devolveu zero arquivo — o denominador não pode ser derivado"
@@ -265,7 +268,7 @@ else
   if [ "${exam1:-0}" -ne "$PISO" ]; then
     _falha "[2] o detector examinou ${exam1:-0} arquivo(s) e o universo derivado tem $PISO — o [1] leria menos do que afirma"
   else
-    echo "OK [2] — $exam1 arquivo(s) examinado(s), igual ao piso derivado de 'git ls-files tests/' ($PISO)"
+    echo "OK [2] — $exam1 arquivo(s) examinado(s), igual ao piso derivado de 'git ls-files tests/' menos o corpus congelado ($PISO)"
   fi
 fi
 

@@ -8,56 +8,49 @@
 //
 // Usage: graph-build.mjs <repo-root> [--out <dir>]
 // Output: "OK .forge/graph/graph.json (N nodes, M edges; S summaries stale)" or "FAIL (...)".
-import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from 'node:fs';
-import { join, resolve, relative, extname, dirname, basename } from 'node:path';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, renameSync } from 'node:fs';
+import { join, resolve, relative, extname, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 import { readForgeFrontmatter, compileLayerMap, resolveLayer, layerCoverage } from './graph-layers.mjs';
+import { walkSourceFiles, LANG } from './graph-walk.mjs';
+import { extractSymbols, assembleSymbolsArtifacts } from './graph-symbols-extract.mjs';
 
 const root = resolve(process.argv[2] || '.');
 const outArg = process.argv.indexOf('--out');
 const outDir = outArg >= 0 ? resolve(process.argv[outArg + 1]) : join(root, '.forge/graph');
 const cacheDir = join(outDir, 'cache');
+// --if-changed (STORY-04/TASK-06, DD-05): só passado por `graph.sh update`, nunca por `build`
+// (build sempre regrava, semântica preservada). A RECONSTRUÇÃO é sempre completa e
+// determinística (walk + extração inteiros, nenhum atalho) — a única coisa que `--if-changed`
+// pula é a ESCRITA quando o conteúdo novo é idêntico ao que já está em disco. Isso é o que
+// corrige a defasagem presa do fingerprint estrutural (REQ-04): symbols.json/idx.tsv comparam
+// {mtime,size} por símbolo (incluídos na comparação, nunca excluídos), então editar só o corpo
+// de uma função — que não muda o fingerprint estrutural de arquivo — ainda assim regrava.
+const ifChanged = process.argv.includes('--if-changed');
 
-// Build/output/vendored dirs are excluded: they hold generated artifacts (minified
-// bundles, archived copies) that pollute the graph with non-source nodes (G2).
-//
-// `bin` is deliberately NOT here. The name means opposite things in different ecosystems: in
-// .NET/Java it is where the compiler writes output, in Node it is the entrypoint declared in
-// package.json — source code by any definition. Skipping it by name removed the CLI entrypoint
-// from the graph of every Node project, silently, and /forge:impact, /forge:onboard and
-// /forge:c4 all read that graph. The .NET meaning is handled by SKIP_UNDER_BIN below, which is
-// contextual: only the build-output subdirectories of a `bin/` are pruned.
-const SKIP_DIRS = new Set([
-  'node_modules', '.git', 'dist', 'build', 'out', 'obj', '.forge', 'coverage',
-  '.next', 'vendor', 'storybook-static', 'wwwroot', '_archive', 'TestResults',
-  '.vs', '.idea', '.venv', '__pycache__', '.turbo', '.cache',
-]);
-// Subdirectories of a `bin/` that are compiler output (.NET/Java): bin/Debug, bin/Release,
-// bin/x64, bin/net8.0, … Pruned only when the PARENT directory is literally `bin` — a
-// `src/Debug/` of someone's own making is not touched. This is what keeps generated `.cs`
-// (which matches LANG) out of the graph now that `bin` itself is walked.
-const SKIP_UNDER_BIN = /^(Debug|Release|x64|x86|AnyCPU|Any CPU|net[0-9]|netstandard|netcoreapp)/i;
-// `.sh`/`.bash` entram como NÓ (lang: shell) e nada além disso (LDG-0027). Um script chamando
-// outro por `bash caminho/x.sh` é dependência real, mas quase sempre via variável resolvida em
-// runtime (`$SCRIPT_DIR/x.sh`, `$ROOT/.forge/scripts/x.sh`) — medido neste próprio repositório,
-// é o idioma dominante em template/.forge/scripts/**. Uma aresta "resolvida" contra um literal de
-// variável não resolvida seria precisão fingida (o oposto do que GO_IMPORT/PY_IMPORT fazem hoje,
-// que ao menos preservam o identificador real, ainda que não resolvido). Nó sem aresta e dito
-// aqui é honesto; aresta fantasma não é. Ver tests/w165-codegraph-scan-roots-gate.sh [3].
-const LANG = { '.js': 'js', '.mjs': 'js', '.cjs': 'js', '.jsx': 'js', '.ts': 'ts', '.tsx': 'ts', '.cs': 'csharp', '.go': 'go', '.py': 'python', '.kt': 'kotlin', '.kts': 'kotlin', '.java': 'java', '.sh': 'shell', '.bash': 'shell' };
-// Broader census map for the coverage rule (§19.5): every programming language worth
-// counting, INCLUDING ones the extractor does not model (swift/rust/…), so `validate
-// graph` can name a dominant language that has no nodes (issue #18). Header-only C/C++
-// extensions (.h/.hpp) are deliberately excluded: they are ambiguous (C vs C++) and are
-// the dominant source of vendored/NDK noise that would falsely outrank real app code.
-// Computed in the SAME walk that builds nodes, so validate never re-walks the tree.
-const CENSUS_EXT = {
-  ...LANG,
-  '.swift': 'swift', '.rb': 'ruby', '.rs': 'rust', '.php': 'php', '.scala': 'scala',
-  '.dart': 'dart', '.cpp': 'cpp', '.cc': 'cpp', '.cxx': 'cpp', '.c': 'c', '.m': 'objc', '.mm': 'objc',
-};
-// Minified/generated files are not source — skip even when they carry a source extension (G2).
-const SKIP_FILE = /\.min\.(js|css)$|\.bundle\.js$/;
+// leitura segura de um JSON em disco: ausente/corrompido ⇒ undefined (nunca propaga exceção).
+function readJsonSafe(p) {
+  try { return JSON.parse(readFileSync(p, 'utf8')); } catch { return undefined; }
+}
+// compara newObj contra o conteúdo ATUAL do arquivo em disco, ignorando as chaves de topo em
+// `stripKeys` (generated_at/root) — nunca contra um cache em memória (DD-05 i). Disco
+// ausente/corrompido conta como "mudou" (escreve incondicionalmente, DD-05 ii).
+function jsonUnchanged(newObj, diskPath, stripKeys = []) {
+  const disk = readJsonSafe(diskPath);
+  if (disk === undefined) return false;
+  const strip = (o) => { const c = { ...o }; for (const k of stripKeys) delete c[k]; return c; };
+  try { return JSON.stringify(strip(newObj)) === JSON.stringify(strip(disk)); } catch { return false; }
+}
+// mesma política para o par texto puro (symbols.idx.tsv — não é JSON).
+function textUnchanged(newText, diskPath) {
+  let disk;
+  try { disk = readFileSync(diskPath, 'utf8'); } catch { return false; }
+  return disk === newText;
+}
+
+// As cinco constantes de poda do walk (SKIP_DIRS, SKIP_UNDER_BIN, CENSUS_EXT, LANG, SKIP_FILE)
+// agora vivem em graph-walk.mjs (STORY-03/TASK-04, DD-02) — importadas acima, nunca duplicadas.
+// `LANG` continua usada aqui fora do walk (dispatch de extração de import por linguagem).
 
 // ── governance: authz:/observability: blocks from FORGE.md frontmatter (§2.3) ──
 // The frontmatter itself is read once by readForgeFrontmatter (lib/graph-layers.mjs) with the
@@ -108,36 +101,8 @@ function rolesFor(id) {
   return roles;
 }
 
-const census = {}; // census-lang -> file count (walk-populated, persisted in stats)
-function walk(dir, acc = []) {
-  let entries;
-  try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return acc; }
-  for (const e of entries) {
-    const p = join(dir, e.name);
-    // LDG-0027: um caminho declarado em codegraph.include_paths vence o default de "pular" —
-    // tanto o prefixo de ponto quanto SKIP_DIRS/SKIP_UNDER_BIN. Sem declaração (includeGlobs
-    // vazio, o caso de todo projeto consumidor) forcedInclude é sempre false e o walk abaixo é
-    // idêntico ao de antes desta chave existir.
-    const relId = relative(root, p);
-    const forcedInclude = includeGlobs.length > 0 && includeGlobs.some((re) => re.test(relId));
-    if (!forcedInclude && e.name.startsWith('.') && e.name !== '.') continue;
-    if (e.isDirectory()) {
-      if (!forcedInclude) {
-        if (SKIP_DIRS.has(e.name)) continue;
-        // contextual: só poda saída de compilação quando o pai é um `bin/` de verdade
-        if (basename(dir) === 'bin' && SKIP_UNDER_BIN.test(e.name)) continue;
-      }
-      walk(p, acc);
-    }
-    else if (!SKIP_FILE.test(e.name)) {
-      const ext = extname(e.name);
-      const cl = CENSUS_EXT[ext];
-      if (cl) census[cl] = (census[cl] || 0) + 1;
-      if (LANG[ext]) acc.push(p);
-    }
-  }
-  return acc;
-}
+// walk unificado (STORY-03/TASK-04, DD-02): walkSourceFiles é PURA — devolve {files, census} em
+// vez de mutar closure. `census` substitui o antigo objeto mutável por fechamento.
 
 // structural fingerprint: drop whole-line comments and blank lines, then collapse
 // ALL whitespace (including line breaks) to single spaces and sha256. Stable
@@ -200,7 +165,7 @@ function resolveJsTarget(fromFile, spec, fileSet) {
   return null;
 }
 
-const files = walk(root);
+const { files, census } = walkSourceFiles({ root, includeGlobs });
 const fileSet = new Set(files);
 const nodes = [];
 const edges = [];
@@ -267,6 +232,15 @@ function resolveJvmTargets(spec) {
   return [];
 }
 
+// STORY-03/TASK-05 (REQ-03): extractSymbols roda por arquivo dentro deste MESMO walk único — o
+// que já aplica include_paths/SKIP_UNDER_BIN — usando o `src` já lido em srcCache (via read()
+// abaixo). symbolsByFile/layerByFile/mtimeSizeByFile alimentam assembleSymbolsArtifacts depois
+// do loop; `mtime`/`size` vêm do arquivo-fonte (statSync), não da hora do build — dois builds
+// sobre fontes inalteradas produzem symbols.json/idx.tsv byte a byte idênticos.
+const symbolsByFile = [];
+const layerByFile = new Map();
+const mtimeSizeByFile = new Map();
+
 for (const f of files) {
   const src = read(f);
   const lang = LANG[extname(f)];
@@ -281,6 +255,12 @@ for (const f of files) {
   const roles = rolesFor(id);
   if (roles.length) node.roles = roles;
   nodes.push(node);
+
+  const { symbols: fileSymbols, inherit } = extractSymbols(id, lang, src);
+  symbolsByFile.push({ file: id, symbols: fileSymbols, inherit });
+  layerByFile.set(id, layer);
+  const st = statSync(f);
+  mtimeSizeByFile.set(id, { mtime: st.mtimeMs, size: st.size });
 
   if (lang === 'js' || lang === 'ts') {
     for (const m of src.matchAll(JS_IMPORT)) {
@@ -319,8 +299,9 @@ for (const f of files) {
 
 // carry over cached summaries by fingerprint (zero tokens on cosmetic changes)
 let summariesStale = 0;
-const prevSummaries = existsSync(join(cacheDir, 'summaries.json'))
-  ? JSON.parse(readFileSync(join(cacheDir, 'summaries.json'), 'utf8')) : {};
+const cachedSummaries = readJsonSafe(join(cacheDir, 'summaries.json'));
+const prevSummaries = cachedSummaries && typeof cachedSummaries === 'object' && !Array.isArray(cachedSummaries)
+  ? cachedSummaries : {};
 for (const n of nodes) {
   const cached = prevSummaries[n.id];
   if (cached && cached.fingerprint === n.fingerprint && cached.summary) n.summary = cached.summary;
@@ -354,13 +335,22 @@ if (governanceBlocks.authz || governanceBlocks.observability) {
 }
 
 mkdirSync(cacheDir, { recursive: true });
-writeFileSync(join(outDir, 'graph.json'), JSON.stringify(graph, null, 2) + '\n');
+const graphPath = join(outDir, 'graph.json');
+if (!ifChanged || !jsonUnchanged(graph, graphPath, ['generated_at', 'root'])) {
+  writeFileSync(graphPath, JSON.stringify(graph, null, 2) + '\n');
+}
 // fingerprints cache (drives incremental update)
 const fp = {}; for (const n of nodes) fp[n.id] = n.fingerprint;
-writeFileSync(join(cacheDir, 'fingerprints.json'), JSON.stringify(fp, null, 2) + '\n');
+const fingerprintsPath = join(cacheDir, 'fingerprints.json');
+if (!ifChanged || !jsonUnchanged(fp, fingerprintsPath, [])) {
+  writeFileSync(fingerprintsPath, JSON.stringify(fp, null, 2) + '\n');
+}
 // summaries cache (preserve carried-over)
 const sum = {}; for (const n of nodes) if (n.summary) sum[n.id] = { fingerprint: n.fingerprint, summary: n.summary };
-writeFileSync(join(cacheDir, 'summaries.json'), JSON.stringify(sum, null, 2) + '\n');
+const summariesPath = join(cacheDir, 'summaries.json');
+if (!ifChanged || !jsonUnchanged(sum, summariesPath, [])) {
+  writeFileSync(summariesPath, JSON.stringify(sum, null, 2) + '\n');
+}
 // report.md (human-readable, deterministic)
 const cov = graph.stats.layer_coverage;
 const byLayer = {};
@@ -380,6 +370,38 @@ const report = [
   `## Unresolved edges (external deps or unknown targets)`, '',
   `- ${edges.filter((e) => !e.resolved).length} unresolved`, '',
 ].join('\n');
-writeFileSync(join(outDir, 'report.md'), report + '\n');
+const reportPath = join(outDir, 'report.md');
+if (!ifChanged || !textUnchanged(report + '\n', reportPath)) {
+  writeFileSync(reportPath, report + '\n');
+}
+
+// STORY-03/TASK-05 (REQ-03): symbols.json/symbols.idx.tsv — herança resolvida iterando os
+// símbolos em ordem CANÔNICA (file,line), nunca a ordem de readdirSync (design.md DD-02). O
+// array já vem ordenado por `file` aqui (id é o path relativo, símbolos dentro de cada entrada
+// já estão em ordem de linha pela extração) antes de alimentar assembleSymbolsArtifacts —
+// resolveInheritance é pura e, mesmo sob permutação, produz o mesmo resultado (26a/26b), mas a
+// ordem de entrada nunca é a do walk físico.
+const canonicalSymbolsByFile = symbolsByFile.slice().sort((a, b) => a.file.localeCompare(b.file, 'en'));
+const { symbolsJson, idxTsv } = assembleSymbolsArtifacts(canonicalSymbolsByFile, { layerByFile, mtimeSizeByFile });
+const symbolsJsonPath = join(outDir, 'symbols.json');
+const symbolsIdxPath = join(outDir, 'symbols.idx.tsv');
+// comparação INCLUI {mtime,size} por símbolo (nunca excluída — REQ-04): editar só o corpo de uma
+// função já muda size/mtime do arquivo-fonte, então já diverge aqui mesmo sem fingerprint
+// estrutural diferente. Par atômico: se qualquer um dos dois mudou, ambos são regravados juntos
+// (nunca um sem o outro sob --if-changed).
+const symbolsChanged = !ifChanged
+  || !jsonUnchanged(symbolsJson, symbolsJsonPath, [])
+  || !textUnchanged(idxTsv, symbolsIdxPath);
+if (symbolsChanged) {
+  // par atômico (nunca grava um sem o outro): escreve ambos os temporários por completo, só então
+  // renomeia ambos — uma falha a meio da escrita nunca deixa um symbols.json/idx.tsv truncado ou
+  // desacompanhado do seu par no caminho final.
+  const symbolsTmp = join(outDir, '.symbols.json.tmp');
+  const idxTmp = join(outDir, '.symbols.idx.tsv.tmp');
+  writeFileSync(symbolsTmp, JSON.stringify(symbolsJson, null, 2) + '\n');
+  writeFileSync(idxTmp, idxTsv);
+  renameSync(symbolsTmp, symbolsJsonPath);
+  renameSync(idxTmp, symbolsIdxPath);
+}
 
 console.log(`OK .forge/graph/graph.json (${nodes.length} nodes, ${edges.length} edges; ${summariesStale} summaries stale)`);

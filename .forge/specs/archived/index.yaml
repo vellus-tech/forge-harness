@@ -83,3 +83,7 @@ archived:
     archived_at: "2026-11-03"
     kind: baseline_update
     path: 2026-11-03-adopt-ub-mode-practices
+  - change_id: fix-graph-query-symbols-fusion
+    archived_at: "2026-11-04"
+    kind: baseline_update
+    path: 2026-11-04-fix-graph-query-symbols-fusion

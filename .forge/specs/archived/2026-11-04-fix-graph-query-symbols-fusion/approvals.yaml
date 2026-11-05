@@ -1,0 +1,68 @@
+approvals:
+  - gate: requirements_reviewed
+    decision: approve
+    reason: "aprovado pelo usuario em 2026-11-04 apos convergencia de multiplas rodadas (string JS, regex-com-crase JS, $(...)-em-shell, todos medidos e corrigidos); 4 ressalvas pequenas registradas como follow-up para design"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-03T22:50:32-03:00"
+    commit: "5996048e"
+    scope: "bugfix.md"
+  - gate: design_reviewed
+    decision: review
+    reason: "revisor adversarial (opus): 2 CONFLICTs verificaveis (estrategia de Red com stub de producao e recusada por isInfraPath/red-replay.mjs; DD-06 contradiz REQ-07/[17] sobre staleness pos-pull) + blind spots de testabilidade (P4/[26] vacuo no macOS por ordem do readdir), update sem especificar comparacao/recuperacao de JSON corrompido, estado padrao sem sinal ao agente quando symbols.json ausente/legado, CHANGELOG/badge nao fiados"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-04T08:44:53-03:00"
+    iteration: 1
+    commit: "5996048e"
+    scope: "design.md"
+  - gate: design_reviewed
+    decision: review
+    reason: "revisor adversarial rodada 2 (opus): 3 BLOCKERs verificados empiricamente - guarda de CLI import.meta.url==file://argv[1] falha silenciosa no macOS (confirmado em teste real, padrao correto ja existe em 5 libs do projeto via realpathSync); DD-08 (Red vs isInfraPath) com escopo incompleto, deveria valer para TODO arquivo de producao do change (todos sob template/.forge/scripts, nao so os 3 modulos novos); resolveInheritance sem modulo importavel definido (graph-build.mjs tem efeito colateral no import). Mesmo mecanismo das rodadas 1-2, aprofundado, nao escopo novo"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-04T09:00:39-03:00"
+    iteration: 2
+    commit: "f4a6206f"
+    scope: "design.md"
+  - gate: design_reviewed
+    decision: approve
+    reason: "revisor adversarial rodada 3 (opus): PASS, confirmado por leitura de codigo real (kb-cli.mjs:352, red-replay.mjs:929-935, red-classify.mjs:8-28, graph-build.mjs). Os 3 blockers da rodada 2 resolvidos. Unico MISS residual (mecanica de export-ausente no DD-08) corrigido diretamente pelo orquestrador no commit 1e845660 antes do aceite"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-04T09:09:37-03:00"
+    iteration: 3
+    commit: "1e845660"
+    scope: "design.md"
+  - gate: tasks_reviewed
+    decision: review
+    reason: "revisor adversarial (opus): 3 tasks com Red impossivel na maquinaria real (TASK-01 sem test_path/failure_pattern valido, exit 0; TASK-07 ancorada em cenario que ja passa hoje; TASK-15 PBT escrito depois da implementacao, vermelho-passa); w200 reprova de TASK-03 a TASK-13 por badge/contagem nao atualizados por task; .gitignore com premissa falsa (nao tem symbols* hoje); cenarios numéricos repetidos atribuidos a tasks anteriores a funcionalidade que exercitam"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-04T10:47:27-03:00"
+    iteration: 1
+    commit: "b174b297"
+    scope: "tasks.md"
+  - gate: tasks_reviewed
+    decision: review
+    reason: "revisor adversarial rodada 2 (opus): TASK-01 ainda sem Red valido (rc=0 na base, sem assinatura FAIL, test_id fora da saida - mesmo mecanismo da rodada 1 aprofundado); golden pre-mudanca da TASK-02 capturado sobre repositorio vivo (instavel, quebra TASK-09); 2 cenarios [24]/[26] sem sub-id e [27] orfao; TASK-14 declara Red impossivel pra si mesma; fix_files divergentes entre TASK-01 e TASK-14; comparador duplicado sem import fixado"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-04T11:03:34-03:00"
+    iteration: 2
+    commit: "6c5ccde0"
+    scope: "tasks.md"
+  - gate: tasks_reviewed
+    decision: approve
+    reason: "revisor adversarial rodada 3 (opus): PASS, confirmado por leitura real (red-classify.mjs, red-replay.mjs, graph-build.mjs, red-evidence-ops.mjs). Os 2 blockers da rodada 2 e os 6 achados menores resolvidos. 5 itens residuais nao-bloqueantes (FIX nao exportado em repro.sh, symbols.json nao removido antes do controle [1], termo do golden nao fixado em arquivo, justificativa de h1.js com motivo errado, record sem --failure-pattern/--fix-files, export do comparador faltando na TASK-03) corrigidos diretamente pelo orquestrador no commit 110139ad antes do aceite"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-04T11:17:19-03:00"
+    iteration: 3
+    commit: "110139ad"
+    scope: "tasks.md"
+  - gate: implementation_verified
+    decision: approve
+    reason: "finalizacao autorizada pelo dono na sessao de 2026-11-04; w344/w345 verdes, Red observado, revisao adversarial tratada"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-04T20:50:41-03:00"
+    commit: "da581189"
+  - gate: human_archive_approval
+    decision: approve
+    reason: "archive autorizado pelo dono na sessao de 2026-11-04 como parte de finalizar, mergear e publicar a 0.21.0"
+    decided_by: "Milton Antonio da Silva Jr"
+    decided_at: "2026-11-04T20:50:46-03:00"
+    commit: "da581189"

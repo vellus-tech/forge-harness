@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# class Ghost
+echo "class Ghost2"
+
+ok()    {
+  echo "fine"
+}
+
+tp_sha() {
+  local n=${#arr[@]}
+  local p=${var#prefix}
+  local q=${x/a#b/c}
+  local c=$#
+  local ab=a#b
+}
+
+# don't index this
+function suggest_pack() {
+  echo hi
+}

@@ -230,3 +230,4 @@ O núcleo SDD (ciclo completo spec→archive, baseline/archive, code graph, eval
 ## 📄 Licença
 
 [MIT](./LICENSE) © 2026 Milton Antonio da Silva Jr
+

@@ -1,4 +1,11 @@
 #!/usr/bin/env bats
+# run ! (negação que reprova) exige bats 1.5+; "! cmd" no meio do teste não reprova nada
+# (R519/LDG-1626, achado do R508: num `@test` sob `set -e`, uma linha "! cmd" é explicitamente
+# isenta de abortar o shell quando `cmd` sai com sucesso e a negação falha — o bash não trata um
+# pipeline negado por "!" como falha de `set -e`, e como essa linha também não é a última
+# instrução do teste, o resultado errado nunca chega a reprovar nada).
+bats_require_minimum_version 1.5.0
+
 # Claude adapter compatibility contract — structural asserts.
 # Contract clauses: contracts/claude-adapter-contract.md
 #
@@ -182,7 +189,7 @@ PYEOF
   python3 -m json.tool "$CLAUDE_DIR/settings.json" >/dev/null
   grep -q "$HOOK_PATH_FRAGMENT" "$CLAUDE_DIR/settings.json"
   grep -q '"PreToolUse"' "$CLAUDE_DIR/settings.json"
-  ! grep -q 'prevent-secrets-leak.sh' "$CLAUDE_DIR/settings.json"
+  run ! grep -q 'prevent-secrets-leak.sh' "$CLAUDE_DIR/settings.json"
   wired=$(grep -c '"command":' "$CLAUDE_DIR/settings.json")
   [ "$wired" -eq 1 ]
 }
@@ -203,8 +210,8 @@ PYEOF
   grep -q '"matcher": "\^Bash\$"' "$CLAUDE_DIR/settings.json"
   grep -q 'prevent-secrets-leak.sh' "$CLAUDE_DIR/settings.json"
   grep -q 'prevent-aws-credentials-read.sh' "$CLAUDE_DIR/settings.json"
-  ! grep -q 'check-language-policy.sh' "$CLAUDE_DIR/settings.json"
-  ! grep -q 'validate-naming-conventions.sh' "$CLAUDE_DIR/settings.json"
+  run ! grep -q 'check-language-policy.sh' "$CLAUDE_DIR/settings.json"
+  run ! grep -q 'validate-naming-conventions.sh' "$CLAUDE_DIR/settings.json"
   # add-liaison-native-bridge: guard-cross-session-send.sh (matcher ^SendMessage$) nasce armado por
   # padrão em hooks.manifest.default — soma ao trio worktree-guard + prevent-secrets-leak.sh +
   # prevent-aws-credentials-read.sh (ORQ-20261027-105).
